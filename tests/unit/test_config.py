@@ -1,7 +1,6 @@
 """Unit tests for configuration loading."""
 import pytest
-from pathlib import Path
-from models.config import load_config, Config
+from models.config import load_config
 
 
 class TestConfigLoading:
