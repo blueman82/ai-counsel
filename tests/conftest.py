@@ -1,6 +1,6 @@
 """Pytest fixtures for all test modules."""
 import pytest
-from unittest.mock import AsyncMock, Mock
+from unittest.mock import AsyncMock
 from adapters.base import BaseCLIAdapter
 
 
