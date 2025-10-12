@@ -74,10 +74,11 @@ class TestDeliberationEngine:
     @pytest.mark.asyncio
     async def test_execute_round_includes_previous_context(self, mock_adapters):
         """Test that previous responses are included in context."""
+        mock_adapters["claude-code"] = mock_adapters["claude"]
         engine = DeliberationEngine(mock_adapters)
 
         participants = [
-            Participant(cli="claude", model="claude-3-5-sonnet", stance="neutral")
+            Participant(cli="claude-code", model="claude-3-5-sonnet", stance="neutral")
         ]
 
         previous = [
@@ -90,7 +91,7 @@ class TestDeliberationEngine:
             )
         ]
 
-        mock_adapters["claude"].invoke_mock.return_value = "New response"
+        mock_adapters["claude-code"].invoke_mock.return_value = "New response"
 
         await engine.execute_round(
             round_num=2,
@@ -100,8 +101,8 @@ class TestDeliberationEngine:
         )
 
         # Verify invoke was called with context
-        mock_adapters["claude"].invoke_mock.assert_called_once()
-        call_args = mock_adapters["claude"].invoke_mock.call_args
+        mock_adapters["claude-code"].invoke_mock.assert_called_once()
+        call_args = mock_adapters["claude-code"].invoke_mock.call_args
         assert call_args[1]["context"] is not None
         assert "Previous response" in call_args[1]["context"]
 
