@@ -45,14 +45,15 @@ class TestDeliberationEngine:
     @pytest.mark.asyncio
     async def test_execute_round_multiple_participants(self, mock_adapters):
         """Test executing single round with multiple participants."""
+        mock_adapters["claude-code"] = mock_adapters["claude"]
         engine = DeliberationEngine(mock_adapters)
 
         participants = [
-            Participant(cli="claude", model="claude-3-5-sonnet", stance="for"),
+            Participant(cli="claude-code", model="claude-3-5-sonnet", stance="for"),
             Participant(cli="codex", model="gpt-4", stance="against"),
         ]
 
-        mock_adapters["claude"].invoke_mock.return_value = "Claude says yes"
+        mock_adapters["claude-code"].invoke_mock.return_value = "Claude says yes"
         mock_adapters["codex"].invoke_mock.return_value = "Codex says no"
 
         responses = await engine.execute_round(
@@ -63,7 +64,7 @@ class TestDeliberationEngine:
         )
 
         assert len(responses) == 2
-        assert responses[0].participant == "claude"
+        assert responses[0].participant == "claude-code"
         assert responses[0].stance == "for"
         assert responses[0].response == "Claude says yes"
         assert responses[1].participant == "codex"
