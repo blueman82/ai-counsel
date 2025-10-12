@@ -1,0 +1,28 @@
+# ai-counsel/config.yaml
+version: "1.0"
+
+cli_tools:
+  claude-code:
+    command: "claude-code"
+    args: ["--model", "{model}", "--prompt", "{prompt}"]
+    timeout: 60
+
+  codex:
+    command: "codex"
+    args: ["--model", "{model}", "{prompt}"]
+    timeout: 60
+
+defaults:
+  mode: "quick"
+  rounds: 2
+  max_rounds: 5
+  timeout_per_round: 120
+
+storage:
+  transcripts_dir: "transcripts"
+  format: "markdown"
+  auto_export: true
+
+deliberation:
+  convergence_threshold: 0.8
+  enable_convergence_detection: true
