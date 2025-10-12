@@ -149,7 +149,8 @@ class TestDeliberationEngine:
         )
 
         call_args = mock_adapters["claude-code"].invoke_mock.call_args
-        assert call_args[1]["model"] == "claude-3-opus"
+        # Args are: (prompt, model, context)
+        assert call_args[0][1] == "claude-3-opus"  # model is 2nd positional arg
 
     @pytest.mark.asyncio
     async def test_execute_round_timestamp_format(self, mock_adapters):
