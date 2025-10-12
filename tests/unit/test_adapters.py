@@ -33,7 +33,7 @@ class TestClaudeCodeAdapter:
         assert adapter.command == "claude-code"
         assert adapter.timeout == 90
 
-    @patch('adapters.claude_code.asyncio.create_subprocess_exec')
+    @patch('adapters.base.asyncio.create_subprocess_exec')
     async def test_invoke_success(self, mock_subprocess):
         """Test successful CLI invocation."""
         # Mock subprocess
