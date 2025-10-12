@@ -91,3 +91,54 @@ class DeliberationEngine:
             )
 
         return "\n".join(context_parts)
+
+    async def execute(self, request: "DeliberateRequest") -> "DeliberationResult":
+        """
+        Execute full deliberation with multiple rounds.
+
+        Args:
+            request: Deliberation request
+
+        Returns:
+            Complete deliberation result
+        """
+        from models.schema import DeliberateRequest, DeliberationResult, Summary
+
+        # Determine actual rounds to execute
+        # Note: quick mode doesn't override rounds, it just influences other behavior
+        rounds_to_execute = request.rounds
+
+        # Execute rounds sequentially
+        all_responses = []
+        for round_num in range(1, rounds_to_execute + 1):
+            round_responses = await self.execute_round(
+                round_num=round_num,
+                prompt=request.question,
+                participants=request.participants,
+                previous_responses=all_responses
+            )
+            all_responses.extend(round_responses)
+
+        # Generate summary (placeholder for now)
+        summary = Summary(
+            consensus="Generated summary placeholder",
+            key_agreements=["Agreement 1", "Agreement 2"],
+            key_disagreements=["Disagreement 1"],
+            final_recommendation="Recommendation placeholder"
+        )
+
+        # Build participant list
+        participant_ids = [
+            f"{p.model}@{p.cli}"
+            for p in request.participants
+        ]
+
+        return DeliberationResult(
+            status="complete",
+            mode=request.mode,
+            rounds_completed=rounds_to_execute,
+            participants=participant_ids,
+            summary=summary,
+            transcript_path="",  # Will be set by transcript manager
+            full_debate=all_responses
+        )
