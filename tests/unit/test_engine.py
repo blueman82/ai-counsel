@@ -174,3 +174,63 @@ class TestDeliberationEngine:
         timestamp = responses[0].timestamp
         # Verify it's a valid ISO format timestamp
         datetime.fromisoformat(timestamp)
+
+
+class TestDeliberationEngineMultiRound:
+    """Tests for DeliberationEngine multi-round execution."""
+
+    @pytest.mark.asyncio
+    async def test_execute_multiple_rounds(self, mock_adapters):
+        """Test executing multiple rounds of deliberation."""
+        from models.schema import DeliberateRequest
+
+        mock_adapters["claude-code"] = mock_adapters["claude"]
+        engine = DeliberationEngine(mock_adapters)
+
+        request = DeliberateRequest(
+            question="What is the best programming language?",
+            participants=[
+                Participant(cli="claude-code", model="claude-3-5-sonnet", stance="neutral"),
+                Participant(cli="codex", model="gpt-4", stance="neutral"),
+            ],
+            rounds=3,
+            mode="quick"
+        )
+
+        mock_adapters["claude-code"].invoke_mock.return_value = "Claude response"
+        mock_adapters["codex"].invoke_mock.return_value = "Codex response"
+
+        result = await engine.execute(request)
+
+        # Verify result structure
+        assert result.status == "complete"
+        assert result.rounds_completed == 3
+        assert len(result.full_debate) == 6  # 3 rounds * 2 participants
+        assert len(result.participants) == 2
+
+    @pytest.mark.asyncio
+    async def test_execute_context_builds_across_rounds(self, mock_adapters):
+        """Test that context accumulates across rounds."""
+        from models.schema import DeliberateRequest
+
+        mock_adapters["claude-code"] = mock_adapters["claude"]
+        engine = DeliberationEngine(mock_adapters)
+
+        request = DeliberateRequest(
+            question="Test question",
+            participants=[
+                Participant(cli="claude-code", model="claude-3-5-sonnet", stance="neutral"),
+            ],
+            rounds=2,
+            mode="quick"
+        )
+
+        mock_adapters["claude-code"].invoke_mock.return_value = "Response"
+
+        await engine.execute(request)
+
+        # Second round should have context from first round
+        assert mock_adapters["claude-code"].invoke_mock.call_count == 2
+        second_call = mock_adapters["claude-code"].invoke_mock.call_args_list[1]
+        # Check that context is passed in second call
+        assert second_call[0][2] is not None  # context should be present
