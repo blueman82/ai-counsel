@@ -103,8 +103,9 @@ class TestDeliberationEngine:
         # Verify invoke was called with context
         mock_adapters["claude-code"].invoke_mock.assert_called_once()
         call_args = mock_adapters["claude-code"].invoke_mock.call_args
-        assert call_args[1]["context"] is not None
-        assert "Previous response" in call_args[1]["context"]
+        # Args are: (prompt, model, context)
+        assert call_args[0][2] is not None  # context is 3rd positional arg
+        assert "Previous response" in call_args[0][2]
 
     @pytest.mark.asyncio
     async def test_execute_round_adapter_error_handling(self, mock_adapters):
