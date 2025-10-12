@@ -183,3 +183,34 @@ class TestCodexAdapter:
         assert result == "Response with extra whitespace."
         assert not result.startswith(" ")
         assert not result.endswith(" ")
+
+
+class TestAdapterFactory:
+    """Tests for create_adapter factory function."""
+
+    def test_create_claude_code_adapter(self):
+        """Test creating ClaudeCodeAdapter via factory."""
+        adapter = create_adapter("claude-code", timeout=90)
+        assert isinstance(adapter, ClaudeCodeAdapter)
+        assert adapter.command == "claude-code"
+        assert adapter.timeout == 90
+
+    def test_create_codex_adapter(self):
+        """Test creating CodexAdapter via factory."""
+        adapter = create_adapter("codex", timeout=120)
+        assert isinstance(adapter, CodexAdapter)
+        assert adapter.command == "codex"
+        assert adapter.timeout == 120
+
+    def test_create_adapter_with_default_timeout(self):
+        """Test factory uses default timeout when not specified."""
+        adapter = create_adapter("claude-code")
+        assert adapter.timeout == 60
+
+    def test_create_adapter_invalid_cli(self):
+        """Test factory raises error for invalid CLI tool name."""
+        with pytest.raises(ValueError) as exc_info:
+            create_adapter("invalid-cli")
+
+        assert "unsupported" in str(exc_info.value).lower()
+        assert "invalid-cli" in str(exc_info.value)
