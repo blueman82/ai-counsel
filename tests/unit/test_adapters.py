@@ -4,6 +4,7 @@ import pytest
 from unittest.mock import Mock, patch, AsyncMock
 from adapters.base import BaseCLIAdapter
 from adapters.claude_code import ClaudeCodeAdapter
+from adapters.codex import CodexAdapter
 
 
 class TestBaseCLIAdapter:
