@@ -17,13 +17,15 @@ class TestDeliberationEngine:
     @pytest.mark.asyncio
     async def test_execute_round_single_participant(self, mock_adapters):
         """Test executing single round with one participant."""
+        # Add claude-code adapter for this test
+        mock_adapters["claude-code"] = mock_adapters["claude"]
         engine = DeliberationEngine(mock_adapters)
 
         participants = [
-            Participant(cli="claude", model="claude-3-5-sonnet", stance="neutral")
+            Participant(cli="claude-code", model="claude-3-5-sonnet", stance="neutral")
         ]
 
-        mock_adapters["claude"].invoke_mock.return_value = "This is Claude's response"
+        mock_adapters["claude-code"].invoke_mock.return_value = "This is Claude's response"
 
         responses = await engine.execute_round(
             round_num=1,
@@ -35,7 +37,7 @@ class TestDeliberationEngine:
         assert len(responses) == 1
         assert isinstance(responses[0], RoundResponse)
         assert responses[0].round == 1
-        assert responses[0].participant == "claude"
+        assert responses[0].participant == "claude-code"
         assert responses[0].stance == "neutral"
         assert responses[0].response == "This is Claude's response"
         assert responses[0].timestamp is not None
