@@ -1,0 +1,17 @@
+# ai-counsel/.gitignore
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.coverage
+htmlcov/
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+transcripts/*.md
+transcripts/*.json
+!transcripts/.gitkeep
+.env
+config.local.yaml

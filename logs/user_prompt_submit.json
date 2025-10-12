@@ -1,0 +1,34 @@
+[
+  {
+    "session_id": "8f214d62-b895-48d8-911a-dd057c84601a",
+    "transcript_path": "/Users/harrison/.claude/projects/-Users-harrison-Documents-Github/8f214d62-b895-48d8-911a-dd057c84601a.jsonl",
+    "cwd": "/Users/harrison/Documents/Github/ai-counsel",
+    "permission_mode": "bypassPermissions",
+    "hook_event_name": "UserPromptSubmit",
+    "prompt": "continue"
+  },
+  {
+    "session_id": "8f214d62-b895-48d8-911a-dd057c84601a",
+    "transcript_path": "/Users/harrison/.claude/projects/-Users-harrison-Documents-Github/8f214d62-b895-48d8-911a-dd057c84601a.jsonl",
+    "cwd": "/Users/harrison/Documents/Github/ai-counsel",
+    "permission_mode": "bypassPermissions",
+    "hook_event_name": "UserPromptSubmit",
+    "prompt": "continue"
+  },
+  {
+    "session_id": "8f214d62-b895-48d8-911a-dd057c84601a",
+    "transcript_path": "/Users/harrison/.claude/projects/-Users-harrison-Documents-Github/8f214d62-b895-48d8-911a-dd057c84601a.jsonl",
+    "cwd": "/Users/harrison/Documents/Github/ai-counsel",
+    "permission_mode": "bypassPermissions",
+    "hook_event_name": "UserPromptSubmit",
+    "prompt": "continue"
+  },
+  {
+    "session_id": "8f214d62-b895-48d8-911a-dd057c84601a",
+    "transcript_path": "/Users/harrison/.claude/projects/-Users-harrison-Documents-Github/8f214d62-b895-48d8-911a-dd057c84601a.jsonl",
+    "cwd": "/Users/harrison/Documents/Github/ai-counsel",
+    "permission_mode": "bypassPermissions",
+    "hook_event_name": "UserPromptSubmit",
+    "prompt": "stop stopping! Continue"
+  }
+]
