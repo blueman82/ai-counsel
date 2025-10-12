@@ -1,9 +1,8 @@
 """Unit tests for deliberation engine."""
 import pytest
 from datetime import datetime
-from unittest.mock import AsyncMock, patch
 from deliberation.engine import DeliberationEngine
-from models.schema import Participant, DeliberateRequest, RoundResponse
+from models.schema import Participant, RoundResponse
 
 
 class TestDeliberationEngine:
