@@ -23,7 +23,6 @@ class TestBaseCLIAdapter:
             IncompleteAdapter(command="test", args=[], timeout=60)
 
 
-@pytest.mark.asyncio
 class TestClaudeCodeAdapter:
     """Tests for ClaudeCodeAdapter."""
 
@@ -33,6 +32,7 @@ class TestClaudeCodeAdapter:
         assert adapter.command == "claude-code"
         assert adapter.timeout == 90
 
+    @pytest.mark.asyncio
     @patch('adapters.base.asyncio.create_subprocess_exec')
     async def test_invoke_success(self, mock_subprocess):
         """Test successful CLI invocation."""
