@@ -54,7 +54,7 @@ class TestClaudeCodeAdapter:
         assert result == "Actual model response here"
         mock_subprocess.assert_called_once()
 
-    @patch('adapters.claude_code.asyncio.create_subprocess_exec')
+    @patch('adapters.base.asyncio.create_subprocess_exec')
     async def test_invoke_timeout(self, mock_subprocess):
         """Test timeout handling."""
         mock_process = Mock()
