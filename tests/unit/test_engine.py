@@ -131,13 +131,14 @@ class TestDeliberationEngine:
     @pytest.mark.asyncio
     async def test_execute_round_passes_correct_model(self, mock_adapters):
         """Test that correct model is passed to adapter."""
+        mock_adapters["claude-code"] = mock_adapters["claude"]
         engine = DeliberationEngine(mock_adapters)
 
         participants = [
-            Participant(cli="claude", model="claude-3-opus", stance="neutral")
+            Participant(cli="claude-code", model="claude-3-opus", stance="neutral")
         ]
 
-        mock_adapters["claude"].invoke_mock.return_value = "Response"
+        mock_adapters["claude-code"].invoke_mock.return_value = "Response"
 
         await engine.execute_round(
             round_num=1,
@@ -146,19 +147,20 @@ class TestDeliberationEngine:
             previous_responses=[]
         )
 
-        call_args = mock_adapters["claude"].invoke_mock.call_args
+        call_args = mock_adapters["claude-code"].invoke_mock.call_args
         assert call_args[1]["model"] == "claude-3-opus"
 
     @pytest.mark.asyncio
     async def test_execute_round_timestamp_format(self, mock_adapters):
         """Test that timestamp is in ISO format."""
+        mock_adapters["claude-code"] = mock_adapters["claude"]
         engine = DeliberationEngine(mock_adapters)
 
         participants = [
-            Participant(cli="claude", model="claude-3-5-sonnet", stance="neutral")
+            Participant(cli="claude-code", model="claude-3-5-sonnet", stance="neutral")
         ]
 
-        mock_adapters["claude"].invoke_mock.return_value = "Response"
+        mock_adapters["claude-code"].invoke_mock.return_value = "Response"
 
         responses = await engine.execute_round(
             round_num=1,
