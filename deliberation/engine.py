@@ -105,7 +105,7 @@ class DeliberationEngine:
         Returns:
             Complete deliberation result
         """
-        from models.schema import DeliberateRequest, DeliberationResult, Summary
+        from models.schema import DeliberationResult, Summary
 
         # Determine actual rounds to execute
         # Note: quick mode doesn't override rounds, it just influences other behavior
