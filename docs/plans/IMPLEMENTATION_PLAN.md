@@ -1100,7 +1100,7 @@ git commit -m "feat: implement base CLI adapter and claude-code adapter
 
 ---
 
-### Task 2.2: Implement Codex Adapter
+### Task 2.2: Implement Codex Adapter ✅
 
 **Objective:** Add Codex CLI adapter.
 
