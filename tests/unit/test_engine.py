@@ -220,12 +220,14 @@ class TestDeliberationEngineMultiRound:
             question="Test question",
             participants=[
                 Participant(cli="claude-code", model="claude-3-5-sonnet", stance="neutral"),
+                Participant(cli="codex", model="gpt-4", stance="neutral"),
             ],
             rounds=2,
             mode="quick"
         )
 
-        mock_adapters["claude-code"].invoke_mock.return_value = "Response"
+        mock_adapters["claude-code"].invoke_mock.return_value = "Claude response"
+        mock_adapters["codex"].invoke_mock.return_value = "Codex response"
 
         await engine.execute(request)
 
