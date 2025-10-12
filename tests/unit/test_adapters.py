@@ -69,6 +69,7 @@ class TestClaudeCodeAdapter:
 
         assert "timed out" in str(exc_info.value).lower()
 
+    @pytest.mark.asyncio
     @patch('adapters.base.asyncio.create_subprocess_exec')
     async def test_invoke_process_error(self, mock_subprocess):
         """Test process error handling."""
