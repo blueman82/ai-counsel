@@ -1,8 +1,11 @@
 """Deliberation engine for orchestrating multi-model discussions."""
 from datetime import datetime
-from typing import List, Dict
+from typing import List, Dict, TYPE_CHECKING
 from adapters.base import BaseCLIAdapter
 from models.schema import Participant, RoundResponse
+
+if TYPE_CHECKING:
+    from models.schema import DeliberateRequest, DeliberationResult
 
 
 class DeliberationEngine:
