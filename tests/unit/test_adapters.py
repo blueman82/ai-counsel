@@ -1,6 +1,6 @@
 """Unit tests for CLI adapters."""
-import pytest
 import asyncio
+import pytest
 from unittest.mock import Mock, patch, AsyncMock
 from adapters.base import BaseCLIAdapter
 from adapters.claude_code import ClaudeCodeAdapter
@@ -33,7 +33,7 @@ class TestClaudeCodeAdapter:
         assert adapter.command == "claude-code"
         assert adapter.timeout == 90
 
-    @patch('adapters.base.asyncio.create_subprocess_exec')
+    @patch('adapters.claude_code.asyncio.create_subprocess_exec')
     async def test_invoke_success(self, mock_subprocess):
         """Test successful CLI invocation."""
         # Mock subprocess
@@ -54,7 +54,7 @@ class TestClaudeCodeAdapter:
         assert result == "Actual model response here"
         mock_subprocess.assert_called_once()
 
-    @patch('adapters.base.asyncio.create_subprocess_exec')
+    @patch('adapters.claude_code.asyncio.create_subprocess_exec')
     async def test_invoke_timeout(self, mock_subprocess):
         """Test timeout handling."""
         mock_process = Mock()
@@ -68,7 +68,7 @@ class TestClaudeCodeAdapter:
 
         assert "timed out" in str(exc_info.value).lower()
 
-    @patch('adapters.base.asyncio.create_subprocess_exec')
+    @patch('adapters.claude_code.asyncio.create_subprocess_exec')
     async def test_invoke_process_error(self, mock_subprocess):
         """Test process error handling."""
         mock_process = Mock()
