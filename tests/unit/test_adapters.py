@@ -105,3 +105,80 @@ class TestClaudeCodeAdapter:
         assert "actual response" in result
         assert "Claude Code v1.0" not in result
         assert "Loading model" not in result
+
+
+class TestCodexAdapter:
+    """Tests for CodexAdapter."""
+
+    def test_adapter_initialization(self):
+        """Test adapter initializes with correct values."""
+        adapter = CodexAdapter(timeout=90)
+        assert adapter.command == "codex"
+        assert adapter.timeout == 90
+
+    @pytest.mark.asyncio
+    @patch('adapters.base.asyncio.create_subprocess_exec')
+    async def test_invoke_success(self, mock_subprocess):
+        """Test successful CLI invocation."""
+        # Mock subprocess
+        mock_process = Mock()
+        mock_process.communicate = AsyncMock(return_value=(
+            b"This is the codex model response.",
+            b""
+        ))
+        mock_process.returncode = 0
+        mock_subprocess.return_value = mock_process
+
+        adapter = CodexAdapter()
+        result = await adapter.invoke(
+            prompt="What is 2+2?",
+            model="gpt-4"
+        )
+
+        assert result == "This is the codex model response."
+        mock_subprocess.assert_called_once()
+
+    @pytest.mark.asyncio
+    @patch('adapters.base.asyncio.create_subprocess_exec')
+    async def test_invoke_timeout(self, mock_subprocess):
+        """Test timeout handling."""
+        mock_process = Mock()
+        mock_process.communicate = AsyncMock(side_effect=asyncio.TimeoutError())
+        mock_subprocess.return_value = mock_process
+
+        adapter = CodexAdapter(timeout=1)
+
+        with pytest.raises(TimeoutError) as exc_info:
+            await adapter.invoke("test", "model")
+
+        assert "timed out" in str(exc_info.value).lower()
+
+    @pytest.mark.asyncio
+    @patch('adapters.base.asyncio.create_subprocess_exec')
+    async def test_invoke_process_error(self, mock_subprocess):
+        """Test process error handling."""
+        mock_process = Mock()
+        mock_process.communicate = AsyncMock(return_value=(
+            b"",
+            b"Error: Model not available"
+        ))
+        mock_process.returncode = 1
+        mock_subprocess.return_value = mock_process
+
+        adapter = CodexAdapter()
+
+        with pytest.raises(RuntimeError) as exc_info:
+            await adapter.invoke("test", "model")
+
+        assert "failed" in str(exc_info.value).lower()
+
+    def test_parse_output_returns_cleaned_text(self):
+        """Test output parsing returns cleaned text."""
+        adapter = CodexAdapter()
+
+        raw_output = "  Response with extra whitespace.  \n\n"
+        result = adapter.parse_output(raw_output)
+
+        assert result == "Response with extra whitespace."
+        assert not result.startswith(" ")
+        assert not result.endswith(" ")
