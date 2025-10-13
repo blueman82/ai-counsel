@@ -196,7 +196,24 @@ mcp__ai-counsel__deliberate({
   mode: "conference",
   context: "Current system: JWT tokens with 30min expiration, 50K active users, Redis session store already in use"
 })
+
+// Mix models from different CLIs
+mcp__ai-counsel__deliberate({
+  question: "What's the best caching strategy?",
+  participants: [
+    {cli: "droid", model: "claude-sonnet-4-5-20250929"},
+    {cli: "gemini", model: "gemini-2.5-pro"},
+    {cli: "claude", model: "sonnet"}
+  ],
+  mode: "quick"
+})
 ```
+
+**Available Models:**
+- **Claude CLI**: `sonnet`, `opus`, or full model names like `claude-sonnet-4-5-20250929`
+- **Codex CLI**: `gpt-5-codex`, `gpt-5`
+- **Droid CLI**: `claude-sonnet-4-5-20250929`, `claude-opus-4-1-20250805`, `claude-sonnet-4-20250514`, `gpt-5`, `gpt-5-codex`
+- **Gemini CLI**: `gemini-2.5-pro` (default), check `gemini --help` for more
 
 ### Transcripts
 
