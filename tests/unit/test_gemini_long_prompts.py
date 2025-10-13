@@ -10,24 +10,18 @@ class TestGeminiLongPrompts:
     def gemini_adapter(self):
         """Create a Gemini adapter instance."""
         return GeminiAdapter(
-            command="gemini",
-            args=["-m", "{model}", "-p", "{prompt}"],
-            timeout=180
+            command="gemini", args=["-m", "{model}", "-p", "{prompt}"], timeout=180
         )
 
     def test_long_prompt_with_markdown_formatting(self, gemini_adapter):
         """
-        Test that Gemini adapter handles long prompts with markdown formatting.
+        Test that Gemini adapter validates prompt length before invocation.
 
         This reproduces the "invalid argument" error seen in production logs
-        when prompts exceed certain length or complexity thresholds.
+        when prompts exceed Gemini API limits (~30k tokens or ~120k characters).
 
-        Expected behavior: Should either:
-        1. Truncate prompt gracefully, OR
-        2. Summarize/compress prompt, OR
-        3. Return helpful error message
-
-        Current behavior (RED): Raises RuntimeError with API "invalid argument"
+        Expected behavior: Should validate and truncate/reject long prompts
+        Current behavior (RED): No validation, relies on API error
         """
         # This is a realistic long prompt similar to what caused the error
         long_prompt = """We need to rescue valuable metrics work (24 commits implementing flexible time period support for /ketchup metrics command) that's trapped in a feature branch containing legacy DI infrastructure we've deleted. Which rescue strategy should we use?
@@ -71,12 +65,15 @@ Round 1 - codex@cli (neutral): Both Option 1 and Option 2 have merit depending o
 
         full_prompt_with_context = f"{context}\n\n{long_prompt}"
 
-        # The test should handle long prompts gracefully
-        # For now, we expect this to fail (RED state)
-        with pytest.raises(RuntimeError, match="invalid argument|too long|exceeds limit"):
-            # This should trigger the API error
-            result = gemini_adapter.parse_output(full_prompt_with_context)
-
+        # Test that adapter has a method to validate prompt length
+        # Expected: Should have validate_prompt_length() method that returns False for long prompts
+        # Current (RED): No such method exists
+        assert hasattr(
+            gemini_adapter, "validate_prompt_length"
+        ), "Adapter should have validate_prompt_length() method"
+        assert not gemini_adapter.validate_prompt_length(
+            full_prompt_with_context
+        ), "Long prompts should be flagged as invalid"
 
     def test_prompt_length_validation(self, gemini_adapter):
         """
@@ -93,7 +90,6 @@ Round 1 - codex@cli (neutral): Both Option 1 and Option 2 have merit depending o
         # Current behavior: Will likely fail with API error
         with pytest.raises((RuntimeError, ValueError), match="too long|exceeds|limit"):
             gemini_adapter.parse_output(very_long_prompt)
-
 
     def test_markdown_formatting_in_prompt(self, gemini_adapter):
         """
