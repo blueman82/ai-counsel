@@ -3,8 +3,8 @@ version: "1.0"
 
 cli_tools:
   claude:
-    command: "clyo"
-    args: ["-p", "--model", "{model}", "{prompt}", "--no-hooks"]
+    command: "claude"
+    args: ["-p", "--model", "{model}", "--settings", ".counsel/no-hooks.json", "{prompt}"]
     timeout: 300
 
   codex:
