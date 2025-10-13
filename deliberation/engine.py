@@ -163,12 +163,19 @@ class DeliberationEngine:
             for p in request.participants
         ]
 
-        return DeliberationResult(
+        # Create result
+        result = DeliberationResult(
             status="complete",
             mode=request.mode,
             rounds_completed=rounds_to_execute,
             participants=participant_ids,
             summary=summary,
-            transcript_path="",  # Will be set by transcript manager
+            transcript_path="",  # Will be set below
             full_debate=all_responses
         )
+
+        # Save transcript
+        transcript_path = self.transcript_manager.save(result, request.question)
+        result.transcript_path = transcript_path
+
+        return result
