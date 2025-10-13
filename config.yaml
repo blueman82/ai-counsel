@@ -4,7 +4,7 @@ version: "1.0"
 cli_tools:
   claude:
     command: "claude"
-    args: ["-p", "--model", "{model}", "{prompt}"]
+    args: ["-p", "--model", "{model}", "--settings", "{{\"disableAllHooks\": true}}", "{prompt}"]
     timeout: 300
 
   codex:
