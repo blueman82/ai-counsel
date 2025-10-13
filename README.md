@@ -102,6 +102,11 @@ The system automatically uses the best available backend:
 2. **TF-IDF** (good) - if scikit-learn installed
 3. **Jaccard** (basic) - always available
 
+**Performance:**
+- SentenceTransformer model cached in memory after first load (~3s)
+- Subsequent MCP server restarts reuse cached model (instant)
+- No performance impact on deliberations
+
 **Note:** Optional backends are not required for core functionality. The base system works perfectly with zero extra dependencies.
 
 ## Configuration
