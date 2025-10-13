@@ -372,6 +372,30 @@ class TestAdapterFactory:
         assert adapter.command == "codex"
         assert adapter.timeout == 120
 
+    def test_create_gemini_adapter(self):
+        """Test creating GeminiAdapter via factory."""
+        config = CLIToolConfig(
+            command="gemini",
+            args=["-m", "{model}", "-p", "{prompt}"],
+            timeout=180
+        )
+        adapter = create_adapter("gemini", config)
+        assert isinstance(adapter, GeminiAdapter)
+        assert adapter.command == "gemini"
+        assert adapter.timeout == 180
+
+    def test_create_droid_adapter(self):
+        """Test creating DroidAdapter via factory."""
+        config = CLIToolConfig(
+            command="droid",
+            args=["exec", "{prompt}"],
+            timeout=180
+        )
+        adapter = create_adapter("droid", config)
+        assert isinstance(adapter, DroidAdapter)
+        assert adapter.command == "droid"
+        assert adapter.timeout == 180
+
     def test_create_adapter_with_default_timeout(self):
         """Test factory uses timeout from config object."""
         config = CLIToolConfig(
