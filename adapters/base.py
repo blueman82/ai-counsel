@@ -54,11 +54,16 @@ class BaseCLIAdapter(ABC):
 
         # Execute subprocess
         try:
+            # Set cwd to ensure local .claude settings are used if they exist
+            from pathlib import Path
+            cwd = Path(__file__).parent.parent.absolute()
+
             process = await asyncio.create_subprocess_exec(
                 self.command,
                 *formatted_args,
                 stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE
+                stderr=asyncio.subprocess.PIPE,
+                cwd=str(cwd)
             )
 
             stdout, stderr = await asyncio.wait_for(
