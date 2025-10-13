@@ -160,7 +160,7 @@ Please be concise and focus on the substance of the arguments, not formatting or
         }
 
         current_section = None
-        buffer = []
+        buffer: List[str] = []
 
         for line in summary_text.split('\n'):
             line_upper = line.strip().upper()
