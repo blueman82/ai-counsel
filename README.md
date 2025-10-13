@@ -436,10 +436,9 @@ ai-counsel/
 - ✅ Structured summaries
 - ✅ Hook interference prevention
 - ✅ Convergence detection (auto-stop when opinions stabilize)
+- ✅ AI-powered summary generation (uses Claude to analyze and summarize debates)
 
 ### Future Enhancements
-
-- [ ] Semantic similarity for better summary generation
 - [ ] More CLI tool adapters (ollama, llama-cpp, etc.)
 - [ ] Web UI for viewing transcripts
 - [ ] Structured voting mechanisms
