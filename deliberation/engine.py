@@ -1,8 +1,11 @@
 """Deliberation engine for orchestrating multi-model discussions."""
+import logging
 from datetime import datetime
 from typing import List, Dict, TYPE_CHECKING
 from adapters.base import BaseCLIAdapter
 from models.schema import Participant, RoundResponse
+
+logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from models.schema import DeliberateRequest, DeliberationResult
@@ -43,8 +46,9 @@ class DeliberationEngine:
         Returns:
             List of RoundResponse objects from this round
 
-        Raises:
-            RuntimeError: If adapter invocation fails
+        Note:
+            If an adapter fails, an error message is logged and included
+            in the response, allowing other participants to continue.
         """
         responses = []
 
@@ -55,12 +59,20 @@ class DeliberationEngine:
             # Get the appropriate adapter
             adapter = self.adapters[participant.cli]
 
-            # Invoke the adapter
-            response_text = await adapter.invoke(
-                prompt=prompt,
-                model=participant.model,
-                context=context
-            )
+            # Invoke the adapter with error handling
+            try:
+                response_text = await adapter.invoke(
+                    prompt=prompt,
+                    model=participant.model,
+                    context=context
+                )
+            except Exception as e:
+                # Log error but continue with other participants
+                logger.error(
+                    f"Adapter {participant.cli} failed for model {participant.model}: {e}",
+                    exc_info=True
+                )
+                response_text = f"[ERROR: {type(e).__name__}: {str(e)}]"
 
             # Create response object
             response = RoundResponse(

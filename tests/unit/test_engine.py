@@ -109,7 +109,7 @@ class TestDeliberationEngine:
 
     @pytest.mark.asyncio
     async def test_execute_round_adapter_error_handling(self, mock_adapters):
-        """Test error handling when adapter fails."""
+        """Test graceful error handling when adapter fails."""
         mock_adapters["claude-code"] = mock_adapters["claude"]
         engine = DeliberationEngine(mock_adapters)
 
@@ -119,15 +119,16 @@ class TestDeliberationEngine:
 
         mock_adapters["claude-code"].invoke_mock.side_effect = RuntimeError("API Error")
 
-        with pytest.raises(RuntimeError) as exc_info:
-            await engine.execute_round(
-                round_num=1,
-                prompt="Test prompt",
-                participants=participants,
-                previous_responses=[]
-            )
+        # Should not raise, but return response with error message
+        responses = await engine.execute_round(
+            round_num=1,
+            prompt="Test prompt",
+            participants=participants,
+            previous_responses=[]
+        )
 
-        assert "API Error" in str(exc_info.value)
+        assert len(responses) == 1
+        assert "[ERROR: RuntimeError: API Error]" in responses[0].response
 
     @pytest.mark.asyncio
     async def test_execute_round_passes_correct_model(self, mock_adapters):
