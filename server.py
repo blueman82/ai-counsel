@@ -130,33 +130,55 @@ async def list_tools() -> list[Tool]:
 
 @app.call_tool()
 async def call_tool(name: str, arguments: dict) -> list[TextContent]:
-    """Handle tool calls."""
+    """
+    Handle tool calls from MCP client.
+
+    Args:
+        name: Tool name (should be "deliberate")
+        arguments: Tool arguments as dict
+
+    Returns:
+        List of TextContent with JSON response
+    """
+    logger.info(f"Tool call received: {name} with arguments: {arguments}")
+
     if name != "deliberate":
-        raise ValueError(f"Unknown tool: {name}")
+        error_msg = f"Unknown tool: {name}"
+        logger.error(error_msg)
+        raise ValueError(error_msg)
 
     try:
         # Validate and parse request
+        logger.info("Validating request parameters...")
         request = DeliberateRequest(**arguments)
-        logger.info(f"Starting deliberation: {request.question[:50]}...")
+        logger.info(f"Request validated. Starting deliberation: {request.question[:50]}...")
 
         # Execute deliberation
         result = await engine.execute(request)
-        logger.info(f"Deliberation complete: {result.rounds_completed} rounds")
+        logger.info(f"Deliberation complete: {result.rounds_completed} rounds, status: {result.status}")
 
-        # Return result as JSON
-        return [TextContent(
+        # Serialize result
+        result_json = json.dumps(result.model_dump(), indent=2)
+        logger.info(f"Result serialized, length: {len(result_json)} chars")
+
+        # Return result as TextContent
+        response = [TextContent(
             type="text",
-            text=json.dumps(result.model_dump(), indent=2)
+            text=result_json
         )]
+        logger.info("Response prepared successfully")
+        return response
 
     except Exception as e:
-        logger.error(f"Error in deliberation: {e}", exc_info=True)
+        logger.error(f"Error in deliberation: {type(e).__name__}: {e}", exc_info=True)
+        error_response = {
+            "error": str(e),
+            "error_type": type(e).__name__,
+            "status": "failed"
+        }
         return [TextContent(
             type="text",
-            text=json.dumps({
-                "error": str(e),
-                "status": "failed"
-            })
+            text=json.dumps(error_response, indent=2)
         )]
 
 
