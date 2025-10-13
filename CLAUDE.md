@@ -133,8 +133,9 @@ python server.py
 ### Convergence Detection
 - Enabled by default: `deliberation.convergence_detection.enabled: true`
 - Semantic similarity threshold: 0.85 (85% similarity = converged)
-- Minimum rounds before checking: 2 (need previous round for comparison)
+- Minimum rounds before checking: `min_rounds_before_check: 1` (checks starting from round 2, since you need 2 rounds to compare)
 - Backend selection: automatic fallback based on installed dependencies
+- **Important**: `min_rounds_before_check` must be `<= rounds - 1` for convergence info to appear. For 2-round deliberations, use `min_rounds_before_check: 1`
 
 ### Hook Management
 Claude CLI uses `--settings '{"disableAllHooks": true}'` to prevent user hooks from interfering with deliberation invocations. This is critical for reliable execution.
