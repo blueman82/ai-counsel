@@ -191,7 +191,12 @@ class TestAdapterFactory:
 
     def test_create_claude_code_adapter(self):
         """Test creating ClaudeCodeAdapter via factory."""
-        adapter = create_adapter("claude-code", timeout=90)
+        config = CLIToolConfig(
+            command="claude-code",
+            args=["--model", "{model}", "--prompt", "{prompt}"],
+            timeout=90
+        )
+        adapter = create_adapter("claude-code", config)
         assert isinstance(adapter, ClaudeCodeAdapter)
         assert adapter.command == "claude-code"
         assert adapter.timeout == 90
