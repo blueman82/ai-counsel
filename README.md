@@ -51,7 +51,7 @@ Unlike existing tools (like Zen's consensus feature) that gather parallel opinio
 
 ```bash
 # 1. Clone repository
-git clone https://github.com/yourusername/ai-counsel.git
+git clone https://github.com/blueman82/ai-counsel.git
 cd ai-counsel
 
 # 2. Create virtual environment
