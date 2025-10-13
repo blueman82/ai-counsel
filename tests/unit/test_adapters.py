@@ -51,7 +51,7 @@ class TestClaudeAdapter:
         mock_process.returncode = 0
         mock_subprocess.return_value = mock_process
 
-        adapter = ClaudeAdapter()
+        adapter = ClaudeAdapter(args=["-p", "--model", "{model}", "{prompt}"])
         result = await adapter.invoke(
             prompt="What is 2+2?",
             model="claude-3-5-sonnet-20241022"
