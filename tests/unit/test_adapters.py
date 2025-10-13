@@ -134,7 +134,7 @@ class TestCodexAdapter:
         mock_process.returncode = 0
         mock_subprocess.return_value = mock_process
 
-        adapter = CodexAdapter()
+        adapter = CodexAdapter(args=["exec", "--model", "{model}", "{prompt}"])
         result = await adapter.invoke(
             prompt="What is 2+2?",
             model="gpt-4"
@@ -151,7 +151,7 @@ class TestCodexAdapter:
         mock_process.communicate = AsyncMock(side_effect=asyncio.TimeoutError())
         mock_subprocess.return_value = mock_process
 
-        adapter = CodexAdapter(timeout=1)
+        adapter = CodexAdapter(args=["exec", "--model", "{model}", "{prompt}"], timeout=1)
 
         with pytest.raises(TimeoutError) as exc_info:
             await adapter.invoke("test", "model")
@@ -170,7 +170,7 @@ class TestCodexAdapter:
         mock_process.returncode = 1
         mock_subprocess.return_value = mock_process
 
-        adapter = CodexAdapter()
+        adapter = CodexAdapter(args=["exec", "--model", "{model}", "{prompt}"])
 
         with pytest.raises(RuntimeError) as exc_info:
             await adapter.invoke("test", "model")
@@ -179,7 +179,7 @@ class TestCodexAdapter:
 
     def test_parse_output_returns_cleaned_text(self):
         """Test output parsing returns cleaned text."""
-        adapter = CodexAdapter()
+        adapter = CodexAdapter(args=["exec", "--model", "{model}", "{prompt}"])
 
         raw_output = "  Response with extra whitespace.  \n\n"
         result = adapter.parse_output(raw_output)
