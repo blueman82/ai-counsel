@@ -290,9 +290,11 @@ mcp__ai-counsel__deliberate({
 
 **Available Models:**
 - **Claude CLI**: `sonnet`, `opus`, or full model names like `claude-sonnet-4-5-20250929`
-- **Codex CLI**: `gpt-5-codex`, `gpt-5`
-- **Droid CLI**: `claude-sonnet-4-5-20250929`, `claude-opus-4-1-20250805`, `claude-sonnet-4-20250514`, `gpt-5`, `gpt-5-codex`
+- **Codex CLI**: `gpt-5-codex`, `o3`
+- **Droid CLI**: `sonnet4.5`, `gpt-5-codex` (default), or any supported model ID
 - **Gemini CLI**: `gemini-2.5-pro` (default), check `gemini --help` for more
+
+See [CLI Model Reference](docs/CLI_MODEL_REFERENCE.md) for complete details on model parameter formats.
 
 ### Transcripts
 
