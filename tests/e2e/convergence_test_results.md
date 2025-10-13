@@ -225,25 +225,25 @@ INFO:deliberation.engine:✓ Convergence detected at round 3, stopping early
 ## Verification Checklist
 
 ### Functional Requirements
-- [ ] Convergence detector initializes when enabled in config
-- [ ] Convergence check runs starting from round 2
-- [ ] Early stopping works on convergence detection
-- [ ] Early stopping works on impasse detection
-- [ ] `convergence_info` is included in results
-- [ ] Transcript reflects actual rounds completed
-- [ ] Quick mode skips convergence checks (single round)
+- [✅] Convergence detector initializes when enabled in config
+- [✅] Convergence check runs starting from round 2
+- [⏭️] Early stopping works on convergence detection (not triggered in tests - similarity didn't reach 0.85)
+- [⏭️] Early stopping works on impasse detection (not triggered in tests)
+- [✅] `convergence_info` is included in results
+- [✅] Transcript reflects actual rounds completed
+- [✅] Quick mode skips convergence checks (single round)
 
 ### Data Integrity
-- [ ] `convergence_info.detected` is accurate
-- [ ] `convergence_info.status` matches actual deliberation state
-- [ ] `final_similarity` score is reasonable (0.0-1.0)
-- [ ] `per_participant_similarity` includes all participants
-- [ ] `detection_round` is set correctly (or null if not detected)
+- [✅] `convergence_info.detected` is accurate
+- [✅] `convergence_info.status` matches actual deliberation state (refining/diverging tracked correctly)
+- [✅] `final_similarity` score is reasonable (0.0-1.0)
+- [✅] `per_participant_similarity` includes all participants
+- [✅] `detection_round` is set correctly (null when not detected)
 
 ### Performance
-- [ ] Similarity computation doesn't significantly slow deliberation
-- [ ] Backend selection works (TF-IDF > Jaccard fallback)
-- [ ] No crashes or errors during convergence checks
+- [✅] Similarity computation doesn't significantly slow deliberation
+- [✅] Backend selection works (TF-IDF backend used successfully)
+- [✅] No crashes or errors during convergence checks
 
 ---
 
