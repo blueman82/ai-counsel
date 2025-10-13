@@ -34,5 +34,22 @@ storage:
   auto_export: true
 
 deliberation:
+  # Convergence detection settings
+  convergence_detection:
+    enabled: true
+
+    # Similarity thresholds
+    semantic_similarity_threshold: 0.85  # Models converged if similarity >= this
+    divergence_threshold: 0.40           # Models diverging if similarity < this
+
+    # Round constraints
+    min_rounds_before_check: 2           # Don't check convergence until round 3
+    consecutive_stable_rounds: 2         # Require 2 stable rounds to confirm
+
+    # Secondary metrics
+    stance_stability_threshold: 0.80     # 80% of participants must have stable stances
+    response_length_drop_threshold: 0.40 # Flag if response length drops >40%
+
+  # Legacy settings (keep these)
   convergence_threshold: 0.8
   enable_convergence_detection: true
