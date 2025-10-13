@@ -153,11 +153,16 @@ AI Counsel can automatically detect when models reach consensus and stop early, 
 
 **How it works:**
 
-The system compares responses between consecutive rounds using semantic similarity:
-- **Converged** (≥ 85% similarity): Models agree, stops early
+The system compares responses between consecutive rounds using semantic similarity **and structured voting**:
+- **Unanimous Consensus** (3-0 vote): All models vote for same option
+- **Majority Decision** (2-1 vote): Clear winner from voting
+- **Converged** (≥ 85% similarity): Models agree semantically, stops early
 - **Refining** (40-85% similarity): Still making progress, continues
 - **Diverging** (< 40% similarity): Models disagree significantly
 - **Impasse**: Stable disagreement after 2+ rounds, stops
+- **Tie**: No clear winner from voting (1-1-1)
+
+**Voting takes precedence**: When models cast votes, the convergence status reflects the voting outcome rather than semantic similarity.
 
 **Similarity Backends:**
 
@@ -176,6 +181,12 @@ deliberation:
     divergence_threshold: 0.40
     min_rounds_before_check: 2
     consecutive_stable_rounds: 2
+
+  # Model-controlled early stopping
+  early_stopping:
+    enabled: true
+    threshold: 0.66  # 66% of models must want to stop
+    respect_min_rounds: true  # Wait for min_rounds before stopping
 ```
 
 **Example Result:**
