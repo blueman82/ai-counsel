@@ -51,7 +51,7 @@ async def test_deliberate_tool_execution():
     # {
     #     "question": "What is 2+2?",
     #     "participants": [
-    #         {"cli": "claude-code", "model": "claude-3-5-sonnet-20241022"},
+    #         {"cli": "claude", "model": "claude-3-5-sonnet-20241022"},
     #         {"cli": "codex", "model": "gpt-4"}
     #     ],
     #     "rounds": 1,

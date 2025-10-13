@@ -3,7 +3,7 @@ import asyncio
 import pytest
 from unittest.mock import Mock, patch, AsyncMock
 from adapters.base import BaseCLIAdapter
-from adapters.claude_code import ClaudeCodeAdapter
+from adapters.claude import ClaudeAdapter
 from adapters.codex import CodexAdapter
 from adapters import create_adapter
 from models.config import CLIToolConfig
@@ -26,13 +26,13 @@ class TestBaseCLIAdapter:
             IncompleteAdapter(command="test", args=[], timeout=60)
 
 
-class TestClaudeCodeAdapter:
-    """Tests for ClaudeCodeAdapter."""
+class TestClaudeAdapter:
+    """Tests for ClaudeAdapter."""
 
     def test_adapter_initialization(self):
         """Test adapter initializes with correct values."""
-        adapter = ClaudeCodeAdapter(timeout=90)
-        assert adapter.command == "claude-code"
+        adapter = ClaudeAdapter(timeout=90)
+        assert adapter.command == "claude"
         assert adapter.timeout == 90
 
     @pytest.mark.asyncio
@@ -48,7 +48,7 @@ class TestClaudeCodeAdapter:
         mock_process.returncode = 0
         mock_subprocess.return_value = mock_process
 
-        adapter = ClaudeCodeAdapter()
+        adapter = ClaudeAdapter()
         result = await adapter.invoke(
             prompt="What is 2+2?",
             model="claude-3-5-sonnet-20241022"
@@ -65,7 +65,7 @@ class TestClaudeCodeAdapter:
         mock_process.communicate = AsyncMock(side_effect=asyncio.TimeoutError())
         mock_subprocess.return_value = mock_process
 
-        adapter = ClaudeCodeAdapter(timeout=1)
+        adapter = ClaudeAdapter(timeout=1)
 
         with pytest.raises(TimeoutError) as exc_info:
             await adapter.invoke("test", "model")
@@ -84,7 +84,7 @@ class TestClaudeCodeAdapter:
         mock_process.returncode = 1
         mock_subprocess.return_value = mock_process
 
-        adapter = ClaudeCodeAdapter()
+        adapter = ClaudeAdapter()
 
         with pytest.raises(RuntimeError) as exc_info:
             await adapter.invoke("test", "model")
@@ -93,7 +93,7 @@ class TestClaudeCodeAdapter:
 
     def test_parse_output_extracts_response(self):
         """Test output parsing extracts model response."""
-        adapter = ClaudeCodeAdapter()
+        adapter = ClaudeAdapter()
 
         raw_output = """
         Claude Code v1.0
@@ -190,15 +190,15 @@ class TestAdapterFactory:
     """Tests for create_adapter factory function."""
 
     def test_create_claude_code_adapter(self):
-        """Test creating ClaudeCodeAdapter via factory."""
+        """Test creating ClaudeAdapter via factory."""
         config = CLIToolConfig(
-            command="claude-code",
+            command="claude",
             args=["--model", "{model}", "--prompt", "{prompt}"],
             timeout=90
         )
-        adapter = create_adapter("claude-code", config)
-        assert isinstance(adapter, ClaudeCodeAdapter)
-        assert adapter.command == "claude-code"
+        adapter = create_adapter("claude", config)
+        assert isinstance(adapter, ClaudeAdapter)
+        assert adapter.command == "claude"
         assert adapter.timeout == 90
 
     def test_create_codex_adapter(self):
@@ -216,11 +216,11 @@ class TestAdapterFactory:
     def test_create_adapter_with_default_timeout(self):
         """Test factory uses timeout from config object."""
         config = CLIToolConfig(
-            command="claude-code",
+            command="claude",
             args=["--model", "{model}", "--prompt", "{prompt}"],
             timeout=60
         )
-        adapter = create_adapter("claude-code", config)
+        adapter = create_adapter("claude", config)
         assert adapter.timeout == 60
 
     def test_create_adapter_invalid_cli(self):

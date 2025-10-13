@@ -19,14 +19,14 @@ class TestDeliberationEngine:
     async def test_execute_round_single_participant(self, mock_adapters):
         """Test executing single round with one participant."""
         # Add claude-code adapter for this test
-        mock_adapters["claude-code"] = mock_adapters["claude"]
+        mock_adapters["claude"] = mock_adapters["claude"]
         engine = DeliberationEngine(mock_adapters)
 
         participants = [
-            Participant(cli="claude-code", model="claude-3-5-sonnet", stance="neutral")
+            Participant(cli="claude", model="claude-3-5-sonnet", stance="neutral")
         ]
 
-        mock_adapters["claude-code"].invoke_mock.return_value = "This is Claude's response"
+        mock_adapters["claude"].invoke_mock.return_value = "This is Claude's response"
 
         responses = await engine.execute_round(
             round_num=1,
@@ -38,7 +38,7 @@ class TestDeliberationEngine:
         assert len(responses) == 1
         assert isinstance(responses[0], RoundResponse)
         assert responses[0].round == 1
-        assert responses[0].participant == "claude-3-5-sonnet@claude-code"
+        assert responses[0].participant == "claude-3-5-sonnet@claude"
         assert responses[0].stance == "neutral"
         assert responses[0].response == "This is Claude's response"
         assert responses[0].timestamp is not None
@@ -46,15 +46,15 @@ class TestDeliberationEngine:
     @pytest.mark.asyncio
     async def test_execute_round_multiple_participants(self, mock_adapters):
         """Test executing single round with multiple participants."""
-        mock_adapters["claude-code"] = mock_adapters["claude"]
+        mock_adapters["claude"] = mock_adapters["claude"]
         engine = DeliberationEngine(mock_adapters)
 
         participants = [
-            Participant(cli="claude-code", model="claude-3-5-sonnet", stance="for"),
+            Participant(cli="claude", model="claude-3-5-sonnet", stance="for"),
             Participant(cli="codex", model="gpt-4", stance="against"),
         ]
 
-        mock_adapters["claude-code"].invoke_mock.return_value = "Claude says yes"
+        mock_adapters["claude"].invoke_mock.return_value = "Claude says yes"
         mock_adapters["codex"].invoke_mock.return_value = "Codex says no"
 
         responses = await engine.execute_round(
@@ -65,7 +65,7 @@ class TestDeliberationEngine:
         )
 
         assert len(responses) == 2
-        assert responses[0].participant == "claude-3-5-sonnet@claude-code"
+        assert responses[0].participant == "claude-3-5-sonnet@claude"
         assert responses[0].stance == "for"
         assert responses[0].response == "Claude says yes"
         assert responses[1].participant == "gpt-4@codex"
@@ -75,11 +75,11 @@ class TestDeliberationEngine:
     @pytest.mark.asyncio
     async def test_execute_round_includes_previous_context(self, mock_adapters):
         """Test that previous responses are included in context."""
-        mock_adapters["claude-code"] = mock_adapters["claude"]
+        mock_adapters["claude"] = mock_adapters["claude"]
         engine = DeliberationEngine(mock_adapters)
 
         participants = [
-            Participant(cli="claude-code", model="claude-3-5-sonnet", stance="neutral")
+            Participant(cli="claude", model="claude-3-5-sonnet", stance="neutral")
         ]
 
         previous = [
@@ -92,7 +92,7 @@ class TestDeliberationEngine:
             )
         ]
 
-        mock_adapters["claude-code"].invoke_mock.return_value = "New response"
+        mock_adapters["claude"].invoke_mock.return_value = "New response"
 
         await engine.execute_round(
             round_num=2,
@@ -102,8 +102,8 @@ class TestDeliberationEngine:
         )
 
         # Verify invoke was called with context
-        mock_adapters["claude-code"].invoke_mock.assert_called_once()
-        call_args = mock_adapters["claude-code"].invoke_mock.call_args
+        mock_adapters["claude"].invoke_mock.assert_called_once()
+        call_args = mock_adapters["claude"].invoke_mock.call_args
         # Args are: (prompt, model, context)
         assert call_args[0][2] is not None  # context is 3rd positional arg
         assert "Previous response" in call_args[0][2]
@@ -111,14 +111,14 @@ class TestDeliberationEngine:
     @pytest.mark.asyncio
     async def test_execute_round_adapter_error_handling(self, mock_adapters):
         """Test graceful error handling when adapter fails."""
-        mock_adapters["claude-code"] = mock_adapters["claude"]
+        mock_adapters["claude"] = mock_adapters["claude"]
         engine = DeliberationEngine(mock_adapters)
 
         participants = [
-            Participant(cli="claude-code", model="claude-3-5-sonnet", stance="neutral")
+            Participant(cli="claude", model="claude-3-5-sonnet", stance="neutral")
         ]
 
-        mock_adapters["claude-code"].invoke_mock.side_effect = RuntimeError("API Error")
+        mock_adapters["claude"].invoke_mock.side_effect = RuntimeError("API Error")
 
         # Should not raise, but return response with error message
         responses = await engine.execute_round(
@@ -134,14 +134,14 @@ class TestDeliberationEngine:
     @pytest.mark.asyncio
     async def test_execute_round_passes_correct_model(self, mock_adapters):
         """Test that correct model is passed to adapter."""
-        mock_adapters["claude-code"] = mock_adapters["claude"]
+        mock_adapters["claude"] = mock_adapters["claude"]
         engine = DeliberationEngine(mock_adapters)
 
         participants = [
-            Participant(cli="claude-code", model="claude-3-opus", stance="neutral")
+            Participant(cli="claude", model="claude-3-opus", stance="neutral")
         ]
 
-        mock_adapters["claude-code"].invoke_mock.return_value = "Response"
+        mock_adapters["claude"].invoke_mock.return_value = "Response"
 
         await engine.execute_round(
             round_num=1,
@@ -150,21 +150,21 @@ class TestDeliberationEngine:
             previous_responses=[]
         )
 
-        call_args = mock_adapters["claude-code"].invoke_mock.call_args
+        call_args = mock_adapters["claude"].invoke_mock.call_args
         # Args are: (prompt, model, context)
         assert call_args[0][1] == "claude-3-opus"  # model is 2nd positional arg
 
     @pytest.mark.asyncio
     async def test_execute_round_timestamp_format(self, mock_adapters):
         """Test that timestamp is in ISO format."""
-        mock_adapters["claude-code"] = mock_adapters["claude"]
+        mock_adapters["claude"] = mock_adapters["claude"]
         engine = DeliberationEngine(mock_adapters)
 
         participants = [
-            Participant(cli="claude-code", model="claude-3-5-sonnet", stance="neutral")
+            Participant(cli="claude", model="claude-3-5-sonnet", stance="neutral")
         ]
 
-        mock_adapters["claude-code"].invoke_mock.return_value = "Response"
+        mock_adapters["claude"].invoke_mock.return_value = "Response"
 
         responses = await engine.execute_round(
             round_num=1,
@@ -186,20 +186,20 @@ class TestDeliberationEngineMultiRound:
         """Test executing multiple rounds of deliberation."""
         from models.schema import DeliberateRequest
 
-        mock_adapters["claude-code"] = mock_adapters["claude"]
+        mock_adapters["claude"] = mock_adapters["claude"]
         engine = DeliberationEngine(mock_adapters)
 
         request = DeliberateRequest(
             question="What is the best programming language?",
             participants=[
-                Participant(cli="claude-code", model="claude-3-5-sonnet", stance="neutral"),
+                Participant(cli="claude", model="claude-3-5-sonnet", stance="neutral"),
                 Participant(cli="codex", model="gpt-4", stance="neutral"),
             ],
             rounds=3,
             mode="conference"
         )
 
-        mock_adapters["claude-code"].invoke_mock.return_value = "Claude response"
+        mock_adapters["claude"].invoke_mock.return_value = "Claude response"
         mock_adapters["codex"].invoke_mock.return_value = "Codex response"
 
         result = await engine.execute(request)
@@ -215,27 +215,27 @@ class TestDeliberationEngineMultiRound:
         """Test that context accumulates across rounds."""
         from models.schema import DeliberateRequest
 
-        mock_adapters["claude-code"] = mock_adapters["claude"]
+        mock_adapters["claude"] = mock_adapters["claude"]
         engine = DeliberationEngine(mock_adapters)
 
         request = DeliberateRequest(
             question="Test question",
             participants=[
-                Participant(cli="claude-code", model="claude-3-5-sonnet", stance="neutral"),
+                Participant(cli="claude", model="claude-3-5-sonnet", stance="neutral"),
                 Participant(cli="codex", model="gpt-4", stance="neutral"),
             ],
             rounds=2,
             mode="conference"
         )
 
-        mock_adapters["claude-code"].invoke_mock.return_value = "Claude response"
+        mock_adapters["claude"].invoke_mock.return_value = "Claude response"
         mock_adapters["codex"].invoke_mock.return_value = "Codex response"
 
         await engine.execute(request)
 
         # Second round should have context from first round
-        assert mock_adapters["claude-code"].invoke_mock.call_count == 2
-        second_call = mock_adapters["claude-code"].invoke_mock.call_args_list[1]
+        assert mock_adapters["claude"].invoke_mock.call_count == 2
+        second_call = mock_adapters["claude"].invoke_mock.call_args_list[1]
         # Check that context is passed in second call
         assert second_call[0][2] is not None  # context should be present
 
@@ -244,20 +244,20 @@ class TestDeliberationEngineMultiRound:
         """Test that quick mode forces single round regardless of request.rounds."""
         from models.schema import DeliberateRequest
 
-        mock_adapters["claude-code"] = mock_adapters["claude"]
+        mock_adapters["claude"] = mock_adapters["claude"]
         engine = DeliberationEngine(mock_adapters)
 
         request = DeliberateRequest(
             question="Test question",
             participants=[
-                Participant(cli="claude-code", model="claude-3-5-sonnet", stance="neutral"),
+                Participant(cli="claude", model="claude-3-5-sonnet", stance="neutral"),
                 Participant(cli="codex", model="gpt-4", stance="neutral"),
             ],
             rounds=5,  # Request 5 rounds
             mode="quick"  # But quick mode should override to 1
         )
 
-        mock_adapters["claude-code"].invoke_mock.return_value = "Claude response"
+        mock_adapters["claude"].invoke_mock.return_value = "Claude response"
         mock_adapters["codex"].invoke_mock.return_value = "Codex response"
 
         result = await engine.execute(request)
@@ -277,14 +277,14 @@ class TestDeliberationEngineMultiRound:
         request = DeliberateRequest(
             question="Should we use TypeScript?",
             participants=[
-                Participant(cli="claude-code", model="claude-3-5-sonnet-20241022", stance="neutral"),
+                Participant(cli="claude", model="claude-3-5-sonnet-20241022", stance="neutral"),
                 Participant(cli="codex", model="gpt-4", stance="neutral"),
             ],
             rounds=1
         )
 
-        mock_adapters["claude-code"] = mock_adapters["claude"]
-        mock_adapters["claude-code"].invoke_mock.return_value = "Claude response"
+        mock_adapters["claude"] = mock_adapters["claude"]
+        mock_adapters["claude"].invoke_mock.return_value = "Claude response"
         mock_adapters["codex"].invoke_mock.return_value = "Codex response"
 
         engine = DeliberationEngine(adapters=mock_adapters, transcript_manager=manager)

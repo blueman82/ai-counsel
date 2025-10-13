@@ -56,14 +56,14 @@ An MCP server that enables TRUE deliberative consensus between AI models via CLI
 - **AI Counsel**: True debate (models respond to each other's arguments)
 
 **MVP Scope:**
-- Support 2 CLI tools: `claude` and `codex` (updated from `claude-code` to match installed CLI)
+- Support 2 CLI tools: `claude` and `codex` (updated from `claude` to match installed CLI)
 - Both "quick" (1 round) and "conference" (multi-round) modes
 - Full transcript logging with markdown export
 - Structured summaries showing consensus/disagreement
 
 **Recent Updates (2025-10-13):**
 - ✅ Phase 6 (Testing & Documentation) completed
-- ✅ Configuration updated to use `claude` CLI (with `-p` flag) instead of `claude-code`
+- ✅ Configuration updated to use `claude` CLI (with `-p` flag) instead of `claude`
 - ✅ Codex configuration updated to use `exec` subcommand for non-interactive mode
 - 🚀 MVP is production-ready with both CLI tools properly configured
 
@@ -345,11 +345,11 @@ class TestParticipant:
     def test_valid_participant(self):
         """Test creating a valid participant."""
         p = Participant(
-            cli="claude-code",
+            cli="claude",
             model="claude-3-5-sonnet-20241022",
             stance="neutral"
         )
-        assert p.cli == "claude-code"
+        assert p.cli == "claude"
         assert p.model == "claude-3-5-sonnet-20241022"
         assert p.stance == "neutral"
 
@@ -379,7 +379,7 @@ class TestDeliberateRequest:
         req = DeliberateRequest(
             question="Should we use TypeScript?",
             participants=[
-                Participant(cli="claude-code", model="claude-3-5-sonnet-20241022"),
+                Participant(cli="claude", model="claude-3-5-sonnet-20241022"),
                 Participant(cli="codex", model="gpt-4"),
             ]
         )
@@ -393,7 +393,7 @@ class TestDeliberateRequest:
         req = DeliberateRequest(
             question="Should we refactor?",
             participants=[
-                Participant(cli="claude-code", model="claude-3-5-sonnet-20241022", stance="for"),
+                Participant(cli="claude", model="claude-3-5-sonnet-20241022", stance="for"),
                 Participant(cli="codex", model="gpt-4", stance="against"),
             ],
             rounds=3,
@@ -419,7 +419,7 @@ class TestDeliberateRequest:
             DeliberateRequest(
                 question="Test?",
                 participants=[
-                    Participant(cli="claude-code", model="claude-3-5-sonnet-20241022"),
+                    Participant(cli="claude", model="claude-3-5-sonnet-20241022"),
                     Participant(cli="codex", model="gpt-4"),
                 ],
                 rounds=0
@@ -432,7 +432,7 @@ class TestDeliberateRequest:
             DeliberateRequest(
                 question="Test?",
                 participants=[
-                    Participant(cli="claude-code", model="claude-3-5-sonnet-20241022"),
+                    Participant(cli="claude", model="claude-3-5-sonnet-20241022"),
                     Participant(cli="codex", model="gpt-4"),
                 ],
                 rounds=10
@@ -447,7 +447,7 @@ class TestRoundResponse:
         """Test creating a valid round response."""
         resp = RoundResponse(
             round=1,
-            participant="claude-3-5-sonnet@claude-code",
+            participant="claude-3-5-sonnet@claude",
             stance="neutral",
             response="I think we should consider...",
             timestamp="2025-10-12T15:30:00Z"
@@ -465,7 +465,7 @@ class TestDeliberationResult:
             status="complete",
             mode="conference",
             rounds_completed=2,
-            participants=["claude-3-5-sonnet@claude-code", "gpt-4@codex"],
+            participants=["claude-3-5-sonnet@claude", "gpt-4@codex"],
             summary={
                 "consensus": "Strong agreement",
                 "key_agreements": ["Point 1", "Point 2"],
@@ -499,7 +499,7 @@ from pydantic import BaseModel, Field, field_validator
 class Participant(BaseModel):
     """Model representing a deliberation participant."""
 
-    cli: Literal["claude-code", "codex"] = Field(
+    cli: Literal["claude", "codex"] = Field(
         ...,
         description="CLI tool to use for this participant"
     )
@@ -615,8 +615,8 @@ git commit -m "feat: add pydantic models for deliberation
 version: "1.0"
 
 cli_tools:
-  claude-code:
-    command: "claude-code"
+  claude:
+    command: "claude"
     args: ["--model", "{model}", "--prompt", "{prompt}"]
     timeout: 60
 
@@ -660,14 +660,14 @@ class TestConfigLoading:
         config = load_config()
         assert config is not None
         assert config.version == "1.0"
-        assert "claude-code" in config.cli_tools
+        assert "claude" in config.cli_tools
         assert "codex" in config.cli_tools
 
     def test_cli_tool_config_structure(self):
         """Test CLI tool config has required fields."""
         config = load_config()
-        claude = config.cli_tools["claude-code"]
-        assert claude.command == "claude-code"
+        claude = config.cli_tools["claude"]
+        assert claude.command == "claude"
         assert isinstance(claude.args, list)
         assert claude.timeout == 60
 
@@ -842,7 +842,7 @@ class TestClaudeCodeAdapter:
     def test_adapter_initialization(self):
         """Test adapter initializes with correct values."""
         adapter = ClaudeCodeAdapter(timeout=90)
-        assert adapter.command == "claude-code"
+        assert adapter.command == "claude"
         assert adapter.timeout == 90
 
     @patch('adapters.claude_code.asyncio.create_subprocess_exec')
@@ -1039,7 +1039,7 @@ from adapters.base import BaseCLIAdapter
 
 
 class ClaudeCodeAdapter(BaseCLIAdapter):
-    """Adapter for claude-code CLI tool."""
+    """Adapter for claude CLI tool."""
 
     def __init__(self, timeout: int = 60):
         """
@@ -1049,14 +1049,14 @@ class ClaudeCodeAdapter(BaseCLIAdapter):
             timeout: Timeout in seconds (default: 60)
         """
         super().__init__(
-            command="claude-code",
+            command="claude",
             args=["--model", "{model}", "--prompt", "{prompt}"],
             timeout=timeout
         )
 
     def parse_output(self, raw_output: str) -> str:
         """
-        Parse claude-code output.
+        Parse claude output.
 
         Claude code typically outputs:
         - Header/initialization text
@@ -1066,7 +1066,7 @@ class ClaudeCodeAdapter(BaseCLIAdapter):
         We extract everything after the first substantial block of text.
 
         Args:
-            raw_output: Raw stdout from claude-code
+            raw_output: Raw stdout from claude
 
         Returns:
             Parsed model response
@@ -1098,7 +1098,7 @@ pytest tests/unit/test_adapters.py -v
 **Commit:**
 ```bash
 git add adapters/base.py adapters/claude_code.py tests/unit/test_adapters.py
-git commit -m "feat: implement base CLI adapter and claude-code adapter
+git commit -m "feat: implement base CLI adapter and claude adapter
 
 - Add BaseCLIAdapter with subprocess management and timeout handling
 - Add ClaudeCodeAdapter with output parsing
@@ -1259,7 +1259,7 @@ def create_adapter(cli_name: str, config: CLIToolConfig):
     Factory function to create appropriate adapter.
 
     Args:
-        cli_name: Name of CLI tool ('claude-code' or 'codex')
+        cli_name: Name of CLI tool ('claude' or 'codex')
         config: CLI tool configuration
 
     Returns:
@@ -1269,7 +1269,7 @@ def create_adapter(cli_name: str, config: CLIToolConfig):
         ValueError: If cli_name is not supported
     """
     adapters = {
-        "claude-code": ClaudeCodeAdapter,
+        "claude": ClaudeCodeAdapter,
         "codex": CodexAdapter,
     }
 
@@ -1339,7 +1339,7 @@ def mock_adapters():
     codex_mock.invoke = AsyncMock(return_value="Codex response")
 
     return {
-        "claude-code": claude_mock,
+        "claude": claude_mock,
         "codex": codex_mock,
     }
 
@@ -1353,7 +1353,7 @@ class TestDeliberationEngine:
         request = DeliberateRequest(
             question="Should we use TypeScript?",
             participants=[
-                Participant(cli="claude-code", model="claude-3-5-sonnet-20241022"),
+                Participant(cli="claude", model="claude-3-5-sonnet-20241022"),
                 Participant(cli="codex", model="gpt-4"),
             ],
             rounds=1,
@@ -1369,7 +1369,7 @@ class TestDeliberationEngine:
         assert result[1].response == "Codex response"
 
         # Verify both adapters were called
-        mock_adapters["claude-code"].invoke.assert_called_once()
+        mock_adapters["claude"].invoke.assert_called_once()
         mock_adapters["codex"].invoke.assert_called_once()
 
     async def test_single_round_with_context(self, mock_adapters):
@@ -1377,7 +1377,7 @@ class TestDeliberationEngine:
         request = DeliberateRequest(
             question="Should we refactor?",
             participants=[
-                Participant(cli="claude-code", model="claude-3-5-sonnet-20241022"),
+                Participant(cli="claude", model="claude-3-5-sonnet-20241022"),
             ],
             rounds=1,
             context="Legacy codebase, 50K LOC"
@@ -1387,7 +1387,7 @@ class TestDeliberationEngine:
         await engine.execute_round(request, round_num=1, previous_responses=[])
 
         # Verify context was passed
-        call_args = mock_adapters["claude-code"].invoke.call_args
+        call_args = mock_adapters["claude"].invoke.call_args
         assert call_args.kwargs.get("context") == "Legacy codebase, 50K LOC"
 
     async def test_round_handles_adapter_failure(self, mock_adapters):
@@ -1398,7 +1398,7 @@ class TestDeliberationEngine:
         request = DeliberateRequest(
             question="Test?",
             participants=[
-                Participant(cli="claude-code", model="claude-3-5-sonnet-20241022"),
+                Participant(cli="claude", model="claude-3-5-sonnet-20241022"),
                 Participant(cli="codex", model="gpt-4"),
             ],
             rounds=1
@@ -1625,13 +1625,13 @@ async def test_multi_round_execution(self, mock_adapters):
     claude_responses = ["Claude round 1", "Claude round 2"]
     codex_responses = ["Codex round 1", "Codex round 2"]
 
-    mock_adapters["claude-code"].invoke = AsyncMock(side_effect=claude_responses)
+    mock_adapters["claude"].invoke = AsyncMock(side_effect=claude_responses)
     mock_adapters["codex"].invoke = AsyncMock(side_effect=codex_responses)
 
     request = DeliberateRequest(
         question="Should we use TypeScript?",
         participants=[
-            Participant(cli="claude-code", model="claude-3-5-sonnet-20241022"),
+            Participant(cli="claude", model="claude-3-5-sonnet-20241022"),
             Participant(cli="codex", model="gpt-4"),
         ],
         rounds=2,
@@ -1645,7 +1645,7 @@ async def test_multi_round_execution(self, mock_adapters):
     assert len(result.full_debate) == 4  # 2 rounds x 2 participants
 
     # Verify round 2 participants saw round 1 responses
-    round_2_call = mock_adapters["claude-code"].invoke.call_args_list[1]
+    round_2_call = mock_adapters["claude"].invoke.call_args_list[1]
     prompt_arg = round_2_call.kwargs["prompt"]
     assert "PREVIOUS RESPONSES" in prompt_arg
     assert "Claude round 1" in prompt_arg or "Codex round 1" in prompt_arg
@@ -1656,7 +1656,7 @@ async def test_quick_mode_single_round(self, mock_adapters):
     request = DeliberateRequest(
         question="Test?",
         participants=[
-            Participant(cli="claude-code", model="claude-3-5-sonnet-20241022"),
+            Participant(cli="claude", model="claude-3-5-sonnet-20241022"),
         ],
         rounds=3,  # Request 3 but mode is quick
         mode="quick"
@@ -1904,7 +1904,7 @@ async def list_tools() -> list[Tool]:
                             "properties": {
                                 "cli": {
                                     "type": "string",
-                                    "enum": ["claude-code", "codex"],
+                                    "enum": ["claude", "codex"],
                                     "description": "CLI tool to use"
                                 },
                                 "model": {
@@ -2110,7 +2110,7 @@ def sample_result():
         status="complete",
         mode="conference",
         rounds_completed=2,
-        participants=["claude-3-5-sonnet@claude-code", "gpt-4@codex"],
+        participants=["claude-3-5-sonnet@claude", "gpt-4@codex"],
         summary=Summary(
             consensus="Strong agreement on TypeScript adoption",
             key_agreements=["Better type safety", "Improved IDE support"],
@@ -2121,7 +2121,7 @@ def sample_result():
         full_debate=[
             RoundResponse(
                 round=1,
-                participant="claude-3-5-sonnet@claude-code",
+                participant="claude-3-5-sonnet@claude",
                 stance="neutral",
                 response="I think TypeScript offers...",
                 timestamp="2025-10-12T15:30:00Z"
@@ -2150,7 +2150,7 @@ class TestTranscriptManager:
         assert "## Summary" in markdown
         assert "Strong agreement on TypeScript" in markdown
         assert "## Round 1" in markdown
-        assert "claude-3-5-sonnet@claude-code" in markdown
+        assert "claude-3-5-sonnet@claude" in markdown
         assert "I think TypeScript offers" in markdown
 
     def test_save_transcript(self, sample_result, tmp_path):
@@ -2430,7 +2430,7 @@ async def test_engine_saves_transcript(self, mock_adapters, tmp_path):
     request = DeliberateRequest(
         question="Should we use TypeScript?",
         participants=[
-            Participant(cli="claude-code", model="claude-3-5-sonnet-20241022"),
+            Participant(cli="claude", model="claude-3-5-sonnet-20241022"),
         ],
         rounds=1
     )
@@ -2560,7 +2560,7 @@ async def test_full_deliberation_workflow(tmp_path):
     Full E2E test of deliberation.
 
     PREREQUISITES:
-    - claude-code CLI must be installed
+    - claude CLI must be installed
     - codex CLI must be installed
     - Both must be configured with valid API keys
 
@@ -2571,7 +2571,7 @@ async def test_full_deliberation_workflow(tmp_path):
 
     # Create adapters
     adapters = {
-        "claude-code": create_adapter("claude-code", config.cli_tools["claude-code"]),
+        "claude": create_adapter("claude", config.cli_tools["claude"]),
         "codex": create_adapter("codex", config.cli_tools["codex"]),
     }
 
@@ -2588,7 +2588,7 @@ async def test_full_deliberation_workflow(tmp_path):
     request = DeliberateRequest(
         question="What is 2+2? Please answer briefly.",
         participants=[
-            Participant(cli="claude-code", model="claude-3-5-sonnet-20241022"),
+            Participant(cli="claude", model="claude-3-5-sonnet-20241022"),
             Participant(cli="codex", model="gpt-4"),
         ],
         rounds=2,
@@ -2611,7 +2611,7 @@ async def test_full_deliberation_workflow(tmp_path):
     assert Path(result.transcript_path).exists()
     content = Path(result.transcript_path).read_text()
     assert "What is 2+2?" in content
-    assert "claude-3-5-sonnet@claude-code" in content
+    assert "claude-3-5-sonnet@claude" in content
     assert "gpt-4@codex" in content
 
 
@@ -2622,7 +2622,7 @@ async def test_quick_mode_single_round(tmp_path):
     config = load_config()
 
     adapters = {
-        "claude-code": create_adapter("claude-code", config.cli_tools["claude-code"]),
+        "claude": create_adapter("claude", config.cli_tools["claude"]),
     }
 
     engine = DeliberationEngine(
@@ -2633,7 +2633,7 @@ async def test_quick_mode_single_round(tmp_path):
     request = DeliberateRequest(
         question="What is the capital of France? Answer in one word.",
         participants=[
-            Participant(cli="claude-code", model="claude-3-5-sonnet-20241022"),
+            Participant(cli="claude", model="claude-3-5-sonnet-20241022"),
         ],
         rounds=3,  # Will be overridden by quick mode
         mode="quick"
@@ -2661,7 +2661,7 @@ git add tests/e2e/test_full_deliberation.py
 git commit -m "test: add end-to-end tests for full workflow
 
 - Add E2E test exercising complete deliberation
-- Test with real claude-code and codex CLIs
+- Test with real claude and codex CLIs
 - Verify transcript generation
 - Mark tests as e2e for selective execution"
 ```
@@ -2697,7 +2697,7 @@ Unlike existing tools (like Zen's consensus feature) that gather parallel opinio
 - 🎯 **Two Modes:**
   - `quick`: Fast single-round opinions
   - `conference`: Multi-round deliberative debate
-- 🤖 **CLI-Based:** Works with claude-code, codex, and extensible to others
+- 🤖 **CLI-Based:** Works with claude, codex, and extensible to others
 - 📝 **Full Transcripts:** Markdown exports with summary and complete debate
 - 🎚️ **User Control:** Configure rounds, stances, and participants
 - 🔍 **Transparent:** See exactly what each model said and when
@@ -2711,7 +2711,7 @@ Unlike existing tools (like Zen's consensus feature) that gather parallel opinio
 python3 --version
 
 # Install CLI tools you want to use
-# For claude-code: https://docs.claude.com/en/docs/claude-code
+# For claude: https://docs.claude.com/en/docs/claude
 # For codex: (your installation instructions)
 ```
 
@@ -2739,8 +2739,8 @@ Edit `config.yaml` to configure CLI tools, timeouts, and settings:
 
 ```yaml
 cli_tools:
-  claude-code:
-    command: "claude-code"
+  claude:
+    command: "claude"
     args: ["--model", "{model}", "--prompt", "{prompt}"]
     timeout: 60
 
@@ -2791,7 +2791,7 @@ Add to your MCP client config:
 await use_mcp_tool("deliberate", {
   question: "Should we use TypeScript?",
   participants: [
-    {cli: "claude-code", model: "claude-3-5-sonnet-20241022"},
+    {cli: "claude", model: "claude-3-5-sonnet-20241022"},
     {cli: "codex", model: "gpt-4"}
   ],
   mode: "quick"
@@ -2801,7 +2801,7 @@ await use_mcp_tool("deliberate", {
 await use_mcp_tool("deliberate", {
   question: "Should we refactor our authentication system?",
   participants: [
-    {cli: "claude-code", model: "claude-3-5-sonnet-20241022", stance: "neutral"},
+    {cli: "claude", model: "claude-3-5-sonnet-20241022", stance: "neutral"},
     {cli: "codex", model: "gpt-4", stance: "for"}
   ],
   rounds: 3,
@@ -2924,7 +2924,7 @@ ai-counsel/
 ## Roadmap
 
 ### MVP (Current)
-- ✅ claude-code and codex adapters
+- ✅ claude and codex adapters
 - ✅ Quick and conference modes
 - ✅ Markdown transcripts
 - ✅ MCP server integration
@@ -3067,7 +3067,7 @@ open htmlcov/index.html
 
 ```bash
 # Good commits
-git commit -m "feat: add claude-code adapter with timeout handling"
+git commit -m "feat: add claude adapter with timeout handling"
 git commit -m "test: add unit tests for deliberation engine"
 git commit -m "fix: handle empty responses in transcript generation"
 git commit -m "docs: add installation instructions to README"
@@ -3141,7 +3141,7 @@ pip install pytest-asyncio
 ```bash
 # Solution: Increase timeout in config.yaml
 cli_tools:
-  claude-code:
+  claude:
     timeout: 120  # Increase from 60
 ```
 
@@ -3276,7 +3276,7 @@ Good luck! You got this. 🚀
 
 ### CLI Configuration Update (2025-10-13)
 
-**Issue:** Original implementation plan specified `claude-code` CLI, but system has `claude` CLI installed.
+**Issue:** Original implementation plan specified `claude` CLI, but system has `claude` CLI installed.
 
 **Solution:** Updated `config.yaml` to use correct CLI commands:
 
@@ -3294,12 +3294,12 @@ cli_tools:
 ```
 
 **Changes:**
-- Renamed `claude-code` to `claude`
+- Renamed `claude` to `claude`
 - Added `-p` flag for print/non-interactive mode
 - Updated codex to use `exec` subcommand for non-interactive execution
 
 **Commit:** `fix: update CLI tool commands to use installed 'claude' and 'codex'`
 
-**Note:** The schema and adapter code still reference `claude-code` as the identifier. This will need to be updated in a future refactor to align naming throughout the codebase.
+**Note:** The schema and adapter code still reference `claude` as the identifier. This will need to be updated in a future refactor to align naming throughout the codebase.
 
 ---

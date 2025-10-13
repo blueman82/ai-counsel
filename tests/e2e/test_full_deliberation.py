@@ -37,7 +37,7 @@ async def test_full_deliberation_workflow(tmp_path):
     config = load_config()
 
     adapters = {
-        "claude-code": create_adapter("claude-code", config.cli_tools["claude-code"]),
+        "claude": create_adapter("claude", config.cli_tools["claude"]),
         "codex": create_adapter("codex", config.cli_tools["codex"]),
     }
 
@@ -54,7 +54,7 @@ async def test_full_deliberation_workflow(tmp_path):
     request = DeliberateRequest(
         question="What is 2+2? Please answer briefly in one sentence.",
         participants=[
-            Participant(cli="claude-code", model="claude-3-5-sonnet-20241022"),
+            Participant(cli="claude", model="claude-3-5-sonnet-20241022"),
             Participant(cli="codex", model="gpt-4"),
         ],
         rounds=2,
@@ -128,7 +128,7 @@ async def test_quick_mode_single_round(tmp_path):
     config = load_config()
 
     adapters = {
-        "claude-code": create_adapter("claude-code", config.cli_tools["claude-code"]),
+        "claude": create_adapter("claude", config.cli_tools["claude"]),
         "codex": create_adapter("codex", config.cli_tools["codex"]),
     }
 
@@ -140,7 +140,7 @@ async def test_quick_mode_single_round(tmp_path):
     request = DeliberateRequest(
         question="What is the capital of France? Answer in one word only.",
         participants=[
-            Participant(cli="claude-code", model="claude-3-5-sonnet-20241022"),
+            Participant(cli="claude", model="claude-3-5-sonnet-20241022"),
             Participant(cli="codex", model="gpt-4"),
         ],
         rounds=3,  # Should be overridden by quick mode
@@ -181,7 +181,7 @@ async def test_deliberation_with_context(tmp_path):
     config = load_config()
 
     adapters = {
-        "claude-code": create_adapter("claude-code", config.cli_tools["claude-code"]),
+        "claude": create_adapter("claude", config.cli_tools["claude"]),
         "codex": create_adapter("codex", config.cli_tools["codex"]),
     }
 
@@ -193,7 +193,7 @@ async def test_deliberation_with_context(tmp_path):
     request = DeliberateRequest(
         question="Should we use this framework?",
         participants=[
-            Participant(cli="claude-code", model="claude-3-5-sonnet-20241022"),
+            Participant(cli="claude", model="claude-3-5-sonnet-20241022"),
             Participant(cli="codex", model="gpt-4"),
         ],
         rounds=1,

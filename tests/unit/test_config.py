@@ -11,14 +11,14 @@ class TestConfigLoading:
         config = load_config()
         assert config is not None
         assert config.version == "1.0"
-        assert "claude-code" in config.cli_tools
+        assert "claude" in config.cli_tools
         assert "codex" in config.cli_tools
 
     def test_cli_tool_config_structure(self):
         """Test CLI tool config has required fields."""
         config = load_config()
-        claude = config.cli_tools["claude-code"]
-        assert claude.command == "claude-code"
+        claude = config.cli_tools["claude"]
+        assert claude.command == "claude"
         assert isinstance(claude.args, list)
         assert claude.timeout == 60
 

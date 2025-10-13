@@ -15,11 +15,11 @@ class TestParticipant:
     def test_valid_participant(self):
         """Test creating a valid participant."""
         p = Participant(
-            cli="claude-code",
+            cli="claude",
             model="claude-3-5-sonnet-20241022",
             stance="neutral"
         )
-        assert p.cli == "claude-code"
+        assert p.cli == "claude"
         assert p.model == "claude-3-5-sonnet-20241022"
         assert p.stance == "neutral"
 
@@ -49,7 +49,7 @@ class TestDeliberateRequest:
         req = DeliberateRequest(
             question="Should we use TypeScript?",
             participants=[
-                Participant(cli="claude-code", model="claude-3-5-sonnet-20241022"),
+                Participant(cli="claude", model="claude-3-5-sonnet-20241022"),
                 Participant(cli="codex", model="gpt-4"),
             ]
         )
@@ -63,7 +63,7 @@ class TestDeliberateRequest:
         req = DeliberateRequest(
             question="Should we refactor?",
             participants=[
-                Participant(cli="claude-code", model="claude-3-5-sonnet-20241022", stance="for"),
+                Participant(cli="claude", model="claude-3-5-sonnet-20241022", stance="for"),
                 Participant(cli="codex", model="gpt-4", stance="against"),
             ],
             rounds=3,
@@ -89,7 +89,7 @@ class TestDeliberateRequest:
             DeliberateRequest(
                 question="Test?",
                 participants=[
-                    Participant(cli="claude-code", model="claude-3-5-sonnet-20241022"),
+                    Participant(cli="claude", model="claude-3-5-sonnet-20241022"),
                     Participant(cli="codex", model="gpt-4"),
                 ],
                 rounds=0
@@ -102,7 +102,7 @@ class TestDeliberateRequest:
             DeliberateRequest(
                 question="Test?",
                 participants=[
-                    Participant(cli="claude-code", model="claude-3-5-sonnet-20241022"),
+                    Participant(cli="claude", model="claude-3-5-sonnet-20241022"),
                     Participant(cli="codex", model="gpt-4"),
                 ],
                 rounds=10
