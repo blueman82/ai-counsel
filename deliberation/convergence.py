@@ -1,7 +1,8 @@
 """Convergence detection for deliberation rounds."""
 import logging
 from abc import ABC, abstractmethod
-from typing import Optional
+from dataclasses import dataclass
+from typing import List, Optional
 
 logger = logging.getLogger(__name__)
 
