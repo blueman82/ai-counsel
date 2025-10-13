@@ -222,13 +222,32 @@ class DeliberationEngine:
         # Determine actual rounds completed
         actual_rounds_completed = round_num if converged or (final_convergence_info and final_convergence_info.status == "impasse") else rounds_to_execute
 
-        # Generate summary (placeholder for now)
-        summary = Summary(
-            consensus="Generated summary placeholder",
-            key_agreements=["Agreement 1", "Agreement 2"],
-            key_disagreements=["Disagreement 1"],
-            final_recommendation="Recommendation placeholder"
-        )
+        # Generate AI-powered summary
+        if self.summarizer:
+            try:
+                logger.info("Generating AI-powered summary of deliberation...")
+                summary = await self.summarizer.generate_summary(
+                    question=request.question,
+                    responses=all_responses
+                )
+                logger.info("Summary generation completed successfully")
+            except Exception as e:
+                logger.error(f"Summary generation failed: {e}", exc_info=True)
+                # Fallback to placeholder on error
+                summary = Summary(
+                    consensus="[Summary generation failed]",
+                    key_agreements=["Error occurred during summary generation"],
+                    key_disagreements=[],
+                    final_recommendation="Please review the full debate below."
+                )
+        else:
+            # No summarizer available, use placeholder
+            summary = Summary(
+                consensus="[Summary generation not available - Claude adapter required]",
+                key_agreements=["No summary available"],
+                key_disagreements=[],
+                final_recommendation="Please review the full debate below."
+            )
 
         # Build participant list
         participant_ids = [
