@@ -2,3 +2,7 @@
 mcp>=1.0.0
 pydantic>=2.5.0
 pyyaml>=6.0.1
+
+# Optional: Enhanced convergence detection
+scikit-learn  # TF-IDF similarity
+sentence-transformers  # Neural semantic similarity
