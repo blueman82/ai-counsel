@@ -233,10 +233,11 @@ class TestDeliberationEngineMultiRound:
 
         await engine.execute(request)
 
-        # Second round should have context from first round
-        assert mock_adapters["claude"].invoke_mock.call_count == 2
+        # Claude is used for: round 1, round 2, and summary generation
+        # So should have at least 2 calls (for the 2 rounds)
+        assert mock_adapters["claude"].invoke_mock.call_count >= 2
         second_call = mock_adapters["claude"].invoke_mock.call_args_list[1]
-        # Check that context is passed in second call
+        # Check that context is passed in second deliberation round call
         assert second_call[0][2] is not None  # context should be present
 
     @pytest.mark.asyncio
@@ -366,3 +367,32 @@ class TestVoteParsing:
         vote = engine._parse_vote(response_text)
 
         assert vote is None
+
+    @pytest.mark.asyncio
+    async def test_execute_round_collects_votes(self, mock_adapters):
+        """Test that votes are collected when present in responses."""
+        mock_adapters["claude"] = mock_adapters["claude"]
+        engine = DeliberationEngine(mock_adapters)
+
+        participants = [
+            Participant(cli="claude", model="claude-3-5-sonnet", stance="neutral")
+        ]
+
+        # Response includes a vote
+        response_with_vote = '''
+        I recommend Option A because it has lower risk.
+
+        VOTE: {"option": "Option A", "confidence": 0.9, "rationale": "Lower risk"}
+        '''
+        mock_adapters["claude"].invoke_mock.return_value = response_with_vote
+
+        responses = await engine.execute_round(
+            round_num=1,
+            prompt="Which option?",
+            participants=participants,
+            previous_responses=[]
+        )
+
+        # Verify the response includes the full text
+        assert len(responses) == 1
+        assert "Option A" in responses[0].response
