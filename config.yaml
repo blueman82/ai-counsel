@@ -6,21 +6,26 @@ cli_tools:
     command: "claude"
     args: ["-p", "--model", "{model}", "--settings", "{{\"disableAllHooks\": true}}", "{prompt}"]
     timeout: 300
+    # Valid models: "sonnet", "opus", "haiku" or full names like "claude-sonnet-4-5-20250929"
 
   codex:
     command: "codex"
     args: ["exec", "--model", "{model}", "{prompt}"]
     timeout: 180
+    # Valid models: "gpt-5-codex", "o3", or other OpenAI model identifiers
 
   droid:
     command: "droid"
     args: ["exec", "-m", "{model}", "{prompt}"]
     timeout: 180
+    # Valid models: "claude-sonnet-4-5-20250929", "claude-opus-4-1-20250805", "gpt-5-codex"
+    # Note: Requires FULL model IDs, not short aliases
 
   gemini:
     command: "gemini"
     args: ["-m", "{model}", "-p", "{prompt}"]
     timeout: 180
+    # Valid models: "gemini-2.5-pro" (default) or other Gemini identifiers
 
 defaults:
   mode: "quick"
