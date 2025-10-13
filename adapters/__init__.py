@@ -20,9 +20,17 @@ def create_adapter(cli: str, config: CLIToolConfig) -> BaseCLIAdapter:
         ValueError: If CLI tool is not supported
     """
     if cli == "claude":
-        return ClaudeAdapter(timeout=config.timeout)
+        return ClaudeAdapter(
+            command=config.command,
+            args=config.args,
+            timeout=config.timeout
+        )
     elif cli == "codex":
-        return CodexAdapter(timeout=config.timeout)
+        return CodexAdapter(
+            command=config.command,
+            args=config.args,
+            timeout=config.timeout
+        )
     else:
         raise ValueError(
             f"Unsupported CLI tool: '{cli}'. "
