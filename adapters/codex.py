@@ -11,6 +11,10 @@ class CodexAdapter(BaseCLIAdapter):
 
         Args:
             timeout: Timeout in seconds (default: 60)
+
+        Note:
+            The codex CLI accepts arguments directly without flags:
+            `codex <model> <prompt>` rather than `codex --model <model> <prompt>`
         """
         super().__init__(
             command="codex",
