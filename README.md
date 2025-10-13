@@ -63,14 +63,14 @@ Edit `config.yaml` to configure CLI tools, timeouts, and settings:
 
 ```yaml
 cli_tools:
-  claude-code:
-    command: "claude-code"
-    args: ["--model", "{model}", "--prompt", "{prompt}"]
+  claude:
+    command: "claude"
+    args: ["-p", "--model", "{model}", "{prompt}"]
     timeout: 60
 
   codex:
     command: "codex"
-    args: ["--model", "{model}", "{prompt}"]
+    args: ["exec", "--model", "{model}", "{prompt}"]
     timeout: 60
 
 defaults:
