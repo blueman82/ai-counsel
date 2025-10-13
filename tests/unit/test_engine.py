@@ -435,3 +435,35 @@ class TestVoteParsing:
         assert result.voting_result.winning_option == "Option A"
         assert result.voting_result.final_tally["Option A"] == 4  # 2 participants x 2 rounds
         assert len(result.voting_result.votes_by_round) == 4
+
+
+class TestVotingPrompts:
+    """Tests for voting instruction prompts."""
+
+    def test_build_voting_instructions(self):
+        """Test that voting instructions are properly formatted."""
+        engine = DeliberationEngine({})
+
+        instructions = engine._build_voting_instructions()
+
+        # Verify voting instructions contain key elements
+        assert "VOTE:" in instructions
+        assert "option" in instructions
+        assert "confidence" in instructions
+        assert "rationale" in instructions
+        assert "0.0" in instructions or "0-1" in instructions or "between 0 and 1" in instructions.lower()
+
+    def test_enhance_prompt_with_voting(self):
+        """Test that prompt enhancement adds voting instructions."""
+        engine = DeliberationEngine({})
+
+        base_question = "Should we use TypeScript?"
+        enhanced = engine._enhance_prompt_with_voting(base_question)
+
+        # Verify enhanced prompt contains original question
+        assert base_question in enhanced
+
+        # Verify voting instructions are included
+        assert "VOTE:" in enhanced
+        assert "option" in enhanced.lower()
+        assert "confidence" in enhanced.lower()

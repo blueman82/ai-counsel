@@ -118,7 +118,8 @@ class ConvergenceInfo(BaseModel):
         ...,
         description="Final similarity score (minimum across all participants, range 0.0-1.0)"
     )
-    status: Literal["converged", "diverging", "refining", "impasse", "max_rounds"] = Field(
+    status: Literal["converged", "diverging", "refining", "impasse", "max_rounds",
+                     "unanimous_consensus", "majority_decision", "tie", "unknown"] = Field(
         ...,
         description=(
             "Convergence status: "
@@ -126,7 +127,11 @@ class ConvergenceInfo(BaseModel):
             "'refining' (40-85%, still making progress), "
             "'diverging' (<40%, significant disagreement), "
             "'impasse' (stable disagreement over multiple rounds), "
-            "'max_rounds' (reached round limit)"
+            "'max_rounds' (reached round limit), "
+            "'unanimous_consensus' (all votes for same option), "
+            "'majority_decision' (clear winner from voting), "
+            "'tie' (no clear winner from voting), "
+            "'unknown' (no convergence data available)"
         )
     )
     scores_by_round: list[dict] = Field(

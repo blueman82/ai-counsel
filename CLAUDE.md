@@ -34,7 +34,21 @@ AI Counsel is an MCP (Model Context Protocol) server that enables true deliberat
 - Semantic similarity comparison between consecutive rounds
 - Three backends with automatic fallback: SentenceTransformer (best) → TF-IDF → Jaccard (zero deps)
 - Statuses: converged (≥85%), refining (40-85%), diverging (<40%), impasse (stable disagreement)
+- Voting-aware: overrides semantic status with voting outcomes (unanimous_consensus, majority_decision, tie)
 - Enables auto-stop when consensus reached or stable disagreement detected
+
+**Structured Voting** (`models/schema.py`)
+- Vote model: option, confidence (0.0-1.0), rationale, continue_debate flag
+- Aggregates votes across rounds into VotingResult with tally and winning option
+- Voting outcomes take precedence over semantic similarity for convergence status
+- 2-1 vote → "majority_decision", 3-0 vote → "unanimous_consensus", 1-1-1 → "tie"
+
+**Model-Controlled Early Stopping** (`deliberation/engine.py`, `config.yaml`)
+- Models signal readiness to stop via `continue_debate: false` in votes
+- Engine checks after each round if threshold met (default: 66% consensus)
+- Respects min_rounds configuration before allowing early stop
+- Adaptive round counts: stop at round 2 if all satisfied, or continue to max rounds
+- Configuration: `deliberation.early_stopping.enabled`, `threshold`, `respect_min_rounds`
 
 **Transcript Management** (`deliberation/transcript.py`)
 - Generates markdown transcripts in `transcripts/` directory
@@ -48,6 +62,7 @@ AI Counsel is an MCP (Model Context Protocol) server that enables true deliberat
 
 **Data Models** (`models/schema.py`)
 - Pydantic models for validation: `Participant`, `DeliberateRequest`, `RoundResponse`, `Summary`, `ConvergenceInfo`, `DeliberationResult`
+- Voting models: `Vote` (option, confidence, rationale, continue_debate), `RoundVote`, `VotingResult`
 - Type-safe request/response handling throughout the system
 
 **Configuration** (`models/config.py`, `config.yaml`)
@@ -60,12 +75,17 @@ AI Counsel is an MCP (Model Context Protocol) server that enables true deliberat
 1. MCP client invokes `deliberate` tool → `server.py::call_tool()`
 2. Request validated against `DeliberateRequest` schema
 3. `DeliberationEngine.execute()` orchestrates rounds
-4. For each round: `execute_round()` → adapters invoke CLIs → responses collected
+4. For each round:
+   - `execute_round()` → prompts enhanced with voting instructions → adapters invoke CLIs
+   - Responses collected and votes parsed from "VOTE: {json}" markers
+   - Check model-controlled early stopping: if ≥66% want to stop → break
 5. After round 2+: convergence detection compares current vs previous round
-6. If converged/impasse: stop early; else continue to max rounds
-7. AI summarizer generates structured summary of debate
-8. `TranscriptManager` saves markdown to `transcripts/`
-9. Result serialized and returned to MCP client
+6. If converged/impasse/early-stop: stop early; else continue to max rounds
+7. Aggregate voting results: determine winner, consensus status, final tally
+8. AI summarizer generates structured summary of debate
+9. Override convergence status with voting outcome if available (majority_decision > semantic refining)
+10. `TranscriptManager` saves markdown to `transcripts/`
+11. Result serialized and returned to MCP client
 
 ## Development Commands
 
@@ -136,6 +156,15 @@ python server.py
 - Minimum rounds before checking: `min_rounds_before_check: 1` (checks starting from round 2, since you need 2 rounds to compare)
 - Backend selection: automatic fallback based on installed dependencies
 - **Important**: `min_rounds_before_check` must be `<= rounds - 1` for convergence info to appear. For 2-round deliberations, use `min_rounds_before_check: 1`
+- **Voting override**: When structured voting produces a result, convergence status reflects voting outcome instead of semantic similarity
+
+### Model-Controlled Early Stopping
+- Enabled by default: `deliberation.early_stopping.enabled: true`
+- Stop threshold: `0.66` (66% of models must want to stop)
+- Respects minimum rounds: `respect_min_rounds: true` (won't stop before `defaults.rounds`)
+- Models signal via `continue_debate: false` in their vote JSON
+- Example: 3 models, 2 say `continue_debate: false` → stops after that round (2/3 = 66%)
+- Use case: Models converge at round 2 but config says 5 rounds → stops at 2, saves API costs
 
 ### Hook Management
 Claude CLI uses `--settings '{"disableAllHooks": true}'` to prevent user hooks from interfering with deliberation invocations. This is critical for reliable execution.
@@ -225,10 +254,12 @@ This server implements MCP protocol for Claude Code integration:
 
 ## Production Readiness
 
-- ✅ 69 passing tests with comprehensive coverage
+- ✅ 74+ passing tests with comprehensive coverage (unit, integration, e2e)
 - ✅ Type-safe Pydantic validation
 - ✅ Graceful error handling and adapter isolation
 - ✅ Structured logging to file (no stdio contamination)
 - ✅ Convergence detection with auto-stop
+- ✅ Structured voting with confidence and rationale
+- ✅ Model-controlled early stopping for adaptive round counts
 - ✅ AI-powered summary generation
 - ✅ Full audit trail with markdown transcripts
