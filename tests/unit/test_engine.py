@@ -264,3 +264,33 @@ class TestDeliberationEngineMultiRound:
         # Quick mode should force 1 round, not 5
         assert result.rounds_completed == 1
         assert len(result.full_debate) == 2  # 1 round * 2 participants
+
+    @pytest.mark.asyncio
+    async def test_engine_saves_transcript(self, mock_adapters, tmp_path):
+        """Test that engine saves transcript after execution."""
+        from deliberation.transcript import TranscriptManager
+        from models.schema import DeliberateRequest
+
+        manager = TranscriptManager(output_dir=str(tmp_path))
+
+        request = DeliberateRequest(
+            question="Should we use TypeScript?",
+            participants=[
+                Participant(cli="claude-code", model="claude-3-5-sonnet-20241022", stance="neutral"),
+            ],
+            rounds=1
+        )
+
+        mock_adapters["claude-code"] = mock_adapters["claude"]
+        mock_adapters["claude-code"].invoke_mock.return_value = "Claude response"
+
+        engine = DeliberationEngine(adapters=mock_adapters, transcript_manager=manager)
+        result = await engine.execute(request)
+
+        # Verify transcript was saved
+        assert result.transcript_path
+        assert Path(result.transcript_path).exists()
+
+        # Verify content
+        content = Path(result.transcript_path).read_text()
+        assert "Should we use TypeScript?" in content
