@@ -15,7 +15,6 @@ transcripts/*.json
 !transcripts/.gitkeep
 .env
 config.local.yaml
-.claude/
 
 # Auto-added by Claude Code auto-commit hook
 logs/user_prompt_submit.json
