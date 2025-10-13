@@ -20,9 +20,9 @@ class ClaudeAdapter(BaseCLIAdapter):
 
     def parse_output(self, raw_output: str) -> str:
         """
-        Parse claude-code output.
+        Parse claude CLI output.
 
-        Claude code typically outputs:
+        Claude CLI with -p flag typically outputs:
         - Header/initialization text
         - Blank lines
         - Actual model response
@@ -30,7 +30,7 @@ class ClaudeAdapter(BaseCLIAdapter):
         We extract everything after the first substantial block of text.
 
         Args:
-            raw_output: Raw stdout from claude-code
+            raw_output: Raw stdout from claude CLI
 
         Returns:
             Parsed model response
