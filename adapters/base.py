@@ -46,6 +46,15 @@ class BaseCLIAdapter(ABC):
         if context:
             full_prompt = f"{context}\n\n{prompt}"
 
+        # Validate prompt length if adapter supports it
+        if hasattr(self, 'validate_prompt_length'):
+            if not self.validate_prompt_length(full_prompt):
+                raise ValueError(
+                    f"Prompt too long ({len(full_prompt)} chars). "
+                    f"Maximum allowed: {getattr(self, 'MAX_PROMPT_CHARS', 'unknown')} chars. "
+                    "This prevents API rejection errors."
+                )
+
         # Format arguments
         formatted_args = [
             arg.format(model=model, prompt=full_prompt)
