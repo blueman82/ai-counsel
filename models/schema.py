@@ -149,3 +149,7 @@ class DeliberationResult(BaseModel):
         None,
         description="Convergence detection information (None if detection disabled)"
     )
+    voting_result: Optional[VotingResult] = Field(
+        None,
+        description="Voting results if participants cast votes (None if no votes found)"
+    )
