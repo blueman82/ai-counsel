@@ -1,9 +1,9 @@
-"""Claude Code CLI adapter."""
+"""Claude CLI adapter."""
 from adapters.base import BaseCLIAdapter
 
 
-class ClaudeCodeAdapter(BaseCLIAdapter):
-    """Adapter for claude-code CLI tool."""
+class ClaudeAdapter(BaseCLIAdapter):
+    """Adapter for claude CLI tool."""
 
     def __init__(self, timeout: int = 60):
         """
