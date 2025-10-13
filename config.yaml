@@ -3,8 +3,8 @@ version: "1.0"
 
 cli_tools:
   claude:
-    command: "claude"
-    args: ["-p", "--model", "{model}", "{prompt}"]
+    command: "clyo"
+    args: ["-p", "--model", "{model}", "{prompt}", "--no-hooks"]
     timeout: 300
 
   codex:
