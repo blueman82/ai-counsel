@@ -62,5 +62,13 @@
     "permission_mode": "default",
     "hook_event_name": "SubagentStop",
     "stop_hook_active": false
+  },
+  {
+    "session_id": "64a8196d-5f5f-4da7-beb9-3eff201f621f",
+    "transcript_path": "/Users/harrison/.claude/projects/-Users-harrison-Documents-Github-ai-counsel/64a8196d-5f5f-4da7-beb9-3eff201f621f.jsonl",
+    "cwd": "/Users/harrison/Documents/Github/ai-counsel",
+    "permission_mode": "bypassPermissions",
+    "hook_event_name": "SubagentStop",
+    "stop_hook_active": false
   }
 ]
