@@ -392,6 +392,7 @@ class DeliberationEngine:
 
         # Determine actual rounds completed
         is_early_stop = (converged or
+                         model_controlled_stop or
                          (final_convergence_info and final_convergence_info.status == "impasse"))
         actual_rounds_completed = round_num if is_early_stop else rounds_to_execute
 
