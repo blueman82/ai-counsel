@@ -41,4 +41,4 @@ def create_adapter(cli: str, config: CLIToolConfig) -> BaseCLIAdapter:
         )
 
 
-__all__ = ["BaseCLIAdapter", "ClaudeAdapter", "CodexAdapter", "create_adapter"]
+__all__ = ["BaseCLIAdapter", "ClaudeAdapter", "CodexAdapter", "DroidAdapter", "GeminiAdapter", "create_adapter"]
