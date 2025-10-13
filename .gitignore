@@ -17,10 +17,9 @@ transcripts/*.json
 config.local.yaml
 
 # Auto-added by Claude Code auto-commit hook
-logs/user_prompt_submit.json
-logs/stop.json
-logs/subagent_stop.json
+logs/
 *.log
+mcp_server.log
 *.tmp
 .env.local
 .env.*.local
@@ -32,3 +31,6 @@ node_modules/
 .vscode/
 .idea/
 *.pyc
+
+# Auto-added by Claude Code auto-commit hook
+logs/user_prompt_submit.json
