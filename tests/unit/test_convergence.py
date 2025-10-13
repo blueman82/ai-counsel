@@ -77,10 +77,6 @@ class TestTFIDFBackend:
             with pytest.raises(ImportError):
                 TFIDFBackend()
 
-    @pytest.mark.skipif(
-        not pytest.importorskip("sklearn", minversion="1.0"),
-        reason="scikit-learn not installed"
-    )
     def test_identical_text_returns_one(self):
         """Identical text should have similarity of 1.0."""
         backend = TFIDFBackend()
