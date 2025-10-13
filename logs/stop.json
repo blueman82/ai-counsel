@@ -238,5 +238,21 @@
     "permission_mode": "bypassPermissions",
     "hook_event_name": "Stop",
     "stop_hook_active": false
+  },
+  {
+    "session_id": "91e94813-46e4-4cc9-aa16-ffeaa92ccf66",
+    "transcript_path": "/Users/harrison/.claude/projects/-Users-harrison-Documents-Github-ai-counsel/91e94813-46e4-4cc9-aa16-ffeaa92ccf66.jsonl",
+    "cwd": "/Users/harrison/Documents/Github/ai-counsel",
+    "permission_mode": "bypassPermissions",
+    "hook_event_name": "Stop",
+    "stop_hook_active": true
+  },
+  {
+    "session_id": "91e94813-46e4-4cc9-aa16-ffeaa92ccf66",
+    "transcript_path": "/Users/harrison/.claude/projects/-Users-harrison-Documents-Github-ai-counsel/91e94813-46e4-4cc9-aa16-ffeaa92ccf66.jsonl",
+    "cwd": "/Users/harrison/Documents/Github/ai-counsel",
+    "permission_mode": "bypassPermissions",
+    "hook_event_name": "Stop",
+    "stop_hook_active": false
   }
 ]
