@@ -20,7 +20,7 @@ Unlike existing tools (like Zen's consensus feature) that gather parallel opinio
 - 🎯 **Two Modes:**
   - `quick`: Fast single-round opinions
   - `conference`: Multi-round deliberative debate
-- 🤖 **CLI-Based:** Works with claude-code, codex, and extensible to others
+- 🤖 **CLI-Based:** Works with claude, codex, and extensible to others
 - 📝 **Full Transcripts:** Markdown exports with summary and complete debate
 - 🎚️ **User Control:** Configure rounds, stances, and participants
 - 🔍 **Transparent:** See exactly what each model said and when
@@ -34,7 +34,7 @@ Unlike existing tools (like Zen's consensus feature) that gather parallel opinio
 python3 --version
 
 # Install CLI tools you want to use
-# For claude-code: https://docs.claude.com/en/docs/claude-code
+# For claude: https://docs.claude.com/en/docs/claude
 # For codex: (your installation instructions)
 ```
 
@@ -60,8 +60,6 @@ python3 -m pytest tests/unit -v
 ## Configuration
 
 Edit `config.yaml` to configure CLI tools, timeouts, and settings:
-
-**Note:** The code uses `"claude-code"` as the identifier (in API calls, schema, etc.) but this maps to the actual `claude` CLI command in the config. This naming inconsistency is documented and will be addressed in a future refactor.
 
 ```yaml
 cli_tools:
@@ -123,7 +121,7 @@ Add to your MCP client config:
 await use_mcp_tool("deliberate", {
   question: "Should we migrate from JavaScript to TypeScript for our React components?",
   participants: [
-    {cli: "claude-code", model: "claude-3-5-sonnet-20241022"},
+    {cli: "claude", model: "claude-3-5-sonnet-20241022"},
     {cli: "codex", model: "gpt-4"}
   ],
   mode: "quick"
@@ -133,7 +131,7 @@ await use_mcp_tool("deliberate", {
 await use_mcp_tool("deliberate", {
   question: "Should we refactor our authentication system from JWT to session-based auth?",
   participants: [
-    {cli: "claude-code", model: "claude-3-5-sonnet-20241022", stance: "neutral"},
+    {cli: "claude", model: "claude-3-5-sonnet-20241022", stance: "neutral"},
     {cli: "codex", model: "gpt-4", stance: "for"}
   ],
   rounds: 3,
@@ -226,7 +224,7 @@ from adapters.your_tool import YourToolAdapter
 # Add to create_adapter() function
 def create_adapter(cli_name: str, config: CLIToolConfig):
     adapters = {
-        "claude-code": ClaudeCodeAdapter,
+        "claude": ClaudeCodeAdapter,
         "codex": CodexAdapter,
         "your-tool": YourToolAdapter,  # Add this line
     }
@@ -267,7 +265,7 @@ ai-counsel/
 
 ### MVP (Current) ✅
 
-- ✅ claude-code and codex adapters
+- ✅ claude and codex adapters
 - ✅ Quick and conference modes
 - ✅ Markdown transcripts with full debate history
 - ✅ MCP server integration
