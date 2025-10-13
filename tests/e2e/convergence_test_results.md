@@ -1,0 +1,280 @@
+# E2E Test Results - Convergence Detection
+
+**Feature:** Auto-stop deliberation when AI model opinions stabilize
+**Test Date:** 2025-10-13
+**Status:** Phase 5 - Manual E2E Testing
+**Tester:** User-assisted testing required
+
+---
+
+## Prerequisites Verification
+
+### Unit Tests Status
+- ✅ **Jaccard Backend**: 5/5 tests passing
+- ✅ **TF-IDF Backend**: 2/2 tests passing (1 skipped - expected)
+- ⏭️ **Sentence Transformer Backend**: 2 tests skipped (library not installed - optional)
+- ✅ **Convergence Detector**: 4/4 tests passing
+- **Total**: 11 passed, 3 skipped (100% of required tests)
+
+### Integration Status
+- ✅ Engine initialized with convergence detector
+- ✅ Configuration loaded successfully
+- ✅ Convergence detection enabled in config
+- ✅ Similarity threshold: 0.85
+- ✅ Backend: TFIDFBackend (scikit-learn available)
+
+---
+
+## E2E Test Plan
+
+### Test Scenario 1: Convergence Detection (Agreement Case)
+
+**Question**: "Should we use TypeScript or JavaScript for a new project?"
+**Expected Outcome**: Both models likely agree on TypeScript → Early convergence
+**Participants**: Claude Sonnet + GPT-4o (or similar)
+**Max Rounds**: 5
+**Mode**: conference
+
+**Steps to Test**:
+1. Start the MCP server: `python server.py`
+2. From Claude Code, use the `deliberate` tool with:
+```json
+{
+  "question": "Should we use TypeScript or JavaScript for a new project?",
+  "participants": [
+    {"cli": "claude", "model": "sonnet"},
+    {"cli": "codex", "model": "gpt-4o"}
+  ],
+  "rounds": 5,
+  "mode": "conference"
+}
+```
+
+**What to Check**:
+- [ ] Server starts without errors
+- [ ] Deliberation executes successfully
+- [ ] Result includes `convergence_info` field
+- [ ] `convergence_info.detected` is `true` or `false`
+- [ ] `convergence_info.status` shows one of: "converged", "refining", "diverging", "impasse"
+- [ ] If converged: `rounds_completed < 5` (early stopping)
+- [ ] If converged: `detection_round` is set to the round where convergence occurred
+- [ ] Transcript file is generated in `transcripts/` directory
+- [ ] Transcript shows actual rounds completed
+
+**Results**:
+```
+Status: [PENDING - Awaiting user test]
+Rounds Completed: [TBD]
+Convergence Detected: [TBD]
+Convergence Status: [TBD]
+Final Similarity: [TBD]
+Per-Participant Similarity: [TBD]
+Notes: [TBD]
+```
+
+---
+
+### Test Scenario 2: Refining/Diverging (Complex Question)
+
+**Question**: "What is the best approach to AI alignment?"
+**Expected Outcome**: Models may continue refining or reach impasse
+**Participants**: Claude Sonnet + GPT-4o
+**Max Rounds**: 5
+**Mode**: conference
+
+**Steps to Test**:
+1. Use the `deliberate` tool with:
+```json
+{
+  "question": "What is the best approach to AI alignment?",
+  "participants": [
+    {"cli": "claude", "model": "sonnet"},
+    {"cli": "codex", "model": "gpt-4o"}
+  ],
+  "rounds": 5,
+  "mode": "conference"
+}
+```
+
+**What to Check**:
+- [ ] Deliberation runs all 5 rounds (complex topic, less likely to converge)
+- [ ] `convergence_info.status` shows "refining" or "diverging"
+- [ ] Similarity scores are tracked per round
+- [ ] No early stopping (unless impasse reached)
+
+**Results**:
+```
+Status: [PENDING - Awaiting user test]
+Rounds Completed: [TBD]
+Convergence Detected: [TBD]
+Convergence Status: [TBD]
+Final Similarity: [TBD]
+Notes: [TBD]
+```
+
+---
+
+### Test Scenario 3: Quick Mode (No Convergence Check)
+
+**Question**: "Is Python or JavaScript better for beginners?"
+**Expected Outcome**: Single round, no convergence check
+**Participants**: Claude Sonnet
+**Max Rounds**: 1 (forced by quick mode)
+**Mode**: quick
+
+**Steps to Test**:
+1. Use the `deliberate` tool with:
+```json
+{
+  "question": "Is Python or JavaScript better for beginners?",
+  "participants": [
+    {"cli": "claude", "model": "sonnet"}
+  ],
+  "rounds": 3,
+  "mode": "quick"
+}
+```
+
+**What to Check**:
+- [ ] Only 1 round executed (quick mode forces single round)
+- [ ] `convergence_info` is `null` (no convergence check in round 1)
+- [ ] Result completes successfully
+
+**Results**:
+```
+Status: [PENDING - Awaiting user test]
+Rounds Completed: [TBD]
+Convergence Info: [TBD]
+Notes: [TBD]
+```
+
+---
+
+## How to Start the Server
+
+### Option 1: Standard MCP Server
+```bash
+cd /Users/harrison/Documents/Github/ai-counsel
+source .venv/bin/activate
+python server.py
+```
+
+The server will run and wait for MCP tool calls from Claude Code.
+
+### Option 2: Test via Claude Code
+
+From Claude Code, the server should already be configured. Simply use:
+```
+Use the deliberate tool with the test scenarios above
+```
+
+---
+
+## Expected Log Output
+
+When convergence detection is working, you should see logs like:
+
+```
+INFO:deliberation.engine:Convergence detection enabled
+INFO:deliberation.convergence:ConvergenceDetector initialized with TFIDFBackend
+INFO:deliberation.convergence:Using TFIDFBackend (good accuracy)
+INFO:deliberation.engine:Round 2: refining (min_sim=0.72, avg_sim=0.75)
+INFO:deliberation.engine:Round 3: converged (min_sim=0.87, avg_sim=0.89)
+INFO:deliberation.engine:✓ Convergence detected at round 3, stopping early
+```
+
+---
+
+## Verification Checklist
+
+### Functional Requirements
+- [ ] Convergence detector initializes when enabled in config
+- [ ] Convergence check runs starting from round 2
+- [ ] Early stopping works on convergence detection
+- [ ] Early stopping works on impasse detection
+- [ ] `convergence_info` is included in results
+- [ ] Transcript reflects actual rounds completed
+- [ ] Quick mode skips convergence checks (single round)
+
+### Data Integrity
+- [ ] `convergence_info.detected` is accurate
+- [ ] `convergence_info.status` matches actual deliberation state
+- [ ] `final_similarity` score is reasonable (0.0-1.0)
+- [ ] `per_participant_similarity` includes all participants
+- [ ] `detection_round` is set correctly (or null if not detected)
+
+### Performance
+- [ ] Similarity computation doesn't significantly slow deliberation
+- [ ] Backend selection works (TF-IDF > Jaccard fallback)
+- [ ] No crashes or errors during convergence checks
+
+---
+
+## Known Issues / Limitations
+
+1. **Sentence Transformers Not Installed**: Tests skip gracefully (optional dependency)
+2. **Single Participant**: Convergence detection requires 2+ participants
+3. **Backend Selection**: Falls back to Jaccard if scikit-learn not available
+
+---
+
+## Next Steps After E2E Testing
+
+Once manual testing is complete:
+
+1. **Document Results**: Fill in the [TBD] sections above with actual results
+2. **Update Implementation Plan**: Mark Phase 5 as complete
+3. **Proceed to Phase 6**: Documentation and cleanup (already complete per git log)
+4. **Final Review**: Check all acceptance criteria in implementation plan
+
+---
+
+## Troubleshooting
+
+### Server Won't Start
+- Check if another process is using the same port
+- Verify virtual environment is activated
+- Check `mcp_server.log` for errors
+
+### No Convergence Detection
+- Verify `convergence_detection.enabled: true` in config.yaml
+- Check engine initialization logs
+- Ensure at least 2 rounds are configured
+- Verify at least 2 participants in deliberation
+
+### Unexpected Convergence
+- Lower `semantic_similarity_threshold` if too sensitive
+- Increase `consecutive_stable_rounds` to require more confirmation
+- Check `min_rounds_before_check` setting
+
+### Similarity Scores Seem Wrong
+- Review participant responses in transcript
+- Check which backend is being used (log output)
+- Try installing sentence-transformers for better accuracy
+
+---
+
+## Test Execution Instructions
+
+**For the user testing this feature:**
+
+1. **Before Testing**:
+   - Ensure MCP server is configured in Claude Code
+   - Have access to at least one CLI tool (claude, codex, etc.)
+   - Review the test scenarios above
+
+2. **During Testing**:
+   - Run each test scenario sequentially
+   - Copy the actual results into this document
+   - Save transcript files for reference
+   - Note any unexpected behavior
+
+3. **After Testing**:
+   - Complete the checklist sections
+   - Document any issues found
+   - Suggest improvements if needed
+   - Commit this file with results
+
+---
+
+**Status**: ⏳ Awaiting manual E2E test execution by user
