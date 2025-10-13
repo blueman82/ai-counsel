@@ -195,13 +195,20 @@ deliberation:
 {
   "convergence_info": {
     "detected": true,
-    "detection_round": 3,
-    "final_similarity": 0.87,
-    "status": "converged",
+    "detection_round": 2,
+    "final_similarity": 0.73,
+    "status": "majority_decision",
     "per_participant_similarity": {
-      "claude@cli": 0.87,
-      "codex@cli": 0.89
+      "claude@cli": 0.73,
+      "codex@cli": 0.85,
+      "gemini@cli": 0.70
     }
+  },
+  "voting_result": {
+    "final_tally": {"Option A": 2, "Option B": 1},
+    "consensus_reached": true,
+    "winning_option": "Option A",
+    "votes_by_round": [...]
   }
 }
 ```
@@ -464,12 +471,14 @@ ai-counsel/
 - ✅ Structured summaries
 - ✅ Hook interference prevention
 - ✅ Convergence detection (auto-stop when opinions stabilize)
+- ✅ Structured voting mechanisms with confidence and rationale
+- ✅ Model-controlled early stopping (adaptive round counts)
+- ✅ Voting-aware convergence status (majority_decision, unanimous_consensus, tie)
 - ✅ AI-powered summary generation (uses Claude to analyze and summarize debates)
 
 ### Future Enhancements
 - [ ] More CLI tool adapters (ollama, llama-cpp, etc.)
 - [ ] Web UI for viewing transcripts
-- [ ] Structured voting mechanisms
 - [ ] Real-time streaming of deliberation progress
 
 ## Contributing
@@ -500,7 +509,7 @@ Inspired by the need for true deliberative AI consensus beyond parallel opinion 
 ## Status
 
 [![Build](https://img.shields.io/badge/build-passing-brightgreen)]()
-[![Tests](https://img.shields.io/badge/tests-69%20passing-green)]()
-[![Version](https://img.shields.io/badge/version-1.0.0-blue)]()
+[![Tests](https://img.shields.io/badge/tests-74+%20passing-green)]()
+[![Version](https://img.shields.io/badge/version-1.1.0-blue)]()
 
-**Production Ready** - Multi-model deliberative consensus for critical technical decisions!
+**Production Ready** - Multi-model deliberative consensus with structured voting and adaptive early stopping for critical technical decisions!
