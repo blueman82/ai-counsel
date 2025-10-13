@@ -3,7 +3,7 @@ import pytest
 from datetime import datetime
 from pathlib import Path
 from deliberation.engine import DeliberationEngine
-from models.schema import Participant, RoundResponse
+from models.schema import Participant, RoundResponse, Vote
 
 
 class TestDeliberationEngine:
@@ -297,3 +297,72 @@ class TestDeliberationEngineMultiRound:
         # Verify content
         content = Path(result.transcript_path).read_text()
         assert "Should we use TypeScript?" in content
+
+
+class TestVoteParsing:
+    """Tests for vote parsing from model responses."""
+
+    def test_parse_vote_from_response_valid_json(self):
+        """Test parsing valid vote from response text."""
+        response_text = '''
+        I think Option A is better because it has lower risk.
+
+        VOTE: {"option": "Option A", "confidence": 0.85, "rationale": "Lower risk and better fit"}
+        '''
+
+        engine = DeliberationEngine({})
+        vote = engine._parse_vote(response_text)
+
+        assert vote is not None
+        assert isinstance(vote, Vote)
+        assert vote.option == "Option A"
+        assert vote.confidence == 0.85
+        assert vote.rationale == "Lower risk and better fit"
+
+    def test_parse_vote_from_response_no_vote(self):
+        """Test parsing when no vote marker present."""
+        response_text = "This is just a regular response without a vote"
+
+        engine = DeliberationEngine({})
+        vote = engine._parse_vote(response_text)
+
+        assert vote is None
+
+    def test_parse_vote_from_response_invalid_json(self):
+        """Test parsing when vote JSON is malformed."""
+        response_text = '''
+        My analysis here.
+
+        VOTE: {invalid json}
+        '''
+
+        engine = DeliberationEngine({})
+        vote = engine._parse_vote(response_text)
+
+        assert vote is None
+
+    def test_parse_vote_from_response_missing_fields(self):
+        """Test parsing when vote JSON missing required fields."""
+        response_text = '''
+        My analysis.
+
+        VOTE: {"option": "Option A"}
+        '''
+
+        engine = DeliberationEngine({})
+        vote = engine._parse_vote(response_text)
+
+        assert vote is None
+
+    def test_parse_vote_confidence_out_of_range(self):
+        """Test parsing when confidence is out of valid range."""
+        response_text = '''
+        Analysis here.
+
+        VOTE: {"option": "Yes", "confidence": 1.5, "rationale": "Test"}
+        '''
+
+        engine = DeliberationEngine({})
+        vote = engine._parse_vote(response_text)
+
+        assert vote is None
