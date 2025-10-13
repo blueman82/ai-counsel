@@ -343,7 +343,7 @@ ai-counsel/
 
 ## Roadmap
 
-### MVP (Current) ✅
+### Current Features ✅
 
 - ✅ 4 CLI adapters: claude, codex, droid, gemini
 - ✅ Quick and conference modes
@@ -352,7 +352,7 @@ ai-counsel/
 - ✅ Structured summaries
 - ✅ Hook interference prevention
 
-### Future
+### Future Enhancements
 
 - [ ] Convergence detection (auto-stop when opinions stabilize)
 - [ ] Semantic similarity for better summary generation
