@@ -4,7 +4,7 @@ version: "1.0"
 cli_tools:
   claude:
     command: "claude"
-    args: ["-p", "--model", "{model}", "{prompt}", "--no-hooks"]
+    args: ["-p", "--model", "{model}", "{prompt}"]
     timeout: 300
 
   codex:
