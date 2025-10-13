@@ -9,7 +9,7 @@ from mcp.types import Tool, TextContent
 import json
 
 from models.config import load_config
-from models.schema import DeliberateRequest, DeliberationResult
+from models.schema import DeliberateRequest
 from adapters import create_adapter
 from deliberation.engine import DeliberationEngine
 
