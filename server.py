@@ -1,6 +1,8 @@
 """AI Counsel MCP Server."""
 import asyncio
 import logging
+from pathlib import Path
+import sys
 from mcp.server import Server
 from mcp.server.stdio import stdio_server
 from mcp.types import Tool, TextContent
@@ -11,10 +13,18 @@ from models.schema import DeliberateRequest, DeliberationResult
 from adapters import create_adapter
 from deliberation.engine import DeliberationEngine
 
-# Configure logging
+# Get the absolute path to the server directory
+SERVER_DIR = Path(__file__).parent.absolute()
+
+# Configure logging to file to avoid stdio interference
+log_file = SERVER_DIR / "mcp_server.log"
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler(log_file),
+        logging.StreamHandler(sys.stderr)  # Explicitly use stderr
+    ]
 )
 logger = logging.getLogger(__name__)
 
@@ -23,12 +33,14 @@ logger = logging.getLogger(__name__)
 app = Server("ai-counsel")
 
 
-# Load configuration
+# Load configuration with absolute path
 try:
-    config = load_config()
+    config_path = SERVER_DIR / "config.yaml"
+    logger.info(f"Loading config from: {config_path}")
+    config = load_config(str(config_path))
     logger.info("Configuration loaded successfully")
 except Exception as e:
-    logger.error(f"Failed to load config: {e}")
+    logger.error(f"Failed to load config: {e}", exc_info=True)
     raise
 
 
