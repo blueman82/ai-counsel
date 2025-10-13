@@ -315,14 +315,22 @@ transcripts/
 ```
 
 Each transcript includes:
-- **AI-Generated Summary**: Claude Sonnet analyzes the full debate to extract:
+- **AI-Generated Summary**: An AI model analyzes the full debate to extract:
   - Overall consensus or areas of disagreement
   - Key agreements between participants
   - Key disagreements or points of contention
   - Final recommendation synthesizing all perspectives
 - **Full Debate**: Complete responses from all rounds with timestamps and participant stances
 
-**Note:** AI-powered summary generation requires the Claude CLI adapter. If Claude is not available, the system will use placeholder summaries.
+**AI Summarizer Selection:**
+
+The system automatically selects the best available adapter for summary generation in this priority order:
+1. **Claude Sonnet** (best for summarization)
+2. **GPT-5 Codex** (excellent reasoning)
+3. **Droid with Claude Sonnet** (Claude via Droid)
+4. **Gemini 2.5 Pro** (good quality)
+
+If no CLI adapters are available, placeholder summaries are used. Check server logs to see which summarizer was selected.
 
 ## Development
 
