@@ -239,8 +239,9 @@ Please be concise and focus on the substance of the arguments, not formatting or
         for line in text.split('\n'):
             line = line.strip()
             # Match various bullet formats: -, *, •, 1., etc.
-            if line and (line.startswith('-') or line.startswith('*') or
-                        line.startswith('•') or (len(line) > 2 and line[0].isdigit() and line[1] in '.)')):
+            if (line and (line.startswith('-') or line.startswith('*') or
+                          line.startswith('•') or
+                          (len(line) > 2 and line[0].isdigit() and line[1] in '.)'))):
                 # Remove bullet/number prefix
                 if line.startswith(('-', '*', '•')):
                     content = line[1:].strip()
