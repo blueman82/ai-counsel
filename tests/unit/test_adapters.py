@@ -5,6 +5,8 @@ from unittest.mock import Mock, patch, AsyncMock
 from adapters.base import BaseCLIAdapter
 from adapters.claude import ClaudeAdapter
 from adapters.codex import CodexAdapter
+from adapters.droid import DroidAdapter
+from adapters.gemini import GeminiAdapter
 from adapters import create_adapter
 from models.config import CLIToolConfig
 
