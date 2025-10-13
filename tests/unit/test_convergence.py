@@ -87,6 +87,7 @@ class TestTFIDFBackend:
 
     def test_semantic_similarity(self):
         """TF-IDF should capture some semantic similarity."""
+        pytest.importorskip("sklearn", minversion="1.0")
         backend = TFIDFBackend()
         text1 = "I prefer TypeScript for type safety"
         text2 = "TypeScript is better because of types"
