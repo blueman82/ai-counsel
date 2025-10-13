@@ -20,7 +20,12 @@ class DeliberationEngine:
     Manages round execution, context building, and response collection.
     """
 
-    def __init__(self, adapters: Dict[str, BaseCLIAdapter], transcript_manager: Optional["TranscriptManager"] = None, config=None):
+    def __init__(
+        self,
+        adapters: Dict[str, BaseCLIAdapter],
+        transcript_manager: Optional["TranscriptManager"] = None,
+        config=None
+    ):
         """
         Initialize deliberation engine.
 
