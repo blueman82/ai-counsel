@@ -12,6 +12,16 @@ cli_tools:
     args: ["exec", "--model", "{model}", "{prompt}"]
     timeout: 180
 
+  droid:
+    command: "droid"
+    args: ["exec", "{prompt}"]
+    timeout: 180
+
+  gemini:
+    command: "gemini"
+    args: ["-m", "{model}", "-p", "{prompt}"]
+    timeout: 180
+
 defaults:
   mode: "quick"
   rounds: 2
