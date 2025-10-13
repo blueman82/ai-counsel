@@ -12,7 +12,7 @@ def create_adapter(cli: str, config: CLIToolConfig) -> BaseCLIAdapter:
     Factory function to create appropriate CLI adapter.
 
     Args:
-        cli: CLI tool name ('claude' or 'codex')
+        cli: CLI tool name ('claude', 'codex', 'droid', or 'gemini')
         config: CLI tool configuration object
 
     Returns:
@@ -21,14 +21,15 @@ def create_adapter(cli: str, config: CLIToolConfig) -> BaseCLIAdapter:
     Raises:
         ValueError: If CLI tool is not supported
     """
-    if cli == "claude":
-        return ClaudeAdapter(
-            command=config.command,
-            args=config.args,
-            timeout=config.timeout
-        )
-    elif cli == "codex":
-        return CodexAdapter(
+    adapters = {
+        "claude": ClaudeAdapter,
+        "codex": CodexAdapter,
+        "droid": DroidAdapter,
+        "gemini": GeminiAdapter,
+    }
+
+    if cli in adapters:
+        return adapters[cli](
             command=config.command,
             args=config.args,
             timeout=config.timeout
@@ -36,7 +37,7 @@ def create_adapter(cli: str, config: CLIToolConfig) -> BaseCLIAdapter:
     else:
         raise ValueError(
             f"Unsupported CLI tool: '{cli}'. "
-            f"Supported tools: 'claude', 'codex'"
+            f"Supported tools: {', '.join(adapters.keys())}"
         )
 
 
