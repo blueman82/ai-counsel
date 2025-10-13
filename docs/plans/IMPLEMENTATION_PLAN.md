@@ -56,10 +56,16 @@ An MCP server that enables TRUE deliberative consensus between AI models via CLI
 - **AI Counsel**: True debate (models respond to each other's arguments)
 
 **MVP Scope:**
-- Support 2 CLI tools: `claude-code` and `codex`
+- Support 2 CLI tools: `claude` and `codex` (updated from `claude-code` to match installed CLI)
 - Both "quick" (1 round) and "conference" (multi-round) modes
 - Full transcript logging with markdown export
 - Structured summaries showing consensus/disagreement
+
+**Recent Updates (2025-10-13):**
+- ✅ Phase 6 (Testing & Documentation) completed
+- ✅ Configuration updated to use `claude` CLI (with `-p` flag) instead of `claude-code`
+- ✅ Codex configuration updated to use `exec` subcommand for non-interactive mode
+- 🚀 MVP is production-ready with both CLI tools properly configured
 
 ---
 
