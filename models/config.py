@@ -37,9 +37,17 @@ class ConvergenceDetectionConfig(BaseModel):
     response_length_drop_threshold: float
 
 
+class EarlyStoppingConfig(BaseModel):
+    """Model-controlled early stopping configuration."""
+    enabled: bool
+    threshold: float  # Fraction of models that must want to stop (e.g., 0.66 = 2/3)
+    respect_min_rounds: bool  # Whether to respect defaults.rounds before stopping
+
+
 class DeliberationConfig(BaseModel):
     """Deliberation engine configuration."""
     convergence_detection: ConvergenceDetectionConfig
+    early_stopping: EarlyStoppingConfig
     convergence_threshold: float
     enable_convergence_detection: bool
 

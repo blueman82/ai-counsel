@@ -74,6 +74,10 @@ class Vote(BaseModel):
     option: str = Field(..., description="The voting option (e.g., 'Option A', 'Yes', 'Approve')")
     confidence: float = Field(..., ge=0.0, le=1.0, description="Confidence level in this vote (0.0-1.0)")
     rationale: str = Field(..., description="Explanation for this vote")
+    continue_debate: bool = Field(
+        default=True,
+        description="Whether this participant wants to continue deliberating (False = satisfied with outcome)"
+    )
 
 
 class RoundVote(BaseModel):
