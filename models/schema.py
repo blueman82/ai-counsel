@@ -68,6 +68,35 @@ class Summary(BaseModel):
     final_recommendation: str = Field(..., description="Final recommendation")
 
 
+class ConvergenceInfo(BaseModel):
+    """Convergence detection metadata."""
+
+    detected: bool = Field(
+        ...,
+        description="Whether convergence was detected"
+    )
+    detection_round: Optional[int] = Field(
+        None,
+        description="Round where convergence occurred (None if not detected)"
+    )
+    final_similarity: float = Field(
+        ...,
+        description="Final similarity score (minimum across all participants)"
+    )
+    status: Literal["converged", "diverging", "refining", "impasse", "max_rounds"] = Field(
+        ...,
+        description="Convergence status"
+    )
+    scores_by_round: list[dict] = Field(
+        default_factory=list,
+        description="Per-round similarity tracking data"
+    )
+    per_participant_similarity: dict[str, float] = Field(
+        default_factory=dict,
+        description="Latest similarity score for each participant"
+    )
+
+
 class DeliberationResult(BaseModel):
     """Model for complete deliberation result."""
 
@@ -78,3 +107,7 @@ class DeliberationResult(BaseModel):
     summary: Summary = Field(..., description="Deliberation summary")
     transcript_path: str = Field(..., description="Path to full transcript")
     full_debate: list[RoundResponse] = Field(..., description="Full debate history")
+    convergence_info: Optional[ConvergenceInfo] = Field(
+        None,
+        description="Convergence detection information (None if detection disabled)"
+    )
