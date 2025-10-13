@@ -46,8 +46,8 @@ class DeliberationEngine:
         # Initialize convergence detector if enabled
         self.convergence_detector = None
         if config and hasattr(config, 'deliberation'):
-            if (hasattr(config.deliberation, 'convergence_detection') and
-                config.deliberation.convergence_detection.enabled):
+            convergence_cfg = config.deliberation.convergence_detection
+            if hasattr(config.deliberation, 'convergence_detection') and convergence_cfg.enabled:
                 self.convergence_detector = ConvergenceDetector(config)
                 logger.info("Convergence detection enabled")
             else:
