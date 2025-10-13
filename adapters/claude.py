@@ -7,14 +7,14 @@ class ClaudeAdapter(BaseCLIAdapter):
 
     def __init__(self, timeout: int = 60):
         """
-        Initialize Claude Code adapter.
+        Initialize Claude adapter.
 
         Args:
             timeout: Timeout in seconds (default: 60)
         """
         super().__init__(
-            command="claude-code",
-            args=["--model", "{model}", "--prompt", "{prompt}"],
+            command="claude",
+            args=["-p", "--model", "{model}", "{prompt}"],
             timeout=timeout
         )
 
