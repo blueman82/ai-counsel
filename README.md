@@ -334,6 +334,8 @@ If no CLI adapters are available, placeholder summaries are used. Check server l
 
 ## Development
 
+**For Claude Code users**: See [CLAUDE.md](CLAUDE.md) for detailed architecture notes, development workflow, and common gotchas when working with this codebase.
+
 ### Running Tests
 
 ```bash
