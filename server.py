@@ -169,6 +169,20 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
         request = DeliberateRequest(**arguments)
         logger.info(f"Request validated. Starting deliberation: {request.question[:50]}...")
 
+        # Validate model choices and warn if non-recommended
+        for participant in request.participants:
+            cli = participant.cli
+            model = participant.model
+
+            if cli in RECOMMENDED_MODELS:
+                recommended = RECOMMENDED_MODELS[cli]
+                if model not in recommended:
+                    logger.warning(
+                        f"Model '{model}' not in recommended list for {cli}. "
+                        f"Recommended models: {', '.join(recommended)}. "
+                        f"Proceeding anyway - if this fails, try a recommended model."
+                    )
+
         # Execute deliberation
         result = await engine.execute(request)
         logger.info(f"Deliberation complete: {result.rounds_completed} rounds, status: {result.status}")
