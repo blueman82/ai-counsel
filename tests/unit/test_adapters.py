@@ -31,7 +31,10 @@ class TestClaudeAdapter:
 
     def test_adapter_initialization(self):
         """Test adapter initializes with correct values."""
-        adapter = ClaudeAdapter(timeout=90)
+        adapter = ClaudeAdapter(
+            args=["-p", "--model", "{model}", "{prompt}"],
+            timeout=90
+        )
         assert adapter.command == "claude"
         assert adapter.timeout == 90
 
