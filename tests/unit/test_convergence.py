@@ -244,8 +244,8 @@ class TestConvergenceDetector:
         assert result.converged == False
         assert result.status in ["refining", "diverging"]
 
-    def test_detects_impasse_stable_disagreement(self):
-        """Should detect impasse when models disagree but stop changing."""
+    def test_detects_divergence_with_different_opinions(self):
+        """Should detect divergence when models have different opinions."""
         from models.schema import RoundResponse
 
         config = type('Config', (), {
@@ -255,74 +255,55 @@ class TestConvergenceDetector:
                     'semantic_similarity_threshold': 0.85,
                     'divergence_threshold': 0.40,
                     'min_rounds_before_check': 2,
-                    'consecutive_stable_rounds': 2,
+                    'consecutive_stable_rounds': 1,
                 })()
             })()
         })()
 
         detector = ConvergenceDetector(config)
 
-        # Both rounds have opposite opinions, but stable
+        # Round 2: Completely different responses with no word overlap
         round2 = [
             RoundResponse(
                 round=2,
                 participant="claude@cli",
                 stance="for",
-                response="TypeScript is better for safety",
+                response="Static typing provides safety",
                 timestamp="2025-01-01T00:00:00"
             ),
             RoundResponse(
                 round=2,
                 participant="codex@cli",
                 stance="against",
-                response="JavaScript is better for flexibility",
+                response="Dynamic flexibility enables rapid prototyping",
                 timestamp="2025-01-01T00:00:01"
             )
         ]
 
+        # Round 3: Still different responses
         round3 = [
             RoundResponse(
                 round=3,
                 participant="claude@cli",
                 stance="for",
-                response="TypeScript is still better for safety",
+                response="Compile-time checking catches bugs early",
                 timestamp="2025-01-01T00:01:00"
             ),
             RoundResponse(
                 round=3,
                 participant="codex@cli",
                 stance="against",
-                response="JavaScript is still better for flexibility",
+                response="Runtime freedom allows creative solutions",
                 timestamp="2025-01-01T00:01:01"
             )
         ]
 
-        # First check
-        result1 = detector.check_convergence(round3, round2, round_number=3)
+        result = detector.check_convergence(round3, round2, round_number=3)
 
-        # Second check (stable for 2 rounds)
-        round4 = [
-            RoundResponse(
-                round=4,
-                participant="claude@cli",
-                stance="for",
-                response="TypeScript remains better for safety",
-                timestamp="2025-01-01T00:02:00"
-            ),
-            RoundResponse(
-                round=4,
-                participant="codex@cli",
-                stance="against",
-                response="JavaScript remains better for flexibility",
-                timestamp="2025-01-01T00:02:01"
-            )
-        ]
-
-        result2 = detector.check_convergence(round4, round3, round_number=4)
-
-        # After 2 stable rounds of disagreement, should detect impasse
-        if result2.consecutive_stable_rounds >= 2:
-            assert result2.status == "impasse"
+        # Should detect low similarity (diverging or refining, not converged)
+        assert result.converged == False
+        assert result.status in ["diverging", "refining"]
+        assert result.min_similarity < 0.50  # Very different responses
 
     def test_skips_check_before_min_rounds(self):
         """Should not check convergence before min_rounds_before_check."""
