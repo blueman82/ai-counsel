@@ -237,7 +237,9 @@ class DeliberationEngine:
                         break
 
         # Determine actual rounds completed
-        actual_rounds_completed = round_num if converged or (final_convergence_info and final_convergence_info.status == "impasse") else rounds_to_execute
+        is_early_stop = converged or (final_convergence_info and
+                                       final_convergence_info.status == "impasse")
+        actual_rounds_completed = round_num if is_early_stop else rounds_to_execute
 
         # Generate AI-powered summary
         if self.summarizer:
