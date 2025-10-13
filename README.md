@@ -20,7 +20,7 @@ Unlike existing tools (like Zen's consensus feature) that gather parallel opinio
 - 🎯 **Two Modes:**
   - `quick`: Fast single-round opinions
   - `conference`: Multi-round deliberative debate
-- 🤖 **CLI-Based:** Works with claude, codex, and extensible to others
+- 🤖 **Multi-Model Support:** Works with claude, codex, droid, gemini, and extensible to others
 - 📝 **Full Transcripts:** Markdown exports with summary and complete debate
 - 🎚️ **User Control:** Configure rounds, stances, and participants
 - 🔍 **Transparent:** See exactly what each model said and when
