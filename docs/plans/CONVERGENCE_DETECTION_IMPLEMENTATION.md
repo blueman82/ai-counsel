@@ -8,13 +8,209 @@
 
 ## Table of Contents
 
-1. [Background & Context](#background--context)
-2. [System Architecture Overview](#system-architecture-overview)
-3. [Prerequisites](#prerequisites)
-4. [Implementation Principles](#implementation-principles)
-5. [Task Breakdown](#task-breakdown)
-6. [Testing Guidelines](#testing-guidelines)
-7. [Acceptance Criteria](#acceptance-criteria)
+1. [Agent Execution Strategy](#agent-execution-strategy) **← NEW**
+2. [Background & Context](#background--context)
+3. [System Architecture Overview](#system-architecture-overview)
+4. [Prerequisites](#prerequisites)
+5. [Implementation Principles](#implementation-principles)
+6. [Task Breakdown](#task-breakdown)
+7. [Testing Guidelines](#testing-guidelines)
+8. [Acceptance Criteria](#acceptance-criteria)
+
+---
+
+## Agent Execution Strategy
+
+**🤖 Parallel Agent-Based Implementation**
+
+This implementation uses **3 specialized Python agents** working in parallel with dependency tracking. Each agent has its own TodoWrite list and can work independently on isolated tasks.
+
+### Agent Team
+
+**1. python-schema-architect** (`~/.claude/agents/python-schema-architect.md`)
+- **Specialization**: Pydantic models, YAML configuration, data validation
+- **Assigned Tasks**: Phase 1 (Tasks 1.1, 1.2)
+- **Tools**: Read, Write, Edit, Bash (testing), Grep, Glob, TodoWrite
+
+**2. python-backend-tdd-agent** (`~/.claude/agents/python-backend-tdd-agent.md`)
+- **Specialization**: Backend logic with strict TDD (tests before code)
+- **Assigned Tasks**: Phase 2 (Tasks 2.1-2.4), Phase 3 (Tasks 3.1-3.2)
+- **Tools**: Read, Write, Edit, Bash (pytest), Grep, Glob, TodoWrite
+
+**3. python-integration-specialist** (`~/.claude/agents/python-integration-specialist.md`)
+- **Specialization**: Async integration, dependency injection, engine modification
+- **Assigned Tasks**: Phase 4 (Tasks 4.1-4.2), Phase 6 (Tasks 6.1-6.2)
+- **Tools**: Read, Write, Edit, Bash (testing), Grep, Glob, TodoWrite
+
+### Parallel Execution Strategy
+
+**Execution Flow (Fully Parallel with Dependency Tracking):**
+
+```
+START
+  │
+  ├─▶ Agent 1 (python-schema-architect)
+  │   ├─ Task 1.1: Add ConvergenceInfo Model → DONE
+  │   └─ Task 1.2: Update Config Schema → DONE
+  │       │
+  │       ▼ [DEPENDENCY MET: Schema ready]
+  │       │
+  ├─▶ Agent 2 (python-backend-tdd-agent) [WAITS for Phase 1]
+  │   ├─ Task 2.1: Create Test Structure → DONE
+  │   ├─ Task 2.2: Implement Jaccard Backend → DONE
+  │   ├─ Task 2.3: Implement TF-IDF Backend → DONE
+  │   ├─ Task 2.4: Implement Sentence Transformer → DONE
+  │   ├─ Task 3.1: Write Detector Tests → DONE
+  │   └─ Task 3.2: Implement ConvergenceDetector → DONE
+  │       │
+  │       ▼ [DEPENDENCY MET: Convergence module ready]
+  │       │
+  └─▶ Agent 3 (python-integration-specialist) [WAITS for Phase 2 & 3]
+      ├─ Task 4.1: Write Integration Tests → DONE
+      ├─ Task 4.2: Integrate into Engine → DONE
+      ├─ Phase 5: Manual E2E Testing → DONE (User-assisted)
+      ├─ Task 6.1: Update README → DONE
+      └─ Task 6.2: Add Inline Docs → DONE
+
+COMPLETE ✅
+```
+
+### Dependencies & Synchronization
+
+**Critical Dependencies:**
+1. **Phase 2-3 DEPENDS ON Phase 1**: Backend code needs schema models
+   - Agent 2 waits until Agent 1 commits `models/schema.py`
+   - Check: `git log --oneline | grep "ConvergenceInfo"`
+
+2. **Phase 4 DEPENDS ON Phase 2-3**: Engine integration needs convergence module
+   - Agent 3 waits until Agent 2 commits `deliberation/convergence.py`
+   - Check: `git log --oneline | grep "ConvergenceDetector"`
+
+3. **Phase 5 DEPENDS ON Phase 4**: E2E testing needs integrated engine
+   - Manual testing after Agent 3 completes engine integration
+
+**How Agents Check Dependencies:**
+
+Each agent will run these checks before starting work:
+
+```bash
+# Agent 2 checks before Phase 2:
+python3 -c "from models.schema import ConvergenceInfo; print('✓ Schema ready')" || echo "❌ Waiting for Agent 1..."
+
+# Agent 3 checks before Phase 4:
+python3 -c "from deliberation.convergence import ConvergenceDetector; print('✓ Convergence ready')" || echo "❌ Waiting for Agent 2..."
+```
+
+### Agent Todo Lists
+
+Each agent maintains its own isolated TodoWrite list:
+
+**Agent 1 (python-schema-architect) Todo List:**
+```
+- [ ] Task 1.1: Add ConvergenceInfo model to schema.py
+- [ ] Task 1.2: Update config.yaml with convergence settings
+- [ ] Commit Phase 1 changes
+- [ ] Notify Agent 2: Phase 1 complete
+```
+
+**Agent 2 (python-backend-tdd-agent) Todo List:**
+```
+- [ ] Wait for Agent 1 to complete (check schema imports)
+- [ ] Task 2.1: Create test_convergence.py structure
+- [ ] Task 2.2: Implement Jaccard backend (TDD)
+- [ ] Task 2.3: Implement TF-IDF backend (TDD)
+- [ ] Task 2.4: Implement Sentence Transformer backend (TDD)
+- [ ] Task 3.1: Write ConvergenceDetector tests
+- [ ] Task 3.2: Implement ConvergenceDetector class
+- [ ] Commit Phase 2-3 changes
+- [ ] Notify Agent 3: Phase 2-3 complete
+```
+
+**Agent 3 (python-integration-specialist) Todo List:**
+```
+- [ ] Wait for Agent 2 to complete (check convergence imports)
+- [ ] Task 4.1: Write integration test structure
+- [ ] Task 4.2: Integrate ConvergenceDetector into engine.py
+- [ ] Assist with Phase 5: Manual E2E testing
+- [ ] Task 6.1: Update README with convergence docs
+- [ ] Task 6.2: Add inline documentation to all code
+- [ ] Commit Phase 4-6 changes
+- [ ] Final verification: Run all tests
+```
+
+### Launching Agents
+
+**Option A: Sequential Launch (Recommended for First Time)**
+
+Launch agents one at a time, verifying each phase:
+
+```bash
+# Terminal 1: Launch Agent 1
+claude --agent python-schema-architect "Implement Phase 1 tasks from docs/plans/CONVERGENCE_DETECTION_IMPLEMENTATION.md. Use TodoWrite to track progress. Commit when done."
+
+# Wait for Agent 1 to commit, then Terminal 2: Launch Agent 2
+claude --agent python-backend-tdd-agent "Implement Phase 2-3 tasks from docs/plans/CONVERGENCE_DETECTION_IMPLEMENTATION.md. Wait for schema changes first. Use TodoWrite to track progress. Commit when done."
+
+# Wait for Agent 2 to commit, then Terminal 3: Launch Agent 3
+claude --agent python-integration-specialist "Implement Phase 4 and 6 tasks from docs/plans/CONVERGENCE_DETECTION_IMPLEMENTATION.md. Wait for convergence module first. Use TodoWrite to track progress. Commit when done."
+```
+
+**Option B: Fully Parallel Launch (Advanced)**
+
+Launch all agents simultaneously with dependency awareness:
+
+```bash
+# Launch all three in parallel - they'll wait for dependencies internally
+claude --agent python-schema-architect "Implement Phase 1 per CONVERGENCE_DETECTION_IMPLEMENTATION.md. TodoWrite tracking." &
+claude --agent python-backend-tdd-agent "Implement Phase 2-3 per CONVERGENCE_DETECTION_IMPLEMENTATION.md. Wait for schema deps. TodoWrite tracking." &
+claude --agent python-integration-specialist "Implement Phase 4 & 6 per CONVERGENCE_DETECTION_IMPLEMENTATION.md. Wait for convergence deps. TodoWrite tracking." &
+```
+
+### Monitoring Progress
+
+**Check agent progress:**
+
+```bash
+# View Agent 1 commits
+git log --oneline --grep="ConvergenceInfo\|config.yaml" --all
+
+# View Agent 2 commits
+git log --oneline --grep="convergence.py\|test_convergence" --all
+
+# View Agent 3 commits
+git log --oneline --grep="engine.py\|README" --all
+
+# View all agent todo lists
+cat .claude/todos/python-schema-architect.json
+cat .claude/todos/python-backend-tdd-agent.json
+cat .claude/todos/python-integration-specialist.json
+```
+
+### Conflict Resolution
+
+If agents produce conflicts (rare due to isolated file work):
+
+1. **Phase 1 vs Phase 2**: Different files - no conflicts expected
+2. **Phase 2 vs Phase 3**: Same file (`convergence.py`) but sequential tasks - no conflicts
+3. **Phase 3 vs Phase 4**: Different files - no conflicts expected
+
+**If conflict occurs:**
+```bash
+git status  # Check conflicted files
+git diff    # Review conflicts
+# Manually resolve, then:
+git add <file>
+git commit -m "Resolve agent conflict in <file>"
+```
+
+### Success Criteria
+
+**Implementation Complete When:**
+- ✅ All 3 agents report "DONE" in their TodoWrite lists
+- ✅ All tests passing: `pytest tests/unit/ -v`
+- ✅ Engine integrates detector: `python -c "from deliberation.engine import DeliberationEngine; print('✓')"`
+- ✅ README updated with convergence docs
+- ✅ Git log shows clean, sequential commits from all agents
 
 ---
 
