@@ -219,6 +219,34 @@ git commit -m "Resolve agent conflict in <file>"
 
 ---
 
+## Post-Phase 5 Enhancements
+
+### MCP Response Pagination (2025-10-13)
+
+**Status:** ✅ COMPLETE
+
+**Problem:** During E2E testing, Test Scenario 1 generated a 95KB MCP response (26,598 tokens) that exceeded MCP's 25K token limit, causing tool call failures.
+
+**Solution Implemented:**
+- Added `mcp.max_rounds_in_response: 3` configuration in config.yaml
+- Implemented response truncation in server.py (lines 160-171)
+- Keeps last N rounds in MCP response (default: 3)
+- Adds metadata: `full_debate_truncated: true` and `total_rounds` field
+- Full transcript files remain complete (unchanged)
+
+**Files Modified:**
+- config.yaml: Added mcp section with max_rounds_in_response setting
+- server.py: Added truncation logic before JSON serialization
+- tests/e2e/convergence_test_results.md: Documented enhancement
+
+**Benefits:**
+- MCP responses always fit within token limits
+- User sees most relevant rounds (last 3)
+- Full data preserved in transcript files
+- Backward compatible, configurable
+
+---
+
 ## Background & Context
 
 ### What is AI Counsel?
