@@ -225,8 +225,13 @@ class TestAdapterFactory:
 
     def test_create_adapter_invalid_cli(self):
         """Test factory raises error for invalid CLI tool name."""
+        config = CLIToolConfig(
+            command="invalid-cli",
+            args=["--model", "{model}", "{prompt}"],
+            timeout=60
+        )
         with pytest.raises(ValueError) as exc_info:
-            create_adapter("invalid-cli")
+            create_adapter("invalid-cli", config)
 
         assert "unsupported" in str(exc_info.value).lower()
         assert "invalid-cli" in str(exc_info.value)
