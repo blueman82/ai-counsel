@@ -6,6 +6,7 @@ from adapters.base import BaseCLIAdapter
 from adapters.claude_code import ClaudeCodeAdapter
 from adapters.codex import CodexAdapter
 from adapters import create_adapter
+from models.config import CLIToolConfig
 
 
 class TestBaseCLIAdapter:
