@@ -60,6 +60,12 @@ deliberation:
     stance_stability_threshold: 0.80     # 80% of participants must have stable stances
     response_length_drop_threshold: 0.40 # Flag if response length drops >40%
 
+  # Model-controlled early stopping
+  early_stopping:
+    enabled: true
+    threshold: 0.66                      # Stop if >=66% of models want to stop (2/3 consensus)
+    respect_min_rounds: true             # Don't stop before defaults.rounds is reached
+
   # Legacy settings (keep these)
   convergence_threshold: 0.8
   enable_convergence_detection: true

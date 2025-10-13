@@ -396,3 +396,42 @@ class TestVoteParsing:
         # Verify the response includes the full text
         assert len(responses) == 1
         assert "Option A" in responses[0].response
+
+    @pytest.mark.asyncio
+    async def test_execute_aggregates_voting_results(self, mock_adapters, tmp_path):
+        """Test that votes are aggregated into VotingResult during execution."""
+        from deliberation.transcript import TranscriptManager
+        from models.schema import DeliberateRequest
+
+        manager = TranscriptManager(output_dir=str(tmp_path))
+        mock_adapters["claude"] = mock_adapters["claude"]
+        engine = DeliberationEngine(adapters=mock_adapters, transcript_manager=manager)
+
+        request = DeliberateRequest(
+            question="Should we implement Option A or Option B?",
+            participants=[
+                Participant(cli="claude", model="claude-3-5-sonnet", stance="neutral"),
+                Participant(cli="codex", model="gpt-4", stance="neutral"),
+            ],
+            rounds=2,
+            mode="conference"
+        )
+
+        # Both vote for Option A in round 1
+        mock_adapters["claude"].invoke_mock.side_effect = [
+            'Analysis: Option A is better\n\nVOTE: {"option": "Option A", "confidence": 0.9, "rationale": "Lower risk"}',
+            'After review, still Option A\n\nVOTE: {"option": "Option A", "confidence": 0.95, "rationale": "Confirmed"}',
+        ]
+        mock_adapters["codex"].invoke_mock.side_effect = [
+            'I agree with Option A\n\nVOTE: {"option": "Option A", "confidence": 0.85, "rationale": "Better performance"}',
+            'Final vote: Option A\n\nVOTE: {"option": "Option A", "confidence": 0.9, "rationale": "Final decision"}',
+        ]
+
+        result = await engine.execute(request)
+
+        # Verify voting_result is present
+        assert result.voting_result is not None
+        assert result.voting_result.consensus_reached is True
+        assert result.voting_result.winning_option == "Option A"
+        assert result.voting_result.final_tally["Option A"] == 4  # 2 participants x 2 rounds
+        assert len(result.voting_result.votes_by_round) == 4

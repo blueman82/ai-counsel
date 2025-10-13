@@ -6,7 +6,7 @@ from datetime import datetime
 from typing import List, Dict, Optional, TYPE_CHECKING
 from pydantic import ValidationError
 from adapters.base import BaseCLIAdapter
-from models.schema import Participant, RoundResponse, Vote
+from models.schema import Participant, RoundResponse, Vote, VotingResult
 from deliberation.convergence import ConvergenceDetector
 
 logger = logging.getLogger(__name__)
@@ -194,6 +194,120 @@ class DeliberationEngine:
             logger.debug(f"Failed to parse vote from response: {e}")
             return None
 
+    def _aggregate_votes(self, responses: List[RoundResponse]) -> Optional["VotingResult"]:
+        """
+        Aggregate votes from all responses into a VotingResult.
+
+        Args:
+            responses: List of all RoundResponse objects from deliberation
+
+        Returns:
+            VotingResult if any votes found, None otherwise
+        """
+        from models.schema import RoundVote, VotingResult
+
+        votes_by_round = []
+        tally = {}
+
+        for response in responses:
+            vote = self._parse_vote(response.response)
+            if vote:
+                # Create RoundVote
+                round_vote = RoundVote(
+                    round=response.round,
+                    participant=response.participant,
+                    vote=vote,
+                    timestamp=response.timestamp
+                )
+                votes_by_round.append(round_vote)
+
+                # Update tally
+                tally[vote.option] = tally.get(vote.option, 0) + 1
+
+        # If no votes found, return None
+        if not votes_by_round:
+            return None
+
+        # Determine consensus and winning option
+        if len(tally) == 1:
+            # Unanimous vote
+            consensus_reached = True
+            winning_option = list(tally.keys())[0]
+        elif len(tally) > 1:
+            # Find option with most votes
+            max_votes = max(tally.values())
+            winners = [opt for opt, count in tally.items() if count == max_votes]
+            if len(winners) == 1:
+                # Clear winner
+                consensus_reached = True
+                winning_option = winners[0]
+            else:
+                # Tie
+                consensus_reached = False
+                winning_option = None
+        else:
+            consensus_reached = False
+            winning_option = None
+
+        return VotingResult(
+            final_tally=tally,
+            votes_by_round=votes_by_round,
+            consensus_reached=consensus_reached,
+            winning_option=winning_option
+        )
+
+    def _check_early_stopping(self, round_responses: List[RoundResponse], round_num: int, min_rounds: int) -> bool:
+        """
+        Check if models want to stop deliberating based on continue_debate votes.
+
+        Args:
+            round_responses: Responses from current round
+            round_num: Current round number
+            min_rounds: Minimum rounds to complete before allowing early stop
+
+        Returns:
+            True if deliberation should stop, False otherwise
+        """
+        # Check if early stopping is enabled
+        if not self.config or not hasattr(self.config.deliberation, 'early_stopping'):
+            return False
+
+        early_stop_cfg = self.config.deliberation.early_stopping
+        if not early_stop_cfg.enabled:
+            return False
+
+        # Respect minimum rounds if configured
+        if early_stop_cfg.respect_min_rounds and round_num < min_rounds:
+            return False
+
+        # Parse votes from responses
+        votes = []
+        for response in round_responses:
+            vote = self._parse_vote(response.response)
+            if vote:
+                votes.append(vote)
+
+        # If no votes found, can't determine stopping preference
+        if not votes:
+            return False
+
+        # Count how many models want to stop (continue_debate = False)
+        want_to_stop = sum(1 for v in votes if not v.continue_debate)
+        total_votes = len(votes)
+
+        # Calculate fraction wanting to stop
+        stop_fraction = want_to_stop / total_votes
+
+        # Stop if threshold met (e.g., 66% = 2/3 consensus)
+        if stop_fraction >= early_stop_cfg.threshold:
+            logger.info(
+                f"Early stopping triggered: {want_to_stop}/{total_votes} models "
+                f"({stop_fraction:.1%}) want to stop (threshold: {early_stop_cfg.threshold:.1%})"
+            )
+            return True
+
+        return False
+
     async def execute(self, request: "DeliberateRequest") -> "DeliberationResult":
         """
         Execute full deliberation with multiple rounds and optional convergence detection.
@@ -229,6 +343,7 @@ class DeliberationEngine:
         all_responses = []
         final_convergence_info = None
         converged = False
+        model_controlled_stop = False
 
         for round_num in range(1, rounds_to_execute + 1):
             round_responses = await self.execute_round(
@@ -238,6 +353,12 @@ class DeliberationEngine:
                 previous_responses=all_responses
             )
             all_responses.extend(round_responses)
+
+            # Check for model-controlled early stopping
+            if self._check_early_stopping(round_responses, round_num, request.rounds):
+                logger.info(f"Models want to stop deliberating at round {round_num}")
+                model_controlled_stop = True
+                break
 
             # Check convergence after round 2+
             if self.convergence_detector and round_num >= 2:
@@ -301,6 +422,15 @@ class DeliberationEngine:
                 final_recommendation="Please review the full debate below."
             )
 
+        # Aggregate voting results if any votes were cast
+        voting_result = self._aggregate_votes(all_responses)
+        if voting_result:
+            logger.info(
+                f"Voting results: {voting_result.final_tally} "
+                f"(consensus: {voting_result.consensus_reached}, "
+                f"winner: {voting_result.winning_option})"
+            )
+
         # Build participant list
         participant_ids = [
             f"{p.model}@{p.cli}"
@@ -316,7 +446,8 @@ class DeliberationEngine:
             summary=summary,
             transcript_path="",  # Will be set below
             full_debate=all_responses,
-            convergence_info=None  # Will populate below if available
+            convergence_info=None,  # Will populate below if available
+            voting_result=voting_result  # Add voting results
         )
 
         # Add convergence info if available
