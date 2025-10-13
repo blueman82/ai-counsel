@@ -54,8 +54,8 @@ for cli_name, cli_config in config.cli_tools.items():
         logger.error(f"Failed to create adapter for {cli_name}: {e}")
 
 
-# Create engine
-engine = DeliberationEngine(adapters=adapters)
+# Create engine with config for convergence detection
+engine = DeliberationEngine(adapters=adapters, config=config)
 
 
 @app.list_tools()
