@@ -214,8 +214,13 @@ class TestAdapterFactory:
         assert adapter.timeout == 120
 
     def test_create_adapter_with_default_timeout(self):
-        """Test factory uses default timeout when not specified."""
-        adapter = create_adapter("claude-code")
+        """Test factory uses timeout from config object."""
+        config = CLIToolConfig(
+            command="claude-code",
+            args=["--model", "{model}", "--prompt", "{prompt}"],
+            timeout=60
+        )
+        adapter = create_adapter("claude-code", config)
         assert adapter.timeout == 60
 
     def test_create_adapter_invalid_cli(self):
