@@ -5,20 +5,24 @@ from adapters.base import BaseCLIAdapter
 class CodexAdapter(BaseCLIAdapter):
     """Adapter for codex CLI tool."""
 
-    def __init__(self, timeout: int = 60):
+    def __init__(self, command: str = "codex", args: list[str] = None, timeout: int = 60):
         """
         Initialize Codex adapter.
 
         Args:
+            command: Command to execute (default: "codex")
+            args: List of argument templates (default: ["exec", "--model", "{model}", "{prompt}"])
             timeout: Timeout in seconds (default: 60)
 
         Note:
             The codex CLI uses `codex exec "prompt"` syntax.
             Model is configured via ~/.codex/config.toml, not passed as CLI arg.
         """
+        if args is None:
+            args = ["exec", "--model", "{model}", "{prompt}"]
         super().__init__(
-            command="codex",
-            args=["exec", "--model", "{model}", "{prompt}"],
+            command=command,
+            args=args,
             timeout=timeout
         )
 
