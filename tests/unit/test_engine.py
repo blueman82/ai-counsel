@@ -194,7 +194,7 @@ class TestDeliberationEngineMultiRound:
                 Participant(cli="codex", model="gpt-4", stance="neutral"),
             ],
             rounds=3,
-            mode="quick"
+            mode="conference"
         )
 
         mock_adapters["claude-code"].invoke_mock.return_value = "Claude response"
@@ -223,7 +223,7 @@ class TestDeliberationEngineMultiRound:
                 Participant(cli="codex", model="gpt-4", stance="neutral"),
             ],
             rounds=2,
-            mode="quick"
+            mode="conference"
         )
 
         mock_adapters["claude-code"].invoke_mock.return_value = "Claude response"
@@ -236,3 +236,30 @@ class TestDeliberationEngineMultiRound:
         second_call = mock_adapters["claude-code"].invoke_mock.call_args_list[1]
         # Check that context is passed in second call
         assert second_call[0][2] is not None  # context should be present
+
+    @pytest.mark.asyncio
+    async def test_quick_mode_overrides_rounds(self, mock_adapters):
+        """Test that quick mode forces single round regardless of request.rounds."""
+        from models.schema import DeliberateRequest
+
+        mock_adapters["claude-code"] = mock_adapters["claude"]
+        engine = DeliberationEngine(mock_adapters)
+
+        request = DeliberateRequest(
+            question="Test question",
+            participants=[
+                Participant(cli="claude-code", model="claude-3-5-sonnet", stance="neutral"),
+                Participant(cli="codex", model="gpt-4", stance="neutral"),
+            ],
+            rounds=5,  # Request 5 rounds
+            mode="quick"  # But quick mode should override to 1
+        )
+
+        mock_adapters["claude-code"].invoke_mock.return_value = "Claude response"
+        mock_adapters["codex"].invoke_mock.return_value = "Codex response"
+
+        result = await engine.execute(request)
+
+        # Quick mode should force 1 round, not 5
+        assert result.rounds_completed == 1
+        assert len(result.full_debate) == 2  # 1 round * 2 participants

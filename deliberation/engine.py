@@ -104,12 +104,19 @@ class DeliberationEngine:
 
         Returns:
             Complete deliberation result
+
+        Note:
+            Quick mode forces single round regardless of request.rounds value.
+            Conference mode respects the requested number of rounds.
         """
         from models.schema import DeliberationResult, Summary
 
         # Determine actual rounds to execute
-        # Note: quick mode doesn't override rounds, it just influences other behavior
-        rounds_to_execute = request.rounds
+        # Quick mode forces single round for fast deliberation
+        if request.mode == "quick":
+            rounds_to_execute = 1
+        else:
+            rounds_to_execute = request.rounds
 
         # Execute rounds sequentially
         all_responses = []
