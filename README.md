@@ -66,12 +66,12 @@ cli_tools:
   claude:
     command: "claude"
     args: ["-p", "--model", "{model}", "{prompt}"]
-    timeout: 60
+    timeout: 300  # 5 minutes for reasoning models
 
   codex:
     command: "codex"
     args: ["exec", "--model", "{model}", "{prompt}"]
-    timeout: 60
+    timeout: 180  # 3 minutes for codex
 
 defaults:
   mode: "quick"
@@ -88,6 +88,8 @@ deliberation:
   convergence_threshold: 0.8
   enable_convergence_detection: true
 ```
+
+**Note:** Timeout values are per-invocation. Modern reasoning models (like Claude Sonnet 4.5 and GPT-5-Codex) can take 60-120+ seconds for complex prompts, so higher timeouts are recommended.
 
 ## Usage
 
