@@ -103,21 +103,14 @@ class TestTFIDFBackend:
 class TestSentenceTransformerBackend:
     """Test sentence transformer similarity."""
 
-    @pytest.mark.skipif(
-        not pytest.importorskip("sentence_transformers", minversion="2.0"),
-        reason="sentence-transformers not installed"
-    )
     def test_identical_text_returns_one(self):
         """Identical text should have similarity near 1.0."""
+        pytest.importorskip("sentence_transformers", minversion="2.0")
         backend = SentenceTransformerBackend()
         text = "The quick brown fox"
         similarity = backend.compute_similarity(text, text)
         assert similarity > 0.99
 
-    @pytest.mark.skipif(
-        not pytest.importorskip("sentence_transformers", minversion="2.0"),
-        reason="sentence-transformers not installed"
-    )
     def test_semantic_understanding(self):
         """Should understand semantic similarity."""
         backend = SentenceTransformerBackend()
