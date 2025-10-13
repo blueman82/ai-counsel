@@ -224,7 +224,7 @@ from adapters.your_tool import YourToolAdapter
 # Add to create_adapter() function
 def create_adapter(cli_name: str, config: CLIToolConfig):
     adapters = {
-        "claude": ClaudeCodeAdapter,
+        "claude": ClaudeAdapter,
         "codex": CodexAdapter,
         "your-tool": YourToolAdapter,  # Add this line
     }
