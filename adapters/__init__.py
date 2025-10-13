@@ -1,6 +1,6 @@
 """CLI adapter factory and exports."""
 from adapters.base import BaseCLIAdapter
-from adapters.claude_code import ClaudeCodeAdapter
+from adapters.claude import ClaudeAdapter
 from adapters.codex import CodexAdapter
 from models.config import CLIToolConfig
 
@@ -10,7 +10,7 @@ def create_adapter(cli: str, config: CLIToolConfig) -> BaseCLIAdapter:
     Factory function to create appropriate CLI adapter.
 
     Args:
-        cli: CLI tool name ('claude-code' or 'codex')
+        cli: CLI tool name ('claude' or 'codex')
         config: CLI tool configuration object
 
     Returns:
@@ -19,15 +19,15 @@ def create_adapter(cli: str, config: CLIToolConfig) -> BaseCLIAdapter:
     Raises:
         ValueError: If CLI tool is not supported
     """
-    if cli == "claude-code":
-        return ClaudeCodeAdapter(timeout=config.timeout)
+    if cli == "claude":
+        return ClaudeAdapter(timeout=config.timeout)
     elif cli == "codex":
         return CodexAdapter(timeout=config.timeout)
     else:
         raise ValueError(
             f"Unsupported CLI tool: '{cli}'. "
-            f"Supported tools: 'claude-code', 'codex'"
+            f"Supported tools: 'claude', 'codex'"
         )
 
 
-__all__ = ["BaseCLIAdapter", "ClaudeCodeAdapter", "CodexAdapter", "create_adapter"]
+__all__ = ["BaseCLIAdapter", "ClaudeAdapter", "CodexAdapter", "create_adapter"]
