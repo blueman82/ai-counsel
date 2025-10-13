@@ -79,15 +79,12 @@ class TestTFIDFBackend:
 
     def test_identical_text_returns_one(self):
         """Identical text should have similarity of 1.0."""
+        pytest.importorskip("sklearn", minversion="1.0")
         backend = TFIDFBackend()
         text = "The quick brown fox jumps over the lazy dog"
         similarity = backend.compute_similarity(text, text)
         assert similarity == pytest.approx(1.0, abs=0.01)
 
-    @pytest.mark.skipif(
-        not pytest.importorskip("sklearn", minversion="1.0"),
-        reason="scikit-learn not installed"
-    )
     def test_semantic_similarity(self):
         """TF-IDF should capture some semantic similarity."""
         backend = TFIDFBackend()
