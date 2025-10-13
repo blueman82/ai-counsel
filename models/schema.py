@@ -1,5 +1,5 @@
 """Pydantic models for AI Counsel."""
-from typing import Literal, Optional
+from typing import Literal, Optional, Dict, List
 from pydantic import BaseModel, Field
 
 
@@ -66,6 +66,32 @@ class Summary(BaseModel):
     key_agreements: list[str] = Field(..., description="Points of agreement")
     key_disagreements: list[str] = Field(..., description="Points of disagreement")
     final_recommendation: str = Field(..., description="Final recommendation")
+
+
+class Vote(BaseModel):
+    """Model for an individual vote with confidence and rationale."""
+
+    option: str = Field(..., description="The voting option (e.g., 'Option A', 'Yes', 'Approve')")
+    confidence: float = Field(..., ge=0.0, le=1.0, description="Confidence level in this vote (0.0-1.0)")
+    rationale: str = Field(..., description="Explanation for this vote")
+
+
+class RoundVote(BaseModel):
+    """Model for a vote cast in a specific round."""
+
+    round: int = Field(..., description="Round number when vote was cast")
+    participant: str = Field(..., description="Participant identifier")
+    vote: Vote = Field(..., description="The vote cast by this participant")
+    timestamp: str = Field(..., description="ISO 8601 timestamp when vote was cast")
+
+
+class VotingResult(BaseModel):
+    """Model for aggregated voting results across all rounds."""
+
+    final_tally: Dict[str, int] = Field(..., description="Final vote counts by option")
+    votes_by_round: List[RoundVote] = Field(..., description="All votes organized by round")
+    consensus_reached: bool = Field(..., description="Whether voting reached consensus")
+    winning_option: Optional[str] = Field(..., description="The winning option (None if tie or no consensus)")
 
 
 class ConvergenceInfo(BaseModel):
