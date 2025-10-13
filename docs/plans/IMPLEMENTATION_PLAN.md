@@ -3270,3 +3270,36 @@ This plan should be treated as a living document. Update it as you learn and dis
 5. Document as you go
 
 Good luck! You got this. 🚀
+
+
+## Post-MVP Updates
+
+### CLI Configuration Update (2025-10-13)
+
+**Issue:** Original implementation plan specified `claude-code` CLI, but system has `claude` CLI installed.
+
+**Solution:** Updated `config.yaml` to use correct CLI commands:
+
+```yaml
+cli_tools:
+  claude:
+    command: "claude"
+    args: ["-p", "--model", "{model}", "{prompt}"]
+    timeout: 60
+
+  codex:
+    command: "codex"
+    args: ["exec", "--model", "{model}", "{prompt}"]
+    timeout: 60
+```
+
+**Changes:**
+- Renamed `claude-code` to `claude`
+- Added `-p` flag for print/non-interactive mode
+- Updated codex to use `exec` subcommand for non-interactive execution
+
+**Commit:** `fix: update CLI tool commands to use installed 'claude' and 'codex'`
+
+**Note:** The schema and adapter code still reference `claude-code` as the identifier. This will need to be updated in a future refactor to align naming throughout the codebase.
+
+---
