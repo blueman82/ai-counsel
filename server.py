@@ -76,7 +76,15 @@ async def list_tools() -> list[Tool]:
                 "Initiate true deliberative consensus where AI models debate and "
                 "refine positions across multiple rounds. Models see each other's "
                 "responses and can adjust their reasoning. Use for critical decisions, "
-                "architecture choices, or complex technical debates."
+                "architecture choices, or complex technical debates.\n\n"
+                "Example participants:\n"
+                '  [{"cli": "claude", "model": "sonnet"}, '
+                '{"cli": "codex", "model": "gpt-5-codex"}]\n\n'
+                "Recommended models by CLI:\n"
+                "  - claude: 'sonnet', 'opus', 'haiku'\n"
+                "  - codex: 'gpt-5-codex', 'o3'\n"
+                "  - droid: 'claude-sonnet-4-5-20250929', 'gpt-5-codex'\n"
+                "  - gemini: 'gemini-2.5-pro'"
             ),
             inputSchema={
                 "type": "object",
