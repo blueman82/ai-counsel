@@ -68,7 +68,7 @@ class TestClaudeAdapter:
         mock_process.communicate = AsyncMock(side_effect=asyncio.TimeoutError())
         mock_subprocess.return_value = mock_process
 
-        adapter = ClaudeAdapter(timeout=1)
+        adapter = ClaudeAdapter(args=["-p", "--model", "{model}", "{prompt}"], timeout=1)
 
         with pytest.raises(TimeoutError) as exc_info:
             await adapter.invoke("test", "model")
