@@ -53,7 +53,7 @@ deliberation:
     divergence_threshold: 0.40           # Models diverging if similarity < this
 
     # Round constraints
-    min_rounds_before_check: 2           # Don't check convergence until round 3
+    min_rounds_before_check: 1           # Check convergence starting from round 2 (need 2 rounds to compare)
     consecutive_stable_rounds: 2         # Require 2 stable rounds to confirm
 
     # Secondary metrics
