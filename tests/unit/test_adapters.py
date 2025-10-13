@@ -32,7 +32,7 @@ class TestClaudeAdapter:
     def test_adapter_initialization(self):
         """Test adapter initializes with correct values."""
         adapter = ClaudeAdapter(
-            args=["-p", "--model", "{model}", "--settings", '{"disableAllHooks": true}', "{prompt}"],
+            args=["-p", "--model", "{model}", "--settings", '{{"disableAllHooks": true}}', "{prompt}"],
             timeout=90
         )
         assert adapter.command == "claude"
@@ -51,7 +51,7 @@ class TestClaudeAdapter:
         mock_process.returncode = 0
         mock_subprocess.return_value = mock_process
 
-        adapter = ClaudeAdapter(args=["-p", "--model", "{model}", "{prompt}"])
+        adapter = ClaudeAdapter(args=["-p", "--model", "{model}", "--settings", '{{"disableAllHooks": true}}', "{prompt}"])
         result = await adapter.invoke(
             prompt="What is 2+2?",
             model="claude-3-5-sonnet-20241022"
@@ -68,7 +68,7 @@ class TestClaudeAdapter:
         mock_process.communicate = AsyncMock(side_effect=asyncio.TimeoutError())
         mock_subprocess.return_value = mock_process
 
-        adapter = ClaudeAdapter(args=["-p", "--model", "{model}", "{prompt}"], timeout=1)
+        adapter = ClaudeAdapter(args=["-p", "--model", "{model}", "--settings", '{{"disableAllHooks": true}}', "{prompt}"], timeout=1)
 
         with pytest.raises(TimeoutError) as exc_info:
             await adapter.invoke("test", "model")
@@ -87,7 +87,7 @@ class TestClaudeAdapter:
         mock_process.returncode = 1
         mock_subprocess.return_value = mock_process
 
-        adapter = ClaudeAdapter(args=["-p", "--model", "{model}", "{prompt}"])
+        adapter = ClaudeAdapter(args=["-p", "--model", "{model}", "--settings", '{{"disableAllHooks": true}}', "{prompt}"])
 
         with pytest.raises(RuntimeError) as exc_info:
             await adapter.invoke("test", "model")
@@ -96,7 +96,7 @@ class TestClaudeAdapter:
 
     def test_parse_output_extracts_response(self):
         """Test output parsing extracts model response."""
-        adapter = ClaudeAdapter(args=["-p", "--model", "{model}", "{prompt}"])
+        adapter = ClaudeAdapter(args=["-p", "--model", "{model}", "--settings", '{{"disableAllHooks": true}}', "{prompt}"])
 
         raw_output = """
         Claude Code v1.0
