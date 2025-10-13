@@ -63,17 +63,19 @@ Round 1 - claude@cli (for): I recommend Option 2 (File-by-File Port) because it 
 
 Round 1 - codex@cli (neutral): Both Option 1 and Option 2 have merit depending on priorities. If commit history and git blame are important for future debugging and understanding the evolution of the metrics feature, Option 1 (Cherry-Pick) is worth the extra 15-30 minutes. However, if the primary goal is speed and safety, Option 2 is the clear winner."""
 
-        full_prompt_with_context = f"{context}\n\n{long_prompt}"
+        # Simulate 50+ rounds of context (each round adds ~2k chars)
+        # This creates a prompt exceeding 100k characters
+        very_long_context = context * 100  # Repeat context 100 times = ~118k chars
+        full_prompt_with_context = f"{very_long_context}\n\n{long_prompt}"
 
         # Test that adapter has a method to validate prompt length
         # Expected: Should have validate_prompt_length() method that returns False for long prompts
-        # Current (RED): No such method exists
         assert hasattr(
             gemini_adapter, "validate_prompt_length"
         ), "Adapter should have validate_prompt_length() method"
         assert not gemini_adapter.validate_prompt_length(
             full_prompt_with_context
-        ), "Long prompts should be flagged as invalid"
+        ), f"Long prompts ({len(full_prompt_with_context)} chars) should be flagged as invalid"
 
     def test_prompt_length_validation(self, gemini_adapter):
         """
