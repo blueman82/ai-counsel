@@ -162,28 +162,39 @@ Then **restart Claude Code** to load the server.
 
 3. **Use the `deliberate` tool:**
 
+**First time? Try this simple example:**
+
+From Claude Code, simply ask:
+```
+Use the deliberate tool to answer: "Should I use microservices or a monolith for a new API?"
+```
+
+Claude Code will invoke the ai-counsel MCP server and you'll get a multi-model deliberation!
+
+**Advanced usage:**
+
 ```javascript
 // Quick mode (1 round)
-await use_mcp_tool("deliberate", {
+mcp__ai-counsel__deliberate({
   question: "Should we migrate from JavaScript to TypeScript for our React components?",
   participants: [
-    {cli: "claude", model: "claude-3-5-sonnet-20241022"},
-    {cli: "codex", model: "gpt-4"}
+    {cli: "claude", model: "sonnet"},
+    {cli: "codex", model: "gpt-5-codex"}
   ],
   mode: "quick"
-});
+})
 
-// Conference mode (multi-round)
-await use_mcp_tool("deliberate", {
+// Conference mode (multi-round debate)
+mcp__ai-counsel__deliberate({
   question: "Should we refactor our authentication system from JWT to session-based auth?",
   participants: [
-    {cli: "claude", model: "claude-3-5-sonnet-20241022", stance: "neutral"},
-    {cli: "codex", model: "gpt-4", stance: "for"}
+    {cli: "claude", model: "claude-sonnet-4-5-20250929", stance: "neutral"},
+    {cli: "codex", model: "gpt-5-codex", stance: "for"}
   ],
   rounds: 3,
   mode: "conference",
   context: "Current system: JWT tokens with 30min expiration, 50K active users, Redis session store already in use"
-});
+})
 ```
 
 ### Transcripts
