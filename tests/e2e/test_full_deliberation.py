@@ -182,6 +182,7 @@ async def test_deliberation_with_context(tmp_path):
 
     adapters = {
         "claude-code": create_adapter("claude-code", config.cli_tools["claude-code"]),
+        "codex": create_adapter("codex", config.cli_tools["codex"]),
     }
 
     engine = DeliberationEngine(
@@ -193,6 +194,7 @@ async def test_deliberation_with_context(tmp_path):
         question="Should we use this framework?",
         participants=[
             Participant(cli="claude-code", model="claude-3-5-sonnet-20241022"),
+            Participant(cli="codex", model="gpt-4"),
         ],
         rounds=1,
         mode="quick",
@@ -204,10 +206,11 @@ async def test_deliberation_with_context(tmp_path):
 
     # ASSERT
     assert result.status == "complete"
-    assert len(result.full_debate) == 1
+    assert len(result.full_debate) == 2  # 1 round x 2 participants
 
-    # Response should reference the context (FastAPI, REST API, etc.)
-    response = result.full_debate[0].response.lower()
-    # At least one context element should be mentioned
-    context_mentioned = any(term in response for term in ["fastapi", "rest", "api", "python"])
-    assert context_mentioned, f"Response should reference context: {response[:200]}"
+    # Responses should reference the context (FastAPI, REST API, etc.)
+    for response in result.full_debate:
+        response_lower = response.response.lower()
+        # At least one context element should be mentioned
+        context_mentioned = any(term in response_lower for term in ["fastapi", "rest", "api", "python"])
+        assert context_mentioned, f"Response should reference context: {response.response[:200]}"
