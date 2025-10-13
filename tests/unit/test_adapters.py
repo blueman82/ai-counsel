@@ -87,7 +87,7 @@ class TestClaudeAdapter:
         mock_process.returncode = 1
         mock_subprocess.return_value = mock_process
 
-        adapter = ClaudeAdapter()
+        adapter = ClaudeAdapter(args=["-p", "--model", "{model}", "{prompt}"])
 
         with pytest.raises(RuntimeError) as exc_info:
             await adapter.invoke("test", "model")
@@ -96,7 +96,7 @@ class TestClaudeAdapter:
 
     def test_parse_output_extracts_response(self):
         """Test output parsing extracts model response."""
-        adapter = ClaudeAdapter()
+        adapter = ClaudeAdapter(args=["-p", "--model", "{model}", "{prompt}"])
 
         raw_output = """
         Claude Code v1.0
