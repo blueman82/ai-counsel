@@ -1,7 +1,7 @@
 """Deliberation engine for orchestrating multi-model discussions."""
 import logging
 from datetime import datetime
-from typing import List, Dict, TYPE_CHECKING
+from typing import List, Dict, Optional, TYPE_CHECKING
 from adapters.base import BaseCLIAdapter
 from models.schema import Participant, RoundResponse
 
@@ -9,6 +9,7 @@ logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from models.schema import DeliberateRequest, DeliberationResult
+    from deliberation.transcript import TranscriptManager
 
 
 class DeliberationEngine:
@@ -18,14 +19,21 @@ class DeliberationEngine:
     Manages round execution, context building, and response collection.
     """
 
-    def __init__(self, adapters: Dict[str, BaseCLIAdapter]):
+    def __init__(self, adapters: Dict[str, BaseCLIAdapter], transcript_manager: Optional["TranscriptManager"] = None):
         """
         Initialize deliberation engine.
 
         Args:
             adapters: Dictionary mapping CLI names to adapter instances
+            transcript_manager: Optional transcript manager (creates default if None)
         """
         self.adapters = adapters
+        self.transcript_manager = transcript_manager
+
+        # Import here to avoid circular dependency
+        if transcript_manager is None:
+            from deliberation.transcript import TranscriptManager
+            self.transcript_manager = TranscriptManager()
 
     async def execute_round(
         self,
