@@ -164,6 +164,36 @@ class DeliberationEngine:
 
         return "\n".join(context_parts)
 
+    def _parse_vote(self, response_text: str) -> Optional[Vote]:
+        """
+        Parse vote from response text if present.
+
+        Looks for vote in format: VOTE: {"option": "...", "confidence": 0.0-1.0, "rationale": "..."}
+
+        Args:
+            response_text: The response text to parse
+
+        Returns:
+            Vote object if valid vote found, None otherwise
+        """
+        # Look for VOTE: marker followed by JSON
+        vote_pattern = r'VOTE:\s*(\{[^}]+\})'
+        match = re.search(vote_pattern, response_text)
+
+        if not match:
+            return None
+
+        vote_json = match.group(1)
+
+        try:
+            vote_data = json.loads(vote_json)
+            # Validate using Pydantic model
+            vote = Vote(**vote_data)
+            return vote
+        except (json.JSONDecodeError, ValidationError, TypeError) as e:
+            logger.debug(f"Failed to parse vote from response: {e}")
+            return None
+
     async def execute(self, request: "DeliberateRequest") -> "DeliberationResult":
         """
         Execute full deliberation with multiple rounds and optional convergence detection.
