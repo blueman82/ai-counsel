@@ -57,6 +57,14 @@ for cli_name, cli_config in config.cli_tools.items():
 # Create engine with config for convergence detection
 engine = DeliberationEngine(adapters=adapters, config=config)
 
+# Recommended models for each CLI (for validation warnings)
+RECOMMENDED_MODELS = {
+    "claude": ["sonnet", "opus", "haiku", "claude-sonnet-4-5-20250929", "claude-opus-4-1-20250805"],
+    "codex": ["gpt-5-codex", "o3"],
+    "droid": ["claude-sonnet-4-5-20250929", "gpt-5-codex", "claude-opus-4-1-20250805"],
+    "gemini": ["gemini-2.5-pro", "gemini-2.0-flash"]
+}
+
 
 @app.list_tools()
 async def list_tools() -> list[Tool]:
