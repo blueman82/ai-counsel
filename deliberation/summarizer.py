@@ -117,7 +117,8 @@ class DeliberationSummarizer:
 Please provide your analysis in the following format:
 
 CONSENSUS:
-[A 1-2 sentence statement of the overall consensus, if one was reached. If no consensus, state "No clear consensus reached" and briefly explain the divide.]
+[A 1-2 sentence statement of the overall consensus, if one was reached.
+If no consensus, state "No clear consensus reached" and briefly explain the divide.]
 
 KEY AGREEMENTS:
 - [Agreement 1]
