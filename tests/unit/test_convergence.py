@@ -166,20 +166,20 @@ class TestConvergenceDetector:
             )
         ]
 
-        # Round 3 responses (very similar to round 2)
+        # Round 3 responses (very similar to round 2 - nearly identical)
         round3 = [
             RoundResponse(
                 round=3,
                 participant="claude@cli",
                 stance="for",
-                response="TypeScript is better for large projects because of types",
+                response="TypeScript is better for large projects",
                 timestamp="2025-01-01T00:01:00"
             ),
             RoundResponse(
                 round=3,
                 participant="codex@cli",
                 stance="for",
-                response="I agree TypeScript scales better with type safety",
+                response="I agree TypeScript scales better",
                 timestamp="2025-01-01T00:01:01"
             )
         ]
