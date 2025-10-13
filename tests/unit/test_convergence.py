@@ -1,10 +1,15 @@
 """Unit tests for convergence detection."""
 import pytest
+
+try:
+    from deliberation.convergence import ConvergenceDetector
+except ImportError:
+    ConvergenceDetector = None
+
 from deliberation.convergence import (
     JaccardBackend,
     TFIDFBackend,
     SentenceTransformerBackend,
-    ConvergenceDetector,
 )
 
 
