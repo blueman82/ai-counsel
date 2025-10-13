@@ -159,7 +159,15 @@ class SentenceTransformerBackend(SimilarityBackend):
 
         These have similar meaning despite different words.
         Sentence transformers will give high similarity (~0.85).
+
+    Performance:
+        - Model cached in memory after first load (~3 seconds)
+        - Subsequent instances reuse cached model (instant)
     """
+
+    # Class-level cache to share model across instances
+    _model_cache = None
+    _model_name_cache = None
 
     def __init__(self, model_name: str = "all-MiniLM-L6-v2"):
         """
@@ -173,10 +181,20 @@ class SentenceTransformerBackend(SimilarityBackend):
             from sentence_transformers import SentenceTransformer
             from sklearn.metrics.pairwise import cosine_similarity
 
-            logger.info(f"Loading sentence transformer model: {model_name}")
-            self.model = SentenceTransformer(model_name)
+            # Check if we can reuse cached model
+            if (SentenceTransformerBackend._model_cache is not None and
+                SentenceTransformerBackend._model_name_cache == model_name):
+                logger.info(f"Reusing cached sentence transformer model: {model_name}")
+                self.model = SentenceTransformerBackend._model_cache
+            else:
+                logger.info(f"Loading sentence transformer model: {model_name}")
+                self.model = SentenceTransformer(model_name)
+                # Cache for future instances
+                SentenceTransformerBackend._model_cache = self.model
+                SentenceTransformerBackend._model_name_cache = model_name
+                logger.info("Sentence transformer model loaded and cached successfully")
+
             self.cosine_similarity = cosine_similarity
-            logger.info("Sentence transformer model loaded successfully")
 
         except ImportError as e:
             raise ImportError(
