@@ -315,9 +315,14 @@ transcripts/
 ```
 
 Each transcript includes:
-- Summary with consensus, agreements, disagreements
-- Final recommendation
-- Full debate with all responses from all rounds
+- **AI-Generated Summary**: Claude Sonnet analyzes the full debate to extract:
+  - Overall consensus or areas of disagreement
+  - Key agreements between participants
+  - Key disagreements or points of contention
+  - Final recommendation synthesizing all perspectives
+- **Full Debate**: Complete responses from all rounds with timestamps and participant stances
+
+**Note:** AI-powered summary generation requires the Claude CLI adapter. If Claude is not available, the system will use placeholder summaries.
 
 ## Development
 
