@@ -5,13 +5,13 @@ from adapters.base import BaseCLIAdapter
 class CodexAdapter(BaseCLIAdapter):
     """Adapter for codex CLI tool."""
 
-    def __init__(self, command: str = "codex", args: list[str] = None, timeout: int = 60):
+    def __init__(self, command: str = "codex", args: list[str] | None = None, timeout: int = 60):
         """
         Initialize Codex adapter.
 
         Args:
             command: Command to execute (default: "codex")
-            args: List of argument templates (default: ["exec", "--model", "{model}", "{prompt}"])
+            args: List of argument templates (from config.yaml)
             timeout: Timeout in seconds (default: 60)
 
         Note:
@@ -19,7 +19,7 @@ class CodexAdapter(BaseCLIAdapter):
             Model is configured via ~/.codex/config.toml, not passed as CLI arg.
         """
         if args is None:
-            args = ["exec", "--model", "{model}", "{prompt}"]
+            raise ValueError("args must be provided from config.yaml")
         super().__init__(
             command=command,
             args=args,
