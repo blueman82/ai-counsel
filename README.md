@@ -99,20 +99,24 @@ deliberation:
 python server.py
 ```
 
-2. **Configure in your MCP client** (e.g., Claude Code):
+2. **Configure in your MCP client:**
 
-Add to your MCP client config:
+**For Claude Code**, add to `~/.claude/config/mcp.json`:
 
 ```json
 {
   "mcpServers": {
     "ai-counsel": {
-      "command": "python",
-      "args": ["/absolute/path/to/ai-counsel/server.py"]
+      "type": "stdio",
+      "command": "/absolute/path/to/ai-counsel/.venv/bin/python",
+      "args": ["/absolute/path/to/ai-counsel/server.py"],
+      "env": {}
     }
   }
 }
 ```
+
+**For other MCP clients**, adjust paths accordingly. Then restart your MCP client.
 
 3. **Use the `deliberate` tool:**
 
