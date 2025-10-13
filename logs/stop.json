@@ -670,5 +670,141 @@
     "permission_mode": "bypassPermissions",
     "hook_event_name": "Stop",
     "stop_hook_active": false
+  },
+  {
+    "session_id": "cf46dc06-a447-4ef3-bb94-cf11dd3b0680",
+    "transcript_path": "/Users/harrison/.claude/projects/-Users-harrison-Documents-Github-ai-counsel/cf46dc06-a447-4ef3-bb94-cf11dd3b0680.jsonl",
+    "cwd": "/Users/harrison/Documents/Github/ai-counsel",
+    "permission_mode": "bypassPermissions",
+    "hook_event_name": "Stop",
+    "stop_hook_active": true
+  },
+  {
+    "session_id": "b375345e-d1dd-411c-aa46-ce29c3203626",
+    "transcript_path": "/Users/harrison/.claude/projects/-Users-harrison-Documents-Github-ai-counsel/b375345e-d1dd-411c-aa46-ce29c3203626.jsonl",
+    "cwd": "/Users/harrison/Documents/Github/ai-counsel",
+    "permission_mode": "default",
+    "hook_event_name": "Stop",
+    "stop_hook_active": false
+  },
+  {
+    "session_id": "064ff8de-c569-473d-a794-cda7d96a83ca",
+    "transcript_path": "/Users/harrison/.claude/projects/-Users-harrison-Documents-Github-ai-counsel/064ff8de-c569-473d-a794-cda7d96a83ca.jsonl",
+    "cwd": "/Users/harrison/Documents/Github/ai-counsel",
+    "permission_mode": "default",
+    "hook_event_name": "Stop",
+    "stop_hook_active": false
+  },
+  {
+    "session_id": "10d0b1d4-e11e-4eb0-ade0-6fad0ec6060f",
+    "transcript_path": "/Users/harrison/.claude/projects/-Users-harrison-Documents-Github-ai-counsel/10d0b1d4-e11e-4eb0-ade0-6fad0ec6060f.jsonl",
+    "cwd": "/Users/harrison/Documents/Github/ai-counsel",
+    "permission_mode": "default",
+    "hook_event_name": "Stop",
+    "stop_hook_active": false
+  },
+  {
+    "session_id": "261fae47-4e8c-4262-b95c-df907e6acb85",
+    "transcript_path": "/Users/harrison/.claude/projects/-Users-harrison-Documents-Github-ai-counsel/261fae47-4e8c-4262-b95c-df907e6acb85.jsonl",
+    "cwd": "/Users/harrison/Documents/Github/ai-counsel",
+    "permission_mode": "default",
+    "hook_event_name": "Stop",
+    "stop_hook_active": false
+  },
+  {
+    "session_id": "064ff8de-c569-473d-a794-cda7d96a83ca",
+    "transcript_path": "/Users/harrison/.claude/projects/-Users-harrison-Documents-Github-ai-counsel/064ff8de-c569-473d-a794-cda7d96a83ca.jsonl",
+    "cwd": "/Users/harrison/Documents/Github/ai-counsel",
+    "permission_mode": "default",
+    "hook_event_name": "Stop",
+    "stop_hook_active": true
+  },
+  {
+    "session_id": "10d0b1d4-e11e-4eb0-ade0-6fad0ec6060f",
+    "transcript_path": "/Users/harrison/.claude/projects/-Users-harrison-Documents-Github-ai-counsel/10d0b1d4-e11e-4eb0-ade0-6fad0ec6060f.jsonl",
+    "cwd": "/Users/harrison/Documents/Github/ai-counsel",
+    "permission_mode": "default",
+    "hook_event_name": "Stop",
+    "stop_hook_active": true
+  },
+  {
+    "session_id": "b375345e-d1dd-411c-aa46-ce29c3203626",
+    "transcript_path": "/Users/harrison/.claude/projects/-Users-harrison-Documents-Github-ai-counsel/b375345e-d1dd-411c-aa46-ce29c3203626.jsonl",
+    "cwd": "/Users/harrison/Documents/Github/ai-counsel",
+    "permission_mode": "default",
+    "hook_event_name": "Stop",
+    "stop_hook_active": true
+  },
+  {
+    "session_id": "261fae47-4e8c-4262-b95c-df907e6acb85",
+    "transcript_path": "/Users/harrison/.claude/projects/-Users-harrison-Documents-Github-ai-counsel/261fae47-4e8c-4262-b95c-df907e6acb85.jsonl",
+    "cwd": "/Users/harrison/Documents/Github/ai-counsel",
+    "permission_mode": "default",
+    "hook_event_name": "Stop",
+    "stop_hook_active": true
+  },
+  {
+    "session_id": "c39509e1-64c1-4c3d-a5d3-14353c554953",
+    "transcript_path": "/Users/harrison/.claude/projects/-Users-harrison-Documents-Github-ai-counsel/c39509e1-64c1-4c3d-a5d3-14353c554953.jsonl",
+    "cwd": "/Users/harrison/Documents/Github/ai-counsel",
+    "permission_mode": "default",
+    "hook_event_name": "Stop",
+    "stop_hook_active": false
+  },
+  {
+    "session_id": "70ed6774-fc80-438c-a6d8-4566a91b5516",
+    "transcript_path": "/Users/harrison/.claude/projects/-Users-harrison-Documents-Github-ai-counsel/70ed6774-fc80-438c-a6d8-4566a91b5516.jsonl",
+    "cwd": "/Users/harrison/Documents/Github/ai-counsel",
+    "permission_mode": "default",
+    "hook_event_name": "Stop",
+    "stop_hook_active": false
+  },
+  {
+    "session_id": "cf46dc06-a447-4ef3-bb94-cf11dd3b0680",
+    "transcript_path": "/Users/harrison/.claude/projects/-Users-harrison-Documents-Github-ai-counsel/cf46dc06-a447-4ef3-bb94-cf11dd3b0680.jsonl",
+    "cwd": "/Users/harrison/Documents/Github/ai-counsel",
+    "permission_mode": "bypassPermissions",
+    "hook_event_name": "Stop",
+    "stop_hook_active": false
+  },
+  {
+    "session_id": "cf46dc06-a447-4ef3-bb94-cf11dd3b0680",
+    "transcript_path": "/Users/harrison/.claude/projects/-Users-harrison-Documents-Github-ai-counsel/cf46dc06-a447-4ef3-bb94-cf11dd3b0680.jsonl",
+    "cwd": "/Users/harrison/Documents/Github/ai-counsel",
+    "permission_mode": "bypassPermissions",
+    "hook_event_name": "Stop",
+    "stop_hook_active": true
+  },
+  {
+    "session_id": "70ed6774-fc80-438c-a6d8-4566a91b5516",
+    "transcript_path": "/Users/harrison/.claude/projects/-Users-harrison-Documents-Github-ai-counsel/70ed6774-fc80-438c-a6d8-4566a91b5516.jsonl",
+    "cwd": "/Users/harrison/Documents/Github/ai-counsel",
+    "permission_mode": "default",
+    "hook_event_name": "Stop",
+    "stop_hook_active": true
+  },
+  {
+    "session_id": "c39509e1-64c1-4c3d-a5d3-14353c554953",
+    "transcript_path": "/Users/harrison/.claude/projects/-Users-harrison-Documents-Github-ai-counsel/c39509e1-64c1-4c3d-a5d3-14353c554953.jsonl",
+    "cwd": "/Users/harrison/Documents/Github/ai-counsel",
+    "permission_mode": "default",
+    "hook_event_name": "Stop",
+    "stop_hook_active": true
+  },
+  {
+    "session_id": "cf46dc06-a447-4ef3-bb94-cf11dd3b0680",
+    "transcript_path": "/Users/harrison/.claude/projects/-Users-harrison-Documents-Github-ai-counsel/cf46dc06-a447-4ef3-bb94-cf11dd3b0680.jsonl",
+    "cwd": "/Users/harrison/Documents/Github/ai-counsel",
+    "permission_mode": "bypassPermissions",
+    "hook_event_name": "Stop",
+    "stop_hook_active": false
+  },
+  {
+    "session_id": "cf46dc06-a447-4ef3-bb94-cf11dd3b0680",
+    "transcript_path": "/Users/harrison/.claude/projects/-Users-harrison-Documents-Github-ai-counsel/cf46dc06-a447-4ef3-bb94-cf11dd3b0680.jsonl",
+    "cwd": "/Users/harrison/Documents/Github/ai-counsel",
+    "permission_mode": "bypassPermissions",
+    "hook_event_name": "Stop",
+    "stop_hook_active": true
   }
 ]
