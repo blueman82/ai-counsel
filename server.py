@@ -163,7 +163,9 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
 
         if len(result.full_debate) > max_rounds:
             total_rounds = len(result.full_debate)
-            result_dict['full_debate'] = result.full_debate[-max_rounds:]
+            # Convert RoundResponse objects to dicts for the truncated slice
+            result_dict['full_debate'] = [r.model_dump() if hasattr(r, 'model_dump') else r
+                                          for r in result.full_debate[-max_rounds:]]
             result_dict['full_debate_truncated'] = True
             result_dict['total_rounds'] = total_rounds
             logger.info(f"Truncated full_debate from {total_rounds} to last {max_rounds} rounds for MCP response")
