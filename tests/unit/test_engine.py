@@ -37,7 +37,7 @@ class TestDeliberationEngine:
         assert len(responses) == 1
         assert isinstance(responses[0], RoundResponse)
         assert responses[0].round == 1
-        assert responses[0].participant == "claude-code"
+        assert responses[0].participant == "claude-3-5-sonnet@claude-code"
         assert responses[0].stance == "neutral"
         assert responses[0].response == "This is Claude's response"
         assert responses[0].timestamp is not None
@@ -64,10 +64,10 @@ class TestDeliberationEngine:
         )
 
         assert len(responses) == 2
-        assert responses[0].participant == "claude-code"
+        assert responses[0].participant == "claude-3-5-sonnet@claude-code"
         assert responses[0].stance == "for"
         assert responses[0].response == "Claude says yes"
-        assert responses[1].participant == "codex"
+        assert responses[1].participant == "gpt-4@codex"
         assert responses[1].stance == "against"
         assert responses[1].response == "Codex says no"
 

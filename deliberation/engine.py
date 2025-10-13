@@ -65,7 +65,7 @@ class DeliberationEngine:
             # Create response object
             response = RoundResponse(
                 round=round_num,
-                participant=participant.cli,
+                participant=f"{participant.model}@{participant.cli}",
                 stance=participant.stance,
                 response=response_text,
                 timestamp=datetime.now().isoformat()
