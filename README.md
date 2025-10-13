@@ -239,7 +239,7 @@ ai-counsel/
 ├── config.yaml           # Configuration
 ├── adapters/             # CLI tool adapters
 │   ├── base.py          # Abstract base
-│   ├── claude_code.py   # Claude Code adapter
+│   ├── claude.py        # Claude CLI adapter
 │   └── codex.py         # Codex adapter
 ├── deliberation/         # Core engine
 │   ├── engine.py        # Orchestration
