@@ -113,6 +113,7 @@ class TestSentenceTransformerBackend:
 
     def test_semantic_understanding(self):
         """Should understand semantic similarity."""
+        pytest.importorskip("sentence_transformers", minversion="2.0")
         backend = SentenceTransformerBackend()
         text1 = "I prefer TypeScript for type safety"
         text2 = "TypeScript is better because it has types"
