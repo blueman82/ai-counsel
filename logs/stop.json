@@ -574,5 +574,13 @@
     "permission_mode": "bypassPermissions",
     "hook_event_name": "Stop",
     "stop_hook_active": true
+  },
+  {
+    "session_id": "e2b09791-16bf-42ae-900d-cb41b85b48b6",
+    "transcript_path": "/Users/harrison/.claude/projects/-Users-harrison-Documents-Github-ai-counsel/e2b09791-16bf-42ae-900d-cb41b85b48b6.jsonl",
+    "cwd": "/Users/harrison/Documents/Github/ai-counsel",
+    "permission_mode": "bypassPermissions",
+    "hook_event_name": "Stop",
+    "stop_hook_active": false
   }
 ]
