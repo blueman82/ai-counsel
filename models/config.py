@@ -26,8 +26,20 @@ class StorageConfig(BaseModel):
     auto_export: bool
 
 
+class ConvergenceDetectionConfig(BaseModel):
+    """Convergence detection configuration."""
+    enabled: bool
+    semantic_similarity_threshold: float
+    divergence_threshold: float
+    min_rounds_before_check: int
+    consecutive_stable_rounds: int
+    stance_stability_threshold: float
+    response_length_drop_threshold: float
+
+
 class DeliberationConfig(BaseModel):
     """Deliberation engine configuration."""
+    convergence_detection: ConvergenceDetectionConfig
     convergence_threshold: float
     enable_convergence_detection: bool
 

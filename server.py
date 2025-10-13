@@ -54,8 +54,8 @@ for cli_name, cli_config in config.cli_tools.items():
         logger.error(f"Failed to create adapter for {cli_name}: {e}")
 
 
-# Create engine
-engine = DeliberationEngine(adapters=adapters)
+# Create engine with config for convergence detection
+engine = DeliberationEngine(adapters=adapters, config=config)
 
 
 @app.list_tools()
@@ -157,8 +157,23 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
         result = await engine.execute(request)
         logger.info(f"Deliberation complete: {result.rounds_completed} rounds, status: {result.status}")
 
+        # Truncate full_debate for MCP response if needed (to avoid token limit)
+        max_rounds = getattr(config, 'mcp', {}).get('max_rounds_in_response', 3)
+        result_dict = result.model_dump()
+
+        if len(result.full_debate) > max_rounds:
+            total_rounds = len(result.full_debate)
+            # Convert RoundResponse objects to dicts for the truncated slice
+            result_dict['full_debate'] = [r.model_dump() if hasattr(r, 'model_dump') else r
+                                          for r in result.full_debate[-max_rounds:]]
+            result_dict['full_debate_truncated'] = True
+            result_dict['total_rounds'] = total_rounds
+            logger.info(f"Truncated full_debate from {total_rounds} to last {max_rounds} rounds for MCP response")
+        else:
+            result_dict['full_debate_truncated'] = False
+
         # Serialize result
-        result_json = json.dumps(result.model_dump(), indent=2)
+        result_json = json.dumps(result_dict, indent=2)
         logger.info(f"Result serialized, length: {len(result_json)} chars")
 
         # Return result as TextContent

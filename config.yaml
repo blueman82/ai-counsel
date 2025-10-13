@@ -6,21 +6,26 @@ cli_tools:
     command: "claude"
     args: ["-p", "--model", "{model}", "--settings", "{{\"disableAllHooks\": true}}", "{prompt}"]
     timeout: 300
+    # Valid models: "sonnet", "opus", "haiku" or full names like "claude-sonnet-4-5-20250929"
 
   codex:
     command: "codex"
     args: ["exec", "--model", "{model}", "{prompt}"]
     timeout: 180
+    # Valid models: "gpt-5-codex", "o3", or other OpenAI model identifiers
 
   droid:
     command: "droid"
-    args: ["exec", "{prompt}"]
+    args: ["exec", "-m", "{model}", "{prompt}"]
     timeout: 180
+    # Valid models: "claude-sonnet-4-5-20250929", "claude-opus-4-1-20250805", "gpt-5-codex"
+    # Note: Requires FULL model IDs, not short aliases
 
   gemini:
     command: "gemini"
     args: ["-m", "{model}", "-p", "{prompt}"]
     timeout: 180
+    # Valid models: "gemini-2.5-pro" (default) or other Gemini identifiers
 
 defaults:
   mode: "quick"
@@ -33,6 +38,28 @@ storage:
   format: "markdown"
   auto_export: true
 
+mcp:
+  # Maximum rounds to include in MCP response (to avoid token limit)
+  # Full transcript is always saved to file - this only affects MCP response size
+  max_rounds_in_response: 3
+
 deliberation:
+  # Convergence detection settings
+  convergence_detection:
+    enabled: true
+
+    # Similarity thresholds
+    semantic_similarity_threshold: 0.85  # Models converged if similarity >= this
+    divergence_threshold: 0.40           # Models diverging if similarity < this
+
+    # Round constraints
+    min_rounds_before_check: 2           # Don't check convergence until round 3
+    consecutive_stable_rounds: 2         # Require 2 stable rounds to confirm
+
+    # Secondary metrics
+    stance_stability_threshold: 0.80     # 80% of participants must have stable stances
+    response_length_drop_threshold: 0.40 # Flag if response length drops >40%
+
+  # Legacy settings (keep these)
   convergence_threshold: 0.8
   enable_convergence_detection: true
