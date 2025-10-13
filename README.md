@@ -31,6 +31,8 @@ Unlike existing tools (like Zen's consensus feature) that gather parallel opinio
 - 🎚️ **User Control:** Configure rounds, stances, and participants
 - 🔍 **Transparent:** See exactly what each model said and when
 - ⚡ **Auto-Convergence:** Automatically stops when opinions stabilize
+- 🗳️ **Structured Voting:** Models cast votes with confidence levels and rationale
+- 🎛️ **Model-Controlled Stopping:** Models decide when to stop deliberating (adaptive rounds)
 
 ## Quick Start
 
