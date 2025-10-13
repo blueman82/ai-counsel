@@ -277,12 +277,14 @@ class TestDeliberationEngineMultiRound:
             question="Should we use TypeScript?",
             participants=[
                 Participant(cli="claude-code", model="claude-3-5-sonnet-20241022", stance="neutral"),
+                Participant(cli="codex", model="gpt-4", stance="neutral"),
             ],
             rounds=1
         )
 
         mock_adapters["claude-code"] = mock_adapters["claude"]
         mock_adapters["claude-code"].invoke_mock.return_value = "Claude response"
+        mock_adapters["codex"].invoke_mock.return_value = "Codex response"
 
         engine = DeliberationEngine(adapters=mock_adapters, transcript_manager=manager)
         result = await engine.execute(request)
