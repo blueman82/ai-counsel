@@ -109,6 +109,9 @@ class DeliberationEngine:
         """
         responses = []
 
+        # Enhance prompt with voting instructions
+        enhanced_prompt = self._enhance_prompt_with_voting(prompt)
+
         # Build context from previous responses
         context = self._build_context(previous_responses) if previous_responses else None
 
@@ -119,7 +122,7 @@ class DeliberationEngine:
             # Invoke the adapter with error handling
             try:
                 response_text = await adapter.invoke(
-                    prompt=prompt,
+                    prompt=enhanced_prompt,
                     model=participant.model,
                     context=context
                 )
@@ -255,6 +258,42 @@ class DeliberationEngine:
             consensus_reached=consensus_reached,
             winning_option=winning_option
         )
+
+    def _build_voting_instructions(self) -> str:
+        """
+        Build voting instructions for participants.
+
+        Returns:
+            Formatted voting instructions string
+        """
+        return """
+## Voting Instructions
+
+After your analysis, please cast your vote using the following format:
+
+VOTE: {"option": "Your choice", "confidence": 0.85, "rationale": "Brief explanation"}
+
+Where:
+- option: Your chosen option (e.g., "Option A", "Yes", "Approve")
+- confidence: Your confidence level from 0.0 (no confidence) to 1.0 (absolute certainty)
+- rationale: Brief explanation for your vote
+
+Example:
+VOTE: {"option": "Option A", "confidence": 0.9, "rationale": "Lower risk and better architectural fit"}
+""".strip()
+
+    def _enhance_prompt_with_voting(self, prompt: str) -> str:
+        """
+        Enhance prompt with voting instructions.
+
+        Args:
+            prompt: Original question or prompt
+
+        Returns:
+            Enhanced prompt with voting instructions
+        """
+        voting_instructions = self._build_voting_instructions()
+        return f"{prompt}\n\n{voting_instructions}"
 
     def _check_early_stopping(self, round_responses: List[RoundResponse], round_num: int, min_rounds: int) -> bool:
         """
@@ -452,16 +491,42 @@ class DeliberationEngine:
         )
 
         # Add convergence info if available
-        if final_convergence_info:
+        if final_convergence_info or voting_result:
             from models.schema import ConvergenceInfo
 
+            # Override convergence status based on voting outcome if available
+            if voting_result:
+                if voting_result.consensus_reached and len(voting_result.final_tally) == 1:
+                    # Unanimous vote
+                    convergence_status = "unanimous_consensus"
+                    convergence_detected = True
+                elif voting_result.consensus_reached and voting_result.winning_option:
+                    # Majority vote (e.g., 2-1)
+                    convergence_status = "majority_decision"
+                    convergence_detected = True
+                elif not voting_result.winning_option:
+                    # Tie vote
+                    convergence_status = "tie"
+                    convergence_detected = False
+                else:
+                    # Fallback to semantic similarity status
+                    convergence_status = final_convergence_info.status if final_convergence_info else "unknown"
+                    convergence_detected = final_convergence_info.converged if final_convergence_info else False
+            elif final_convergence_info:
+                # No voting, use semantic similarity status
+                convergence_status = final_convergence_info.status
+                convergence_detected = final_convergence_info.converged
+            else:
+                convergence_status = "unknown"
+                convergence_detected = False
+
             result.convergence_info = ConvergenceInfo(
-                detected=final_convergence_info.converged,
-                detection_round=actual_rounds_completed if final_convergence_info.converged else None,
-                final_similarity=final_convergence_info.min_similarity,
-                status=final_convergence_info.status,
+                detected=convergence_detected,
+                detection_round=actual_rounds_completed if convergence_detected else None,
+                final_similarity=final_convergence_info.min_similarity if final_convergence_info else 0.0,
+                status=convergence_status,
                 scores_by_round=[],  # Could track all rounds if needed
-                per_participant_similarity=final_convergence_info.per_participant_similarity
+                per_participant_similarity=final_convergence_info.per_participant_similarity if final_convergence_info else {}
             )
 
         # Save transcript
