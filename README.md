@@ -91,7 +91,7 @@ deliberation:
 
 **Note:** Timeout values are per-invocation. Modern reasoning models (like Claude Sonnet 4.5 and GPT-5-Codex) can take 60-120+ seconds for complex prompts, so higher timeouts are recommended.
 
-**Hook Management:** The project includes `.claude/settings.local.json` with `disableAllHooks: true` to prevent user hooks from interfering with CLI invocations during deliberation. This uses Claude Code's project-level settings precedence.
+**Hook Management:** Claude CLI uses `--settings '{"disableAllHooks": true}'` to prevent user hooks from interfering with CLI invocations during deliberation.
 
 ## Usage
 
