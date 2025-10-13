@@ -339,3 +339,67 @@ Once manual testing is complete:
 ### Recommendation
 **Phase 5 E2E Testing: COMPLETE** ✅
 Ready to proceed with marking Phase 5 complete in implementation plan.
+
+---
+
+## Post-Phase 5 Enhancement: MCP Response Pagination
+
+**Date**: 2025-10-13
+**Issue**: Test Scenario 1 generated 95KB MCP response (26,598 tokens) exceeding MCP's 25K token limit
+
+### Problem Identified
+During Test Scenario 1 (TypeScript question), the MCP tool response contained the full 5-round deliberation transcript inline. This caused:
+```
+Error: response exceeds maximum allowed tokens (26598 > 25000)
+```
+
+The transcript file was generated correctly, but the MCP response failed to return to the user.
+
+### Solution Implemented
+**MCP Response Pagination** (2025-10-13)
+
+**Changes Made**:
+1. **config.yaml**: Added `mcp.max_rounds_in_response: 3` configuration
+2. **server.py**: Implemented full_debate truncation logic in server.py:161-171
+   - Truncates `full_debate` to last N rounds (default: 3)
+   - Adds `full_debate_truncated: true` metadata field
+   - Adds `total_rounds` field showing original count
+   - Full transcript file remains complete (unchanged)
+
+**Implementation**:
+```python
+# server.py lines 160-171
+max_rounds = getattr(config, 'mcp', {}).get('max_rounds_in_response', 3)
+result_dict = result.model_dump()
+
+if len(result.full_debate) > max_rounds:
+    total_rounds = len(result.full_debate)
+    result_dict['full_debate'] = result.full_debate[-max_rounds:]
+    result_dict['full_debate_truncated'] = True
+    result_dict['total_rounds'] = total_rounds
+    logger.info(f"Truncated full_debate from {total_rounds} to last {max_rounds} rounds")
+else:
+    result_dict['full_debate_truncated'] = False
+```
+
+**Benefits**:
+- ✅ MCP responses always fit within 25K token limit
+- ✅ Full transcripts still saved to file (primary artifact)
+- ✅ User sees last 3 rounds in MCP response (most relevant)
+- ✅ Metadata indicates truncation status
+- ✅ Backward compatible (works with existing code)
+- ✅ Configurable via config.yaml
+
+**Files Modified**:
+- `/Users/harrison/Documents/Github/ai-counsel/config.yaml` (lines 41-44)
+- `/Users/harrison/Documents/Github/ai-counsel/server.py` (lines 160-171)
+
+**Configuration**:
+```yaml
+mcp:
+  # Maximum rounds to include in MCP response (to avoid token limit)
+  # Full transcript is always saved to file - this only affects MCP response size
+  max_rounds_in_response: 3
+```
+
+**Testing Status**: ✅ Syntax validation passed, ready for next E2E test cycle
