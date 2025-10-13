@@ -191,6 +191,160 @@ class TestCodexAdapter:
         assert not result.endswith(" ")
 
 
+class TestGeminiAdapter:
+    """Tests for GeminiAdapter."""
+
+    def test_adapter_initialization(self):
+        """Test adapter initializes with correct values."""
+        adapter = GeminiAdapter(args=["-m", "{model}", "-p", "{prompt}"], timeout=90)
+        assert adapter.command == "gemini"
+        assert adapter.timeout == 90
+
+    @pytest.mark.asyncio
+    @patch('adapters.base.asyncio.create_subprocess_exec')
+    async def test_invoke_success(self, mock_subprocess):
+        """Test successful CLI invocation."""
+        # Mock subprocess
+        mock_process = Mock()
+        mock_process.communicate = AsyncMock(return_value=(
+            b"This is the gemini model response.",
+            b""
+        ))
+        mock_process.returncode = 0
+        mock_subprocess.return_value = mock_process
+
+        adapter = GeminiAdapter(args=["-m", "{model}", "-p", "{prompt}"])
+        result = await adapter.invoke(
+            prompt="What is 2+2?",
+            model="gemini-pro"
+        )
+
+        assert result == "This is the gemini model response."
+        mock_subprocess.assert_called_once()
+
+    @pytest.mark.asyncio
+    @patch('adapters.base.asyncio.create_subprocess_exec')
+    async def test_invoke_timeout(self, mock_subprocess):
+        """Test timeout handling."""
+        mock_process = Mock()
+        mock_process.communicate = AsyncMock(side_effect=asyncio.TimeoutError())
+        mock_subprocess.return_value = mock_process
+
+        adapter = GeminiAdapter(args=["-m", "{model}", "-p", "{prompt}"], timeout=1)
+
+        with pytest.raises(TimeoutError) as exc_info:
+            await adapter.invoke("test", "model")
+
+        assert "timed out" in str(exc_info.value).lower()
+
+    @pytest.mark.asyncio
+    @patch('adapters.base.asyncio.create_subprocess_exec')
+    async def test_invoke_process_error(self, mock_subprocess):
+        """Test process error handling."""
+        mock_process = Mock()
+        mock_process.communicate = AsyncMock(return_value=(
+            b"",
+            b"Error: Model not available"
+        ))
+        mock_process.returncode = 1
+        mock_subprocess.return_value = mock_process
+
+        adapter = GeminiAdapter(args=["-m", "{model}", "-p", "{prompt}"])
+
+        with pytest.raises(RuntimeError) as exc_info:
+            await adapter.invoke("test", "model")
+
+        assert "failed" in str(exc_info.value).lower()
+
+    def test_parse_output_returns_cleaned_text(self):
+        """Test output parsing returns cleaned text."""
+        adapter = GeminiAdapter(args=["-m", "{model}", "-p", "{prompt}"])
+
+        raw_output = "  Response with extra whitespace.  \n\n"
+        result = adapter.parse_output(raw_output)
+
+        assert result == "Response with extra whitespace."
+        assert not result.startswith(" ")
+        assert not result.endswith(" ")
+
+
+class TestDroidAdapter:
+    """Tests for DroidAdapter."""
+
+    def test_adapter_initialization(self):
+        """Test adapter initializes with correct values."""
+        adapter = DroidAdapter(args=["exec", "{prompt}"], timeout=90)
+        assert adapter.command == "droid"
+        assert adapter.timeout == 90
+
+    @pytest.mark.asyncio
+    @patch('adapters.base.asyncio.create_subprocess_exec')
+    async def test_invoke_success(self, mock_subprocess):
+        """Test successful CLI invocation."""
+        # Mock subprocess
+        mock_process = Mock()
+        mock_process.communicate = AsyncMock(return_value=(
+            b"This is the droid model response.",
+            b""
+        ))
+        mock_process.returncode = 0
+        mock_subprocess.return_value = mock_process
+
+        adapter = DroidAdapter(args=["exec", "{prompt}"])
+        result = await adapter.invoke(
+            prompt="What is 2+2?",
+            model="factory-1"
+        )
+
+        assert result == "This is the droid model response."
+        mock_subprocess.assert_called_once()
+
+    @pytest.mark.asyncio
+    @patch('adapters.base.asyncio.create_subprocess_exec')
+    async def test_invoke_timeout(self, mock_subprocess):
+        """Test timeout handling."""
+        mock_process = Mock()
+        mock_process.communicate = AsyncMock(side_effect=asyncio.TimeoutError())
+        mock_subprocess.return_value = mock_process
+
+        adapter = DroidAdapter(args=["exec", "{prompt}"], timeout=1)
+
+        with pytest.raises(TimeoutError) as exc_info:
+            await adapter.invoke("test", "model")
+
+        assert "timed out" in str(exc_info.value).lower()
+
+    @pytest.mark.asyncio
+    @patch('adapters.base.asyncio.create_subprocess_exec')
+    async def test_invoke_process_error(self, mock_subprocess):
+        """Test process error handling."""
+        mock_process = Mock()
+        mock_process.communicate = AsyncMock(return_value=(
+            b"",
+            b"Error: Model not available"
+        ))
+        mock_process.returncode = 1
+        mock_subprocess.return_value = mock_process
+
+        adapter = DroidAdapter(args=["exec", "{prompt}"])
+
+        with pytest.raises(RuntimeError) as exc_info:
+            await adapter.invoke("test", "model")
+
+        assert "failed" in str(exc_info.value).lower()
+
+    def test_parse_output_returns_cleaned_text(self):
+        """Test output parsing returns cleaned text."""
+        adapter = DroidAdapter(args=["exec", "{prompt}"])
+
+        raw_output = "  Response with extra whitespace.  \n\n"
+        result = adapter.parse_output(raw_output)
+
+        assert result == "Response with extra whitespace."
+        assert not result.startswith(" ")
+        assert not result.endswith(" ")
+
+
 class TestAdapterFactory:
     """Tests for create_adapter factory function."""
 
