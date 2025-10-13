@@ -146,10 +146,10 @@ Please be concise and focus on the substance of the arguments, not formatting or
             Parsed Summary object
         """
         # Initialize with defaults
-        consensus = "No consensus information provided"
-        agreements = []
-        disagreements = []
-        recommendation = "No recommendation provided"
+        consensus: str = "No consensus information provided"
+        agreements: List[str] = []
+        disagreements: List[str] = []
+        recommendation: str = "No recommendation provided"
 
         # Split into sections
         sections = {
