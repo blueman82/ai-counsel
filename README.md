@@ -61,6 +61,8 @@ python3 -m pytest tests/unit -v
 
 Edit `config.yaml` to configure CLI tools, timeouts, and settings:
 
+**Note:** The code uses `"claude-code"` as the identifier (in API calls, schema, etc.) but this maps to the actual `claude` CLI command in the config. This naming inconsistency is documented and will be addressed in a future refactor.
+
 ```yaml
 cli_tools:
   claude:
