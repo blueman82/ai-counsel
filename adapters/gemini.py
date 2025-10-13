@@ -5,10 +5,11 @@ from adapters.base import BaseCLIAdapter
 class GeminiAdapter(BaseCLIAdapter):
     """Adapter for gemini CLI tool (Google AI)."""
 
-    # Gemini API limits (conservative estimates)
-    # Gemini 1.5 Pro/Flash: 1M tokens input, but practical limit is lower
-    # Use 100k tokens as safe threshold (~400k characters at 4 chars/token)
-    MAX_PROMPT_CHARS = 400000
+    # Gemini API limits (conservative estimates based on production errors)
+    # Gemini API rejects prompts around 30k+ tokens
+    # Use 100k characters as safe threshold (~25k tokens at 4 chars/token)
+    # This prevents "invalid argument" API errors seen in production
+    MAX_PROMPT_CHARS = 100000
 
     def __init__(self, command: str = "gemini", args: list[str] | None = None, timeout: int = 60):
         """
