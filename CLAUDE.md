@@ -54,6 +54,7 @@ AI Counsel is an MCP (Model Context Protocol) server that enables true deliberat
 - Generates markdown transcripts in `transcripts/` directory
 - Filename format: `YYYYMMDD_HHMMSS_Question_truncated.md`
 - Includes AI-generated summary (consensus, agreements, disagreements, recommendation) and full debate
+- **Voting section** (when votes present): final tally with winning indicator (✓), consensus status, votes by round with confidence/rationale/continue_debate flag
 
 **AI Summarizer** (`deliberation/summarizer.py`)
 - Uses AI models to analyze and summarize completed debates
@@ -254,7 +255,7 @@ This server implements MCP protocol for Claude Code integration:
 
 ## Production Readiness
 
-- ✅ 74+ passing tests with comprehensive coverage (unit, integration, e2e)
+- ✅ 108+ passing tests with comprehensive coverage (unit, integration, e2e)
 - ✅ Type-safe Pydantic validation
 - ✅ Graceful error handling and adapter isolation
 - ✅ Structured logging to file (no stdio contamination)
