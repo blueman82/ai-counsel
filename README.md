@@ -65,7 +65,7 @@ Edit `config.yaml` to configure CLI tools, timeouts, and settings:
 cli_tools:
   claude:
     command: "claude"
-    args: ["-p", "--model", "{model}", "{prompt}"]
+    args: ["-p", "--model", "{model}", "--settings", '{"disableAllHooks": true}', "{prompt}"]
     timeout: 300  # 5 minutes for reasoning models
 
   codex:
