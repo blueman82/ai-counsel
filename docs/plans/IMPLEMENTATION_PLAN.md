@@ -784,8 +784,10 @@ git commit -m "feat: add configuration loading with validation
 
 ## Phase 2: CLI Adapters ✅ COMPLETE
 
-**Status:** All tasks completed
-**Last Updated:** 2025-10-12
+**Status:** All tasks completed (architectural correction applied 2025-10-13)
+**Last Updated:** 2025-10-13
+
+**Note:** Adapter factory signature was corrected on 2025-10-13 to match original design specification. Changed from `create_adapter(cli: str, timeout: int)` to `create_adapter(cli: str, config: CLIToolConfig)` for better extensibility.
 
 ### Task 2.1: Implement Base CLI Adapter ✅
 
