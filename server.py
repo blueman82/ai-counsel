@@ -36,7 +36,7 @@ except Exception as e:
 adapters = {}
 for cli_name, cli_config in config.cli_tools.items():
     try:
-        adapters[cli_name] = create_adapter(cli_name, cli_config.timeout)
+        adapters[cli_name] = create_adapter(cli_name, cli_config)
         logger.info(f"Initialized adapter: {cli_name}")
     except Exception as e:
         logger.error(f"Failed to create adapter for {cli_name}: {e}")
