@@ -22,6 +22,81 @@ class TranscriptManager:
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
 
+    def _format_voting_section(self, result: DeliberationResult) -> list[str]:
+        """
+        Format voting results section for markdown transcript.
+
+        Args:
+            result: Deliberation result containing voting data
+
+        Returns:
+            List of markdown lines for voting section
+        """
+        if not result.voting_result:
+            return []
+
+        lines = [
+            "---",
+            "",
+            "## Voting Results",
+            "",
+            "### Final Tally",
+            "",
+        ]
+
+        # Sort by vote count (descending) for better readability
+        sorted_tally = sorted(
+            result.voting_result.final_tally.items(),
+            key=lambda x: x[1],
+            reverse=True
+        )
+
+        for option, count in sorted_tally:
+            winning_indicator = " ✓" if option == result.voting_result.winning_option else ""
+            lines.append(f"- **{option}**: {count} vote(s){winning_indicator}")
+
+        lines.extend([
+            "",
+            f"**Consensus Reached:** {'Yes' if result.voting_result.consensus_reached else 'No'}",
+            "",
+        ])
+
+        if result.voting_result.winning_option:
+            lines.append(f"**Winning Option:** {result.voting_result.winning_option}")
+        else:
+            lines.append("**Winning Option:** No winner (tie or insufficient votes)")
+
+        lines.extend([
+            "",
+            "### Votes by Round",
+            "",
+        ])
+
+        # Group votes by round
+        current_voting_round = None
+        for round_vote in result.voting_result.votes_by_round:
+            if round_vote.round != current_voting_round:
+                current_voting_round = round_vote.round
+                lines.extend([
+                    f"#### Round {current_voting_round}",
+                    "",
+                ])
+
+            lines.extend([
+                f"**{round_vote.participant}**",
+                f"- Option: {round_vote.vote.option}",
+                f"- Confidence: {round_vote.vote.confidence:.2f}",
+                f"- Continue Debate: {'Yes' if round_vote.vote.continue_debate else 'No'}",
+                f"- Rationale: {round_vote.vote.rationale}",
+                "",
+            ])
+
+        lines.extend([
+            "",
+        ])
+
+        return lines
+
     def generate_markdown(self, result: DeliberationResult) -> str:
         """
         Generate markdown transcript from result.
@@ -66,6 +141,14 @@ class TranscriptManager:
             "",
             f"**Final Recommendation:** {result.summary.final_recommendation}",
             "",
+        ])
+
+        # Add voting results if available
+        voting_lines = self._format_voting_section(result)
+        if voting_lines:
+            lines.extend(voting_lines)
+
+        lines.extend([
             "---",
             "",
             "## Full Debate",
