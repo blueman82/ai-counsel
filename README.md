@@ -323,11 +323,12 @@ ai-counsel/
 
 ### MVP (Current) ✅
 
-- ✅ claude and codex adapters
+- ✅ 4 CLI adapters: claude, codex, droid, gemini
 - ✅ Quick and conference modes
 - ✅ Markdown transcripts with full debate history
 - ✅ MCP server integration
 - ✅ Structured summaries
+- ✅ Hook interference prevention
 
 ### Future
 
