@@ -42,9 +42,10 @@ Unlike existing tools (like Zen's consensus feature) that gather parallel opinio
    - Install: https://docs.claude.com/claude-code/guides/cli
    - Verify: `claude --version`
 
-3. **Codex CLI** (from OpenAI)
-   - Install: `npm install -g @openai/codex-cli` or visit https://openai.com/codex/cli
-   - Verify: `codex --version`
+3. **At least one AI CLI tool** (install any or all):
+   - **Codex CLI** (OpenAI): `npm install -g @openai/codex-cli` - Verify: `codex --version`
+   - **Droid CLI** (OpenAI): Visit https://github.com/openai/droid - Verify: `droid --version`
+   - **Gemini CLI** (Google): `npm install -g @google/generative-ai-cli` - Verify: `gemini --version`
 
 ### Setup
 
