@@ -203,7 +203,12 @@ class TestAdapterFactory:
 
     def test_create_codex_adapter(self):
         """Test creating CodexAdapter via factory."""
-        adapter = create_adapter("codex", timeout=120)
+        config = CLIToolConfig(
+            command="codex",
+            args=["--model", "{model}", "{prompt}"],
+            timeout=120
+        )
+        adapter = create_adapter("codex", config)
         assert isinstance(adapter, CodexAdapter)
         assert adapter.command == "codex"
         assert adapter.timeout == 120
