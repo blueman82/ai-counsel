@@ -52,11 +52,6 @@ class BaseCLIAdapter(ABC):
             for arg in self.args
         ]
 
-        # Debug: log the command being executed
-        import logging
-        logger = logging.getLogger(__name__)
-        logger.info(f"Executing: {self.command} {' '.join(repr(arg) for arg in formatted_args)}")
-
         # Execute subprocess
         try:
             process = await asyncio.create_subprocess_exec(
