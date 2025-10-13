@@ -5,16 +5,20 @@ from adapters.base import BaseCLIAdapter
 class ClaudeAdapter(BaseCLIAdapter):
     """Adapter for claude CLI tool."""
 
-    def __init__(self, timeout: int = 60):
+    def __init__(self, command: str = "claude", args: list[str] = None, timeout: int = 60):
         """
         Initialize Claude adapter.
 
         Args:
+            command: Command to execute (default: "claude")
+            args: List of argument templates (default: ["-p", "--model", "{model}", "{prompt}"])
             timeout: Timeout in seconds (default: 60)
         """
+        if args is None:
+            args = ["-p", "--model", "{model}", "{prompt}"]
         super().__init__(
-            command="claude",
-            args=["-p", "--model", "{model}", "{prompt}"],
+            command=command,
+            args=args,
             timeout=timeout
         )
 
