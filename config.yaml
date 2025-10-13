@@ -14,7 +14,7 @@ cli_tools:
 
   droid:
     command: "droid"
-    args: ["exec", "{prompt}"]
+    args: ["exec", "-m", "{model}", "{prompt}"]
     timeout: 180
 
   gemini:
