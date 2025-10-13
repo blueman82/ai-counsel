@@ -50,6 +50,15 @@ class DeliberationEngine:
         else:
             logger.debug("No config provided, convergence detection disabled")
 
+        # Initialize summarizer (use Claude adapter with sonnet model by default)
+        self.summarizer = None
+        if 'claude' in adapters:
+            from deliberation.summarizer import DeliberationSummarizer
+            self.summarizer = DeliberationSummarizer(adapters['claude'], 'sonnet')
+            logger.info("AI-powered summary generation enabled (using Claude Sonnet)")
+        else:
+            logger.warning("Claude adapter not available, summary generation will use placeholders")
+
     async def execute_round(
         self,
         round_num: int,
