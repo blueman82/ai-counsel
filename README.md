@@ -150,7 +150,15 @@ clyor --ai-counsel
 }
 ```
 
-Then restart Claude Code to load the server.
+**⚠️ IMPORTANT**: Replace `/absolute/path/to/ai-counsel` with your actual path!
+
+**Examples:**
+- macOS/Linux: `/Users/yourname/projects/ai-counsel`
+- Windows: `C:/Users/yourname/projects/ai-counsel`
+
+**💡 Pro tip**: Run `pwd` (macOS/Linux) or `cd` (Windows) inside the ai-counsel directory to get the full path.
+
+Then **restart Claude Code** to load the server.
 
 3. **Use the `deliberate` tool:**
 
