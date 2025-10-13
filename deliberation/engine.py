@@ -394,7 +394,9 @@ VOTE: {"option": "Option A", "confidence": 0.9, "rationale": "Lower risk and bet
             all_responses.extend(round_responses)
 
             # Check for model-controlled early stopping
-            if self._check_early_stopping(round_responses, round_num, request.rounds):
+            # Use config minimum rounds, not request rounds, for respect_min_rounds
+            config_min_rounds = getattr(self.config.defaults, 'rounds', 2) if self.config and hasattr(self.config, 'defaults') else 2
+            if self._check_early_stopping(round_responses, round_num, config_min_rounds):
                 logger.info(f"Models want to stop deliberating at round {round_num}")
                 model_controlled_stop = True
                 break
