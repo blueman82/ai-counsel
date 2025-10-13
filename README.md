@@ -72,12 +72,36 @@ source .venv/bin/activate
 # 4. Install dependencies
 pip install -r requirements.txt
 
-# 5. Verify installation (optional but recommended)
+# 5. (Optional) Install enhanced convergence detection backends
+pip install -r requirements-optional.txt
+# This adds scikit-learn (TF-IDF) and sentence-transformers (neural semantic similarity)
+# These provide better quality convergence detection but aren't required
+
+# 6. Verify installation (optional but recommended)
 python3 -m pytest tests/unit -v
 # Expected: All tests pass
 ```
 
 **✅ That's it!** The server is ready to use.
+
+### Optional: Enhanced Convergence Detection
+
+By default, AI Counsel uses a lightweight Jaccard similarity backend for convergence detection (zero extra dependencies). For better quality detection, you can optionally install enhanced backends:
+
+```bash
+pip install -r requirements-optional.txt
+```
+
+This adds:
+- **scikit-learn** (TF-IDF similarity) - Better than Jaccard, moderate accuracy
+- **sentence-transformers** (Neural semantic similarity) - Best quality, ~500MB download
+
+The system automatically uses the best available backend:
+1. **SentenceTransformer** (best) - if sentence-transformers installed
+2. **TF-IDF** (good) - if scikit-learn installed
+3. **Jaccard** (basic) - always available
+
+**Note:** Optional backends are not required for core functionality. The base system works perfectly with zero extra dependencies.
 
 ## Configuration
 
