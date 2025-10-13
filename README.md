@@ -294,12 +294,15 @@ mcp__ai-counsel__deliberate({
 ```
 
 **Available Models:**
-- **Claude CLI**: `sonnet`, `opus`, or full model names like `claude-sonnet-4-5-20250929`
+- **Claude CLI**: `sonnet`, `opus`, `haiku`, or full model names like `claude-sonnet-4-5-20250929`
 - **Codex CLI**: `gpt-5-codex`, `o3`
-- **Droid CLI**: `sonnet4.5`, `gpt-5-codex` (default), or any supported model ID
-- **Gemini CLI**: `gemini-2.5-pro` (default), check `gemini --help` for more
+- **Droid CLI**: `claude-sonnet-4-5-20250929`, `gpt-5-codex` (full model IDs only, no short aliases)
+- **Gemini CLI**: `gemini-2.5-pro`, `gemini-2.0-flash`
 
 See [CLI Model Reference](docs/CLI_MODEL_REFERENCE.md) for complete details on model parameter formats.
+
+**Model Validation:**
+The MCP server validates model choices and logs warnings if you use non-recommended models. If you encounter errors with a model name, check the logs at `mcp_server.log` for recommendations, or refer to the tool's description which includes the current list of recommended models for each CLI.
 
 ### Transcripts
 
