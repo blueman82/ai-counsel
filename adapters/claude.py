@@ -5,17 +5,17 @@ from adapters.base import BaseCLIAdapter
 class ClaudeAdapter(BaseCLIAdapter):
     """Adapter for claude CLI tool."""
 
-    def __init__(self, command: str = "claude", args: list[str] = None, timeout: int = 60):
+    def __init__(self, command: str = "claude", args: list[str] | None = None, timeout: int = 60):
         """
         Initialize Claude adapter.
 
         Args:
             command: Command to execute (default: "claude")
-            args: List of argument templates (default: ["-p", "--model", "{model}", "{prompt}"])
+            args: List of argument templates (from config.yaml)
             timeout: Timeout in seconds (default: 60)
         """
         if args is None:
-            args = ["-p", "--model", "{model}", "{prompt}"]
+            raise ValueError("args must be provided from config.yaml")
         super().__init__(
             command=command,
             args=args,
