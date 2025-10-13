@@ -1,0 +1,10 @@
+# ai-counsel/requirements-optional.txt
+# Optional dependencies for enhanced convergence detection
+# Install with: pip install -r requirements-optional.txt
+
+# TF-IDF similarity backend (good performance, moderate accuracy)
+scikit-learn>=1.3.0
+
+# Neural semantic similarity backend (best performance, highest accuracy)
+# Warning: Large download (~500MB for models)
+sentence-transformers>=2.2.0
