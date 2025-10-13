@@ -25,37 +25,52 @@ Unlike existing tools (like Zen's consensus feature) that gather parallel opinio
 - 🎚️ **User Control:** Configure rounds, stances, and participants
 - 🔍 **Transparent:** See exactly what each model said and when
 
+## Quick Start
+
+**TL;DR**: Install Python 3.9+, Claude CLI, Codex CLI → Clone repo → Run setup → Add to Claude Code MCP config → Use!
+
 ## Installation
 
 ### Prerequisites
 
-```bash
-# Python 3.9 or higher required
-python3 --version
+1. **Python 3.9 or higher**
+   ```bash
+   python3 --version  # Should show 3.9 or higher
+   ```
 
-# Install CLI tools you want to use
-# For claude: https://docs.claude.com/en/docs/claude
-# For codex: (your installation instructions)
-```
+2. **Claude CLI** (from Anthropic)
+   - Install: https://docs.claude.com/claude-code/guides/cli
+   - Verify: `claude --version`
+
+3. **Codex CLI** (from OpenAI)
+   - Install: `npm install -g @openai/codex-cli` or visit https://openai.com/codex/cli
+   - Verify: `codex --version`
 
 ### Setup
 
 ```bash
-# Clone repository
+# 1. Clone repository
 git clone https://github.com/yourusername/ai-counsel.git
 cd ai-counsel
 
-# Create virtual environment
+# 2. Create virtual environment
 python3 -m venv .venv
-source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 
-# Install dependencies
+# 3. Activate virtual environment
+# On macOS/Linux:
+source .venv/bin/activate
+# On Windows:
+.venv\Scripts\activate
+
+# 4. Install dependencies
 pip install -r requirements.txt
 
-# Verify installation
+# 5. Verify installation (optional but recommended)
 python3 -m pytest tests/unit -v
 # Expected: All tests pass
 ```
+
+**✅ That's it!** The server is ready to use.
 
 ## Configuration
 
