@@ -132,17 +132,25 @@ class DeliberationEngine:
 
     async def execute(self, request: "DeliberateRequest") -> "DeliberationResult":
         """
-        Execute full deliberation with multiple rounds.
+        Execute full deliberation with multiple rounds and optional convergence detection.
 
         Args:
-            request: Deliberation request
+            request: Deliberation request containing question, participants, rounds, and mode
 
         Returns:
-            Complete deliberation result
+            Complete deliberation result with optional convergence_info
 
         Note:
             Quick mode forces single round regardless of request.rounds value.
-            Conference mode respects the requested number of rounds.
+            Conference mode respects the requested number of rounds but may stop early
+            if convergence is detected.
+
+        Convergence Behavior:
+            - Checks convergence starting from round 2 (need previous round for comparison)
+            - Stops early if models reach consensus (converged status)
+            - Stops early if models reach stable disagreement (impasse status)
+            - Continues for diverging/refining statuses until max rounds
+            - All convergence data is included in result.convergence_info
         """
         from models.schema import DeliberationResult, Summary
 

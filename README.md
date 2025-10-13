@@ -30,6 +30,7 @@ Unlike existing tools (like Zen's consensus feature) that gather parallel opinio
 - 📝 **Full Transcripts:** Markdown exports with summary and complete debate
 - 🎚️ **User Control:** Configure rounds, stances, and participants
 - 🔍 **Transparent:** See exactly what each model said and when
+- ⚡ **Auto-Convergence:** Automatically stops when opinions stabilize
 
 ## Quick Start
 
@@ -138,6 +139,54 @@ deliberation:
 **Note:** Timeout values are per-invocation. Modern reasoning models (like Claude Sonnet 4.5 and GPT-5-Codex) can take 60-120+ seconds for complex prompts, so higher timeouts are recommended.
 
 **Hook Management:** Claude CLI uses `--settings '{"disableAllHooks": true}'` to prevent user hooks from interfering with CLI invocations during deliberation.
+
+### Convergence Detection
+
+AI Counsel can automatically detect when models reach consensus and stop early, saving time and API costs.
+
+**How it works:**
+
+The system compares responses between consecutive rounds using semantic similarity:
+- **Converged** (≥ 85% similarity): Models agree, stops early
+- **Refining** (40-85% similarity): Still making progress, continues
+- **Diverging** (< 40% similarity): Models disagree significantly
+- **Impasse**: Stable disagreement after 2+ rounds, stops
+
+**Similarity Backends:**
+
+Three backends with automatic fallback:
+1. **sentence-transformers** (best): Deep semantic understanding (~500MB)
+2. **TF-IDF** (good): Statistical similarity (~50MB, requires scikit-learn)
+3. **Jaccard** (fallback): Word overlap (zero dependencies)
+
+**Configuration:**
+
+```yaml
+deliberation:
+  convergence_detection:
+    enabled: true
+    semantic_similarity_threshold: 0.85
+    divergence_threshold: 0.40
+    min_rounds_before_check: 2
+    consecutive_stable_rounds: 2
+```
+
+**Example Result:**
+
+```json
+{
+  "convergence_info": {
+    "detected": true,
+    "detection_round": 3,
+    "final_similarity": 0.87,
+    "status": "converged",
+    "per_participant_similarity": {
+      "claude@cli": 0.87,
+      "codex@cli": 0.89
+    }
+  }
+}
+```
 
 ## Usage
 
@@ -376,10 +425,10 @@ ai-counsel/
 - ✅ MCP server integration
 - ✅ Structured summaries
 - ✅ Hook interference prevention
+- ✅ Convergence detection (auto-stop when opinions stabilize)
 
 ### Future Enhancements
 
-- [ ] Convergence detection (auto-stop when opinions stabilize)
 - [ ] Semantic similarity for better summary generation
 - [ ] More CLI tool adapters (ollama, llama-cpp, etc.)
 - [ ] Web UI for viewing transcripts

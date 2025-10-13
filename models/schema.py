@@ -69,31 +69,43 @@ class Summary(BaseModel):
 
 
 class ConvergenceInfo(BaseModel):
-    """Convergence detection metadata."""
+    """
+    Convergence detection metadata for deliberation rounds.
+
+    Tracks similarity metrics between consecutive rounds to determine
+    when models have reached consensus or stable disagreement.
+    """
 
     detected: bool = Field(
         ...,
-        description="Whether convergence was detected"
+        description="Whether convergence was detected (True if models reached consensus)"
     )
     detection_round: Optional[int] = Field(
         None,
-        description="Round where convergence occurred (None if not detected)"
+        description="Round number where convergence occurred (None if not detected or max rounds reached)"
     )
     final_similarity: float = Field(
         ...,
-        description="Final similarity score (minimum across all participants)"
+        description="Final similarity score (minimum across all participants, range 0.0-1.0)"
     )
     status: Literal["converged", "diverging", "refining", "impasse", "max_rounds"] = Field(
         ...,
-        description="Convergence status"
+        description=(
+            "Convergence status: "
+            "'converged' (≥85% similarity, consensus reached), "
+            "'refining' (40-85%, still making progress), "
+            "'diverging' (<40%, significant disagreement), "
+            "'impasse' (stable disagreement over multiple rounds), "
+            "'max_rounds' (reached round limit)"
+        )
     )
     scores_by_round: list[dict] = Field(
         default_factory=list,
-        description="Per-round similarity tracking data"
+        description="Historical similarity scores for each round (for tracking convergence progression)"
     )
     per_participant_similarity: dict[str, float] = Field(
         default_factory=dict,
-        description="Latest similarity score for each participant"
+        description="Latest similarity score for each participant (participant_id -> similarity score 0.0-1.0)"
     )
 
 
