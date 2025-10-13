@@ -27,7 +27,7 @@ Unlike existing tools (like Zen's consensus feature) that gather parallel opinio
 
 ## Quick Start
 
-**TL;DR**: Install Python 3.9+, Claude CLI, Codex CLI → Clone repo → Run setup → Add to Claude Code MCP config → Use!
+**TL;DR**: Install Python 3.9+, any AI CLI tools (claude/codex/droid/gemini) → Clone repo → Run setup → Add to Claude Code MCP config → Use!
 
 ## Installation
 
