@@ -86,10 +86,13 @@ Round 1 - codex@cli (neutral): Both Option 1 and Option 2 have merit depending o
         # A rough estimate is ~4 chars per token, so 200k chars = ~50k tokens
         very_long_prompt = "A" * 200000  # 200k characters
 
-        # Should either truncate or raise helpful error
-        # Current behavior: Will likely fail with API error
-        with pytest.raises((RuntimeError, ValueError), match="too long|exceeds|limit"):
-            gemini_adapter.parse_output(very_long_prompt)
+        # Should have a validation method
+        assert hasattr(
+            gemini_adapter, "validate_prompt_length"
+        ), "Adapter should have validate_prompt_length() method"
+        assert not gemini_adapter.validate_prompt_length(
+            very_long_prompt
+        ), "Extremely long prompts should be flagged as invalid"
 
     def test_markdown_formatting_in_prompt(self, gemini_adapter):
         """
