@@ -2,6 +2,8 @@
 from adapters.base import BaseCLIAdapter
 from adapters.claude import ClaudeAdapter
 from adapters.codex import CodexAdapter
+from adapters.droid import DroidAdapter
+from adapters.gemini import GeminiAdapter
 from models.config import CLIToolConfig
 
 
