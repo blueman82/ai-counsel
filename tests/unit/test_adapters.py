@@ -117,7 +117,7 @@ class TestCodexAdapter:
 
     def test_adapter_initialization(self):
         """Test adapter initializes with correct values."""
-        adapter = CodexAdapter(timeout=90)
+        adapter = CodexAdapter(args=["exec", "--model", "{model}", "{prompt}"], timeout=90)
         assert adapter.command == "codex"
         assert adapter.timeout == 90
 
