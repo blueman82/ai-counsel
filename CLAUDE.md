@@ -196,6 +196,8 @@ Claude CLI uses `--settings '{"disableAllHooks": true}'` to prevent user hooks f
 
 7. **Hook Interference**: Claude CLI hooks can break CLI invocations during deliberation. Always disable with `--settings` flag.
 
+8. **Prompt Length Limits**: Gemini adapter validates prompts ≤100k chars (prevents "invalid argument" API errors). `BaseCLIAdapter.invoke()` checks `validate_prompt_length()` if adapter implements it and raises `ValueError` with helpful message before making API call. Other adapters can implement similar validation.
+
 ## Testing Strategy
 
 - **Unit Tests**: Mock adapters, test engine logic, convergence detection, transcript generation
