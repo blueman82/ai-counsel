@@ -53,32 +53,29 @@ class TestEarlyStopping:
             mode="conference"
         )
 
-        # Provide responses for all 5 rounds to test the feature exists
-        # Note: Early stopping logic integration needs further debugging
+        # Round 1: Models continue debating
+        # Round 2: All models want to stop (continue_debate=False)
+        # After min_rounds (2) met, early stop should trigger in round 3
         mock_adapters["claude"].invoke_mock.side_effect = [
-            'R1\n\nVOTE: {"option": "Yes", "confidence": 0.8, "rationale": "Initial", "continue_debate": true}',
-            'R2\n\nVOTE: {"option": "Yes", "confidence": 0.9, "rationale": "Final", "continue_debate": false}',
-            'R3\n\nVOTE: {"option": "Yes", "confidence": 0.95, "rationale": "Stop", "continue_debate": false}',
-            'R4\n\nVOTE: {"option": "Yes", "confidence": 0.95, "rationale": "Stop", "continue_debate": false}',
-            'R5\n\nVOTE: {"option": "Yes", "confidence": 0.95, "rationale": "Stop", "continue_debate": false}',
+            'Round 1: Still thinking\n\nVOTE: {"option": "Yes", "confidence": 0.8, "rationale": "Initial thought", "continue_debate": true}',
+            'Round 2: I am satisfied\n\nVOTE: {"option": "Yes", "confidence": 0.9, "rationale": "Final decision", "continue_debate": false}',
+            'Round 3: Ready to stop\n\nVOTE: {"option": "Yes", "confidence": 0.95, "rationale": "Confirmed stop", "continue_debate": false}',
         ]
         mock_adapters["codex"].invoke_mock.side_effect = [
-            'R1\n\nVOTE: {"option": "Yes", "confidence": 0.7, "rationale": "First", "continue_debate": true}',
-            'R2\n\nVOTE: {"option": "Yes", "confidence": 0.85, "rationale": "Confirmed", "continue_debate": false}',
-            'R3\n\nVOTE: {"option": "Yes", "confidence": 0.9, "rationale": "Stop", "continue_debate": false}',
-            'R4\n\nVOTE: {"option": "Yes", "confidence": 0.9, "rationale": "Stop", "continue_debate": false}',
-            'R5\n\nVOTE: {"option": "Yes", "confidence": 0.9, "rationale": "Stop", "continue_debate": false}',
+            'Round 1: Need more info\n\nVOTE: {"option": "Yes", "confidence": 0.7, "rationale": "First pass", "continue_debate": true}',
+            'Round 2: Agreed, we can stop\n\nVOTE: {"option": "Yes", "confidence": 0.85, "rationale": "Confirmed", "continue_debate": false}',
+            'Round 3: Yes lets stop\n\nVOTE: {"option": "Yes", "confidence": 0.9, "rationale": "Stop now", "continue_debate": false}',
         ]
 
         result = await engine.execute(request)
 
-        # Test that early stopping feature tracks votes correctly
-        assert result.voting_result is not None, "Should have voting results"
-        # Check that round 2+ votes have continue_debate=false
-        round2_votes = [v for v in result.voting_result.votes_by_round if v.round >= 2]
-        assert len(round2_votes) > 0, "Should have votes from round 2+"
-        stop_votes = [v for v in round2_votes if not v.vote.continue_debate]
-        assert len(stop_votes) > 0, "Should have some stop votes tracked"
+        # Should stop at round 2 (min_rounds=2 met, and 100% want to stop >= 66% threshold)
+        assert result.rounds_completed == 2, f"Should stop at round 2, but got {result.rounds_completed}"
+        assert len(result.full_debate) == 4, "Should have 2 rounds * 2 participants = 4 responses"
+
+        # Verify early stopping logic worked
+        round2_votes = [v for v in result.voting_result.votes_by_round if v.round == 2]
+        assert all(not v.vote.continue_debate for v in round2_votes), "All round 2 votes should have continue_debate=False"
 
     @pytest.mark.asyncio
     async def test_early_stopping_respects_min_rounds(self, mock_adapters, tmp_path):
