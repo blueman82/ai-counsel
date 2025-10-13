@@ -115,20 +115,21 @@ async def test_full_deliberation_workflow(tmp_path):
 @pytest.mark.asyncio
 async def test_quick_mode_single_round(tmp_path):
     """
-    Test quick mode with single participant.
+    Test quick mode with two participants.
 
     Tests:
     - Quick mode overrides rounds config (forces 1 round)
-    - Single participant workflow
+    - Two participants in quick mode
     - Simpler question for faster execution
 
-    This test makes a REAL API call to claude-code.
+    This test makes REAL API calls to both claude-code and codex.
     """
     # ARRANGE
     config = load_config()
 
     adapters = {
         "claude-code": create_adapter("claude-code", config.cli_tools["claude-code"]),
+        "codex": create_adapter("codex", config.cli_tools["codex"]),
     }
 
     engine = DeliberationEngine(
@@ -140,6 +141,7 @@ async def test_quick_mode_single_round(tmp_path):
         question="What is the capital of France? Answer in one word only.",
         participants=[
             Participant(cli="claude-code", model="claude-3-5-sonnet-20241022"),
+            Participant(cli="codex", model="gpt-4"),
         ],
         rounds=3,  # Should be overridden by quick mode
         mode="quick"
@@ -152,11 +154,12 @@ async def test_quick_mode_single_round(tmp_path):
     assert result.status == "complete"
     assert result.rounds_completed == 1, "Quick mode should only execute 1 round"
     assert result.mode == "quick"
-    assert len(result.full_debate) == 1  # 1 round x 1 participant
+    assert len(result.full_debate) == 2  # 1 round x 2 participants
 
-    # Verify response contains "Paris"
-    response = result.full_debate[0].response
-    assert "paris" in response.lower(), f"Response should contain 'Paris': {response}"
+    # Verify responses contain "Paris"
+    for response in result.full_debate:
+        assert "paris" in response.response.lower(), \
+            f"Response should contain 'Paris': {response.response}"
 
     # Verify transcript
     assert Path(result.transcript_path).exists()
