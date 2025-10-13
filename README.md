@@ -414,7 +414,7 @@ Inspired by the need for true deliberative AI consensus beyond parallel opinion 
 ## Status
 
 [![Build](https://img.shields.io/badge/build-passing-brightgreen)]()
-[![Tests](https://img.shields.io/badge/tests-35%20passing-green)]()
+[![Tests](https://img.shields.io/badge/tests-69%20passing-green)]()
 [![Version](https://img.shields.io/badge/version-1.0.0-blue)]()
 
 **Production Ready** - Multi-model deliberative consensus for critical technical decisions!
