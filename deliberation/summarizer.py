@@ -152,7 +152,7 @@ Please be concise and focus on the substance of the arguments, not formatting or
         recommendation: str = "No recommendation provided"
 
         # Split into sections
-        sections = {
+        sections: Dict[str, str | None] = {
             'consensus': None,
             'agreements': None,
             'disagreements': None,
