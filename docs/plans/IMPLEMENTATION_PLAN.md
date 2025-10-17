@@ -26,7 +26,7 @@
 ## Prerequisites
 
 ### Required Knowledge
-- Python 3.9+ (async/await, type hints, subprocess)
+- Python 3.11+ (async/await, type hints, subprocess)
 - Basic understanding of MCP (Model Context Protocol)
 - Git and command line basics
 - pytest for testing
@@ -34,7 +34,7 @@
 ### Required Tools
 ```bash
 # Install these before starting
-python3 --version  # Should be 3.9 or higher
+python3 --version  # Should be 3.11 or higher
 pip install mcp pydantic pyyaml pytest pytest-asyncio pytest-cov
 ```
 

@@ -3,7 +3,7 @@
 True deliberative consensus MCP server where AI models debate and refine positions across multiple rounds.
 
 ![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
-![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)
+![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)
 ![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Linux%20%7C%20Windows-lightgrey.svg)
 ![MCP](https://img.shields.io/badge/MCP-Server-green.svg)
 ![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)
@@ -37,24 +37,21 @@ Unlike existing tools (like Zen's consensus feature) that gather parallel opinio
 
 ## Quick Start
 
-**TL;DR**: Install Python 3.9+, any AI CLI tools (claude/codex/droid/gemini) → Clone repo → Run setup → Add to Claude Code MCP config → Use!
+**TL;DR**: Install Python 3.11+, any AI CLI tools (claude/codex/droid/gemini) → Clone repo → Run setup → Add to Claude Code MCP config → Use!
 
 ## Installation
 
 ### Prerequisites
 
-1. **Python 3.9 or higher**
+1. **Python 3.11 or higher**
    ```bash
-   python3 --version  # Should show 3.9 or higher
+   python3 --version  # Should show 3.11 or higher
    ```
 
-2. **Claude CLI** (from Anthropic)
-   - Install: https://docs.claude.com/claude-code/guides/cli
-   - Verify: `claude --version`
-
-3. **At least one AI CLI tool** (install any or all):
+2. **At least one authenticated AI CLI tool** (install and authenticate any or all):
+   - **Claude CLI** (Anthropic): https://docs.claude.com/claude-code/guides/cli - Verify: `claude --version`
    - **Codex CLI** (OpenAI): `npm install -g @openai/codex-cli` - Verify: `codex --version`
-   - **Droid CLI** (OpenAI): Visit https://github.com/openai/droid - Verify: `droid --version`
+   - **Droid CLI** (OpenAI): https://github.com/openai/droid - Verify: `droid --version`
    - **Gemini CLI** (Google): `npm install -g @google/generative-ai-cli` - Verify: `gemini --version`
 
 ### Setup
