@@ -25,7 +25,7 @@ class BaseCLIAdapter(ABC):
         self.args = args
         self.timeout = timeout
 
-    async def invoke(self, prompt: str, model: str, context: Optional[str] = None) -> str:
+    async def invoke(self, prompt: str, model: str, context: Optional[str] = None, is_deliberation: bool = True) -> str:
         """
         Invoke the CLI tool with the given prompt and model.
 
@@ -33,6 +33,7 @@ class BaseCLIAdapter(ABC):
             prompt: The prompt to send to the model
             model: Model identifier
             context: Optional additional context
+            is_deliberation: Whether this is part of a deliberation (auto-adjusts -p flag for Claude)
 
         Returns:
             Parsed response from the model
@@ -55,10 +56,13 @@ class BaseCLIAdapter(ABC):
                     "This prevents API rejection errors."
                 )
 
+        # Adjust args based on context (for auto-detecting deliberation mode)
+        args = self._adjust_args_for_context(is_deliberation)
+
         # Format arguments
         formatted_args = [
             arg.format(model=model, prompt=full_prompt)
-            for arg in self.args
+            for arg in args
         ]
 
         # Execute subprocess
@@ -90,6 +94,21 @@ class BaseCLIAdapter(ABC):
 
         except asyncio.TimeoutError:
             raise TimeoutError(f"CLI invocation timed out after {self.timeout}s")
+
+    def _adjust_args_for_context(self, is_deliberation: bool) -> list[str]:
+        """
+        Adjust CLI arguments based on context (deliberation vs regular Claude Code work).
+
+        By default, returns args as-is. Subclasses can override for context-specific behavior.
+        Example: Claude adapter adds -p flag for Claude Code work, removes it for deliberation.
+
+        Args:
+            is_deliberation: True if running as part of a multi-model deliberation
+
+        Returns:
+            Adjusted argument list
+        """
+        return self.args
 
     @abstractmethod
     def parse_output(self, raw_output: str) -> str:
