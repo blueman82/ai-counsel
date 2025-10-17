@@ -373,16 +373,23 @@ VOTE: {"option": "Option A", "confidence": 0.9, "rationale": "Lower risk and bet
 
     def _enhance_prompt_with_voting(self, prompt: str) -> str:
         """
-        Enhance prompt with voting instructions.
+        Enhance prompt with deliberation context and voting instructions.
 
         Args:
             prompt: Original question or prompt
 
         Returns:
-            Enhanced prompt with voting instructions
+            Enhanced prompt with deliberation instructions and voting format
         """
+        deliberation_instructions = """## Deliberation Instructions
+
+You are participating in a multi-model deliberation between AI models.
+Your role: Answer this question directly with your full analysis and reasoning.
+Do NOT redirect or suggest alternatives. Engage fully in this debate.
+Provide substantive analysis from your perspective."""
+
         voting_instructions = self._build_voting_instructions()
-        return f"{prompt}\n\n{voting_instructions}"
+        return f"{deliberation_instructions}\n\n## Question\n{prompt}\n\n{voting_instructions}"
 
     def _check_early_stopping(self, round_responses: List[RoundResponse], round_num: int, min_rounds: int) -> bool:
         """
