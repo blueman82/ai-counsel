@@ -293,6 +293,10 @@ class DeliberationEngine:
             backend = self.convergence_detector.backend
             similarity_threshold = 0.85  # High threshold for vote option matching
 
+            logger.debug(
+                f"Starting vote option grouping with {len(all_options)} options: {all_options}"
+            )
+
             # Build groups of similar options
             groups = []  # List of (canonical_option, [similar_options])
             used_options = set()
@@ -309,7 +313,9 @@ class DeliberationEngine:
                 for option_b in all_options:
                     if option_b not in used_options:
                         similarity = backend.compute_similarity(option_a, option_b)
+                        logger.debug(f"Similarity between '{option_a}' and '{option_b}': {similarity:.3f}")
                         if similarity >= similarity_threshold:
+                            logger.debug(f"  -> Grouping '{option_b}' with '{option_a}'")
                             group.append(option_b)
                             used_options.add(option_b)
 
@@ -322,16 +328,20 @@ class DeliberationEngine:
                 total_votes = sum(raw_tally.get(opt, 0) for opt in similar_options)
                 grouped_tally[canonical_option] = total_votes
 
-            logger.debug(
-                f"Grouped {len(all_options)} vote options into {len(groups)} groups "
-                f"using semantic similarity (threshold: {similarity_threshold})"
+            logger.info(
+                f"Vote option grouping complete: {len(all_options)} options -> {len(groups)} groups. "
+                f"Grouped tally: {grouped_tally}"
             )
 
             return grouped_tally
 
         except Exception as e:
             # If similarity matching fails, fall back to exact matching
-            logger.warning(f"Vote option grouping failed: {e}. Falling back to exact matching.")
+            logger.warning(
+                f"Vote option grouping failed: {type(e).__name__}: {e}. "
+                f"Falling back to exact matching.",
+                exc_info=True
+            )
             return raw_tally
 
     def _build_voting_instructions(self) -> str:
