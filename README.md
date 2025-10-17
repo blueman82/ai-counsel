@@ -75,42 +75,35 @@ source .venv/bin/activate
 
 # 4. Install dependencies
 pip install -r requirements.txt
+# This includes core dependencies (mcp, pydantic, pyyaml) plus enhanced
+# convergence detection backends (scikit-learn, sentence-transformers)
+# for best accuracy and vote grouping
 
-# 5. (Optional) Install enhanced convergence detection backends
-pip install -r requirements-optional.txt
-# This adds scikit-learn (TF-IDF) and sentence-transformers (neural semantic similarity)
-# These provide better quality convergence detection but aren't required
-
-# 6. Verify installation (optional but recommended)
+# 5. Verify installation (recommended)
 python3 -m pytest tests/unit -v
 # Expected: All tests pass
 ```
 
-**✅ That's it!** The server is ready to use.
+**✅ That's it!** The server is ready to use with enhanced convergence detection and vote grouping.
 
-### Optional: Enhanced Convergence Detection
+### Convergence Detection Backends
 
-By default, AI Counsel uses a lightweight Jaccard similarity backend for convergence detection (zero extra dependencies). For better quality detection, you can optionally install enhanced backends:
+The installation includes two high-quality similarity backends for convergence detection and vote option grouping:
 
-```bash
-pip install -r requirements-optional.txt
-```
+1. **SentenceTransformer** (primary) - Deep semantic understanding using neural embeddings
+   - Best accuracy for detecting when models truly converge
+   - Used for vote semantic grouping (0.70+ threshold)
+   - Model cached after first load (~3s), instant on restart
 
-This adds:
-- **scikit-learn** (TF-IDF similarity) - Better than Jaccard, moderate accuracy
-- **sentence-transformers** (Neural semantic similarity) - Best quality, ~500MB download
+2. **TF-IDF** (fallback) - Statistical similarity using term frequency
+   - Good accuracy, faster than neural embeddings
+   - Used if sentence-transformers initialization fails
 
-The system automatically uses the best available backend:
-1. **SentenceTransformer** (best) - if sentence-transformers installed
-2. **TF-IDF** (good) - if scikit-learn installed
-3. **Jaccard** (basic) - always available
+3. **Jaccard** (emergency fallback) - Word overlap matching
+   - Always available as zero-dependency fallback
+   - Ensures convergence detection never fails
 
-**Performance:**
-- SentenceTransformer model cached in memory after first load (~3s)
-- Subsequent MCP server restarts reuse cached model (instant)
-- No performance impact on deliberations
-
-**Note:** Optional backends are not required for core functionality. The base system works perfectly with zero extra dependencies.
+The system automatically selects the best available backend and gracefully falls back if dependencies have issues.
 
 ## Configuration
 
