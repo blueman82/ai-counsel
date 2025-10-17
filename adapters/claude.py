@@ -22,6 +22,39 @@ class ClaudeAdapter(BaseCLIAdapter):
             timeout=timeout
         )
 
+    def _adjust_args_for_context(self, is_deliberation: bool) -> list[str]:
+        """
+        Auto-detect context and adjust -p flag accordingly.
+
+        For deliberations (multi-model debates), removes -p flag so Claude engages fully.
+        For regular Claude Code work, adds -p flag for project context awareness.
+
+        Args:
+            is_deliberation: True if running as part of a deliberation
+
+        Returns:
+            Adjusted argument list with -p flag added/removed as needed
+        """
+        args = self.args.copy()
+
+        if is_deliberation:
+            # Remove -p flag for deliberations (we want full engagement)
+            if "-p" in args:
+                args.remove("-p")
+        else:
+            # Add -p flag for Claude Code work (project context awareness)
+            if "-p" not in args:
+                # Insert -p after --model argument if it exists
+                if "--model" in args:
+                    model_idx = args.index("--model")
+                    # Insert after --model and its value
+                    args.insert(model_idx + 2, "-p")
+                else:
+                    # Otherwise insert at the beginning
+                    args.insert(0, "-p")
+
+        return args
+
     def parse_output(self, raw_output: str) -> str:
         """
         Parse claude CLI output.

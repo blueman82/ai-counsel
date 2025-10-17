@@ -4,9 +4,10 @@ version: "1.0"
 cli_tools:
   claude:
     command: "claude"
-    args: ["--model", "{model}", "--settings", "{{\"disableAllHooks\": true}}", "{prompt}"]
+    args: ["-p", "--model", "{model}", "--settings", "{{\"disableAllHooks\": true}}", "{prompt}"]
     timeout: 300
     # Valid models: "sonnet", "opus", "haiku" or full names like "claude-sonnet-4-5-20250929"
+    # Note: -p flag is auto-removed during deliberations for full engagement
 
   codex:
     command: "codex"
