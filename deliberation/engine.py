@@ -291,7 +291,10 @@ class DeliberationEngine:
 
         try:
             backend = self.convergence_detector.backend
-            similarity_threshold = 0.85  # High threshold for vote option matching
+            # Use moderate threshold (0.70) for vote option matching
+            # This allows grouping of semantically similar options with different wording
+            # Example: "Feature velocity with guardrails" vs "Prioritize feature velocity with guardrails"
+            similarity_threshold = 0.70
 
             logger.debug(
                 f"Starting vote option grouping with {len(all_options)} options: {all_options}"
