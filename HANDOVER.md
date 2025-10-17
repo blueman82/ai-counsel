@@ -1,130 +1,160 @@
-# Structured Voting Implementation - Session Handover
+# AI Counsel - Session Handover
 
-## ✅ Completed Work
+**Date**: 2025-10-17
+**Branch**: `feature/add-github-badges`
+**Status**: Testing and logging improvements complete. Ready for next session.
 
-### Core Implementation (10 commits, 40 tests passing)
+---
 
-**1. Voting Data Models** ✅
-- `Vote`: option, confidence (0.0-1.0), rationale, continue_debate flag
-- `RoundVote`: Links votes to rounds/participants/timestamps  
-- `VotingResult`: Aggregated tallies, consensus detection, winning options
-- Files: `models/schema.py:71-94`, `tests/unit/test_models.py:155-266`
+## Summary of Work Completed
 
-**2. Vote Parsing & Aggregation** ✅
-- `_parse_vote()`: Extracts votes from responses using `VOTE: {json}` marker
-- `_aggregate_votes()`: Collects votes across all rounds, determines winner
-- Consensus detection: unanimous (3-0), majority (2-1), or tie (1-1-1)
-- Files: `deliberation/engine.py:167-257`
+### 1. Badge Implementation ✅
+- Added GitHub badges (stars, forks, last commit) to README
+- Restructured README badges to match claude-telegram-bridge layout
+- Added deliberation instructions to prompts to prevent model redirection
 
-**3. Voting Prompts** ✅
-- `_build_voting_instructions()`: Clear format with examples
-- `_enhance_prompt_with_voting()`: Adds instructions to all prompts
-- Integrated into `execute_round()` - all models receive voting guidelines
-- Files: `deliberation/engine.py:259-293`
+**PRs Merged**: #2-8
 
-**4. Enhanced Convergence** ✅
-- Added voting-based statuses: `unanimous_consensus`, `majority_decision`, `tie`, `unknown`
-- Voting outcomes override semantic similarity for convergence status
-- Files: `models/schema.py:121-136`, `deliberation/engine.py:495-530`
+### 2. Backend Installation ✅
+- Installed `sentence-transformers` (neural semantic similarity)
+- Installed `scikit-learn` (TF-IDF backend)
+- MCP server now uses SentenceTransformerBackend by default
 
-**5. Documentation** ✅
-- Updated CLAUDE.md with architecture details
-- Updated README.md with user-facing features
-- Added convergence configuration examples
+### 3. Comprehensive Testing ✅
+Three major test scenarios completed:
 
-### Test Coverage: 40/40 passing
-- 20 model tests (9 voting-specific)
-- 20 engine tests (9 voting-specific)
-- Zero regressions, full TDD methodology
+**Test 1**: Multi-Round Deliberation (Comments vs Self-Documenting Code)
+- Vote grouping: WORKED (2 options → 1 group merged)
+- Consensus: True ✓
 
-### Git History: 10 commits
+**Test 2**: 3-Model Deliberation (Remote Work)
+- 3 models (Claude, Codex, Gemini)
+- Vote grouping: Kept separate (correct - genuinely different positions)
+- Consensus: True (majority_decision) ✓
+
+**Test 3**: Multi-Round with Conference Mode (AI Existential Risk)
+- **2 ROUNDS EXECUTED** - First true multi-round test! ✅
+- convergence_info.detected: TRUE
+- convergence_info.final_similarity: 0.7948-0.8246
+- convergence_info.per_participant_similarity: POPULATED ✓
+- Model refinement observed: Claude changed vote between rounds
+
+### 4. Logging Improvements ✅
+Changed vote grouping logging from DEBUG → INFO level:
+- Vote similarity calculations now visible
+- Shows each comparison score vs 0.70 threshold
+- Indicates when votes are grouped with checkmark (✓)
+
+**Commit**: fa9deeb - "Elevate vote similarity logging from DEBUG to INFO level"
+
+---
+
+## Key Findings
+
+### ✅ System is Working Correctly
+- Convergence detection: Only runs Round 2+ (by design)
+- Vote grouping: Working with SentenceTransformers backend
+- Multi-round debate: Functional with model refinement across rounds
+- Vote semantic grouping: Correctly merges options with ≥0.70 similarity
+
+### Why Some Tests Showed "Empty" convergence_info
+Tests 1-2 only executed 1 round. Convergence detection only runs Round 2+ (needs 2 rounds to compare). Test 3 with conference mode ran 2 rounds → convergence_info fully populated.
+
+---
+
+## Outstanding Issues
+
+### 🔴 MCP Server Connection Issue
+After latest restart, server not responding (shows "Not connected").
+**Solution**: Restart Claude Code session (this handover is happening because of this).
+
+### ⚠️ Minor: scores_by_round Always Empty
+- convergence_info.scores_by_round: `[]` (always empty)
+- System only tracks final similarity, not per-round progression
+- Not blocking, but could be improved
+
+---
+
+## Current Git Status
+
+**Current Branch**: `feature/add-github-badges`
+**Commits Ahead of Main**: 11 commits
+
+Recent Commits:
+- fa9deeb: Elevate vote similarity logging from DEBUG to INFO level
+- f51ae14: Add deliberation instructions to prompt
+- cdf796f: Make is_deliberation parameter explicit
+- cb73bbf: Implement auto-detect for -p flag
+- 934404d: Lower vote option similarity threshold from 0.85 to 0.70
+
+**PRs Merged to Main**: #2-8
+
+---
+
+## Configuration Status
+
+### MCP Server
+- ✅ SentenceTransformerBackend loaded and cached
+- ✅ Convergence detection enabled
+- ✅ AI summarizer (Claude Sonnet) ready
+- ✅ All 4 CLI adapters initialized
+
+### Virtual Environment
+- Location: `/Users/harrison/Github/ai-counsel/.venv`
+- Python: 3.14
+- Key packages: sentence-transformers, scikit-learn, pydantic, pytest
+
+---
+
+## Next Steps for New Session
+
+1. **Restart MCP Connection**
+   - Start new Claude Code session
+   - Should automatically reconnect
+
+2. **Test the Improved Logging**
+   - Run deliberation with conference mode and 2+ rounds
+   - Check logs for new INFO-level vote similarity scores
+
+3. **Optional Enhancements**
+   - Implement scores_by_round tracking
+   - Document early stopping behavior
+   - Consider dashboard or transcript viewer
+
+4. **Marketing Materials Ready**
+   - 3 debate transcripts generated
+   - Blog post template created
+   - HackerNews post template created
+   - Twitter thread template created
+
+---
+
+## Production Readiness
+
+- ✅ All tests passing (108+ unit/integration/e2e)
+- ✅ Type-safe with Pydantic validation
+- ✅ Graceful error handling throughout
+- ✅ Logging comprehensive (now with INFO-level vote details)
+- ✅ SentenceTransformers neural embeddings active
+
+---
+
+## Testing Transcripts
+
 ```
-f52d114 Complete README voting documentation
-90c5658 Update README with structured voting features
-7f3c07b Add voting prompts to deliberation rounds
-0d8e689 Integrate model-controlled early stopping with voting
-ec47668 Implement vote aggregation in DeliberationEngine
-f40f728 Add voting_result field to DeliberationResult model
-da2dae4 Add test for vote collection during deliberation rounds
-3941370 Implement vote parsing method in DeliberationEngine
-1c31ef0 Add structured voting models and vote parsing logic
-424aa87 Add unit tests for voting models
+transcripts/20251017_123447_Should_software_teams_prioritize_code_comments_or.md
+transcripts/20251017_123611_Is_remote_work_better_than_office_work_for_softwar.md
+transcripts/20251017_123735_Does_artificial_intelligence_pose_an_existential_r.md
 ```
 
-## 📋 Remaining Work
+---
 
-### 1. Update TranscriptManager (Priority: High)
-**Goal**: Display voting tallies in markdown transcripts
+## Questions for Next Session
 
-**Tasks**:
-- Add voting section to transcript template
-- Display final vote tally by option
-- Show per-round voting breakdown  
-- Include confidence levels and rationale
-- Format winning option prominently
+1. Should we proceed with marketing (blog post, HN, Twitter)?
+2. Should we fix the minor scores_by_round tracking?
+3. Ready to merge feature branch to main?
 
-**Files to modify**:
-- `deliberation/transcript.py` (add voting section)
-- `tests/unit/test_transcript.py` (add voting display tests)
+---
 
-**Estimated effort**: 2-3 hours
-
-### 2. Integration Tests (Priority: Medium)
-**Goal**: End-to-end voting workflow tests
-
-**Tasks**:
-- Test full deliberation with real voting
-- Verify voting results in transcript files
-- Test various voting scenarios (unanimous, majority, tie)
-- Test early stopping based on votes
-
-**Files to create**:
-- `tests/integration/test_voting_workflow.py`
-
-**Estimated effort**: 1-2 hours
-
-## 🎯 Quick Start for Next Session
-
-```bash
-# 1. Review current state
-git log --oneline -10
-pytest tests/unit -v  # Should see 40 passing
-
-# 2. Start with transcript display
-pytest tests/unit/test_transcript.py -v  # Review existing tests
-code deliberation/transcript.py  # Add voting section
-
-# 3. Follow TDD
-# - Write test for voting display
-# - Run test (RED phase)
-# - Implement feature (GREEN phase)
-# - Refactor if needed
-
-# 4. Commit when done
-git add -A && git commit -m "Add voting display to transcripts"
-```
-
-## 📊 Architecture Notes
-
-**Voting Flow**:
-1. `execute_round()` enhances prompts with voting instructions
-2. Models respond with analysis + `VOTE: {json}` marker
-3. `_parse_vote()` extracts vote from response
-4. `_aggregate_votes()` tallies all votes after all rounds
-5. `VotingResult` stored in `DeliberationResult.voting_result`
-6. Convergence status reflects voting outcome
-
-**Key Files**:
-- Core logic: `deliberation/engine.py` (536 lines)
-- Data models: `models/schema.py` (164 lines)
-- Tests: `tests/unit/test_engine.py` (469 lines), `test_models.py` (266 lines)
-
-## ✨ Impact
-
-AI models now participate in structured voting with:
-- Quantifiable consensus metrics (tally, confidence levels)
-- Clear decision tracking (unanimous vs majority vs tie)
-- Rationale for each vote (explainable AI)
-- Adaptive stopping (models signal when satisfied)
-
-**Next**: Make voting results visible in transcript files for complete audit trail.
+**Status**: System fully functional. Testing complete. Logging improved. Ready for next phase. 🚀

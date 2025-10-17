@@ -297,8 +297,8 @@ class DeliberationEngine:
             # Example: "Feature velocity with guardrails" vs "Prioritize feature velocity with guardrails"
             similarity_threshold = 0.70
 
-            logger.debug(
-                f"Starting vote option grouping with {len(all_options)} options: {all_options}"
+            logger.info(
+                f"Starting vote option grouping with {len(all_options)} unique options"
             )
 
             # Build groups of similar options
@@ -317,9 +317,9 @@ class DeliberationEngine:
                 for option_b in all_options:
                     if option_b not in used_options:
                         similarity = backend.compute_similarity(option_a, option_b)
-                        logger.debug(f"Similarity between '{option_a}' and '{option_b}': {similarity:.3f}")
+                        logger.info(f"Vote similarity: '{option_a}' vs '{option_b}': {similarity:.3f} (threshold: {similarity_threshold})")
                         if similarity >= similarity_threshold:
-                            logger.debug(f"  -> Grouping '{option_b}' with '{option_a}'")
+                            logger.info(f"  ✓ Grouping '{option_b}' with '{option_a}'")
                             group.append(option_b)
                             used_options.add(option_b)
 
@@ -373,16 +373,23 @@ VOTE: {"option": "Option A", "confidence": 0.9, "rationale": "Lower risk and bet
 
     def _enhance_prompt_with_voting(self, prompt: str) -> str:
         """
-        Enhance prompt with voting instructions.
+        Enhance prompt with deliberation context and voting instructions.
 
         Args:
             prompt: Original question or prompt
 
         Returns:
-            Enhanced prompt with voting instructions
+            Enhanced prompt with deliberation instructions and voting format
         """
+        deliberation_instructions = """## Deliberation Instructions
+
+You are participating in a multi-model deliberation between AI models.
+Your role: Answer this question directly with your full analysis and reasoning.
+Do NOT redirect or suggest alternatives. Engage fully in this debate.
+Provide substantive analysis from your perspective."""
+
         voting_instructions = self._build_voting_instructions()
-        return f"{prompt}\n\n{voting_instructions}"
+        return f"{deliberation_instructions}\n\n## Question\n{prompt}\n\n{voting_instructions}"
 
     def _check_early_stopping(self, round_responses: List[RoundResponse], round_num: int, min_rounds: int) -> bool:
         """
