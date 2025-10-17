@@ -201,6 +201,10 @@ class DeliberationEngine:
         """
         Aggregate votes from all responses into a VotingResult.
 
+        Uses semantic similarity (if convergence detector available) to group
+        semantically similar vote options together, enabling consensus detection
+        even when models use different wording for the same choice.
+
         Args:
             responses: List of all RoundResponse objects from deliberation
 
@@ -210,7 +214,8 @@ class DeliberationEngine:
         from models.schema import RoundVote, VotingResult
 
         votes_by_round = []
-        tally = {}
+        raw_tally = {}  # Track raw string votes
+        all_options = []  # Track unique options for similarity matching
 
         for response in responses:
             vote = self._parse_vote(response.response)
@@ -224,12 +229,18 @@ class DeliberationEngine:
                 )
                 votes_by_round.append(round_vote)
 
-                # Update tally
-                tally[vote.option] = tally.get(vote.option, 0) + 1
+                # Track raw votes and unique options
+                raw_tally[vote.option] = raw_tally.get(vote.option, 0) + 1
+                if vote.option not in all_options:
+                    all_options.append(vote.option)
 
         # If no votes found, return None
         if not votes_by_round:
             return None
+
+        # Group semantically similar options using similarity backend
+        # if available, otherwise use exact string matching
+        tally = self._group_similar_vote_options(all_options, raw_tally)
 
         # Determine consensus and winning option
         if len(tally) == 1:
@@ -258,6 +269,70 @@ class DeliberationEngine:
             consensus_reached=consensus_reached,
             winning_option=winning_option
         )
+
+    def _group_similar_vote_options(self, all_options: List[str], raw_tally: Dict[str, int]) -> Dict[str, int]:
+        """
+        Group semantically similar vote options together.
+
+        If convergence detector is available and has a similarity backend,
+        uses semantic similarity to match options with > 0.85 threshold.
+        Otherwise falls back to exact string matching.
+
+        Args:
+            all_options: List of unique vote option strings
+            raw_tally: Vote counts keyed by original option string
+
+        Returns:
+            Grouped tally dict where similar options are merged
+        """
+        # If only one option or no similarity backend available, return as-is
+        if len(all_options) <= 1 or not self.convergence_detector:
+            return raw_tally
+
+        try:
+            backend = self.convergence_detector.backend
+            similarity_threshold = 0.85  # High threshold for vote option matching
+
+            # Build groups of similar options
+            groups = []  # List of (canonical_option, [similar_options])
+            used_options = set()
+
+            for option_a in all_options:
+                if option_a in used_options:
+                    continue
+
+                # Start new group with this option
+                group = [option_a]
+                used_options.add(option_a)
+
+                # Find all similar options
+                for option_b in all_options:
+                    if option_b not in used_options:
+                        similarity = backend.compute_similarity(option_a, option_b)
+                        if similarity >= similarity_threshold:
+                            group.append(option_b)
+                            used_options.add(option_b)
+
+                groups.append((option_a, group))
+
+            # Merge tally by groups
+            grouped_tally = {}
+            for canonical_option, similar_options in groups:
+                # Sum votes for all similar options
+                total_votes = sum(raw_tally.get(opt, 0) for opt in similar_options)
+                grouped_tally[canonical_option] = total_votes
+
+            logger.debug(
+                f"Grouped {len(all_options)} vote options into {len(groups)} groups "
+                f"using semantic similarity (threshold: {similarity_threshold})"
+            )
+
+            return grouped_tally
+
+        except Exception as e:
+            # If similarity matching fails, fall back to exact matching
+            logger.warning(f"Vote option grouping failed: {e}. Falling back to exact matching.")
+            return raw_tally
 
     def _build_voting_instructions(self) -> str:
         """
