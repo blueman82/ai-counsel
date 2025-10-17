@@ -32,6 +32,7 @@ Unlike existing tools (like Zen's consensus feature) that gather parallel opinio
 - 🔍 **Transparent:** See exactly what each model said and when
 - ⚡ **Auto-Convergence:** Automatically stops when opinions stabilize
 - 🗳️ **Structured Voting:** Models cast votes with confidence levels and rationale
+- 🧮 **Vote Semantic Grouping:** Semantically similar vote options automatically merged (0.70+ similarity)
 - 🎛️ **Model-Controlled Stopping:** Models decide when to stop deliberating (adaptive rounds)
 
 ## Quick Start
@@ -163,6 +164,13 @@ The system compares responses between consecutive rounds using semantic similari
 - **Tie**: No clear winner from voting (1-1-1)
 
 **Voting takes precedence**: When models cast votes, the convergence status reflects the voting outcome rather than semantic similarity.
+
+**Vote Option Grouping:**
+
+Semantically similar vote options are automatically grouped together using the same similarity backend:
+- **Threshold**: 0.70 (70% similarity or higher merges options)
+- **Example**: "Self-documenting code" and "Prioritize self-documenting code" merged into single vote
+- **Visible in logs**: Vote similarity scores logged at INFO level in `mcp_server.log` for transparency
 
 **Similarity Backends:**
 
@@ -474,6 +482,8 @@ ai-counsel/
 - ✅ Structured voting mechanisms with confidence and rationale
 - ✅ Model-controlled early stopping (adaptive round counts)
 - ✅ Voting-aware convergence status (majority_decision, unanimous_consensus, tie)
+- ✅ Vote semantic grouping (auto-merge similar options at 0.70+ threshold)
+- ✅ Enhanced logging (INFO-level vote similarity scores in mcp_server.log)
 - ✅ AI-powered summary generation (uses Claude to analyze and summarize debates)
 
 ### Future Enhancements
@@ -512,7 +522,7 @@ Inspired by the need for true deliberative AI consensus beyond parallel opinion 
 ![GitHub forks](https://img.shields.io/github/forks/blueman82/ai-counsel)
 ![GitHub last commit](https://img.shields.io/github/last-commit/blueman82/ai-counsel)
 ![Build](https://img.shields.io/badge/build-passing-brightgreen)
-![Tests](https://img.shields.io/badge/tests-74+%20passing-green)
-![Version](https://img.shields.io/badge/version-1.1.0-blue)
+![Tests](https://img.shields.io/badge/tests-108+%20passing-green)
+![Version](https://img.shields.io/badge/version-1.2.0-blue)
 
 **Production Ready** - Multi-model deliberative consensus with structured voting and adaptive early stopping for critical technical decisions!
