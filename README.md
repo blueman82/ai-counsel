@@ -49,10 +49,10 @@ Unlike existing tools (like Zen's consensus feature) that gather parallel opinio
    ```
 
 2. **At least one authenticated AI CLI tool** (install and authenticate any or all):
-   - **Claude CLI** (Anthropic): https://docs.claude.com/claude-code/guides/cli - Verify: `claude --version`
-   - **Codex CLI** (OpenAI): `npm install -g @openai/codex-cli` - Verify: `codex --version`
-   - **Droid CLI** (OpenAI): https://github.com/openai/droid - Verify: `droid --version`
-   - **Gemini CLI** (Google): `npm install -g @google/generative-ai-cli` - Verify: `gemini --version`
+   - **Claude CLI** (Anthropic): https://docs.claude.com/en/docs/claude-code/setup - Verify: `claude --version`
+   - **Codex CLI** (OpenAI): https://github.com/openai/codex - Install: `npm install -g @openai/codex` - Verify: `codex --version`
+   - **Droid CLI** (Factory AI): https://github.com/Factory-AI/factory - Verify: `droid --version`
+   - **Gemini CLI** (Google): https://github.com/google-gemini/gemini-cli - Install: `npm install -g @google/gemini-cli` - Verify: `gemini --version`
 
 ### Setup
 
