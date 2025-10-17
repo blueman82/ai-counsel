@@ -124,7 +124,8 @@ class DeliberationEngine:
                 response_text = await adapter.invoke(
                     prompt=enhanced_prompt,
                     model=participant.model,
-                    context=context
+                    context=context,
+                    is_deliberation=True  # Always True during deliberations
                 )
             except Exception as e:
                 # Log error but continue with other participants
