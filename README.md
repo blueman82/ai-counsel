@@ -379,19 +379,6 @@ pytest tests/e2e -v -m e2e
 pytest --cov=. --cov-report=html
 ```
 
-### Code Quality
-
-```bash
-# Format code
-black .
-
-# Lint
-ruff check .
-
-# Type check (optional)
-mypy .
-```
-
 ### Adding a New CLI Tool
 
 1. Create adapter in `adapters/your_tool.py`:
@@ -460,13 +447,6 @@ ai-counsel/
 └── transcripts/        # Generated transcripts
 ```
 
-## Principles
-
-- **DRY**: No code duplication - extract common logic to base classes
-- **YAGNI**: Build only what's needed - no premature optimization
-- **TDD**: Tests first, implementation second - red, green, refactor
-- **Simple**: Prefer simple solutions over clever ones
-
 ## Roadmap
 
 ### Current Features ✅
@@ -497,8 +477,7 @@ ai-counsel/
 3. Write tests first (TDD workflow)
 4. Implement feature
 5. Ensure all tests pass (`pytest tests/unit -v`)
-6. Format and lint (`black .` and `ruff check .`)
-7. Submit PR with clear description
+6. Submit PR with clear description
 
 ## License
 
