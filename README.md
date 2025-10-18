@@ -223,7 +223,31 @@ python server.py
 
 2. **Configure in your MCP client:**
 
-**For Claude Code**, add to `~/.claude/config/mcp.json`:
+**For Claude Code**, you have two options:
+
+**Option A: Project Config (Recommended)** - Create `.mcp.json` in the ai-counsel project root:
+
+```bash
+# Inside the ai-counsel directory
+cat > .mcp.json << 'EOF'
+{
+  "mcpServers": {
+    "ai-counsel": {
+      "type": "stdio",
+      "command": ".venv/bin/python",
+      "args": ["server.py"],
+      "env": {}
+    }
+  }
+}
+EOF
+```
+
+This file can be committed to your repo and works for all users. Paths are relative to the project root.
+
+**Option B: User Config (Global)** - Add to `~/.claude.json`:
+
+Open `~/.claude.json` and add the `ai-counsel` server to the `mcpServers` field:
 
 ```json
 {
@@ -246,7 +270,7 @@ python server.py
 
 **💡 Pro tip**: Run `pwd` (macOS/Linux) or `cd` (Windows) inside the ai-counsel directory to get the full path.
 
-Then **restart Claude Code** to load the server.
+**After configuration**, restart Claude Code to load the server.
 
 3. **Use the `deliberate` tool:**
 
