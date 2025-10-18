@@ -223,22 +223,7 @@ python server.py
 
 2. **Configure in your MCP client:**
 
-**For Claude Code with selective MCP loading** (`clyo/clyor` functions):
-
-The server is configured in `~/.claude/config/mcp.json`. Start sessions with:
-
-```bash
-# New session with AI Counsel only
-clyo --ai-counsel
-
-# Combine with other MCPs
-clyo --ai-counsel --recallor
-
-# Resume with AI Counsel
-clyor --ai-counsel
-```
-
-**For standard Claude Code**, add to `~/.claude/config/mcp.json`:
+**For Claude Code**, add to `~/.claude/config/mcp.json`:
 
 ```json
 {
