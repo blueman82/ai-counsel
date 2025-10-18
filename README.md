@@ -500,7 +500,7 @@ Inspired by the need for true deliberative AI consensus beyond parallel opinion 
 ![GitHub forks](https://img.shields.io/github/forks/blueman82/ai-counsel)
 ![GitHub last commit](https://img.shields.io/github/last-commit/blueman82/ai-counsel)
 ![Build](https://img.shields.io/badge/build-passing-brightgreen)
-![Tests](https://img.shields.io/badge/tests-108+%20passing-green)
+![Tests](https://img.shields.io/badge/tests-113%20passing-green)
 ![Version](https://img.shields.io/badge/version-1.2.0-blue)
 
 **Production Ready** - Multi-model deliberative consensus with structured voting and adaptive early stopping for critical technical decisions!

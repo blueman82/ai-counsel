@@ -50,7 +50,9 @@ VOTE: {"option": "Option A", "confidence": 0.9, "rationale": "Superior scalabili
             # Round 2: Maintain vote with even higher confidence
             '''I've reviewed the discussion and remain convinced Option A is best.
 
-VOTE: {"option": "Option A", "confidence": 0.95, "rationale": "All counterarguments addressed", "continue_debate": false}'''
+VOTE: {"option": "Option A", "confidence": 0.95, "rationale": "All counterarguments addressed", "continue_debate": false}''',
+            # Third response for summarizer
+            'Summary: Unanimous consensus on Option A with high confidence.'
         ]
 
         codex_adapter.invoke_mock.side_effect = [
@@ -59,7 +61,9 @@ VOTE: {"option": "Option A", "confidence": 0.95, "rationale": "All counterargume
 VOTE: {"option": "Option A", "confidence": 0.85, "rationale": "Better performance metrics", "continue_debate": true}''',
             '''After deliberation, I'm confident in Option A.
 
-VOTE: {"option": "Option A", "confidence": 0.92, "rationale": "Consensus on key benefits", "continue_debate": false}'''
+VOTE: {"option": "Option A", "confidence": 0.92, "rationale": "Consensus on key benefits", "continue_debate": false}''',
+            # Third response for summarizer
+            'Summary: Strong agreement on Option A based on performance data.'
         ]
 
         droid_adapter.invoke_mock.side_effect = [
@@ -68,7 +72,9 @@ VOTE: {"option": "Option A", "confidence": 0.92, "rationale": "Consensus on key 
 VOTE: {"option": "Option A", "confidence": 0.88, "rationale": "Empirical evidence supports it", "continue_debate": true}''',
             '''Final assessment confirms Option A.
 
-VOTE: {"option": "Option A", "confidence": 0.93, "rationale": "Unanimous agreement reached", "continue_debate": false}'''
+VOTE: {"option": "Option A", "confidence": 0.93, "rationale": "Unanimous agreement reached", "continue_debate": false}''',
+            # Third response for summarizer
+            'Summary: Testing evidence confirms Option A superiority.'
         ]
 
         return {
@@ -84,20 +90,27 @@ VOTE: {"option": "Option A", "confidence": 0.93, "rationale": "Unanimous agreeme
         codex_adapter = MockAdapter("codex")
         droid_adapter = MockAdapter("droid")
 
-        # Round 1: 2 vote A, 1 votes B
+        # Round 1: 2 vote Safety First, 1 votes Speed First
+        # Using distinct option names to avoid semantic similarity grouping
         claude_adapter.invoke_mock.side_effect = [
-            'Option A is safer.\n\nVOTE: {"option": "Option A", "confidence": 0.8, "rationale": "Lower risk", "continue_debate": true}',
-            'Still prefer A.\n\nVOTE: {"option": "Option A", "confidence": 0.85, "rationale": "Risk management priority", "continue_debate": false}'
+            'Safety First is better.\n\nVOTE: {"option": "Safety First", "confidence": 0.8, "rationale": "Lower risk", "continue_debate": true}',
+            'Still prefer Safety First.\n\nVOTE: {"option": "Safety First", "confidence": 0.85, "rationale": "Risk management priority", "continue_debate": false}',
+            # Third response for summarizer
+            'Summary: Safety First approach won with 2-1 majority decision.'
         ]
 
         codex_adapter.invoke_mock.side_effect = [
-            'I favor Option B for speed.\n\nVOTE: {"option": "Option B", "confidence": 0.75, "rationale": "Faster implementation", "continue_debate": true}',
-            'Option B remains best.\n\nVOTE: {"option": "Option B", "confidence": 0.8, "rationale": "Time to market critical", "continue_debate": false}'
+            'I favor Speed First.\n\nVOTE: {"option": "Speed First", "confidence": 0.75, "rationale": "Faster implementation", "continue_debate": true}',
+            'Speed First remains best.\n\nVOTE: {"option": "Speed First", "confidence": 0.8, "rationale": "Time to market critical", "continue_debate": false}',
+            # Third response for summarizer
+            'Summary: Split decision with Speed First being minority view.'
         ]
 
         droid_adapter.invoke_mock.side_effect = [
-            'Option A aligns better.\n\nVOTE: {"option": "Option A", "confidence": 0.82, "rationale": "Strategic fit", "continue_debate": true}',
-            'Confirmed: Option A.\n\nVOTE: {"option": "Option A", "confidence": 0.87, "rationale": "Long-term strategy wins", "continue_debate": false}'
+            'Safety First aligns better.\n\nVOTE: {"option": "Safety First", "confidence": 0.82, "rationale": "Strategic fit", "continue_debate": true}',
+            'Confirmed: Safety First.\n\nVOTE: {"option": "Safety First", "confidence": 0.87, "rationale": "Long-term strategy wins", "continue_debate": false}',
+            # Third response for summarizer
+            'Summary: Safety First won with solid rationale.'
         ]
 
         return {
@@ -171,7 +184,7 @@ VOTE: {"option": "Option A", "confidence": 0.93, "rationale": "Unanimous agreeme
         engine.config = config
 
         request = DeliberateRequest(
-            question="Should we prioritize Option A (safety) or Option B (speed)?",
+            question="Should we prioritize safety or speed?",
             participants=[
                 Participant(cli="claude", model="claude-sonnet-4-5", stance="neutral"),
                 Participant(cli="codex", model="gpt-4", stance="neutral"),
@@ -186,9 +199,9 @@ VOTE: {"option": "Option A", "confidence": 0.93, "rationale": "Unanimous agreeme
 
         # Verify voting results
         assert result.voting_result is not None, "Voting result should be present"
-        assert result.voting_result.winning_option == "Option A", "Option A should win with majority"
-        assert result.voting_result.final_tally["Option A"] == 4, "Option A should have 4 votes"
-        assert result.voting_result.final_tally["Option B"] == 2, "Option B should have 2 votes"
+        assert result.voting_result.winning_option == "Safety First", "Safety First should win with majority"
+        assert result.voting_result.final_tally["Safety First"] == 4, "Safety First should have 4 votes"
+        assert result.voting_result.final_tally["Speed First"] == 2, "Speed First should have 2 votes"
 
         # Verify convergence status reflects majority decision
         if result.convergence_info:
@@ -201,7 +214,7 @@ VOTE: {"option": "Option A", "confidence": 0.93, "rationale": "Unanimous agreeme
         # Verify transcript shows split vote
         transcript_path = Path(result.transcript_path)
         transcript_content = transcript_path.read_text()
-        assert "Option A" in transcript_content and "Option B" in transcript_content
+        assert "Safety First" in transcript_content and "Speed First" in transcript_content
         assert "4 vote(s)" in transcript_content or "4" in transcript_content
         assert "2 vote(s)" in transcript_content or "2" in transcript_content
 
@@ -352,12 +365,16 @@ VOTE: {"option": "Option A", "confidence": 0.93, "rationale": "Unanimous agreeme
 
         claude_adapter.invoke_mock.side_effect = [
             "Option A seems better based on analysis.",
-            "After review, I still favor Option A."
+            "After review, I still favor Option A.",
+            # Third response for summarizer
+            "Summary: Discussion favored Option A."
         ]
 
         codex_adapter.invoke_mock.side_effect = [
             "I agree with the analysis.",
-            "Option A is the right choice."
+            "Option A is the right choice.",
+            # Third response for summarizer
+            "Summary: Agreement on Option A."
         ]
 
         mock_adapters = {
