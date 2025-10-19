@@ -8,7 +8,7 @@ from adapters.codex import CodexAdapter
 from adapters.droid import DroidAdapter
 from adapters.gemini import GeminiAdapter
 from adapters import create_adapter
-from models.config import CLIToolConfig
+from models.config import CLIToolConfig, CLIAdapterConfig, HTTPAdapterConfig
 
 
 class TestBaseCLIAdapter:
@@ -418,3 +418,43 @@ class TestAdapterFactory:
 
         assert "unsupported" in str(exc_info.value).lower()
         assert "invalid-cli" in str(exc_info.value)
+
+    def test_create_adapter_with_cli_adapter_config(self):
+        """Test creating adapter with new CLIAdapterConfig."""
+        config = CLIAdapterConfig(
+            type="cli",
+            command="claude",
+            args=["--model", "{model}"],
+            timeout=60
+        )
+        adapter = create_adapter("claude", config)
+        assert isinstance(adapter, ClaudeAdapter)
+        assert adapter.command == "claude"
+        assert adapter.timeout == 60
+
+    def test_create_adapter_with_http_adapter_config_not_yet_supported(self):
+        """Test HTTP adapter raises error (no HTTP adapters registered yet)."""
+        config = HTTPAdapterConfig(
+            type="http",
+            base_url="http://localhost:11434",
+            timeout=60
+        )
+
+        # Should raise because no HTTP adapters are registered yet
+        with pytest.raises(ValueError) as exc_info:
+            create_adapter("ollama", config)
+
+        assert "http" in str(exc_info.value).lower()
+
+    def test_factory_type_checking(self):
+        """Test factory validates config type matches adapter expectations."""
+        # This will be important when we add actual HTTP adapters
+        # For now, just verify the factory can handle both config types
+        cli_config = CLIAdapterConfig(
+            type="cli",
+            command="claude",
+            args=["--model", "{model}"],
+            timeout=60
+        )
+        adapter = create_adapter("claude", cli_config)
+        assert isinstance(adapter, ClaudeAdapter)
