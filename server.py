@@ -79,18 +79,19 @@ async def list_tools() -> list[Tool]:
                 "Initiate true deliberative consensus where AI models debate and "
                 "refine positions across multiple rounds. Models see each other's "
                 "responses and can adjust their reasoning. Supports both CLI tools "
-                "(claude, codex, droid, gemini) and HTTP services (ollama, lmstudio). "
+                "(claude, codex, droid, gemini) and HTTP services (ollama, lmstudio, openrouter). "
                 "Use for critical decisions, architecture choices, or complex technical debates.\n\n"
                 "Example participants:\n"
                 '  [{"cli": "claude", "model": "sonnet"}, '
-                '{"cli": "ollama", "model": "llama2"}]\n\n'
+                '{"cli": "openrouter", "model": "anthropic/claude-3.5-sonnet"}]\n\n'
                 "Recommended models by adapter:\n"
                 "  - claude: 'sonnet', 'opus', 'haiku'\n"
                 "  - codex: 'gpt-5-codex', 'o3'\n"
                 "  - droid: 'claude-sonnet-4-5-20250929', 'gpt-5-codex'\n"
                 "  - gemini: 'gemini-2.5-pro'\n"
                 "  - ollama: 'llama2', 'mistral', 'codellama', 'qwen'\n"
-                "  - lmstudio: 'local-model' (model names vary based on loaded models)"
+                "  - lmstudio: 'local-model' (model names vary based on loaded models)\n"
+                "  - openrouter: 'anthropic/claude-3.5-sonnet', 'openai/gpt-4' (requires API key)"
             ),
             inputSchema={
                 "type": "object",
