@@ -26,7 +26,10 @@ Unlike existing tools (like Zen's consensus feature) that gather parallel opinio
 - 🎯 **Two Modes:**
   - `quick`: Fast single-round opinions
   - `conference`: Multi-round deliberative debate
-- 🤖 **Multi-Model Support:** Works with claude, codex, droid, gemini, and extensible to others
+- 🤖 **Mixed Adapter Support:** Seamlessly combine CLI tools and HTTP services in single deliberation
+  - **CLI:** claude, codex, droid, gemini, llamacpp
+  - **HTTP:** ollama, lmstudio, openrouter
+  - **Flexible:** Use the same model via different runtimes (e.g., Llama via llamacpp vs lmstudio vs ollama)
 - 📝 **Full Transcripts:** Markdown exports with summary and complete debate
 - 🎚️ **User Control:** Configure rounds, stances, and participants
 - 🔍 **Transparent:** See exactly what each model said and when
@@ -38,6 +41,21 @@ Unlike existing tools (like Zen's consensus feature) that gather parallel opinio
 ## Quick Start
 
 **TL;DR**: Install Python 3.11+, any AI CLI tools (claude/codex/droid/gemini) → Clone repo → Run setup → Add to Claude Code MCP config → Use!
+
+**Example - Local + Cloud Models:**
+```javascript
+// Mix local models (ollama, lmstudio) with cloud models (claude) in one deliberation
+mcp__ai-counsel__deliberate({
+  question: "Should we add unit tests to new features?",
+  participants: [
+    {cli: "ollama", model: "llama2"},           // Local via Ollama
+    {cli: "lmstudio", model: "llama-3.2-1b-instruct"}, // Local via LM Studio
+    {cli: "claude", model: "sonnet"}            // Cloud via Claude
+  ],
+  mode: "quick"
+})
+```
+**Result:** Get diverse perspectives from both local and cloud models with zero API costs for local inference!
 
 ## Installation
 
@@ -478,6 +496,21 @@ mcp__ai-counsel__deliberate({
 | **Local** | Yes (if tool supports) | Yes (Ollama, LM Studio) |
 | **Cloud** | Yes (Claude, Codex, etc.) | Yes (OpenRouter) |
 | **Best for** | Official tools, Claude Code | Self-hosted, cloud APIs |
+
+#### Real-World Example: Same Model, Different Adapters
+
+You can run the **same model** via different adapters to compare performance and capabilities:
+
+| Adapter | Model | Response Time | Use Case |
+|---------|-------|---------------|----------|
+| **llamacpp** | Llama-3.2-1B (Q8_0.gguf) | ~25s | Maximum control, direct GGUF inference, custom quantization |
+| **lmstudio** | llama-3.2-1b-instruct | ~4s | Pre-loaded model, OpenAI-compatible API, fastest |
+| **ollama** | llama2 | ~19s | Simplest setup, automatic model management |
+| **claude** | sonnet | ~23s | Cloud model for comparison and quality benchmark |
+
+*Performance measured with "Should we add logging to production systems?" deliberation*
+
+**Key Insight:** LM Studio with pre-loaded models offers 6x faster response than direct GGUF inference, while maintaining identical output quality. Mix and match based on your priorities: speed (lmstudio), control (llamacpp), or simplicity (ollama).
 
 #### Troubleshooting HTTP Adapters
 

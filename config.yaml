@@ -44,46 +44,35 @@ cli_tools:
     # Download models from https://huggingface.co/models?library=gguf
     # Build llama.cpp: https://github.com/ggerganov/llama.cpp
 
-# HTTP Adapter Examples (not in cli_tools format)
-# To use HTTP adapters like Ollama or LM Studio, configure them directly in deliberation requests
-# or migrate to the new adapters section format. Examples:
+# HTTP Adapters Section (new format)
+adapters:
+  ollama:
+    type: http
+    base_url: "http://localhost:11434"
+    timeout: 120
+    max_retries: 3
+    # Valid models: llama2, mistral, codellama, qwen, etc.
+    # Run 'ollama list' to see available models
+    # Ollama is a local LLM runtime - no API key needed
 #
-# adapters:
-#   ollama:
-#     type: http
-#     base_url: "http://localhost:11434"
-#     timeout: 120
-#     max_retries: 3
-#     # Valid models: llama2, mistral, codellama, qwen, etc.
-#     # Run 'ollama list' to see available models
-#     # Ollama is a local LLM runtime - no API key needed
-#
-#   lmstudio:
-#     type: http
-#     base_url: "http://localhost:1234"
-#     timeout: 120
-#     max_retries: 3
-#     # Valid models: any model loaded in LM Studio
-#     # LM Studio provides OpenAI-compatible API
-#     # No API key needed for local instance
-#
-#   llamacpp:
-#     type: cli
-#     command: "llama-cli"
-#     args: ["-m", "{model}", "-p", "{prompt}", "-n", "512", "-c", "2048"]
-#     timeout: 180
-#     # llama.cpp for local model inference with .gguf files
-#     # See cli_tools.llamacpp above for detailed configuration
-#
-#   openrouter:
-#     type: http
-#     base_url: "https://openrouter.ai/api/v1"
-#     api_key: "${OPENROUTER_API_KEY}"  # Environment variable substitution
-#     timeout: 90
-#     max_retries: 3
-#     # Valid models: anthropic/claude-3.5-sonnet, openai/gpt-4, etc.
-#     # See https://openrouter.ai/docs for full model list
-#     # Requires API key from https://openrouter.ai/keys
+  lmstudio:
+    type: http
+    base_url: "http://localhost:1234"
+    timeout: 120
+    max_retries: 3
+    # Valid models: any model loaded in LM Studio
+    # LM Studio provides OpenAI-compatible API
+    # No API key needed for local instance
+
+  openrouter:
+    type: http
+    base_url: "https://openrouter.ai/api/v1"
+    api_key: "${OPENROUTER_API_KEY}"  # Environment variable from .env file
+    timeout: 90
+    max_retries: 3
+    # Valid models: anthropic/claude-3.5-sonnet, openai/gpt-4, meta-llama/llama-3.1-8b-instruct, etc.
+    # See https://openrouter.ai/docs for full model list
+    # Requires API key from https://openrouter.ai/keys
 
 defaults:
   mode: "quick"

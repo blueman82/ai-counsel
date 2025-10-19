@@ -44,14 +44,30 @@ except Exception as e:
     raise
 
 
-# Create adapters
+# Create adapters - prefer new 'adapters' section, fallback to legacy 'cli_tools'
 adapters = {}
-for cli_name, cli_config in config.cli_tools.items():
-    try:
-        adapters[cli_name] = create_adapter(cli_name, cli_config)
-        logger.info(f"Initialized adapter: {cli_name}")
-    except Exception as e:
-        logger.error(f"Failed to create adapter for {cli_name}: {e}")
+adapter_sources = []
+
+# Try new adapters section first (preferred)
+if hasattr(config, 'adapters') and config.adapters:
+    adapter_sources.append(('adapters', config.adapters))
+
+# Fallback to legacy cli_tools for backward compatibility
+if hasattr(config, 'cli_tools') and config.cli_tools:
+    adapter_sources.append(('cli_tools', config.cli_tools))
+
+for source_name, adapter_configs in adapter_sources:
+    for cli_name, cli_config in adapter_configs.items():
+        # Skip if already loaded from preferred source
+        if cli_name in adapters:
+            logger.debug(f"Adapter '{cli_name}' already loaded from preferred source, skipping {source_name}")
+            continue
+
+        try:
+            adapters[cli_name] = create_adapter(cli_name, cli_config)
+            logger.info(f"Initialized adapter: {cli_name} (from {source_name})")
+        except Exception as e:
+            logger.error(f"Failed to create adapter for {cli_name}: {e}")
 
 
 # Create engine with config for convergence detection
