@@ -6,6 +6,7 @@ from adapters.codex import CodexAdapter
 from adapters.droid import DroidAdapter
 from adapters.gemini import GeminiAdapter
 from adapters.lmstudio import LMStudioAdapter
+from adapters.ollama import OllamaAdapter
 from models.config import CLIToolConfig, CLIAdapterConfig, HTTPAdapterConfig
 from typing import Union
 
@@ -38,7 +39,7 @@ def create_adapter(
 
     # Registry of HTTP adapters
     http_adapters = {
-        # "ollama": OllamaAdapter,  # Added in Phase 2, Task 9
+        "ollama": OllamaAdapter,
         "lmstudio": LMStudioAdapter,
         # "openrouter": OpenRouterAdapter,  # Added in Phase 3, Task 17
     }
@@ -101,5 +102,7 @@ __all__ = [
     "CodexAdapter",
     "DroidAdapter",
     "GeminiAdapter",
+    "LMStudioAdapter",
+    "OllamaAdapter",
     "create_adapter"
 ]

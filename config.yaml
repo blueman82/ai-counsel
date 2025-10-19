@@ -28,6 +28,20 @@ cli_tools:
     timeout: 180
     # Valid models: "gemini-2.5-pro" (default) or other Gemini identifiers
 
+# HTTP Adapter Examples (not in cli_tools format)
+# To use HTTP adapters like LM Studio, configure them directly in deliberation requests
+# or migrate to the new adapters section format. Examples:
+#
+# adapters:
+#   lmstudio:
+#     type: http
+#     base_url: "http://localhost:1234"
+#     timeout: 120
+#     max_retries: 3
+#     # Valid models: any model loaded in LM Studio
+#     # LM Studio provides OpenAI-compatible API
+#     # No API key needed for local instance
+
 defaults:
   mode: "quick"
   rounds: 2
