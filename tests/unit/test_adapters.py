@@ -396,6 +396,35 @@ class TestAdapterFactory:
         assert adapter.command == "droid"
         assert adapter.timeout == 180
 
+    def test_create_llamacpp_adapter(self):
+        """Test creating LlamaCppAdapter via factory."""
+        from adapters.llamacpp import LlamaCppAdapter
+
+        config = CLIToolConfig(
+            command="llama-cli",
+            args=["-m", "{model}", "-p", "{prompt}"],
+            timeout=120
+        )
+        adapter = create_adapter("llamacpp", config)
+        assert isinstance(adapter, LlamaCppAdapter)
+        assert adapter.command == "llama-cli"
+        assert adapter.timeout == 120
+
+    def test_create_llamacpp_adapter_with_cli_adapter_config(self):
+        """Test creating LlamaCppAdapter with new CLIAdapterConfig."""
+        from adapters.llamacpp import LlamaCppAdapter
+
+        config = CLIAdapterConfig(
+            type="cli",
+            command="llama-cli",
+            args=["-m", "{model}", "-p", "{prompt}", "-n", "512"],
+            timeout=180
+        )
+        adapter = create_adapter("llamacpp", config)
+        assert isinstance(adapter, LlamaCppAdapter)
+        assert adapter.command == "llama-cli"
+        assert adapter.timeout == 180
+
     def test_create_lmstudio_adapter(self):
         """Test creating LMStudioAdapter via factory."""
         from adapters.lmstudio import LMStudioAdapter

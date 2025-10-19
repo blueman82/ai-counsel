@@ -5,6 +5,7 @@ from adapters.claude import ClaudeAdapter
 from adapters.codex import CodexAdapter
 from adapters.droid import DroidAdapter
 from adapters.gemini import GeminiAdapter
+from adapters.llamacpp import LlamaCppAdapter
 from adapters.lmstudio import LMStudioAdapter
 from adapters.ollama import OllamaAdapter
 from adapters.openrouter import OpenRouterAdapter
@@ -36,6 +37,7 @@ def create_adapter(
         "codex": CodexAdapter,
         "droid": DroidAdapter,
         "gemini": GeminiAdapter,
+        "llamacpp": LlamaCppAdapter,
     }
 
     # Registry of HTTP adapters
@@ -103,6 +105,7 @@ __all__ = [
     "CodexAdapter",
     "DroidAdapter",
     "GeminiAdapter",
+    "LlamaCppAdapter",
     "LMStudioAdapter",
     "OllamaAdapter",
     "create_adapter"
