@@ -37,6 +37,15 @@ Unlike existing tools (like Zen's consensus feature) that gather parallel opinio
 - 🗳️ **Structured Voting:** Models cast votes with confidence levels and rationale
 - 🧮 **Vote Semantic Grouping:** Semantically similar vote options automatically merged (0.70+ similarity)
 - 🎛️ **Model-Controlled Stopping:** Models decide when to stop deliberating (adaptive rounds)
+- 🛡️ **Fault Tolerant:** Individual adapter failures don't halt deliberation—remaining models continue
+
+## Production-Ready Reliability
+
+**Graceful Degradation**: Adapter failures are isolated—if one model times out or returns an error, the deliberation continues with remaining participants. You'll still get valuable consensus from working models, with full transparency about which adapters succeeded or failed in the logs.
+
+**Real-world example**: In a 4-participant deliberation (ollama, lmstudio, droid, claude), if lmstudio returns a 400 error in Round 2 due to context window limits, the other three models continue debating through all remaining rounds. The system logs the failure, completes the deliberation with 3 participants, and delivers a full transcript with voting results and AI-generated summary.
+
+This production-tested resilience means you can confidently mix experimental local models with stable cloud APIs without risking complete deliberation failure.
 
 ## Quick Start
 
