@@ -43,6 +43,19 @@ class TestParticipant:
             Participant(cli="codex", model="gpt-4", stance="maybe")
         assert "stance" in str(exc_info.value)
 
+    def test_ollama_participant(self):
+        """Test creating an Ollama participant."""
+        p = Participant(cli="ollama", model="llama2", stance="neutral")
+        assert p.cli == "ollama"
+        assert p.model == "llama2"
+
+    def test_lmstudio_participant(self):
+        """Test creating an LM Studio participant."""
+        p = Participant(cli="lmstudio", model="local-model", stance="for")
+        assert p.cli == "lmstudio"
+        assert p.model == "local-model"
+        assert p.stance == "for"
+
 
 class TestDeliberateRequest:
     """Tests for DeliberateRequest model."""
