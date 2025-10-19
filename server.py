@@ -106,8 +106,8 @@ async def list_tools() -> list[Tool]:
                             "properties": {
                                 "cli": {
                                     "type": "string",
-                                    "enum": ["claude", "codex", "droid", "gemini"],
-                                    "description": "CLI tool to use"
+                                    "enum": ["claude", "codex", "droid", "gemini", "ollama", "lmstudio"],
+                                    "description": "Adapter to use (CLI tools or HTTP services)"
                                 },
                                 "model": {
                                     "type": "string",
