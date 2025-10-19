@@ -1,44 +1,104 @@
-"""CLI adapter factory and exports."""
+"""CLI and HTTP adapter factory and exports."""
 from adapters.base import BaseCLIAdapter
+from adapters.base_http import BaseHTTPAdapter
 from adapters.claude import ClaudeAdapter
 from adapters.codex import CodexAdapter
 from adapters.droid import DroidAdapter
 from adapters.gemini import GeminiAdapter
-from models.config import CLIToolConfig
+from models.config import CLIToolConfig, CLIAdapterConfig, HTTPAdapterConfig
+from typing import Union
 
 
-def create_adapter(cli: str, config: CLIToolConfig) -> BaseCLIAdapter:
+def create_adapter(
+    name: str,
+    config: Union[CLIToolConfig, CLIAdapterConfig, HTTPAdapterConfig]
+) -> Union[BaseCLIAdapter, BaseHTTPAdapter]:
     """
-    Factory function to create appropriate CLI adapter.
+    Factory function to create appropriate adapter (CLI or HTTP).
 
     Args:
-        cli: CLI tool name ('claude', 'codex', 'droid', or 'gemini')
-        config: CLI tool configuration object
+        name: Adapter name (e.g., 'claude', 'ollama')
+        config: Adapter configuration (CLI or HTTP)
 
     Returns:
-        Appropriate adapter instance
+        Appropriate adapter instance (CLI or HTTP)
 
     Raises:
-        ValueError: If CLI tool is not supported
+        ValueError: If adapter is not supported
+        TypeError: If config type doesn't match adapter type
     """
-    adapters = {
+    # Registry of CLI adapters
+    cli_adapters = {
         "claude": ClaudeAdapter,
         "codex": CodexAdapter,
         "droid": DroidAdapter,
         "gemini": GeminiAdapter,
     }
 
-    if cli in adapters:
-        return adapters[cli](
+    # Registry of HTTP adapters (will be populated in Phase 2)
+    http_adapters = {
+        # "ollama": OllamaAdapter,  # Added in Phase 2, Task 9
+        # "lmstudio": LMStudioAdapter,  # Added in Phase 3, Task 13
+        # "openrouter": OpenRouterAdapter,  # Added in Phase 3, Task 17
+    }
+
+    # Handle legacy CLIToolConfig (backward compatibility)
+    if isinstance(config, CLIToolConfig):
+        if name in cli_adapters:
+            return cli_adapters[name](
+                command=config.command,
+                args=config.args,
+                timeout=config.timeout
+            )
+        else:
+            raise ValueError(
+                f"Unsupported CLI tool: '{name}'. "
+                f"Supported tools: {', '.join(cli_adapters.keys())}"
+            )
+
+    # Handle new typed configs
+    if isinstance(config, CLIAdapterConfig):
+        if name not in cli_adapters:
+            raise ValueError(
+                f"Unknown CLI adapter: '{name}'. "
+                f"Supported CLI adapters: {', '.join(cli_adapters.keys())}"
+            )
+
+        return cli_adapters[name](
             command=config.command,
             args=config.args,
             timeout=config.timeout
         )
+
+    elif isinstance(config, HTTPAdapterConfig):
+        if name not in http_adapters:
+            raise ValueError(
+                f"Unknown HTTP adapter: '{name}'. "
+                f"Supported HTTP adapters: {', '.join(http_adapters.keys())} "
+                f"(Note: HTTP adapters are being added in phases)"
+            )
+
+        return http_adapters[name](
+            base_url=config.base_url,
+            timeout=config.timeout,
+            max_retries=config.max_retries,
+            api_key=config.api_key,
+            headers=config.headers
+        )
+
     else:
-        raise ValueError(
-            f"Unsupported CLI tool: '{cli}'. "
-            f"Supported tools: {', '.join(adapters.keys())}"
+        raise TypeError(
+            f"Invalid config type: {type(config)}. "
+            f"Expected CLIToolConfig, CLIAdapterConfig, or HTTPAdapterConfig"
         )
 
 
-__all__ = ["BaseCLIAdapter", "ClaudeAdapter", "CodexAdapter", "DroidAdapter", "GeminiAdapter", "create_adapter"]
+__all__ = [
+    "BaseCLIAdapter",
+    "BaseHTTPAdapter",
+    "ClaudeAdapter",
+    "CodexAdapter",
+    "DroidAdapter",
+    "GeminiAdapter",
+    "create_adapter"
+]
