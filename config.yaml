@@ -50,6 +50,16 @@ cli_tools:
 #     # Valid models: any model loaded in LM Studio
 #     # LM Studio provides OpenAI-compatible API
 #     # No API key needed for local instance
+#
+#   openrouter:
+#     type: http
+#     base_url: "https://openrouter.ai/api/v1"
+#     api_key: "${OPENROUTER_API_KEY}"  # Environment variable substitution
+#     timeout: 90
+#     max_retries: 3
+#     # Valid models: anthropic/claude-3.5-sonnet, openai/gpt-4, etc.
+#     # See https://openrouter.ai/docs for full model list
+#     # Requires API key from https://openrouter.ai/keys
 
 defaults:
   mode: "quick"
