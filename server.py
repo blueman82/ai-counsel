@@ -65,6 +65,7 @@ RECOMMENDED_MODELS = {
     "gemini": ["gemini-2.5-pro", "gemini-2.0-flash"],
     "ollama": ["llama2", "mistral", "codellama", "qwen"],
     "lmstudio": ["local-model", "llama-2-7b", "mistral-7b"],  # Model names depend on what's loaded
+    "openrouter": ["anthropic/claude-3.5-sonnet", "openai/gpt-4", "meta-llama/llama-3.2-90b"],
 }
 
 
