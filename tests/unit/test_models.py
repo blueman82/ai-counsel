@@ -56,6 +56,20 @@ class TestParticipant:
         assert p.model == "local-model"
         assert p.stance == "for"
 
+    def test_llamacpp_participant(self):
+        """Test creating a llama.cpp participant."""
+        p = Participant(cli="llamacpp", model="/path/to/llama-2-7b.Q4_K_M.gguf", stance="neutral")
+        assert p.cli == "llamacpp"
+        assert p.model == "/path/to/llama-2-7b.Q4_K_M.gguf"
+        assert p.stance == "neutral"
+
+    def test_openrouter_participant(self):
+        """Test creating an OpenRouter participant."""
+        p = Participant(cli="openrouter", model="anthropic/claude-3.5-sonnet", stance="against")
+        assert p.cli == "openrouter"
+        assert p.model == "anthropic/claude-3.5-sonnet"
+        assert p.stance == "against"
+
 
 class TestDeliberateRequest:
     """Tests for DeliberateRequest model."""
