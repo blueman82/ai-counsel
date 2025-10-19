@@ -396,6 +396,39 @@ class TestAdapterFactory:
         assert adapter.command == "droid"
         assert adapter.timeout == 180
 
+    def test_create_lmstudio_adapter(self):
+        """Test creating LMStudioAdapter via factory."""
+        from adapters.lmstudio import LMStudioAdapter
+
+        config = HTTPAdapterConfig(
+            type="http",
+            base_url="http://localhost:1234",
+            timeout=60,
+            max_retries=3
+        )
+
+        adapter = create_adapter("lmstudio", config)
+        assert isinstance(adapter, LMStudioAdapter)
+        assert adapter.base_url == "http://localhost:1234"
+        assert adapter.timeout == 60
+        assert adapter.max_retries == 3
+
+    def test_factory_rejects_cli_config_for_lmstudio(self):
+        """Test LM Studio with CLI config raises error."""
+        config = CLIAdapterConfig(
+            type="cli",
+            command="lmstudio",
+            args=[],
+            timeout=60
+        )
+
+        with pytest.raises(ValueError) as exc_info:
+            create_adapter("lmstudio", config)
+
+        # Should fail because lmstudio is not in CLI adapters
+        assert "lmstudio" in str(exc_info.value).lower()
+        assert "unknown cli adapter" in str(exc_info.value).lower()
+
     def test_create_adapter_with_default_timeout(self):
         """Test factory uses timeout from config object."""
         config = CLIToolConfig(
