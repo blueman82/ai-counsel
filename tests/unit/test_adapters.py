@@ -429,6 +429,39 @@ class TestAdapterFactory:
         assert "lmstudio" in str(exc_info.value).lower()
         assert "unknown cli adapter" in str(exc_info.value).lower()
 
+    def test_create_ollama_adapter(self):
+        """Test creating OllamaAdapter via factory."""
+        from adapters.ollama import OllamaAdapter
+
+        config = HTTPAdapterConfig(
+            type="http",
+            base_url="http://localhost:11434",
+            timeout=120,
+            max_retries=3
+        )
+
+        adapter = create_adapter("ollama", config)
+        assert isinstance(adapter, OllamaAdapter)
+        assert adapter.base_url == "http://localhost:11434"
+        assert adapter.timeout == 120
+        assert adapter.max_retries == 3
+
+    def test_factory_rejects_cli_config_for_ollama(self):
+        """Test Ollama with CLI config raises error."""
+        config = CLIAdapterConfig(
+            type="cli",
+            command="ollama",
+            args=[],
+            timeout=60
+        )
+
+        with pytest.raises(ValueError) as exc_info:
+            create_adapter("ollama", config)
+
+        # Should fail because ollama is not in CLI adapters
+        assert "ollama" in str(exc_info.value).lower()
+        assert "unknown cli adapter" in str(exc_info.value).lower()
+
     def test_create_adapter_with_default_timeout(self):
         """Test factory uses timeout from config object."""
         config = CLIToolConfig(
@@ -465,19 +498,19 @@ class TestAdapterFactory:
         assert adapter.command == "claude"
         assert adapter.timeout == 60
 
-    def test_create_adapter_with_http_adapter_config_not_yet_supported(self):
-        """Test HTTP adapter raises error (no HTTP adapters registered yet)."""
+    def test_create_adapter_with_http_adapter_config_unknown_adapter(self):
+        """Test HTTP adapter raises error for unknown adapter name."""
         config = HTTPAdapterConfig(
             type="http",
-            base_url="http://localhost:11434",
+            base_url="http://localhost:9999",
             timeout=60
         )
 
-        # Should raise because no HTTP adapters are registered yet
+        # Should raise because "unknown-http-adapter" is not registered
         with pytest.raises(ValueError) as exc_info:
-            create_adapter("ollama", config)
+            create_adapter("unknown-http-adapter", config)
 
-        assert "http" in str(exc_info.value).lower()
+        assert "unknown http adapter" in str(exc_info.value).lower()
 
     def test_factory_type_checking(self):
         """Test factory validates config type matches adapter expectations."""
