@@ -20,11 +20,11 @@ SERVER_DIR = Path(__file__).parent.absolute()
 log_file = SERVER_DIR / "mcp_server.log"
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     handlers=[
         logging.FileHandler(log_file),
-        logging.StreamHandler(sys.stderr)  # Explicitly use stderr
-    ]
+        logging.StreamHandler(sys.stderr),  # Explicitly use stderr
+    ],
 )
 logger = logging.getLogger(__name__)
 
@@ -59,14 +59,28 @@ engine = DeliberationEngine(adapters=adapters, config=config)
 
 # Recommended models for each adapter (CLI tools and HTTP services)
 RECOMMENDED_MODELS = {
-    "claude": ["sonnet", "opus", "haiku", "claude-sonnet-4-5-20250929", "claude-opus-4-1-20250805"],
+    "claude": [
+        "sonnet",
+        "opus",
+        "haiku",
+        "claude-sonnet-4-5-20250929",
+        "claude-opus-4-1-20250805",
+    ],
     "codex": ["gpt-5-codex", "o3"],
     "droid": ["claude-sonnet-4-5-20250929", "gpt-5-codex", "claude-opus-4-1-20250805"],
     "gemini": ["gemini-2.5-pro", "gemini-2.0-flash"],
     "llamacpp": ["/path/to/model.gguf"],  # Model paths depend on installed .gguf files
     "ollama": ["llama2", "mistral", "codellama", "qwen"],
-    "lmstudio": ["local-model", "llama-2-7b", "mistral-7b"],  # Model names depend on what's loaded
-    "openrouter": ["anthropic/claude-3.5-sonnet", "openai/gpt-4", "meta-llama/llama-3.2-90b"],
+    "lmstudio": [
+        "local-model",
+        "llama-2-7b",
+        "mistral-7b",
+    ],  # Model names depend on what's loaded
+    "openrouter": [
+        "anthropic/claude-3.5-sonnet",
+        "openai/gpt-4",
+        "meta-llama/llama-3.2-90b",
+    ],
 }
 
 
@@ -101,7 +115,7 @@ async def list_tools() -> list[Tool]:
                     "question": {
                         "type": "string",
                         "description": "The question or proposal for the models to deliberate on",
-                        "minLength": 10
+                        "minLength": 10,
                     },
                     "participants": {
                         "type": "array",
@@ -110,45 +124,54 @@ async def list_tools() -> list[Tool]:
                             "properties": {
                                 "cli": {
                                     "type": "string",
-                                    "enum": ["claude", "codex", "droid", "gemini", "llamacpp", "ollama", "lmstudio", "openrouter"],
-                                    "description": "Adapter to use (CLI tools or HTTP services)"
+                                    "enum": [
+                                        "claude",
+                                        "codex",
+                                        "droid",
+                                        "gemini",
+                                        "llamacpp",
+                                        "ollama",
+                                        "lmstudio",
+                                        "openrouter",
+                                    ],
+                                    "description": "Adapter to use (CLI tools or HTTP services)",
                                 },
                                 "model": {
                                     "type": "string",
-                                    "description": "Model identifier (e.g., 'claude-3-5-sonnet-20241022', 'gpt-4')"
+                                    "description": "Model identifier (e.g., 'claude-3-5-sonnet-20241022', 'gpt-4')",
                                 },
                                 "stance": {
                                     "type": "string",
                                     "enum": ["neutral", "for", "against"],
                                     "default": "neutral",
-                                    "description": "Stance for this participant"
-                                }
+                                    "description": "Stance for this participant",
+                                },
                             },
-                            "required": ["cli", "model"]
+                            "required": ["cli", "model"],
                         },
                         "minItems": 2,
-                        "description": "List of AI participants (minimum 2)"
+                        "description": "List of AI participants (minimum 2)",
                     },
                     "rounds": {
                         "type": "integer",
                         "minimum": 1,
                         "maximum": 5,
                         "default": 2,
-                        "description": "Number of deliberation rounds (1-5)"
+                        "description": "Number of deliberation rounds (1-5)",
                     },
                     "mode": {
                         "type": "string",
                         "enum": ["quick", "conference"],
                         "default": "quick",
-                        "description": "quick = single round opinions, conference = multi-round deliberation"
+                        "description": "quick = single round opinions, conference = multi-round deliberation",
                     },
                     "context": {
                         "type": "string",
-                        "description": "Optional additional context (code snippets, requirements, etc.)"
-                    }
+                        "description": "Optional additional context (code snippets, requirements, etc.)",
+                    },
                 },
-                "required": ["question", "participants"]
-            }
+                "required": ["question", "participants"],
+            },
         )
     ]
 
@@ -176,7 +199,9 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
         # Validate and parse request
         logger.info("Validating request parameters...")
         request = DeliberateRequest(**arguments)
-        logger.info(f"Request validated. Starting deliberation: {request.question[:50]}...")
+        logger.info(
+            f"Request validated. Starting deliberation: {request.question[:50]}..."
+        )
 
         # Validate model choices and warn if non-recommended
         for participant in request.participants:
@@ -194,32 +219,35 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
 
         # Execute deliberation
         result = await engine.execute(request)
-        logger.info(f"Deliberation complete: {result.rounds_completed} rounds, status: {result.status}")
+        logger.info(
+            f"Deliberation complete: {result.rounds_completed} rounds, status: {result.status}"
+        )
 
         # Truncate full_debate for MCP response if needed (to avoid token limit)
-        max_rounds = getattr(config, 'mcp', {}).get('max_rounds_in_response', 3)
+        max_rounds = getattr(config, "mcp", {}).get("max_rounds_in_response", 3)
         result_dict = result.model_dump()
 
         if len(result.full_debate) > max_rounds:
             total_rounds = len(result.full_debate)
             # Convert RoundResponse objects to dicts for the truncated slice
-            result_dict['full_debate'] = [r.model_dump() if hasattr(r, 'model_dump') else r
-                                          for r in result.full_debate[-max_rounds:]]
-            result_dict['full_debate_truncated'] = True
-            result_dict['total_rounds'] = total_rounds
-            logger.info(f"Truncated full_debate from {total_rounds} to last {max_rounds} rounds for MCP response")
+            result_dict["full_debate"] = [
+                r.model_dump() if hasattr(r, "model_dump") else r
+                for r in result.full_debate[-max_rounds:]
+            ]
+            result_dict["full_debate_truncated"] = True
+            result_dict["total_rounds"] = total_rounds
+            logger.info(
+                f"Truncated full_debate from {total_rounds} to last {max_rounds} rounds for MCP response"
+            )
         else:
-            result_dict['full_debate_truncated'] = False
+            result_dict["full_debate_truncated"] = False
 
         # Serialize result
         result_json = json.dumps(result_dict, indent=2)
         logger.info(f"Result serialized, length: {len(result_json)} chars")
 
         # Return result as TextContent
-        response = [TextContent(
-            type="text",
-            text=result_json
-        )]
+        response = [TextContent(type="text", text=result_json)]
         logger.info("Response prepared successfully")
         return response
 
@@ -228,12 +256,9 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
         error_response = {
             "error": str(e),
             "error_type": type(e).__name__,
-            "status": "failed"
+            "status": "failed",
         }
-        return [TextContent(
-            type="text",
-            text=json.dumps(error_response, indent=2)
-        )]
+        return [TextContent(type="text", text=json.dumps(error_response, indent=2))]
 
 
 async def main():

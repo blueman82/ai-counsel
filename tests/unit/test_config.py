@@ -1,9 +1,7 @@
 """Unit tests for configuration loading."""
 import os
 import pytest
-import tempfile
 import yaml
-from pathlib import Path
 from pydantic import ValidationError
 from models.config import load_config
 
@@ -58,7 +56,7 @@ class TestCLIAdapterConfig:
             type="cli",
             command="claude",
             args=["--model", "{model}", "{prompt}"],
-            timeout=60
+            timeout=60,
         )
         assert config.type == "cli"
         assert config.command == "claude"
@@ -69,11 +67,7 @@ class TestCLIAdapterConfig:
         from models.config import CLIAdapterConfig
 
         with pytest.raises(ValidationError):
-            CLIAdapterConfig(
-                type="cli",
-                args=["--model", "{model}"],
-                timeout=60
-            )
+            CLIAdapterConfig(type="cli", args=["--model", "{model}"], timeout=60)
 
 
 class TestHTTPAdapterConfig:
@@ -84,9 +78,7 @@ class TestHTTPAdapterConfig:
         from models.config import HTTPAdapterConfig
 
         config = HTTPAdapterConfig(
-            type="http",
-            base_url="http://localhost:11434",
-            timeout=60
+            type="http", base_url="http://localhost:11434", timeout=60
         )
         assert config.type == "http"
         assert config.base_url == "http://localhost:11434"
@@ -101,7 +93,7 @@ class TestHTTPAdapterConfig:
             type="http",
             base_url="https://api.example.com",
             api_key="${TEST_API_KEY}",
-            timeout=60
+            timeout=60,
         )
         # After loading, ${TEST_API_KEY} should be resolved
         assert config.api_key == "sk-test-123"
@@ -112,10 +104,7 @@ class TestHTTPAdapterConfig:
         from models.config import HTTPAdapterConfig
 
         with pytest.raises(ValidationError):
-            HTTPAdapterConfig(
-                type="http",
-                timeout=60
-            )
+            HTTPAdapterConfig(type="http", timeout=60)
 
     def test_http_adapter_missing_env_var_raises_error(self):
         """Test that missing environment variable raises clear error."""
@@ -130,7 +119,7 @@ class TestHTTPAdapterConfig:
                 type="http",
                 base_url="http://test",
                 api_key="${NONEXISTENT_VAR}",
-                timeout=60
+                timeout=60,
             )
 
         assert "NONEXISTENT_VAR" in str(exc_info.value)
@@ -148,11 +137,12 @@ class TestAdapterConfig:
             "type": "cli",
             "command": "claude",
             "args": ["--model", "{model}"],
-            "timeout": 60
+            "timeout": 60,
         }
 
         # Use TypeAdapter for discriminated unions
         from models.config import AdapterConfig
+
         adapter = TypeAdapter(AdapterConfig)
         config = adapter.validate_python(data)
         assert isinstance(config, CLIAdapterConfig)
@@ -162,13 +152,10 @@ class TestAdapterConfig:
         from models.config import HTTPAdapterConfig
         from pydantic import TypeAdapter
 
-        data = {
-            "type": "http",
-            "base_url": "http://localhost:11434",
-            "timeout": 60
-        }
+        data = {"type": "http", "base_url": "http://localhost:11434", "timeout": 60}
 
         from models.config import AdapterConfig
+
         adapter = TypeAdapter(AdapterConfig)
         config = adapter.validate_python(data)
         assert isinstance(config, HTTPAdapterConfig)
@@ -178,14 +165,13 @@ class TestAdapterConfig:
         from pydantic import TypeAdapter
 
         from models.config import AdapterConfig
+
         adapter = TypeAdapter(AdapterConfig)
 
         with pytest.raises(ValidationError):
-            adapter.validate_python({
-                "type": "invalid",
-                "command": "test",
-                "timeout": 60
-            })
+            adapter.validate_python(
+                {"type": "invalid", "command": "test", "timeout": 60}
+            )
 
 
 class TestConfigLoader:
@@ -200,19 +186,19 @@ class TestConfigLoader:
                     "type": "cli",
                     "command": "claude",
                     "args": ["--model", "{model}"],
-                    "timeout": 60
+                    "timeout": 60,
                 }
             },
             "defaults": {
                 "mode": "quick",
                 "rounds": 2,
                 "max_rounds": 5,
-                "timeout_per_round": 120
+                "timeout_per_round": 120,
             },
             "storage": {
                 "transcripts_dir": "transcripts",
                 "format": "markdown",
-                "auto_export": True
+                "auto_export": True,
             },
             "deliberation": {
                 "convergence_detection": {
@@ -222,16 +208,16 @@ class TestConfigLoader:
                     "min_rounds_before_check": 1,
                     "consecutive_stable_rounds": 2,
                     "stance_stability_threshold": 0.80,
-                    "response_length_drop_threshold": 0.40
+                    "response_length_drop_threshold": 0.40,
                 },
                 "early_stopping": {
                     "enabled": True,
                     "threshold": 0.66,
-                    "respect_min_rounds": True
+                    "respect_min_rounds": True,
                 },
                 "convergence_threshold": 0.8,
-                "enable_convergence_detection": True
-            }
+                "enable_convergence_detection": True,
+            },
         }
 
         config_file = tmp_path / "config.yaml"
@@ -251,19 +237,19 @@ class TestConfigLoader:
                 "claude": {
                     "command": "claude",
                     "args": ["--model", "{model}"],
-                    "timeout": 60
+                    "timeout": 60,
                 }
             },
             "defaults": {
                 "mode": "quick",
                 "rounds": 2,
                 "max_rounds": 5,
-                "timeout_per_round": 120
+                "timeout_per_round": 120,
             },
             "storage": {
                 "transcripts_dir": "transcripts",
                 "format": "markdown",
-                "auto_export": True
+                "auto_export": True,
             },
             "deliberation": {
                 "convergence_detection": {
@@ -273,16 +259,16 @@ class TestConfigLoader:
                     "min_rounds_before_check": 1,
                     "consecutive_stable_rounds": 2,
                     "stance_stability_threshold": 0.80,
-                    "response_length_drop_threshold": 0.40
+                    "response_length_drop_threshold": 0.40,
                 },
                 "early_stopping": {
                     "enabled": True,
                     "threshold": 0.66,
-                    "respect_min_rounds": True
+                    "respect_min_rounds": True,
                 },
                 "convergence_threshold": 0.8,
-                "enable_convergence_detection": True
-            }
+                "enable_convergence_detection": True,
+            },
         }
 
         config_file = tmp_path / "config.yaml"
@@ -290,6 +276,7 @@ class TestConfigLoader:
             yaml.dump(config_data, f)
 
         import warnings
+
         with warnings.catch_warnings(record=True) as w:
             warnings.simplefilter("always")
             config = load_config(str(config_file))
@@ -309,12 +296,12 @@ class TestConfigLoader:
                 "mode": "quick",
                 "rounds": 2,
                 "max_rounds": 5,
-                "timeout_per_round": 120
+                "timeout_per_round": 120,
             },
             "storage": {
                 "transcripts_dir": "transcripts",
                 "format": "markdown",
-                "auto_export": True
+                "auto_export": True,
             },
             "deliberation": {
                 "convergence_detection": {
@@ -324,16 +311,16 @@ class TestConfigLoader:
                     "min_rounds_before_check": 1,
                     "consecutive_stable_rounds": 2,
                     "stance_stability_threshold": 0.80,
-                    "response_length_drop_threshold": 0.40
+                    "response_length_drop_threshold": 0.40,
                 },
                 "early_stopping": {
                     "enabled": True,
                     "threshold": 0.66,
-                    "respect_min_rounds": True
+                    "respect_min_rounds": True,
                 },
                 "convergence_threshold": 0.8,
-                "enable_convergence_detection": True
-            }
+                "enable_convergence_detection": True,
+            },
         }
 
         config_file = tmp_path / "config.yaml"
@@ -343,4 +330,7 @@ class TestConfigLoader:
         with pytest.raises(ValueError) as exc_info:
             load_config(str(config_file))
 
-        assert "adapters" in str(exc_info.value).lower() or "cli_tools" in str(exc_info.value).lower()
+        assert (
+            "adapters" in str(exc_info.value).lower()
+            or "cli_tools" in str(exc_info.value).lower()
+        )

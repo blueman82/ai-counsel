@@ -30,9 +30,7 @@ class DeliberationSummarizer:
         self.model = model
 
     async def generate_summary(
-        self,
-        question: str,
-        responses: List[RoundResponse]
+        self, question: str, responses: List[RoundResponse]
     ) -> Summary:
         """
         Generate summary from deliberation responses.
@@ -53,9 +51,7 @@ class DeliberationSummarizer:
         try:
             # Get AI summary
             summary_text = await self.adapter.invoke(
-                prompt=prompt,
-                model=self.model,
-                context=None
+                prompt=prompt, model=self.model, context=None
             )
 
             # Parse the summary
@@ -68,7 +64,7 @@ class DeliberationSummarizer:
                 consensus="[Summary generation failed]",
                 key_agreements=["Error occurred during summary generation"],
                 key_disagreements=[],
-                final_recommendation="Please review the full debate below."
+                final_recommendation="Please review the full debate below.",
             )
 
     def _format_debate(self, question: str, responses: List[RoundResponse]) -> str:
@@ -154,45 +150,47 @@ Please be concise and focus on the substance of the arguments, not formatting or
 
         # Split into sections
         sections: Dict[str, str | None] = {
-            'consensus': None,
-            'agreements': None,
-            'disagreements': None,
-            'recommendation': None
+            "consensus": None,
+            "agreements": None,
+            "disagreements": None,
+            "recommendation": None,
         }
 
         current_section = None
         buffer: List[str] = []
 
-        for line in summary_text.split('\n'):
+        for line in summary_text.split("\n"):
             line_upper = line.strip().upper()
 
             # Detect section headers
-            if 'CONSENSUS:' in line_upper:
+            if "CONSENSUS:" in line_upper:
                 if current_section and buffer:
-                    sections[current_section] = '\n'.join(buffer).strip()
-                current_section = 'consensus'
+                    sections[current_section] = "\n".join(buffer).strip()
+                current_section = "consensus"
                 buffer = []
                 # Include any text after the header on the same line
-                after_header = line.split(':', 1)[1].strip() if ':' in line else ''
+                after_header = line.split(":", 1)[1].strip() if ":" in line else ""
                 if after_header:
                     buffer.append(after_header)
-            elif 'KEY AGREEMENT' in line_upper:
+            elif "KEY AGREEMENT" in line_upper:
                 if current_section and buffer:
-                    sections[current_section] = '\n'.join(buffer).strip()
-                current_section = 'agreements'
+                    sections[current_section] = "\n".join(buffer).strip()
+                current_section = "agreements"
                 buffer = []
-            elif 'KEY DISAGREEMENT' in line_upper:
+            elif "KEY DISAGREEMENT" in line_upper:
                 if current_section and buffer:
-                    sections[current_section] = '\n'.join(buffer).strip()
-                current_section = 'disagreements'
+                    sections[current_section] = "\n".join(buffer).strip()
+                current_section = "disagreements"
                 buffer = []
-            elif 'FINAL RECOMMENDATION' in line_upper or 'RECOMMENDATION:' in line_upper:
+            elif (
+                "FINAL RECOMMENDATION" in line_upper or "RECOMMENDATION:" in line_upper
+            ):
                 if current_section and buffer:
-                    sections[current_section] = '\n'.join(buffer).strip()
-                current_section = 'recommendation'
+                    sections[current_section] = "\n".join(buffer).strip()
+                current_section = "recommendation"
                 buffer = []
                 # Include any text after the header on the same line
-                after_header = line.split(':', 1)[1].strip() if ':' in line else ''
+                after_header = line.split(":", 1)[1].strip() if ":" in line else ""
                 if after_header:
                     buffer.append(after_header)
             elif current_section:
@@ -200,29 +198,33 @@ Please be concise and focus on the substance of the arguments, not formatting or
 
         # Don't forget the last section
         if current_section and buffer:
-            sections[current_section] = '\n'.join(buffer).strip()
+            sections[current_section] = "\n".join(buffer).strip()
 
         # Parse consensus
-        if sections['consensus']:
-            consensus = sections['consensus']
+        if sections["consensus"]:
+            consensus = sections["consensus"]
 
         # Parse agreements (bullet points)
-        if sections['agreements']:
-            agreements = self._extract_bullet_points(sections['agreements'])
+        if sections["agreements"]:
+            agreements = self._extract_bullet_points(sections["agreements"])
 
         # Parse disagreements (bullet points)
-        if sections['disagreements']:
-            disagreements = self._extract_bullet_points(sections['disagreements'])
+        if sections["disagreements"]:
+            disagreements = self._extract_bullet_points(sections["disagreements"])
 
         # Parse recommendation
-        if sections['recommendation']:
-            recommendation = sections['recommendation']
+        if sections["recommendation"]:
+            recommendation = sections["recommendation"]
 
         return Summary(
             consensus=consensus,
-            key_agreements=agreements if agreements else ["No specific agreements identified"],
-            key_disagreements=disagreements if disagreements else ["No significant disagreements"],
-            final_recommendation=recommendation
+            key_agreements=agreements
+            if agreements
+            else ["No specific agreements identified"],
+            key_disagreements=disagreements
+            if disagreements
+            else ["No significant disagreements"],
+            final_recommendation=recommendation,
         )
 
     def _extract_bullet_points(self, text: str) -> List[str]:
@@ -236,18 +238,21 @@ Please be concise and focus on the substance of the arguments, not formatting or
             List of bullet point contents
         """
         points = []
-        for line in text.split('\n'):
+        for line in text.split("\n"):
             line = line.strip()
             # Match various bullet formats: -, *, •, 1., etc.
-            if (line and (line.startswith('-') or line.startswith('*') or
-                          line.startswith('•') or
-                          (len(line) > 2 and line[0].isdigit() and line[1] in '.)'))):
+            if line and (
+                line.startswith("-")
+                or line.startswith("*")
+                or line.startswith("•")
+                or (len(line) > 2 and line[0].isdigit() and line[1] in ".)")
+            ):
                 # Remove bullet/number prefix
-                if line.startswith(('-', '*', '•')):
+                if line.startswith(("-", "*", "•")):
                     content = line[1:].strip()
                 else:
                     # Remove number prefix (e.g., "1. " or "1) ")
-                    content = line.split(None, 1)[1] if ' ' in line else line
+                    content = line.split(None, 1)[1] if " " in line else line
 
                 if content:
                     points.append(content)

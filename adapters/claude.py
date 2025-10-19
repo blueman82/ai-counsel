@@ -5,7 +5,9 @@ from adapters.base import BaseCLIAdapter
 class ClaudeAdapter(BaseCLIAdapter):
     """Adapter for claude CLI tool."""
 
-    def __init__(self, command: str = "claude", args: list[str] | None = None, timeout: int = 60):
+    def __init__(
+        self, command: str = "claude", args: list[str] | None = None, timeout: int = 60
+    ):
         """
         Initialize Claude adapter.
 
@@ -16,11 +18,7 @@ class ClaudeAdapter(BaseCLIAdapter):
         """
         if args is None:
             raise ValueError("args must be provided from config.yaml")
-        super().__init__(
-            command=command,
-            args=args,
-            timeout=timeout
-        )
+        super().__init__(command=command, args=args, timeout=timeout)
 
     def _adjust_args_for_context(self, is_deliberation: bool) -> list[str]:
         """
@@ -72,7 +70,7 @@ class ClaudeAdapter(BaseCLIAdapter):
         Returns:
             Parsed model response
         """
-        lines = raw_output.strip().split('\n')
+        lines = raw_output.strip().split("\n")
 
         # Skip header lines (typically start with "Claude Code", "Loading", etc.)
         # Find first line that looks like model output (substantial content)
@@ -80,11 +78,11 @@ class ClaudeAdapter(BaseCLIAdapter):
         for i, line in enumerate(lines):
             if line.strip() and not any(
                 keyword in line.lower()
-                for keyword in ['claude code', 'loading', 'version', 'initializing']
+                for keyword in ["claude code", "loading", "version", "initializing"]
             ):
                 start_idx = i
                 break
 
         # Join remaining lines
-        response = '\n'.join(lines[start_idx:]).strip()
+        response = "\n".join(lines[start_idx:]).strip()
         return response

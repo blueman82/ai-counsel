@@ -48,7 +48,7 @@ def migrate_config_dict(config: Dict[str, Any]) -> Dict[str, Any]:
             "type": "cli",  # Add explicit type
             "command": cli_config["command"],
             "args": cli_config["args"],
-            "timeout": cli_config["timeout"]
+            "timeout": cli_config["timeout"],
         }
 
     migrated["adapters"] = adapters
@@ -111,7 +111,9 @@ def main():
         print("\nMigration complete!")
         print("\nNext steps:")
         print("1. Review the migrated config.yaml")
-        print("2. Test loading: python -c 'from models.config import load_config; load_config()'")
+        print(
+            "2. Test loading: python -c 'from models.config import load_config; load_config()'"
+        )
         print("3. Delete backup if satisfied: rm config.yaml.bak")
 
     except Exception as e:

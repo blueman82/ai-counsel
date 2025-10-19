@@ -3,12 +3,7 @@ import asyncio
 import httpx
 from abc import ABC, abstractmethod
 from typing import Optional, Tuple
-from tenacity import (
-    retry,
-    stop_after_attempt,
-    wait_exponential,
-    retry_if_exception
-)
+from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception
 
 
 def is_retryable_http_error(exception):
@@ -31,10 +26,15 @@ def is_retryable_http_error(exception):
     """
     if isinstance(exception, httpx.HTTPStatusError):
         # Retry on 5xx server errors and 429 rate limit
-        return exception.response.status_code >= 500 or exception.response.status_code == 429
+        return (
+            exception.response.status_code >= 500
+            or exception.response.status_code == 429
+        )
 
     # Retry on network errors
-    return isinstance(exception, (httpx.ConnectError, httpx.TimeoutException, httpx.NetworkError))
+    return isinstance(
+        exception, (httpx.ConnectError, httpx.TimeoutException, httpx.NetworkError)
+    )
 
 
 class BaseHTTPAdapter(ABC):
@@ -63,7 +63,7 @@ class BaseHTTPAdapter(ABC):
         timeout: int = 60,
         max_retries: int = 3,
         api_key: Optional[str] = None,
-        headers: Optional[dict[str, str]] = None
+        headers: Optional[dict[str, str]] = None,
     ):
         """
         Initialize HTTP adapter.
@@ -75,7 +75,7 @@ class BaseHTTPAdapter(ABC):
             api_key: Optional API key for authentication
             headers: Optional default headers to include in all requests
         """
-        self.base_url = base_url.rstrip('/')  # Remove trailing slash
+        self.base_url = base_url.rstrip("/")  # Remove trailing slash
         self.timeout = timeout
         self.max_retries = max_retries
         self.api_key = api_key
@@ -83,9 +83,7 @@ class BaseHTTPAdapter(ABC):
 
     @abstractmethod
     def build_request(
-        self,
-        model: str,
-        prompt: str
+        self, model: str, prompt: str
     ) -> Tuple[str, dict[str, str], dict]:
         """
         Build API-specific request components.
@@ -120,7 +118,7 @@ class BaseHTTPAdapter(ABC):
         prompt: str,
         model: str,
         context: Optional[str] = None,
-        is_deliberation: bool = True
+        is_deliberation: bool = True,
     ) -> str:
         """
         Invoke the HTTP API with the given prompt and model.
@@ -154,9 +152,7 @@ class BaseHTTPAdapter(ABC):
         # Execute request with retry logic
         try:
             response_json = await self._execute_request_with_retry(
-                url=full_url,
-                headers=headers,
-                body=body
+                url=full_url, headers=headers, body=body
             )
             return self.parse_response(response_json)
 
@@ -164,10 +160,7 @@ class BaseHTTPAdapter(ABC):
             raise TimeoutError(f"HTTP request timed out after {self.timeout}s")
 
     async def _execute_request_with_retry(
-        self,
-        url: str,
-        headers: dict[str, str],
-        body: dict
+        self, url: str, headers: dict[str, str], body: dict
     ) -> dict:
         """
         Execute HTTP POST request with retry logic.
@@ -192,19 +185,16 @@ class BaseHTTPAdapter(ABC):
             httpx.HTTPStatusError: On HTTP error (after retries exhausted for 5xx)
             httpx.NetworkError: On network error (after retries exhausted)
         """
+
         @retry(
             stop=stop_after_attempt(self.max_retries),
             wait=wait_exponential(multiplier=1, min=1, max=10),
             retry=retry_if_exception(is_retryable_http_error),
-            reraise=True
+            reraise=True,
         )
         async def _make_request():
             async with httpx.AsyncClient(timeout=self.timeout) as client:
-                response = await client.post(
-                    url,
-                    headers=headers,
-                    json=body
-                )
+                response = await client.post(url, headers=headers, json=body)
                 response.raise_for_status()  # Raise for 4xx/5xx
                 return response.json()
 

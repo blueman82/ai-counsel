@@ -5,11 +5,12 @@ import re
 import warnings
 import yaml
 from typing import Literal, Union, Optional, Annotated
-from pydantic import BaseModel, Field, field_validator, Discriminator
+from pydantic import BaseModel, Field, field_validator
 
 
 class CLIAdapterConfig(BaseModel):
     """Configuration for CLI-based adapter."""
+
     type: Literal["cli"] = "cli"
     command: str
     args: list[str]
@@ -18,6 +19,7 @@ class CLIAdapterConfig(BaseModel):
 
 class HTTPAdapterConfig(BaseModel):
     """Configuration for HTTP-based adapter."""
+
     type: Literal["http"] = "http"
     base_url: str
     api_key: Optional[str] = None
@@ -25,7 +27,7 @@ class HTTPAdapterConfig(BaseModel):
     timeout: int = 60
     max_retries: int = 3
 
-    @field_validator('api_key', 'base_url')
+    @field_validator("api_key", "base_url")
     @classmethod
     def resolve_env_vars(cls, v: Optional[str]) -> Optional[str]:
         """Resolve ${ENV_VAR} references in string fields."""
@@ -33,7 +35,7 @@ class HTTPAdapterConfig(BaseModel):
             return v
 
         # Pattern: ${VAR_NAME}
-        pattern = r'\$\{([^}]+)\}'
+        pattern = r"\$\{([^}]+)\}"
 
         def replacer(match):
             env_var = match.group(1)
@@ -49,11 +51,14 @@ class HTTPAdapterConfig(BaseModel):
 
 
 # Discriminated union - Pydantic uses 'type' field to determine which model to use
-AdapterConfig = Annotated[Union[CLIAdapterConfig, HTTPAdapterConfig], Field(discriminator='type')]
+AdapterConfig = Annotated[
+    Union[CLIAdapterConfig, HTTPAdapterConfig], Field(discriminator="type")
+]
 
 
 class CLIToolConfig(BaseModel):
     """Configuration for a single CLI tool (legacy, deprecated)."""
+
     command: str
     args: list[str]
     timeout: int
@@ -61,6 +66,7 @@ class CLIToolConfig(BaseModel):
 
 class DefaultsConfig(BaseModel):
     """Default settings."""
+
     mode: str
     rounds: int
     max_rounds: int
@@ -69,6 +75,7 @@ class DefaultsConfig(BaseModel):
 
 class StorageConfig(BaseModel):
     """Storage configuration."""
+
     transcripts_dir: str
     format: str
     auto_export: bool
@@ -76,6 +83,7 @@ class StorageConfig(BaseModel):
 
 class ConvergenceDetectionConfig(BaseModel):
     """Convergence detection configuration."""
+
     enabled: bool
     semantic_similarity_threshold: float
     divergence_threshold: float
@@ -87,6 +95,7 @@ class ConvergenceDetectionConfig(BaseModel):
 
 class EarlyStoppingConfig(BaseModel):
     """Model-controlled early stopping configuration."""
+
     enabled: bool
     threshold: float  # Fraction of models that must want to stop (e.g., 0.66 = 2/3)
     respect_min_rounds: bool  # Whether to respect defaults.rounds before stopping
@@ -94,6 +103,7 @@ class EarlyStoppingConfig(BaseModel):
 
 class DeliberationConfig(BaseModel):
     """Deliberation engine configuration."""
+
     convergence_detection: ConvergenceDetectionConfig
     early_stopping: EarlyStoppingConfig
     convergence_threshold: float
@@ -102,6 +112,7 @@ class DeliberationConfig(BaseModel):
 
 class Config(BaseModel):
     """Root configuration model."""
+
     version: str
 
     # New adapters section (preferred)
@@ -117,7 +128,9 @@ class Config(BaseModel):
     def model_post_init(self, __context):
         """Post-initialization validation."""
         if self.adapters is None and self.cli_tools is None:
-            raise ValueError("Configuration must include either 'adapters' or 'cli_tools' section")
+            raise ValueError(
+                "Configuration must include either 'adapters' or 'cli_tools' section"
+            )
 
         # If cli_tools is used, emit deprecation warning
         if self.cli_tools is not None and self.adapters is None:
@@ -126,7 +139,7 @@ class Config(BaseModel):
                 "Please migrate to 'adapters' section with explicit 'type' field. "
                 "See migration guide: docs/migration/cli_tools_to_adapters.md",
                 DeprecationWarning,
-                stacklevel=2
+                stacklevel=2,
             )
 
 

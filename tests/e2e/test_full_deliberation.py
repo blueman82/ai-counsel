@@ -46,8 +46,7 @@ async def test_full_deliberation_workflow(tmp_path):
 
     # Create engine
     engine = DeliberationEngine(
-        adapters=adapters,
-        transcript_manager=transcript_manager
+        adapters=adapters, transcript_manager=transcript_manager
     )
 
     # Create request
@@ -58,7 +57,7 @@ async def test_full_deliberation_workflow(tmp_path):
             Participant(cli="codex", model="gpt-5-codex"),
         ],
         rounds=2,
-        mode="conference"
+        mode="conference",
     )
 
     # ACT: Execute deliberation
@@ -80,8 +79,9 @@ async def test_full_deliberation_workflow(tmp_path):
         assert response.response, "Response should not be empty"
         # Basic sanity check - responses should mention "4" or "four"
         response_lower = response.response.lower()
-        assert "4" in response_lower or "four" in response_lower, \
-            f"Response should contain the answer: {response.response[:100]}"
+        assert (
+            "4" in response_lower or "four" in response_lower
+        ), f"Response should contain the answer: {response.response[:100]}"
 
     # Verify rounds are properly numbered
     round_1_responses = [r for r in result.full_debate if r.round == 1]
@@ -92,7 +92,9 @@ async def test_full_deliberation_workflow(tmp_path):
     # Verify transcript was created
     assert result.transcript_path, "Transcript path should be set"
     transcript_file = Path(result.transcript_path)
-    assert transcript_file.exists(), f"Transcript file should exist: {result.transcript_path}"
+    assert (
+        transcript_file.exists()
+    ), f"Transcript file should exist: {result.transcript_path}"
 
     # Verify transcript content
     content = transcript_file.read_text()
@@ -134,7 +136,7 @@ async def test_quick_mode_single_round(tmp_path):
 
     engine = DeliberationEngine(
         adapters=adapters,
-        transcript_manager=TranscriptManager(output_dir=str(tmp_path))
+        transcript_manager=TranscriptManager(output_dir=str(tmp_path)),
     )
 
     request = DeliberateRequest(
@@ -144,7 +146,7 @@ async def test_quick_mode_single_round(tmp_path):
             Participant(cli="codex", model="gpt-5-codex"),
         ],
         rounds=3,  # Should be overridden by quick mode
-        mode="quick"
+        mode="quick",
     )
 
     # ACT
@@ -158,8 +160,9 @@ async def test_quick_mode_single_round(tmp_path):
 
     # Verify responses contain "Paris"
     for response in result.full_debate:
-        assert "paris" in response.response.lower(), \
-            f"Response should contain 'Paris': {response.response}"
+        assert (
+            "paris" in response.response.lower()
+        ), f"Response should contain 'Paris': {response.response}"
 
     # Verify transcript
     assert Path(result.transcript_path).exists()
@@ -187,7 +190,7 @@ async def test_deliberation_with_context(tmp_path):
 
     engine = DeliberationEngine(
         adapters=adapters,
-        transcript_manager=TranscriptManager(output_dir=str(tmp_path))
+        transcript_manager=TranscriptManager(output_dir=str(tmp_path)),
     )
 
     request = DeliberateRequest(
@@ -198,7 +201,7 @@ async def test_deliberation_with_context(tmp_path):
         ],
         rounds=1,
         mode="quick",
-        context="Framework: FastAPI. Project: REST API with 100K requests/day. Team: 5 Python developers."
+        context="Framework: FastAPI. Project: REST API with 100K requests/day. Team: 5 Python developers.",
     )
 
     # ACT
@@ -214,7 +217,13 @@ async def test_deliberation_with_context(tmp_path):
         response_lower = response.response.lower()
         # Check that response actually addresses the question about framework usage
         # Either by mentioning context terms OR by providing a substantive framework analysis
-        context_mentioned = any(term in response_lower for term in ["fastapi", "rest", "api", "python"])
-        framework_analysis = any(term in response_lower for term in ["framework", "should", "use", "recommend"])
-        assert context_mentioned or framework_analysis, \
-            f"Response should address framework question: {response.response[:200]}"
+        context_mentioned = any(
+            term in response_lower for term in ["fastapi", "rest", "api", "python"]
+        )
+        framework_analysis = any(
+            term in response_lower
+            for term in ["framework", "should", "use", "recommend"]
+        )
+        assert (
+            context_mentioned or framework_analysis
+        ), f"Response should address framework question: {response.response[:200]}"

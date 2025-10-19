@@ -27,7 +27,7 @@ class DeliberationEngine:
         self,
         adapters: Dict[str, BaseCLIAdapter],
         transcript_manager: Optional["TranscriptManager"] = None,
-        config=None
+        config=None,
     ):
         """
         Initialize deliberation engine.
@@ -44,13 +44,17 @@ class DeliberationEngine:
         # Import here to avoid circular dependency
         if transcript_manager is None:
             from deliberation.transcript import TranscriptManager
+
             self.transcript_manager = TranscriptManager()
 
         # Initialize convergence detector if enabled
         self.convergence_detector = None
-        if config and hasattr(config, 'deliberation'):
+        if config and hasattr(config, "deliberation"):
             convergence_cfg = config.deliberation.convergence_detection
-            if hasattr(config.deliberation, 'convergence_detection') and convergence_cfg.enabled:
+            if (
+                hasattr(config.deliberation, "convergence_detection")
+                and convergence_cfg.enabled
+            ):
                 self.convergence_detector = ConvergenceDetector(config)
                 logger.info("Convergence detection enabled")
             else:
@@ -64,18 +68,25 @@ class DeliberationEngine:
         self.summarizer_info = None
 
         summarizer_preferences = [
-            ('claude', 'sonnet', 'Claude Sonnet'),
-            ('codex', 'gpt-5-codex', 'GPT-5 Codex'),
-            ('droid', 'claude-sonnet-4-5-20250929', 'Droid with Claude Sonnet'),
-            ('gemini', 'gemini-2.5-pro', 'Gemini 2.5 Pro')
+            ("claude", "sonnet", "Claude Sonnet"),
+            ("codex", "gpt-5-codex", "GPT-5 Codex"),
+            ("droid", "claude-sonnet-4-5-20250929", "Droid with Claude Sonnet"),
+            ("gemini", "gemini-2.5-pro", "Gemini 2.5 Pro"),
         ]
 
         for cli_name, model_name, display_name in summarizer_preferences:
             if cli_name in adapters:
                 from deliberation.summarizer import DeliberationSummarizer
+
                 self.summarizer = DeliberationSummarizer(adapters[cli_name], model_name)
-                self.summarizer_info = {'cli': cli_name, 'model': model_name, 'name': display_name}
-                logger.info(f"AI-powered summary generation enabled (using {display_name})")
+                self.summarizer_info = {
+                    "cli": cli_name,
+                    "model": model_name,
+                    "name": display_name,
+                }
+                logger.info(
+                    f"AI-powered summary generation enabled (using {display_name})"
+                )
                 break
 
         if not self.summarizer:
@@ -89,7 +100,7 @@ class DeliberationEngine:
         round_num: int,
         prompt: str,
         participants: List[Participant],
-        previous_responses: List[RoundResponse]
+        previous_responses: List[RoundResponse],
     ) -> List[RoundResponse]:
         """
         Execute a single deliberation round.
@@ -113,7 +124,9 @@ class DeliberationEngine:
         enhanced_prompt = self._enhance_prompt_with_voting(prompt)
 
         # Build context from previous responses
-        context = self._build_context(previous_responses) if previous_responses else None
+        context = (
+            self._build_context(previous_responses) if previous_responses else None
+        )
 
         for participant in participants:
             # Get the appropriate adapter
@@ -125,13 +138,13 @@ class DeliberationEngine:
                     prompt=enhanced_prompt,
                     model=participant.model,
                     context=context,
-                    is_deliberation=True  # Always True during deliberations
+                    is_deliberation=True,  # Always True during deliberations
                 )
             except Exception as e:
                 # Log error but continue with other participants
                 logger.error(
                     f"Adapter {participant.cli} failed for model {participant.model}: {e}",
-                    exc_info=True
+                    exc_info=True,
                 )
                 response_text = f"[ERROR: {type(e).__name__}: {str(e)}]"
 
@@ -141,7 +154,7 @@ class DeliberationEngine:
                 participant=f"{participant.model}@{participant.cli}",
                 stance=participant.stance,
                 response=response_text,
-                timestamp=datetime.now().isoformat()
+                timestamp=datetime.now().isoformat(),
             )
 
             responses.append(response)
@@ -181,7 +194,7 @@ class DeliberationEngine:
             Vote object if valid vote found, None otherwise
         """
         # Look for VOTE: marker followed by JSON
-        vote_pattern = r'VOTE:\s*(\{[^}]+\})'
+        vote_pattern = r"VOTE:\s*(\{[^}]+\})"
         match = re.search(vote_pattern, response_text)
 
         if not match:
@@ -198,7 +211,9 @@ class DeliberationEngine:
             logger.debug(f"Failed to parse vote from response: {e}")
             return None
 
-    def _aggregate_votes(self, responses: List[RoundResponse]) -> Optional["VotingResult"]:
+    def _aggregate_votes(
+        self, responses: List[RoundResponse]
+    ) -> Optional["VotingResult"]:
         """
         Aggregate votes from all responses into a VotingResult.
 
@@ -226,7 +241,7 @@ class DeliberationEngine:
                     round=response.round,
                     participant=response.participant,
                     vote=vote,
-                    timestamp=response.timestamp
+                    timestamp=response.timestamp,
                 )
                 votes_by_round.append(round_vote)
 
@@ -268,10 +283,12 @@ class DeliberationEngine:
             final_tally=tally,
             votes_by_round=votes_by_round,
             consensus_reached=consensus_reached,
-            winning_option=winning_option
+            winning_option=winning_option,
         )
 
-    def _group_similar_vote_options(self, all_options: List[str], raw_tally: Dict[str, int]) -> Dict[str, int]:
+    def _group_similar_vote_options(
+        self, all_options: List[str], raw_tally: Dict[str, int]
+    ) -> Dict[str, int]:
         """
         Group semantically similar vote options together.
 
@@ -317,7 +334,9 @@ class DeliberationEngine:
                 for option_b in all_options:
                     if option_b not in used_options:
                         similarity = backend.compute_similarity(option_a, option_b)
-                        logger.info(f"Vote similarity: '{option_a}' vs '{option_b}': {similarity:.3f} (threshold: {similarity_threshold})")
+                        logger.info(
+                            f"Vote similarity: '{option_a}' vs '{option_b}': {similarity:.3f} (threshold: {similarity_threshold})"
+                        )
                         if similarity >= similarity_threshold:
                             logger.info(f"  ✓ Grouping '{option_b}' with '{option_a}'")
                             group.append(option_b)
@@ -344,7 +363,7 @@ class DeliberationEngine:
             logger.warning(
                 f"Vote option grouping failed: {type(e).__name__}: {e}. "
                 f"Falling back to exact matching.",
-                exc_info=True
+                exc_info=True,
             )
             return raw_tally
 
@@ -391,7 +410,9 @@ Provide substantive analysis from your perspective."""
         voting_instructions = self._build_voting_instructions()
         return f"{deliberation_instructions}\n\n## Question\n{prompt}\n\n{voting_instructions}"
 
-    def _check_early_stopping(self, round_responses: List[RoundResponse], round_num: int, min_rounds: int) -> bool:
+    def _check_early_stopping(
+        self, round_responses: List[RoundResponse], round_num: int, min_rounds: int
+    ) -> bool:
         """
         Check if models want to stop deliberating based on continue_debate votes.
 
@@ -404,7 +425,7 @@ Provide substantive analysis from your perspective."""
             True if deliberation should stop, False otherwise
         """
         # Check if early stopping is enabled
-        if not self.config or not hasattr(self.config.deliberation, 'early_stopping'):
+        if not self.config or not hasattr(self.config.deliberation, "early_stopping"):
             return False
 
         early_stop_cfg = self.config.deliberation.early_stopping
@@ -485,14 +506,20 @@ Provide substantive analysis from your perspective."""
                 round_num=round_num,
                 prompt=request.question,
                 participants=request.participants,
-                previous_responses=all_responses
+                previous_responses=all_responses,
             )
             all_responses.extend(round_responses)
 
             # Check for model-controlled early stopping
             # Use config minimum rounds, not request rounds, for respect_min_rounds
-            config_min_rounds = getattr(self.config.defaults, 'rounds', 2) if self.config and hasattr(self.config, 'defaults') else 2
-            if self._check_early_stopping(round_responses, round_num, config_min_rounds):
+            config_min_rounds = (
+                getattr(self.config.defaults, "rounds", 2)
+                if self.config and hasattr(self.config, "defaults")
+                else 2
+            )
+            if self._check_early_stopping(
+                round_responses, round_num, config_min_rounds
+            ):
                 logger.info(f"Models want to stop deliberating at round {round_num}")
                 model_controlled_stop = True
                 break
@@ -505,7 +532,7 @@ Provide substantive analysis from your perspective."""
                 convergence_result = self.convergence_detector.check_convergence(
                     current_round=curr_round,
                     previous_round=prev_round,
-                    round_number=round_num
+                    round_number=round_num,
                 )
 
                 if convergence_result:
@@ -520,17 +547,23 @@ Provide substantive analysis from your perspective."""
 
                     # Stop if converged or impasse
                     if convergence_result.converged:
-                        logger.info(f"✓ Convergence detected at round {round_num}, stopping early")
+                        logger.info(
+                            f"✓ Convergence detected at round {round_num}, stopping early"
+                        )
                         converged = True
                         break
                     elif convergence_result.status == "impasse":
-                        logger.info(f"✗ Impasse detected at round {round_num}, stopping")
+                        logger.info(
+                            f"✗ Impasse detected at round {round_num}, stopping"
+                        )
                         break
 
         # Determine actual rounds completed
-        is_early_stop = (converged or
-                         model_controlled_stop or
-                         (final_convergence_info and final_convergence_info.status == "impasse"))
+        is_early_stop = (
+            converged
+            or model_controlled_stop
+            or (final_convergence_info and final_convergence_info.status == "impasse")
+        )
         actual_rounds_completed = round_num if is_early_stop else rounds_to_execute
 
         # Generate AI-powered summary
@@ -538,8 +571,7 @@ Provide substantive analysis from your perspective."""
             try:
                 logger.info("Generating AI-powered summary of deliberation...")
                 summary = await self.summarizer.generate_summary(
-                    question=request.question,
-                    responses=all_responses
+                    question=request.question, responses=all_responses
                 )
                 logger.info("Summary generation completed successfully")
             except Exception as e:
@@ -549,7 +581,7 @@ Provide substantive analysis from your perspective."""
                     consensus="[Summary generation failed]",
                     key_agreements=["Error occurred during summary generation"],
                     key_disagreements=[],
-                    final_recommendation="Please review the full debate below."
+                    final_recommendation="Please review the full debate below.",
                 )
         else:
             # No summarizer available, use placeholder
@@ -557,7 +589,7 @@ Provide substantive analysis from your perspective."""
                 consensus="[Summary generation not available - Claude adapter required]",
                 key_agreements=["No summary available"],
                 key_disagreements=[],
-                final_recommendation="Please review the full debate below."
+                final_recommendation="Please review the full debate below.",
             )
 
         # Aggregate voting results if any votes were cast
@@ -570,10 +602,7 @@ Provide substantive analysis from your perspective."""
             )
 
         # Build participant list
-        participant_ids = [
-            f"{p.model}@{p.cli}"
-            for p in request.participants
-        ]
+        participant_ids = [f"{p.model}@{p.cli}" for p in request.participants]
 
         # Create result
         result = DeliberationResult(
@@ -585,7 +614,7 @@ Provide substantive analysis from your perspective."""
             transcript_path="",  # Will be set below
             full_debate=all_responses,
             convergence_info=None,  # Will populate below if available
-            voting_result=voting_result  # Add voting results
+            voting_result=voting_result,  # Add voting results
         )
 
         # Add convergence info if available
@@ -594,7 +623,10 @@ Provide substantive analysis from your perspective."""
 
             # Override convergence status based on voting outcome if available
             if voting_result:
-                if voting_result.consensus_reached and len(voting_result.final_tally) == 1:
+                if (
+                    voting_result.consensus_reached
+                    and len(voting_result.final_tally) == 1
+                ):
                     # Unanimous vote
                     convergence_status = "unanimous_consensus"
                     convergence_detected = True
@@ -608,8 +640,16 @@ Provide substantive analysis from your perspective."""
                     convergence_detected = False
                 else:
                     # Fallback to semantic similarity status
-                    convergence_status = final_convergence_info.status if final_convergence_info else "unknown"
-                    convergence_detected = final_convergence_info.converged if final_convergence_info else False
+                    convergence_status = (
+                        final_convergence_info.status
+                        if final_convergence_info
+                        else "unknown"
+                    )
+                    convergence_detected = (
+                        final_convergence_info.converged
+                        if final_convergence_info
+                        else False
+                    )
             elif final_convergence_info:
                 # No voting, use semantic similarity status
                 convergence_status = final_convergence_info.status
@@ -620,11 +660,17 @@ Provide substantive analysis from your perspective."""
 
             result.convergence_info = ConvergenceInfo(
                 detected=convergence_detected,
-                detection_round=actual_rounds_completed if convergence_detected else None,
-                final_similarity=final_convergence_info.min_similarity if final_convergence_info else 0.0,
+                detection_round=actual_rounds_completed
+                if convergence_detected
+                else None,
+                final_similarity=final_convergence_info.min_similarity
+                if final_convergence_info
+                else 0.0,
                 status=convergence_status,
                 scores_by_round=[],  # Could track all rounds if needed
-                per_participant_similarity=final_convergence_info.per_participant_similarity if final_convergence_info else {}
+                per_participant_similarity=final_convergence_info.per_participant_similarity
+                if final_convergence_info
+                else {},
             )
 
         # Save transcript

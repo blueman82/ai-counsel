@@ -21,6 +21,7 @@ class TestBaseCLIAdapter:
 
     def test_subclass_must_implement_parse_output(self):
         """Test that subclasses must implement parse_output."""
+
         class IncompleteAdapter(BaseCLIAdapter):
             pass
 
@@ -34,43 +35,67 @@ class TestClaudeAdapter:
     def test_adapter_initialization(self):
         """Test adapter initializes with correct values."""
         adapter = ClaudeAdapter(
-            args=["-p", "--model", "{model}", "--settings", '{{"disableAllHooks": true}}', "{prompt}"],
-            timeout=90
+            args=[
+                "-p",
+                "--model",
+                "{model}",
+                "--settings",
+                '{{"disableAllHooks": true}}',
+                "{prompt}",
+            ],
+            timeout=90,
         )
         assert adapter.command == "claude"
         assert adapter.timeout == 90
 
     @pytest.mark.asyncio
-    @patch('adapters.base.asyncio.create_subprocess_exec')
+    @patch("adapters.base.asyncio.create_subprocess_exec")
     async def test_invoke_success(self, mock_subprocess):
         """Test successful CLI invocation."""
         # Mock subprocess
         mock_process = Mock()
-        mock_process.communicate = AsyncMock(return_value=(
-            b"Claude Code output\n\nActual model response here",
-            b""
-        ))
+        mock_process.communicate = AsyncMock(
+            return_value=(b"Claude Code output\n\nActual model response here", b"")
+        )
         mock_process.returncode = 0
         mock_subprocess.return_value = mock_process
 
-        adapter = ClaudeAdapter(args=["-p", "--model", "{model}", "--settings", '{{"disableAllHooks": true}}', "{prompt}"])
+        adapter = ClaudeAdapter(
+            args=[
+                "-p",
+                "--model",
+                "{model}",
+                "--settings",
+                '{{"disableAllHooks": true}}',
+                "{prompt}",
+            ]
+        )
         result = await adapter.invoke(
-            prompt="What is 2+2?",
-            model="claude-3-5-sonnet-20241022"
+            prompt="What is 2+2?", model="claude-3-5-sonnet-20241022"
         )
 
         assert result == "Actual model response here"
         mock_subprocess.assert_called_once()
 
     @pytest.mark.asyncio
-    @patch('adapters.base.asyncio.create_subprocess_exec')
+    @patch("adapters.base.asyncio.create_subprocess_exec")
     async def test_invoke_timeout(self, mock_subprocess):
         """Test timeout handling."""
         mock_process = Mock()
         mock_process.communicate = AsyncMock(side_effect=asyncio.TimeoutError())
         mock_subprocess.return_value = mock_process
 
-        adapter = ClaudeAdapter(args=["-p", "--model", "{model}", "--settings", '{{"disableAllHooks": true}}', "{prompt}"], timeout=1)
+        adapter = ClaudeAdapter(
+            args=[
+                "-p",
+                "--model",
+                "{model}",
+                "--settings",
+                '{{"disableAllHooks": true}}',
+                "{prompt}",
+            ],
+            timeout=1,
+        )
 
         with pytest.raises(TimeoutError) as exc_info:
             await adapter.invoke("test", "model")
@@ -78,18 +103,26 @@ class TestClaudeAdapter:
         assert "timed out" in str(exc_info.value).lower()
 
     @pytest.mark.asyncio
-    @patch('adapters.base.asyncio.create_subprocess_exec')
+    @patch("adapters.base.asyncio.create_subprocess_exec")
     async def test_invoke_process_error(self, mock_subprocess):
         """Test process error handling."""
         mock_process = Mock()
-        mock_process.communicate = AsyncMock(return_value=(
-            b"",
-            b"Error: Model not found"
-        ))
+        mock_process.communicate = AsyncMock(
+            return_value=(b"", b"Error: Model not found")
+        )
         mock_process.returncode = 1
         mock_subprocess.return_value = mock_process
 
-        adapter = ClaudeAdapter(args=["-p", "--model", "{model}", "--settings", '{{"disableAllHooks": true}}', "{prompt}"])
+        adapter = ClaudeAdapter(
+            args=[
+                "-p",
+                "--model",
+                "{model}",
+                "--settings",
+                '{{"disableAllHooks": true}}',
+                "{prompt}",
+            ]
+        )
 
         with pytest.raises(RuntimeError) as exc_info:
             await adapter.invoke("test", "model")
@@ -98,7 +131,16 @@ class TestClaudeAdapter:
 
     def test_parse_output_extracts_response(self):
         """Test output parsing extracts model response."""
-        adapter = ClaudeAdapter(args=["-p", "--model", "{model}", "--settings", '{{"disableAllHooks": true}}', "{prompt}"])
+        adapter = ClaudeAdapter(
+            args=[
+                "-p",
+                "--model",
+                "{model}",
+                "--settings",
+                '{{"disableAllHooks": true}}',
+                "{prompt}",
+            ]
+        )
 
         raw_output = """
         Claude Code v1.0
@@ -119,41 +161,41 @@ class TestCodexAdapter:
 
     def test_adapter_initialization(self):
         """Test adapter initializes with correct values."""
-        adapter = CodexAdapter(args=["exec", "--model", "{model}", "{prompt}"], timeout=90)
+        adapter = CodexAdapter(
+            args=["exec", "--model", "{model}", "{prompt}"], timeout=90
+        )
         assert adapter.command == "codex"
         assert adapter.timeout == 90
 
     @pytest.mark.asyncio
-    @patch('adapters.base.asyncio.create_subprocess_exec')
+    @patch("adapters.base.asyncio.create_subprocess_exec")
     async def test_invoke_success(self, mock_subprocess):
         """Test successful CLI invocation."""
         # Mock subprocess
         mock_process = Mock()
-        mock_process.communicate = AsyncMock(return_value=(
-            b"This is the codex model response.",
-            b""
-        ))
+        mock_process.communicate = AsyncMock(
+            return_value=(b"This is the codex model response.", b"")
+        )
         mock_process.returncode = 0
         mock_subprocess.return_value = mock_process
 
         adapter = CodexAdapter(args=["exec", "--model", "{model}", "{prompt}"])
-        result = await adapter.invoke(
-            prompt="What is 2+2?",
-            model="gpt-4"
-        )
+        result = await adapter.invoke(prompt="What is 2+2?", model="gpt-4")
 
         assert result == "This is the codex model response."
         mock_subprocess.assert_called_once()
 
     @pytest.mark.asyncio
-    @patch('adapters.base.asyncio.create_subprocess_exec')
+    @patch("adapters.base.asyncio.create_subprocess_exec")
     async def test_invoke_timeout(self, mock_subprocess):
         """Test timeout handling."""
         mock_process = Mock()
         mock_process.communicate = AsyncMock(side_effect=asyncio.TimeoutError())
         mock_subprocess.return_value = mock_process
 
-        adapter = CodexAdapter(args=["exec", "--model", "{model}", "{prompt}"], timeout=1)
+        adapter = CodexAdapter(
+            args=["exec", "--model", "{model}", "{prompt}"], timeout=1
+        )
 
         with pytest.raises(TimeoutError) as exc_info:
             await adapter.invoke("test", "model")
@@ -161,14 +203,13 @@ class TestCodexAdapter:
         assert "timed out" in str(exc_info.value).lower()
 
     @pytest.mark.asyncio
-    @patch('adapters.base.asyncio.create_subprocess_exec')
+    @patch("adapters.base.asyncio.create_subprocess_exec")
     async def test_invoke_process_error(self, mock_subprocess):
         """Test process error handling."""
         mock_process = Mock()
-        mock_process.communicate = AsyncMock(return_value=(
-            b"",
-            b"Error: Model not available"
-        ))
+        mock_process.communicate = AsyncMock(
+            return_value=(b"", b"Error: Model not available")
+        )
         mock_process.returncode = 1
         mock_subprocess.return_value = mock_process
 
@@ -201,29 +242,25 @@ class TestGeminiAdapter:
         assert adapter.timeout == 90
 
     @pytest.mark.asyncio
-    @patch('adapters.base.asyncio.create_subprocess_exec')
+    @patch("adapters.base.asyncio.create_subprocess_exec")
     async def test_invoke_success(self, mock_subprocess):
         """Test successful CLI invocation."""
         # Mock subprocess
         mock_process = Mock()
-        mock_process.communicate = AsyncMock(return_value=(
-            b"This is the gemini model response.",
-            b""
-        ))
+        mock_process.communicate = AsyncMock(
+            return_value=(b"This is the gemini model response.", b"")
+        )
         mock_process.returncode = 0
         mock_subprocess.return_value = mock_process
 
         adapter = GeminiAdapter(args=["-m", "{model}", "-p", "{prompt}"])
-        result = await adapter.invoke(
-            prompt="What is 2+2?",
-            model="gemini-pro"
-        )
+        result = await adapter.invoke(prompt="What is 2+2?", model="gemini-pro")
 
         assert result == "This is the gemini model response."
         mock_subprocess.assert_called_once()
 
     @pytest.mark.asyncio
-    @patch('adapters.base.asyncio.create_subprocess_exec')
+    @patch("adapters.base.asyncio.create_subprocess_exec")
     async def test_invoke_timeout(self, mock_subprocess):
         """Test timeout handling."""
         mock_process = Mock()
@@ -238,14 +275,13 @@ class TestGeminiAdapter:
         assert "timed out" in str(exc_info.value).lower()
 
     @pytest.mark.asyncio
-    @patch('adapters.base.asyncio.create_subprocess_exec')
+    @patch("adapters.base.asyncio.create_subprocess_exec")
     async def test_invoke_process_error(self, mock_subprocess):
         """Test process error handling."""
         mock_process = Mock()
-        mock_process.communicate = AsyncMock(return_value=(
-            b"",
-            b"Error: Model not available"
-        ))
+        mock_process.communicate = AsyncMock(
+            return_value=(b"", b"Error: Model not available")
+        )
         mock_process.returncode = 1
         mock_subprocess.return_value = mock_process
 
@@ -278,29 +314,25 @@ class TestDroidAdapter:
         assert adapter.timeout == 90
 
     @pytest.mark.asyncio
-    @patch('adapters.base.asyncio.create_subprocess_exec')
+    @patch("adapters.base.asyncio.create_subprocess_exec")
     async def test_invoke_success(self, mock_subprocess):
         """Test successful CLI invocation."""
         # Mock subprocess
         mock_process = Mock()
-        mock_process.communicate = AsyncMock(return_value=(
-            b"This is the droid model response.",
-            b""
-        ))
+        mock_process.communicate = AsyncMock(
+            return_value=(b"This is the droid model response.", b"")
+        )
         mock_process.returncode = 0
         mock_subprocess.return_value = mock_process
 
         adapter = DroidAdapter(args=["exec", "{prompt}"])
-        result = await adapter.invoke(
-            prompt="What is 2+2?",
-            model="factory-1"
-        )
+        result = await adapter.invoke(prompt="What is 2+2?", model="factory-1")
 
         assert result == "This is the droid model response."
         mock_subprocess.assert_called_once()
 
     @pytest.mark.asyncio
-    @patch('adapters.base.asyncio.create_subprocess_exec')
+    @patch("adapters.base.asyncio.create_subprocess_exec")
     async def test_invoke_timeout(self, mock_subprocess):
         """Test timeout handling."""
         mock_process = Mock()
@@ -315,14 +347,13 @@ class TestDroidAdapter:
         assert "timed out" in str(exc_info.value).lower()
 
     @pytest.mark.asyncio
-    @patch('adapters.base.asyncio.create_subprocess_exec')
+    @patch("adapters.base.asyncio.create_subprocess_exec")
     async def test_invoke_process_error(self, mock_subprocess):
         """Test process error handling."""
         mock_process = Mock()
-        mock_process.communicate = AsyncMock(return_value=(
-            b"",
-            b"Error: Model not available"
-        ))
+        mock_process.communicate = AsyncMock(
+            return_value=(b"", b"Error: Model not available")
+        )
         mock_process.returncode = 1
         mock_subprocess.return_value = mock_process
 
@@ -353,7 +384,7 @@ class TestAdapterFactory:
         config = CLIToolConfig(
             command="claude",
             args=["--model", "{model}", "--prompt", "{prompt}"],
-            timeout=90
+            timeout=90,
         )
         adapter = create_adapter("claude", config)
         assert isinstance(adapter, ClaudeAdapter)
@@ -363,9 +394,7 @@ class TestAdapterFactory:
     def test_create_codex_adapter(self):
         """Test creating CodexAdapter via factory."""
         config = CLIToolConfig(
-            command="codex",
-            args=["--model", "{model}", "{prompt}"],
-            timeout=120
+            command="codex", args=["--model", "{model}", "{prompt}"], timeout=120
         )
         adapter = create_adapter("codex", config)
         assert isinstance(adapter, CodexAdapter)
@@ -375,9 +404,7 @@ class TestAdapterFactory:
     def test_create_gemini_adapter(self):
         """Test creating GeminiAdapter via factory."""
         config = CLIToolConfig(
-            command="gemini",
-            args=["-m", "{model}", "-p", "{prompt}"],
-            timeout=180
+            command="gemini", args=["-m", "{model}", "-p", "{prompt}"], timeout=180
         )
         adapter = create_adapter("gemini", config)
         assert isinstance(adapter, GeminiAdapter)
@@ -386,11 +413,7 @@ class TestAdapterFactory:
 
     def test_create_droid_adapter(self):
         """Test creating DroidAdapter via factory."""
-        config = CLIToolConfig(
-            command="droid",
-            args=["exec", "{prompt}"],
-            timeout=180
-        )
+        config = CLIToolConfig(command="droid", args=["exec", "{prompt}"], timeout=180)
         adapter = create_adapter("droid", config)
         assert isinstance(adapter, DroidAdapter)
         assert adapter.command == "droid"
@@ -401,9 +424,7 @@ class TestAdapterFactory:
         from adapters.llamacpp import LlamaCppAdapter
 
         config = CLIToolConfig(
-            command="llama-cli",
-            args=["-m", "{model}", "-p", "{prompt}"],
-            timeout=120
+            command="llama-cli", args=["-m", "{model}", "-p", "{prompt}"], timeout=120
         )
         adapter = create_adapter("llamacpp", config)
         assert isinstance(adapter, LlamaCppAdapter)
@@ -418,7 +439,7 @@ class TestAdapterFactory:
             type="cli",
             command="llama-cli",
             args=["-m", "{model}", "-p", "{prompt}", "-n", "512"],
-            timeout=180
+            timeout=180,
         )
         adapter = create_adapter("llamacpp", config)
         assert isinstance(adapter, LlamaCppAdapter)
@@ -430,10 +451,7 @@ class TestAdapterFactory:
         from adapters.lmstudio import LMStudioAdapter
 
         config = HTTPAdapterConfig(
-            type="http",
-            base_url="http://localhost:1234",
-            timeout=60,
-            max_retries=3
+            type="http", base_url="http://localhost:1234", timeout=60, max_retries=3
         )
 
         adapter = create_adapter("lmstudio", config)
@@ -444,12 +462,7 @@ class TestAdapterFactory:
 
     def test_factory_rejects_cli_config_for_lmstudio(self):
         """Test LM Studio with CLI config raises error."""
-        config = CLIAdapterConfig(
-            type="cli",
-            command="lmstudio",
-            args=[],
-            timeout=60
-        )
+        config = CLIAdapterConfig(type="cli", command="lmstudio", args=[], timeout=60)
 
         with pytest.raises(ValueError) as exc_info:
             create_adapter("lmstudio", config)
@@ -463,10 +476,7 @@ class TestAdapterFactory:
         from adapters.ollama import OllamaAdapter
 
         config = HTTPAdapterConfig(
-            type="http",
-            base_url="http://localhost:11434",
-            timeout=120,
-            max_retries=3
+            type="http", base_url="http://localhost:11434", timeout=120, max_retries=3
         )
 
         adapter = create_adapter("ollama", config)
@@ -477,12 +487,7 @@ class TestAdapterFactory:
 
     def test_factory_rejects_cli_config_for_ollama(self):
         """Test Ollama with CLI config raises error."""
-        config = CLIAdapterConfig(
-            type="cli",
-            command="ollama",
-            args=[],
-            timeout=60
-        )
+        config = CLIAdapterConfig(type="cli", command="ollama", args=[], timeout=60)
 
         with pytest.raises(ValueError) as exc_info:
             create_adapter("ollama", config)
@@ -500,7 +505,7 @@ class TestAdapterFactory:
             base_url="https://openrouter.ai/api/v1",
             api_key="sk-test-key",
             timeout=90,
-            max_retries=3
+            max_retries=3,
         )
 
         adapter = create_adapter("openrouter", config)
@@ -512,12 +517,7 @@ class TestAdapterFactory:
 
     def test_factory_rejects_cli_config_for_openrouter(self):
         """Test OpenRouter with CLI config raises error."""
-        config = CLIAdapterConfig(
-            type="cli",
-            command="openrouter",
-            args=[],
-            timeout=60
-        )
+        config = CLIAdapterConfig(type="cli", command="openrouter", args=[], timeout=60)
 
         with pytest.raises(ValueError) as exc_info:
             create_adapter("openrouter", config)
@@ -531,7 +531,7 @@ class TestAdapterFactory:
         config = CLIToolConfig(
             command="claude",
             args=["--model", "{model}", "--prompt", "{prompt}"],
-            timeout=60
+            timeout=60,
         )
         adapter = create_adapter("claude", config)
         assert adapter.timeout == 60
@@ -539,9 +539,7 @@ class TestAdapterFactory:
     def test_create_adapter_invalid_cli(self):
         """Test factory raises error for invalid CLI tool name."""
         config = CLIToolConfig(
-            command="invalid-cli",
-            args=["--model", "{model}", "{prompt}"],
-            timeout=60
+            command="invalid-cli", args=["--model", "{model}", "{prompt}"], timeout=60
         )
         with pytest.raises(ValueError) as exc_info:
             create_adapter("invalid-cli", config)
@@ -552,10 +550,7 @@ class TestAdapterFactory:
     def test_create_adapter_with_cli_adapter_config(self):
         """Test creating adapter with new CLIAdapterConfig."""
         config = CLIAdapterConfig(
-            type="cli",
-            command="claude",
-            args=["--model", "{model}"],
-            timeout=60
+            type="cli", command="claude", args=["--model", "{model}"], timeout=60
         )
         adapter = create_adapter("claude", config)
         assert isinstance(adapter, ClaudeAdapter)
@@ -565,9 +560,7 @@ class TestAdapterFactory:
     def test_create_adapter_with_http_adapter_config_unknown_adapter(self):
         """Test HTTP adapter raises error for unknown adapter name."""
         config = HTTPAdapterConfig(
-            type="http",
-            base_url="http://localhost:9999",
-            timeout=60
+            type="http", base_url="http://localhost:9999", timeout=60
         )
 
         # Should raise because "unknown-http-adapter" is not registered
@@ -581,10 +574,7 @@ class TestAdapterFactory:
         # This will be important when we add actual HTTP adapters
         # For now, just verify the factory can handle both config types
         cli_config = CLIAdapterConfig(
-            type="cli",
-            command="claude",
-            args=["--model", "{model}"],
-            timeout=60
+            type="cli", command="claude", args=["--model", "{model}"], timeout=60
         )
         adapter = create_adapter("claude", cli_config)
         assert isinstance(adapter, ClaudeAdapter)

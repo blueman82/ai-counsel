@@ -1,7 +1,6 @@
 """Tests for config migration script."""
 import pytest
 import yaml
-from pathlib import Path
 
 
 class TestMigrateConfig:
@@ -17,16 +16,25 @@ class TestMigrateConfig:
                 "claude": {
                     "command": "claude",
                     "args": ["--model", "{model}"],
-                    "timeout": 60
+                    "timeout": 60,
                 },
                 "codex": {
                     "command": "codex",
                     "args": ["exec", "{prompt}"],
-                    "timeout": 120
-                }
+                    "timeout": 120,
+                },
             },
-            "defaults": {"mode": "quick", "rounds": 2, "max_rounds": 5, "timeout_per_round": 120},
-            "storage": {"transcripts_dir": "transcripts", "format": "markdown", "auto_export": True},
+            "defaults": {
+                "mode": "quick",
+                "rounds": 2,
+                "max_rounds": 5,
+                "timeout_per_round": 120,
+            },
+            "storage": {
+                "transcripts_dir": "transcripts",
+                "format": "markdown",
+                "auto_export": True,
+            },
             "deliberation": {
                 "convergence_detection": {
                     "enabled": True,
@@ -35,16 +43,16 @@ class TestMigrateConfig:
                     "min_rounds_before_check": 1,
                     "consecutive_stable_rounds": 2,
                     "stance_stability_threshold": 0.80,
-                    "response_length_drop_threshold": 0.40
+                    "response_length_drop_threshold": 0.40,
                 },
                 "early_stopping": {
                     "enabled": True,
                     "threshold": 0.66,
-                    "respect_min_rounds": True
+                    "respect_min_rounds": True,
                 },
                 "convergence_threshold": 0.8,
-                "enable_convergence_detection": True
-            }
+                "enable_convergence_detection": True,
+            },
         }
 
         # Run migration
@@ -70,8 +78,17 @@ class TestMigrateConfig:
         old_config = {
             "version": "1.0",
             "cli_tools": {"claude": {"command": "claude", "args": [], "timeout": 60}},
-            "defaults": {"mode": "quick", "rounds": 2, "max_rounds": 5, "timeout_per_round": 120},
-            "storage": {"transcripts_dir": "transcripts", "format": "markdown", "auto_export": True},
+            "defaults": {
+                "mode": "quick",
+                "rounds": 2,
+                "max_rounds": 5,
+                "timeout_per_round": 120,
+            },
+            "storage": {
+                "transcripts_dir": "transcripts",
+                "format": "markdown",
+                "auto_export": True,
+            },
             "deliberation": {
                 "convergence_detection": {
                     "enabled": True,
@@ -80,16 +97,16 @@ class TestMigrateConfig:
                     "min_rounds_before_check": 1,
                     "consecutive_stable_rounds": 2,
                     "stance_stability_threshold": 0.80,
-                    "response_length_drop_threshold": 0.40
+                    "response_length_drop_threshold": 0.40,
                 },
                 "early_stopping": {
                     "enabled": True,
                     "threshold": 0.66,
-                    "respect_min_rounds": True
+                    "respect_min_rounds": True,
                 },
                 "convergence_threshold": 0.8,
-                "enable_convergence_detection": True
-            }
+                "enable_convergence_detection": True,
+            },
         }
 
         config_file = tmp_path / "config.yaml"
@@ -117,11 +134,20 @@ class TestMigrateConfig:
                     "type": "cli",
                     "command": "claude",
                     "args": [],
-                    "timeout": 60
+                    "timeout": 60,
                 }
             },
-            "defaults": {"mode": "quick", "rounds": 2, "max_rounds": 5, "timeout_per_round": 120},
-            "storage": {"transcripts_dir": "transcripts", "format": "markdown", "auto_export": True},
+            "defaults": {
+                "mode": "quick",
+                "rounds": 2,
+                "max_rounds": 5,
+                "timeout_per_round": 120,
+            },
+            "storage": {
+                "transcripts_dir": "transcripts",
+                "format": "markdown",
+                "auto_export": True,
+            },
             "deliberation": {
                 "convergence_detection": {
                     "enabled": True,
@@ -130,16 +156,16 @@ class TestMigrateConfig:
                     "min_rounds_before_check": 1,
                     "consecutive_stable_rounds": 2,
                     "stance_stability_threshold": 0.80,
-                    "response_length_drop_threshold": 0.40
+                    "response_length_drop_threshold": 0.40,
                 },
                 "early_stopping": {
                     "enabled": True,
                     "threshold": 0.66,
-                    "respect_min_rounds": True
+                    "respect_min_rounds": True,
                 },
                 "convergence_threshold": 0.8,
-                "enable_convergence_detection": True
-            }
+                "enable_convergence_detection": True,
+            },
         }
 
         # Should not raise error
@@ -158,10 +184,19 @@ class TestMigrateConfig:
                 "claude": {"command": "claude", "args": [], "timeout": 60},
                 "codex": {"command": "codex", "args": [], "timeout": 120},
                 "droid": {"command": "droid", "args": [], "timeout": 180},
-                "gemini": {"command": "gemini", "args": [], "timeout": 90}
+                "gemini": {"command": "gemini", "args": [], "timeout": 90},
             },
-            "defaults": {"mode": "quick", "rounds": 2, "max_rounds": 5, "timeout_per_round": 120},
-            "storage": {"transcripts_dir": "transcripts", "format": "markdown", "auto_export": True},
+            "defaults": {
+                "mode": "quick",
+                "rounds": 2,
+                "max_rounds": 5,
+                "timeout_per_round": 120,
+            },
+            "storage": {
+                "transcripts_dir": "transcripts",
+                "format": "markdown",
+                "auto_export": True,
+            },
             "deliberation": {
                 "convergence_detection": {
                     "enabled": True,
@@ -170,23 +205,29 @@ class TestMigrateConfig:
                     "min_rounds_before_check": 1,
                     "consecutive_stable_rounds": 2,
                     "stance_stability_threshold": 0.80,
-                    "response_length_drop_threshold": 0.40
+                    "response_length_drop_threshold": 0.40,
                 },
                 "early_stopping": {
                     "enabled": True,
                     "threshold": 0.66,
-                    "respect_min_rounds": True
+                    "respect_min_rounds": True,
                 },
                 "convergence_threshold": 0.8,
-                "enable_convergence_detection": True
-            }
+                "enable_convergence_detection": True,
+            },
         }
 
         new_config = migrate_config_dict(old_config)
 
         assert len(new_config["adapters"]) == 4
-        assert all(tool in new_config["adapters"] for tool in ["claude", "codex", "droid", "gemini"])
-        assert all(new_config["adapters"][tool]["type"] == "cli" for tool in ["claude", "codex", "droid", "gemini"])
+        assert all(
+            tool in new_config["adapters"]
+            for tool in ["claude", "codex", "droid", "gemini"]
+        )
+        assert all(
+            new_config["adapters"][tool]["type"] == "cli"
+            for tool in ["claude", "codex", "droid", "gemini"]
+        )
 
     def test_migrate_file_not_found(self):
         """Test that missing file raises error."""

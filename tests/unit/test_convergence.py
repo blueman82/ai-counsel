@@ -17,6 +17,7 @@ from deliberation.convergence import (
 # Jaccard Similarity Backend Tests
 # =============================================================================
 
+
 class TestJaccardBackend:
     """Test Jaccard similarity computation."""
 
@@ -65,6 +66,7 @@ class TestJaccardBackend:
 # TF-IDF Backend Tests (optional dependency)
 # =============================================================================
 
+
 class TestTFIDFBackend:
     """Test TF-IDF similarity computation."""
 
@@ -72,6 +74,7 @@ class TestTFIDFBackend:
         """Should skip if scikit-learn not installed."""
         try:
             import sklearn
+
             pytest.skip("scikit-learn is installed, skip this test")
         except ImportError:
             with pytest.raises(ImportError):
@@ -101,6 +104,7 @@ class TestTFIDFBackend:
 # Sentence Transformer Backend Tests (optional dependency)
 # =============================================================================
 
+
 class TestSentenceTransformerBackend:
     """Test sentence transformer similarity."""
 
@@ -127,6 +131,7 @@ class TestSentenceTransformerBackend:
 # Convergence Detector Tests
 # =============================================================================
 
+
 class TestConvergenceDetector:
     """Test convergence detection logic."""
 
@@ -135,16 +140,28 @@ class TestConvergenceDetector:
         from models.schema import RoundResponse
 
         # Mock config
-        config = type('Config', (), {
-            'deliberation': type('Delib', (), {
-                'convergence_detection': type('Conv', (), {
-                    'enabled': True,
-                    'semantic_similarity_threshold': 0.85,
-                    'min_rounds_before_check': 2,
-                    'consecutive_stable_rounds': 1,
-                })()
-            })()
-        })()
+        config = type(
+            "Config",
+            (),
+            {
+                "deliberation": type(
+                    "Delib",
+                    (),
+                    {
+                        "convergence_detection": type(
+                            "Conv",
+                            (),
+                            {
+                                "enabled": True,
+                                "semantic_similarity_threshold": 0.85,
+                                "min_rounds_before_check": 2,
+                                "consecutive_stable_rounds": 1,
+                            },
+                        )()
+                    },
+                )()
+            },
+        )()
 
         detector = ConvergenceDetector(config)
 
@@ -155,15 +172,15 @@ class TestConvergenceDetector:
                 participant="claude@cli",
                 stance="for",
                 response="TypeScript is better for large projects",
-                timestamp="2025-01-01T00:00:00"
+                timestamp="2025-01-01T00:00:00",
             ),
             RoundResponse(
                 round=2,
                 participant="codex@cli",
                 stance="for",
                 response="I agree TypeScript scales better",
-                timestamp="2025-01-01T00:00:01"
-            )
+                timestamp="2025-01-01T00:00:01",
+            ),
         ]
 
         # Round 3 responses (very similar to round 2 - nearly identical)
@@ -173,21 +190,19 @@ class TestConvergenceDetector:
                 participant="claude@cli",
                 stance="for",
                 response="TypeScript is better for large projects",
-                timestamp="2025-01-01T00:01:00"
+                timestamp="2025-01-01T00:01:00",
             ),
             RoundResponse(
                 round=3,
                 participant="codex@cli",
                 stance="for",
                 response="I agree TypeScript scales better",
-                timestamp="2025-01-01T00:01:01"
-            )
+                timestamp="2025-01-01T00:01:01",
+            ),
         ]
 
         result = detector.check_convergence(
-            current_round=round3,
-            previous_round=round2,
-            round_number=3
+            current_round=round3, previous_round=round2, round_number=3
         )
 
         # With Jaccard similarity, these should be similar enough
@@ -200,16 +215,28 @@ class TestConvergenceDetector:
         """Should not detect convergence when opinions change significantly."""
         from models.schema import RoundResponse
 
-        config = type('Config', (), {
-            'deliberation': type('Delib', (), {
-                'convergence_detection': type('Conv', (), {
-                    'enabled': True,
-                    'semantic_similarity_threshold': 0.85,
-                    'min_rounds_before_check': 2,
-                    'consecutive_stable_rounds': 1,
-                })()
-            })()
-        })()
+        config = type(
+            "Config",
+            (),
+            {
+                "deliberation": type(
+                    "Delib",
+                    (),
+                    {
+                        "convergence_detection": type(
+                            "Conv",
+                            (),
+                            {
+                                "enabled": True,
+                                "semantic_similarity_threshold": 0.85,
+                                "min_rounds_before_check": 2,
+                                "consecutive_stable_rounds": 1,
+                            },
+                        )()
+                    },
+                )()
+            },
+        )()
 
         detector = ConvergenceDetector(config)
 
@@ -220,7 +247,7 @@ class TestConvergenceDetector:
                 participant="claude@cli",
                 stance="for",
                 response="TypeScript is better",
-                timestamp="2025-01-01T00:00:00"
+                timestamp="2025-01-01T00:00:00",
             )
         ]
 
@@ -231,14 +258,12 @@ class TestConvergenceDetector:
                 participant="claude@cli",
                 stance="against",
                 response="Actually JavaScript is more flexible",
-                timestamp="2025-01-01T00:01:00"
+                timestamp="2025-01-01T00:01:00",
             )
         ]
 
         result = detector.check_convergence(
-            current_round=round3,
-            previous_round=round2,
-            round_number=3
+            current_round=round3, previous_round=round2, round_number=3
         )
 
         assert result.converged == False
@@ -248,17 +273,29 @@ class TestConvergenceDetector:
         """Should detect divergence when models have different opinions."""
         from models.schema import RoundResponse
 
-        config = type('Config', (), {
-            'deliberation': type('Delib', (), {
-                'convergence_detection': type('Conv', (), {
-                    'enabled': True,
-                    'semantic_similarity_threshold': 0.85,
-                    'divergence_threshold': 0.40,
-                    'min_rounds_before_check': 2,
-                    'consecutive_stable_rounds': 1,
-                })()
-            })()
-        })()
+        config = type(
+            "Config",
+            (),
+            {
+                "deliberation": type(
+                    "Delib",
+                    (),
+                    {
+                        "convergence_detection": type(
+                            "Conv",
+                            (),
+                            {
+                                "enabled": True,
+                                "semantic_similarity_threshold": 0.85,
+                                "divergence_threshold": 0.40,
+                                "min_rounds_before_check": 2,
+                                "consecutive_stable_rounds": 1,
+                            },
+                        )()
+                    },
+                )()
+            },
+        )()
 
         detector = ConvergenceDetector(config)
 
@@ -269,15 +306,15 @@ class TestConvergenceDetector:
                 participant="claude@cli",
                 stance="for",
                 response="Static typing provides safety",
-                timestamp="2025-01-01T00:00:00"
+                timestamp="2025-01-01T00:00:00",
             ),
             RoundResponse(
                 round=2,
                 participant="codex@cli",
                 stance="against",
                 response="Dynamic flexibility enables rapid prototyping",
-                timestamp="2025-01-01T00:00:01"
-            )
+                timestamp="2025-01-01T00:00:01",
+            ),
         ]
 
         # Round 3: Still different responses
@@ -287,15 +324,15 @@ class TestConvergenceDetector:
                 participant="claude@cli",
                 stance="for",
                 response="Compile-time checking catches bugs early",
-                timestamp="2025-01-01T00:01:00"
+                timestamp="2025-01-01T00:01:00",
             ),
             RoundResponse(
                 round=3,
                 participant="codex@cli",
                 stance="against",
                 response="Runtime freedom allows creative solutions",
-                timestamp="2025-01-01T00:01:01"
-            )
+                timestamp="2025-01-01T00:01:01",
+            ),
         ]
 
         result = detector.check_convergence(round3, round2, round_number=3)
@@ -309,28 +346,46 @@ class TestConvergenceDetector:
         """Should not check convergence before min_rounds_before_check."""
         from models.schema import RoundResponse
 
-        config = type('Config', (), {
-            'deliberation': type('Delib', (), {
-                'convergence_detection': type('Conv', (), {
-                    'enabled': True,
-                    'min_rounds_before_check': 2,  # Don't check until round 3
-                })()
-            })()
-        })()
+        config = type(
+            "Config",
+            (),
+            {
+                "deliberation": type(
+                    "Delib",
+                    (),
+                    {
+                        "convergence_detection": type(
+                            "Conv",
+                            (),
+                            {
+                                "enabled": True,
+                                "min_rounds_before_check": 2,  # Don't check until round 3
+                            },
+                        )()
+                    },
+                )()
+            },
+        )()
 
         detector = ConvergenceDetector(config)
 
         round1 = [
             RoundResponse(
-                round=1, participant="claude@cli", stance="neutral",
-                response="Initial response", timestamp="2025-01-01T00:00:00"
+                round=1,
+                participant="claude@cli",
+                stance="neutral",
+                response="Initial response",
+                timestamp="2025-01-01T00:00:00",
             )
         ]
 
         round2 = [
             RoundResponse(
-                round=2, participant="claude@cli", stance="neutral",
-                response="Initial response", timestamp="2025-01-01T00:01:00"
+                round=2,
+                participant="claude@cli",
+                stance="neutral",
+                response="Initial response",
+                timestamp="2025-01-01T00:01:00",
             )
         ]
 

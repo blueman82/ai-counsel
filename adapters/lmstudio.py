@@ -15,9 +15,7 @@ class LMStudioAdapter(BaseHTTPAdapter):
     """
 
     def build_request(
-        self,
-        model: str,
-        prompt: str
+        self, model: str, prompt: str
     ) -> Tuple[str, dict[str, str], dict]:
         """
         Build LM Studio API request (OpenAI-compatible format).
@@ -34,21 +32,14 @@ class LMStudioAdapter(BaseHTTPAdapter):
         """
         endpoint = "/v1/chat/completions"
 
-        headers = {
-            "Content-Type": "application/json"
-        }
+        headers = {"Content-Type": "application/json"}
 
         # Convert prompt to OpenAI chat format
         body = {
             "model": model,
-            "messages": [
-                {
-                    "role": "user",
-                    "content": prompt
-                }
-            ],
+            "messages": [{"role": "user", "content": prompt}],
             "temperature": 0.7,
-            "stream": False  # Use non-streaming for simplicity
+            "stream": False,  # Use non-streaming for simplicity
         }
 
         return (endpoint, headers, body)
@@ -90,9 +81,7 @@ class LMStudioAdapter(BaseHTTPAdapter):
             )
 
         if len(response_json["choices"]) == 0:
-            raise IndexError(
-                "LM Studio response has empty 'choices' array"
-            )
+            raise IndexError("LM Studio response has empty 'choices' array")
 
         choice = response_json["choices"][0]
 
