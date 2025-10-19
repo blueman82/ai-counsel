@@ -7,6 +7,7 @@ from adapters.droid import DroidAdapter
 from adapters.gemini import GeminiAdapter
 from adapters.lmstudio import LMStudioAdapter
 from adapters.ollama import OllamaAdapter
+from adapters.openrouter import OpenRouterAdapter
 from models.config import CLIToolConfig, CLIAdapterConfig, HTTPAdapterConfig
 from typing import Union
 
@@ -41,7 +42,7 @@ def create_adapter(
     http_adapters = {
         "ollama": OllamaAdapter,
         "lmstudio": LMStudioAdapter,
-        # "openrouter": OpenRouterAdapter,  # Added in Phase 3, Task 17
+        "openrouter": OpenRouterAdapter,
     }
 
     # Handle legacy CLIToolConfig (backward compatibility)

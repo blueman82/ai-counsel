@@ -462,6 +462,41 @@ class TestAdapterFactory:
         assert "ollama" in str(exc_info.value).lower()
         assert "unknown cli adapter" in str(exc_info.value).lower()
 
+    def test_create_openrouter_adapter(self):
+        """Test creating OpenRouterAdapter via factory."""
+        from adapters.openrouter import OpenRouterAdapter
+
+        config = HTTPAdapterConfig(
+            type="http",
+            base_url="https://openrouter.ai/api/v1",
+            api_key="sk-test-key",
+            timeout=90,
+            max_retries=3
+        )
+
+        adapter = create_adapter("openrouter", config)
+        assert isinstance(adapter, OpenRouterAdapter)
+        assert adapter.base_url == "https://openrouter.ai/api/v1"
+        assert adapter.api_key == "sk-test-key"
+        assert adapter.timeout == 90
+        assert adapter.max_retries == 3
+
+    def test_factory_rejects_cli_config_for_openrouter(self):
+        """Test OpenRouter with CLI config raises error."""
+        config = CLIAdapterConfig(
+            type="cli",
+            command="openrouter",
+            args=[],
+            timeout=60
+        )
+
+        with pytest.raises(ValueError) as exc_info:
+            create_adapter("openrouter", config)
+
+        # Should fail because openrouter is not in CLI adapters
+        assert "openrouter" in str(exc_info.value).lower()
+        assert "unknown cli adapter" in str(exc_info.value).lower()
+
     def test_create_adapter_with_default_timeout(self):
         """Test factory uses timeout from config object."""
         config = CLIToolConfig(

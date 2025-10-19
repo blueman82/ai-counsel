@@ -57,12 +57,13 @@ for cli_name, cli_config in config.cli_tools.items():
 # Create engine with config for convergence detection
 engine = DeliberationEngine(adapters=adapters, config=config)
 
-# Recommended models for each CLI (for validation warnings)
+# Recommended models for each adapter (CLI tools and HTTP services)
 RECOMMENDED_MODELS = {
     "claude": ["sonnet", "opus", "haiku", "claude-sonnet-4-5-20250929", "claude-opus-4-1-20250805"],
     "codex": ["gpt-5-codex", "o3"],
     "droid": ["claude-sonnet-4-5-20250929", "gpt-5-codex", "claude-opus-4-1-20250805"],
     "gemini": ["gemini-2.5-pro", "gemini-2.0-flash"],
+    "ollama": ["llama2", "mistral", "codellama", "qwen"],
     "lmstudio": ["local-model", "llama-2-7b", "mistral-7b"],  # Model names depend on what's loaded
 }
 
@@ -77,16 +78,17 @@ async def list_tools() -> list[Tool]:
                 "Initiate true deliberative consensus where AI models debate and "
                 "refine positions across multiple rounds. Models see each other's "
                 "responses and can adjust their reasoning. Supports both CLI tools "
-                "(claude, codex, droid, gemini) and HTTP services (lmstudio). "
+                "(claude, codex, droid, gemini) and HTTP services (ollama, lmstudio). "
                 "Use for critical decisions, architecture choices, or complex technical debates.\n\n"
                 "Example participants:\n"
                 '  [{"cli": "claude", "model": "sonnet"}, '
-                '{"cli": "codex", "model": "gpt-5-codex"}]\n\n'
-                "Recommended models by CLI:\n"
+                '{"cli": "ollama", "model": "llama2"}]\n\n'
+                "Recommended models by adapter:\n"
                 "  - claude: 'sonnet', 'opus', 'haiku'\n"
                 "  - codex: 'gpt-5-codex', 'o3'\n"
                 "  - droid: 'claude-sonnet-4-5-20250929', 'gpt-5-codex'\n"
                 "  - gemini: 'gemini-2.5-pro'\n"
+                "  - ollama: 'llama2', 'mistral', 'codellama', 'qwen'\n"
                 "  - lmstudio: 'local-model' (model names vary based on loaded models)"
             ),
             inputSchema={

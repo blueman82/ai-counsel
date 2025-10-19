@@ -6,9 +6,9 @@ from pydantic import BaseModel, Field
 class Participant(BaseModel):
     """Model representing a deliberation participant."""
 
-    cli: Literal["claude", "codex", "droid", "gemini"] = Field(
+    cli: Literal["claude", "codex", "droid", "gemini", "ollama", "lmstudio"] = Field(
         ...,
-        description="CLI tool to use for this participant"
+        description="Adapter to use for this participant (CLI tools or HTTP services)"
     )
     model: str = Field(
         ...,
