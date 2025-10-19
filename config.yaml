@@ -28,6 +28,22 @@ cli_tools:
     timeout: 180
     # Valid models: "gemini-2.5-pro" (default) or other Gemini identifiers
 
+  llamacpp:
+    command: "llama-cli"
+    args: ["-m", "{model}", "-p", "{prompt}", "-n", "512", "-c", "2048"]
+    timeout: 180
+    # llama.cpp is a fast, lightweight LLM inference engine for running models locally
+    # Valid models: path to .gguf model file (e.g., "/path/to/llama-2-7b.Q4_K_M.gguf")
+    # Common args:
+    #   -m: model path (REQUIRED - use {model} placeholder)
+    #   -p: prompt text (REQUIRED - use {prompt} placeholder)
+    #   -n: number of tokens to predict (default: 128, recommended: 512+)
+    #   -c: context size (default: 512, recommended: 2048-4096)
+    #   -t: threads (default: auto, e.g., "-t", "8")
+    #   --temp: temperature (e.g., "--temp", "0.7")
+    # Download models from https://huggingface.co/models?library=gguf
+    # Build llama.cpp: https://github.com/ggerganov/llama.cpp
+
 # HTTP Adapter Examples (not in cli_tools format)
 # To use HTTP adapters like Ollama or LM Studio, configure them directly in deliberation requests
 # or migrate to the new adapters section format. Examples:
@@ -50,6 +66,14 @@ cli_tools:
 #     # Valid models: any model loaded in LM Studio
 #     # LM Studio provides OpenAI-compatible API
 #     # No API key needed for local instance
+#
+#   llamacpp:
+#     type: cli
+#     command: "llama-cli"
+#     args: ["-m", "{model}", "-p", "{prompt}", "-n", "512", "-c", "2048"]
+#     timeout: 180
+#     # llama.cpp for local model inference with .gguf files
+#     # See cli_tools.llamacpp above for detailed configuration
 #
 #   openrouter:
 #     type: http
