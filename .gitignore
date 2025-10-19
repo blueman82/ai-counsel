@@ -37,3 +37,6 @@ logs/user_prompt_submit.json
 
 # Recallor shadow worktree - prevents commit conflicts during shadow operations
 .recallor/
+
+# Documentation (not tracked in repo)
+docs/

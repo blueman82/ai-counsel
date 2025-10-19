@@ -6,6 +6,7 @@ import warnings
 import yaml
 from typing import Literal, Union, Optional, Annotated
 from pydantic import BaseModel, Field, field_validator
+from dotenv import load_dotenv
 
 
 class CLIAdapterConfig(BaseModel):
@@ -157,6 +158,9 @@ def load_config(path: str = "config.yaml") -> Config:
         FileNotFoundError: If config file doesn't exist
         ValidationError: If config is invalid
     """
+    # Load environment variables from .env file (if it exists)
+    load_dotenv()
+
     config_path = Path(path)
     if not config_path.exists():
         raise FileNotFoundError(f"Config file not found: {path}")
