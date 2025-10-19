@@ -379,6 +379,144 @@ pytest tests/e2e -v -m e2e
 pytest --cov=. --cov-report=html
 ```
 
+### HTTP Adapter Support
+
+AI Counsel supports HTTP-based adapters for local and cloud LLM services, in addition to CLI tools.
+
+#### Supported HTTP Adapters
+
+- **Ollama** - Local LLM server (llama3, mistral, etc.)
+- **LM Studio** - Local OpenAI-compatible API
+- **OpenRouter** - Cloud multi-provider API (Claude, GPT, Gemini, etc.)
+
+#### Configuration
+
+Add HTTP adapters to `config.yaml`:
+
+```yaml
+adapters:
+  # HTTP Adapters
+  ollama:
+    type: http
+    base_url: "http://localhost:11434"
+    timeout: 120
+    max_retries: 3
+
+  lmstudio:
+    type: http
+    base_url: "http://localhost:1234/v1"
+    timeout: 90
+    max_retries: 3
+
+  openrouter:
+    type: http
+    base_url: "https://openrouter.ai/api/v1"
+    api_key: "${OPENROUTER_API_KEY}"  # Environment variable
+    timeout: 120
+    max_retries: 3
+```
+
+#### Environment Variables for API Keys
+
+HTTP adapters support secure API key storage via environment variables:
+
+```bash
+# Add to ~/.bashrc or ~/.zshrc
+export OPENROUTER_API_KEY="sk-or-v1-your-key-here"
+
+# Or set for current session
+export OPENROUTER_API_KEY="sk-or-v1-your-key-here"
+```
+
+The `${VAR_NAME}` syntax in `config.yaml` will be replaced with the environment variable value at runtime.
+
+#### Migrating from CLI Tools to Adapters
+
+If you have old `cli_tools` configuration, migrate to the new `adapters` format:
+
+```bash
+python scripts/migrate_config.py config.yaml
+```
+
+This updates your config to use the new `adapters` section with explicit `type` fields.
+
+#### Usage Example with HTTP Adapters
+
+```javascript
+// Use HTTP adapters in deliberation
+mcp__ai-counsel__deliberate({
+  question: "What's the best API design pattern?",
+  participants: [
+    {cli: "ollama", model: "llama3", stance: "neutral"},
+    {cli: "lmstudio", model: "mistral", stance: "neutral"},
+    {cli: "openrouter", model: "anthropic/claude-3.5-sonnet", stance: "neutral"}
+  ],
+  rounds: 2,
+  mode: "conference"
+})
+
+// Mix CLI and HTTP adapters
+mcp__ai-counsel__deliberate({
+  question: "Should we use GraphQL or REST?",
+  participants: [
+    {cli: "claude", model: "sonnet", stance: "neutral"},      // CLI
+    {cli: "ollama", model: "llama3", stance: "neutral"},      // HTTP
+    {cli: "openrouter", model: "openai/gpt-4", stance: "neutral"}  // HTTP
+  ],
+  mode: "quick"
+})
+```
+
+#### Comparison: CLI vs HTTP Adapters
+
+| Feature | CLI Adapters | HTTP Adapters |
+|---------|-------------|---------------|
+| **Setup** | Install CLI tool + authenticate | Configure endpoint + API key |
+| **Speed** | Slower (subprocess overhead) | Faster (direct HTTP) |
+| **Reliability** | Depends on CLI stability | Built-in retry logic |
+| **Models** | Tool-specific | Provider-specific |
+| **Local** | Yes (if tool supports) | Yes (Ollama, LM Studio) |
+| **Cloud** | Yes (Claude, Codex, etc.) | Yes (OpenRouter) |
+| **Best for** | Official tools, Claude Code | Self-hosted, cloud APIs |
+
+#### Troubleshooting HTTP Adapters
+
+**Ollama not responding:**
+```bash
+# Check if Ollama is running
+curl http://localhost:11434/api/tags
+
+# Start Ollama if needed
+ollama serve
+```
+
+**LM Studio connection refused:**
+```bash
+# Verify LM Studio server is running
+# Open LM Studio → Local Server tab → Start Server
+# Check port matches config (default: 1234)
+```
+
+**OpenRouter authentication failed:**
+```bash
+# Verify API key is set
+echo $OPENROUTER_API_KEY
+
+# Test API key
+curl https://openrouter.ai/api/v1/auth/key \
+  -H "Authorization: Bearer $OPENROUTER_API_KEY"
+```
+
+**Timeout errors:**
+- Increase `timeout` in config (especially for large models)
+- Larger models may need 180-300 seconds
+
+**Rate limiting (429 errors):**
+- HTTP adapters automatically retry with exponential backoff
+- Check provider rate limits and adjust `max_retries`
+
+For detailed troubleshooting, see [docs/troubleshooting/http-adapters.md](docs/troubleshooting/http-adapters.md)
+
 ### Adding a New CLI Tool
 
 1. Create adapter in `adapters/your_tool.py`:
@@ -402,8 +540,9 @@ class YourToolAdapter(BaseCLIAdapter):
 2. Update `config.yaml`:
 
 ```yaml
-cli_tools:
+adapters:
   your-tool:
+    type: cli
     command: "your-tool"
     args: ["--model", "{model}", "{prompt}"]
     timeout: 60
@@ -414,14 +553,12 @@ cli_tools:
 ```python
 from adapters.your_tool import YourToolAdapter
 
-# Add to create_adapter() function
-def create_adapter(cli_name: str, config: CLIToolConfig):
-    adapters = {
-        "claude": ClaudeAdapter,
-        "codex": CodexAdapter,
-        "your-tool": YourToolAdapter,  # Add this line
-    }
-    # ...
+# Add to cli_adapters dict in create_adapter()
+cli_adapters = {
+    "claude": ClaudeAdapter,
+    "codex": CodexAdapter,
+    "your-tool": YourToolAdapter,  # Add this line
+}
 ```
 
 ## Architecture
@@ -451,7 +588,9 @@ ai-counsel/
 
 ### Current Features ✅
 
-- ✅ 4 CLI adapters: claude, codex, droid, gemini
+- ✅ 5 CLI adapters: claude, codex, droid, gemini, llama.cpp
+- ✅ 3 HTTP adapters: Ollama, LM Studio, OpenRouter
+- ✅ Mixed CLI and HTTP adapter support in single deliberation
 - ✅ Quick and conference modes
 - ✅ Markdown transcripts with full debate history
 - ✅ MCP server integration
@@ -464,11 +603,14 @@ ai-counsel/
 - ✅ Vote semantic grouping (auto-merge similar options at 0.70+ threshold)
 - ✅ Enhanced logging (INFO-level vote similarity scores in mcp_server.log)
 - ✅ AI-powered summary generation (uses Claude to analyze and summarize debates)
+- ✅ HTTP adapter retry logic with exponential backoff
+- ✅ Environment variable substitution for secure API key storage
 
 ### Future Enhancements
-- [ ] More CLI tool adapters (ollama, llama-cpp, etc.)
+- [ ] Additional HTTP adapters (Together AI, Replicate, etc.)
 - [ ] Web UI for viewing transcripts
 - [ ] Real-time streaming of deliberation progress
+- [ ] GraphQL API for programmatic access
 
 ## Contributing
 
