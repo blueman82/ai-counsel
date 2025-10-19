@@ -24,11 +24,26 @@ AI Counsel is an MCP (Model Context Protocol) server that enables true deliberat
 - Coordinates convergence detection and early stopping
 - Initializes AI summarizer with fallback chain: Claude Sonnet → GPT-5 Codex → Droid → Gemini
 
-**CLI Adapters** (`adapters/`)
+**CLI Adapters** (`adapters/base.py`, `adapters/claude.py`, etc.)
 - Abstract base: `BaseCLIAdapter` handles subprocess execution, timeout, error handling
 - Concrete adapters: `ClaudeAdapter`, `CodexAdapter`, `DroidAdapter`, `GeminiAdapter`
 - Each adapter implements `parse_output()` for tool-specific response parsing
 - Factory pattern in `adapters/__init__.py` creates adapters from config
+
+**HTTP Adapter Layer** (`adapters/base_http.py`, `adapters/ollama.py`, etc.)
+- Abstract base: `BaseHTTPAdapter` handles HTTP mechanics, retry logic, error handling
+- Concrete adapters: `OllamaAdapter`, `LMStudioAdapter`, `OpenRouterAdapter` (to be added in Phase 2)
+- Each adapter implements `build_request()` for request construction and `parse_response()` for response parsing
+- Retry logic: exponential backoff on 5xx/429/network errors, fail-fast on 4xx client errors
+- Authentication: environment variable substitution pattern `${VAR_NAME}` in config
+- Uses `httpx` for async HTTP, `tenacity` for retry with exponential backoff
+
+**Config Schema Migration** (`models/config.py`, `scripts/migrate_config.py`)
+- New `adapters` section with explicit `type` field replaces `cli_tools`
+- Type discrimination: `CLIAdapterConfig` (type: cli) vs `HTTPAdapterConfig` (type: http)
+- Backward compatibility: both sections supported, deprecation warning on `cli_tools`
+- Migration script: `python scripts/migrate_config.py config.yaml`
+- Environment variable substitution in HTTP adapter configs for secure API key storage
 
 **Convergence Detection** (`deliberation/convergence.py`)
 - Semantic similarity comparison between consecutive rounds
@@ -67,9 +82,12 @@ AI Counsel is an MCP (Model Context Protocol) server that enables true deliberat
 - Type-safe request/response handling throughout the system
 
 **Configuration** (`models/config.py`, `config.yaml`)
-- YAML-based configuration for CLI tools, timeouts, convergence thresholds
+- YAML-based configuration for adapters (CLI and HTTP), timeouts, convergence thresholds
+- Adapter section with explicit `type` field: `cli` or `http`
 - Per-CLI command templates with `{model}` and `{prompt}` placeholders
+- HTTP adapter support with environment variable substitution: `${ENV_VAR}`
 - Hook disabling for Claude CLI: `--settings '{"disableAllHooks": true}'`
+- Migration from legacy `cli_tools` to `adapters`: `python scripts/migrate_config.py`
 
 ### Data Flow
 
@@ -182,8 +200,9 @@ Claude CLI uses `--settings '{"disableAllHooks": true}'` to prevent user hooks f
 
 2. **Update config** in `config.yaml`:
    ```yaml
-   cli_tools:
+   adapters:
      your_cli:
+       type: cli
        command: "your-cli"
        args: ["--model", "{model}", "{prompt}"]
        timeout: 60
@@ -191,7 +210,7 @@ Claude CLI uses `--settings '{"disableAllHooks": true}'` to prevent user hooks f
 
 3. **Register adapter** in `adapters/__init__.py`:
    - Import adapter class
-   - Add to `adapters` dict in `create_adapter()`
+   - Add to `cli_adapters` dict in `create_adapter()`
 
 4. **Update schema** in `models/schema.py`:
    - Add CLI name to `Participant.cli` Literal type
@@ -200,6 +219,70 @@ Claude CLI uses `--settings '{"disableAllHooks": true}'` to prevent user hooks f
 5. **Add recommended models** in `server.py::RECOMMENDED_MODELS`
 
 6. **Write tests** in `tests/unit/test_adapters.py` and `tests/integration/`
+
+## Adding a New HTTP Adapter
+
+1. **Create adapter file** in `adapters/your_adapter.py`:
+   - Subclass `BaseHTTPAdapter`
+   - Implement `build_request(model, prompt) -> (endpoint, headers, body)`
+   - Implement `parse_response(response_json) -> str`
+   - Example:
+   ```python
+   from adapters.base_http import BaseHTTPAdapter
+   from typing import Tuple
+
+   class YourAdapter(BaseHTTPAdapter):
+       def build_request(self, model: str, prompt: str) -> Tuple[str, dict, dict]:
+           endpoint = "/api/generate"
+           headers = {"Content-Type": "application/json"}
+           body = {"model": model, "prompt": prompt}
+           return (endpoint, headers, body)
+
+       def parse_response(self, response_json: dict) -> str:
+           return response_json["response"]
+   ```
+
+2. **Update config** in `config.yaml`:
+   ```yaml
+   adapters:
+     your_adapter:
+       type: http
+       base_url: "https://api.example.com"
+       api_key: "${YOUR_API_KEY}"  # Environment variable substitution
+       timeout: 60
+       max_retries: 3
+   ```
+
+3. **Register adapter** in `adapters/__init__.py`:
+   - Import adapter class
+   - Add to `http_adapters` dict in `create_adapter()`
+
+4. **Set environment variables** (if using API keys):
+   ```bash
+   export YOUR_API_KEY="your-key-here"
+   ```
+
+5. **Write tests**:
+   - Unit tests in `tests/unit/test_your_adapter.py`
+   - Use VCR for HTTP response recording: `tests/fixtures/vcr_cassettes/your_adapter/`
+   - Integration tests optional (requires running service)
+
+6. **Test with deliberation**:
+   ```python
+   from adapters.your_adapter import YourAdapter
+   import asyncio
+
+   async def test():
+       adapter = YourAdapter(
+           base_url="https://api.example.com",
+           api_key="your-key",
+           timeout=60
+       )
+       result = await adapter.invoke(prompt="Hello", model="model-name")
+       print(result)
+
+   asyncio.run(test())
+   ```
 
 ## Key Design Principles
 
