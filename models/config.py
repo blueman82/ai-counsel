@@ -1,11 +1,59 @@
 """Configuration loading and validation."""
 from pathlib import Path
+import os
+import re
+import warnings
 import yaml
-from pydantic import BaseModel
+from typing import Literal, Union, Optional, Annotated
+from pydantic import BaseModel, Field, field_validator, Discriminator
+
+
+class CLIAdapterConfig(BaseModel):
+    """Configuration for CLI-based adapter."""
+    type: Literal["cli"] = "cli"
+    command: str
+    args: list[str]
+    timeout: int = 60
+
+
+class HTTPAdapterConfig(BaseModel):
+    """Configuration for HTTP-based adapter."""
+    type: Literal["http"] = "http"
+    base_url: str
+    api_key: Optional[str] = None
+    headers: Optional[dict[str, str]] = None
+    timeout: int = 60
+    max_retries: int = 3
+
+    @field_validator('api_key', 'base_url')
+    @classmethod
+    def resolve_env_vars(cls, v: Optional[str]) -> Optional[str]:
+        """Resolve ${ENV_VAR} references in string fields."""
+        if v is None:
+            return v
+
+        # Pattern: ${VAR_NAME}
+        pattern = r'\$\{([^}]+)\}'
+
+        def replacer(match):
+            env_var = match.group(1)
+            value = os.getenv(env_var)
+            if value is None:
+                raise ValueError(
+                    f"Environment variable '{env_var}' is not set. "
+                    f"Required for configuration."
+                )
+            return value
+
+        return re.sub(pattern, replacer, v)
+
+
+# Discriminated union - Pydantic uses 'type' field to determine which model to use
+AdapterConfig = Annotated[Union[CLIAdapterConfig, HTTPAdapterConfig], Field(discriminator='type')]
 
 
 class CLIToolConfig(BaseModel):
-    """Configuration for a single CLI tool."""
+    """Configuration for a single CLI tool (legacy, deprecated)."""
     command: str
     args: list[str]
     timeout: int
@@ -55,10 +103,31 @@ class DeliberationConfig(BaseModel):
 class Config(BaseModel):
     """Root configuration model."""
     version: str
-    cli_tools: dict[str, CLIToolConfig]
+
+    # New adapters section (preferred)
+    adapters: Optional[dict[str, AdapterConfig]] = None
+
+    # Legacy cli_tools section (deprecated)
+    cli_tools: Optional[dict[str, CLIToolConfig]] = None
+
     defaults: DefaultsConfig
     storage: StorageConfig
     deliberation: DeliberationConfig
+
+    def model_post_init(self, __context):
+        """Post-initialization validation."""
+        if self.adapters is None and self.cli_tools is None:
+            raise ValueError("Configuration must include either 'adapters' or 'cli_tools' section")
+
+        # If cli_tools is used, emit deprecation warning
+        if self.cli_tools is not None and self.adapters is None:
+            warnings.warn(
+                "The 'cli_tools' configuration section is deprecated. "
+                "Please migrate to 'adapters' section with explicit 'type' field. "
+                "See migration guide: docs/migration/cli_tools_to_adapters.md",
+                DeprecationWarning,
+                stacklevel=2
+            )
 
 
 def load_config(path: str = "config.yaml") -> Config:
