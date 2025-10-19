@@ -62,7 +62,8 @@ RECOMMENDED_MODELS = {
     "claude": ["sonnet", "opus", "haiku", "claude-sonnet-4-5-20250929", "claude-opus-4-1-20250805"],
     "codex": ["gpt-5-codex", "o3"],
     "droid": ["claude-sonnet-4-5-20250929", "gpt-5-codex", "claude-opus-4-1-20250805"],
-    "gemini": ["gemini-2.5-pro", "gemini-2.0-flash"]
+    "gemini": ["gemini-2.5-pro", "gemini-2.0-flash"],
+    "lmstudio": ["local-model", "llama-2-7b", "mistral-7b"],  # Model names depend on what's loaded
 }
 
 
@@ -75,8 +76,9 @@ async def list_tools() -> list[Tool]:
             description=(
                 "Initiate true deliberative consensus where AI models debate and "
                 "refine positions across multiple rounds. Models see each other's "
-                "responses and can adjust their reasoning. Use for critical decisions, "
-                "architecture choices, or complex technical debates.\n\n"
+                "responses and can adjust their reasoning. Supports both CLI tools "
+                "(claude, codex, droid, gemini) and HTTP services (lmstudio). "
+                "Use for critical decisions, architecture choices, or complex technical debates.\n\n"
                 "Example participants:\n"
                 '  [{"cli": "claude", "model": "sonnet"}, '
                 '{"cli": "codex", "model": "gpt-5-codex"}]\n\n'
@@ -84,7 +86,8 @@ async def list_tools() -> list[Tool]:
                 "  - claude: 'sonnet', 'opus', 'haiku'\n"
                 "  - codex: 'gpt-5-codex', 'o3'\n"
                 "  - droid: 'claude-sonnet-4-5-20250929', 'gpt-5-codex'\n"
-                "  - gemini: 'gemini-2.5-pro'"
+                "  - gemini: 'gemini-2.5-pro'\n"
+                "  - lmstudio: 'local-model' (model names vary based on loaded models)"
             ),
             inputSchema={
                 "type": "object",
