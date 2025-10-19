@@ -5,7 +5,9 @@ from adapters.base import BaseCLIAdapter
 class CodexAdapter(BaseCLIAdapter):
     """Adapter for codex CLI tool."""
 
-    def __init__(self, command: str = "codex", args: list[str] | None = None, timeout: int = 60):
+    def __init__(
+        self, command: str = "codex", args: list[str] | None = None, timeout: int = 60
+    ):
         """
         Initialize Codex adapter.
 
@@ -20,11 +22,7 @@ class CodexAdapter(BaseCLIAdapter):
         """
         if args is None:
             raise ValueError("args must be provided from config.yaml")
-        super().__init__(
-            command=command,
-            args=args,
-            timeout=timeout
-        )
+        super().__init__(command=command, args=args, timeout=timeout)
 
     def parse_output(self, raw_output: str) -> str:
         """

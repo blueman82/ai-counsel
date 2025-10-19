@@ -25,7 +25,13 @@ class BaseCLIAdapter(ABC):
         self.args = args
         self.timeout = timeout
 
-    async def invoke(self, prompt: str, model: str, context: Optional[str] = None, is_deliberation: bool = True) -> str:
+    async def invoke(
+        self,
+        prompt: str,
+        model: str,
+        context: Optional[str] = None,
+        is_deliberation: bool = True,
+    ) -> str:
         """
         Invoke the CLI tool with the given prompt and model.
 
@@ -48,7 +54,7 @@ class BaseCLIAdapter(ABC):
             full_prompt = f"{context}\n\n{prompt}"
 
         # Validate prompt length if adapter supports it
-        if hasattr(self, 'validate_prompt_length'):
+        if hasattr(self, "validate_prompt_length"):
             if not self.validate_prompt_length(full_prompt):
                 raise ValueError(
                     f"Prompt too long ({len(full_prompt)} chars). "
@@ -60,15 +66,13 @@ class BaseCLIAdapter(ABC):
         args = self._adjust_args_for_context(is_deliberation)
 
         # Format arguments
-        formatted_args = [
-            arg.format(model=model, prompt=full_prompt)
-            for arg in args
-        ]
+        formatted_args = [arg.format(model=model, prompt=full_prompt) for arg in args]
 
         # Execute subprocess
         try:
             # Set cwd to ensure local .claude settings are used if they exist
             from pathlib import Path
+
             cwd = Path(__file__).parent.parent.absolute()
 
             process = await asyncio.create_subprocess_exec(
@@ -77,19 +81,18 @@ class BaseCLIAdapter(ABC):
                 stdin=asyncio.subprocess.DEVNULL,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
-                cwd=str(cwd)
+                cwd=str(cwd),
             )
 
             stdout, stderr = await asyncio.wait_for(
-                process.communicate(),
-                timeout=self.timeout
+                process.communicate(), timeout=self.timeout
             )
 
             if process.returncode != 0:
-                error_msg = stderr.decode('utf-8', errors='replace')
+                error_msg = stderr.decode("utf-8", errors="replace")
                 raise RuntimeError(f"CLI process failed: {error_msg}")
 
-            raw_output = stdout.decode('utf-8', errors='replace')
+            raw_output = stdout.decode("utf-8", errors="replace")
             return self.parse_output(raw_output)
 
         except asyncio.TimeoutError:

@@ -18,9 +18,7 @@ class OllamaAdapter(BaseHTTPAdapter):
     """
 
     def build_request(
-        self,
-        model: str,
-        prompt: str
+        self, model: str, prompt: str
     ) -> Tuple[str, dict[str, str], dict]:
         """
         Build Ollama API request.
@@ -38,14 +36,12 @@ class OllamaAdapter(BaseHTTPAdapter):
         """
         endpoint = "/api/generate"
 
-        headers = {
-            "Content-Type": "application/json"
-        }
+        headers = {"Content-Type": "application/json"}
 
         body = {
             "model": model,
             "prompt": prompt,
-            "stream": False  # Use non-streaming mode for simplicity
+            "stream": False,  # Use non-streaming mode for simplicity
         }
 
         return (endpoint, headers, body)

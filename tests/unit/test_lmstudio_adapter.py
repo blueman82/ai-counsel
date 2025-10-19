@@ -8,10 +8,7 @@ class TestLMStudioAdapter:
 
     def test_adapter_initialization(self):
         """Test adapter initializes correctly."""
-        adapter = LMStudioAdapter(
-            base_url="http://localhost:1234",
-            timeout=60
-        )
+        adapter = LMStudioAdapter(base_url="http://localhost:1234", timeout=60)
         assert adapter.base_url == "http://localhost:1234"
         assert adapter.timeout == 60
 
@@ -20,8 +17,7 @@ class TestLMStudioAdapter:
         adapter = LMStudioAdapter(base_url="http://localhost:1234")
 
         endpoint, headers, body = adapter.build_request(
-            model="local-model",
-            prompt="What is 2+2?"
+            model="local-model", prompt="What is 2+2?"
         )
 
         assert endpoint == "/v1/chat/completions"
@@ -37,8 +33,7 @@ class TestLMStudioAdapter:
 
         long_prompt = "A" * 1000
         endpoint, headers, body = adapter.build_request(
-            model="test-model",
-            prompt=long_prompt
+            model="test-model", prompt=long_prompt
         )
 
         assert body["messages"][0]["content"] == long_prompt
@@ -55,13 +50,10 @@ class TestLMStudioAdapter:
             "choices": [
                 {
                     "index": 0,
-                    "message": {
-                        "role": "assistant",
-                        "content": "The answer is 4."
-                    },
-                    "finish_reason": "stop"
+                    "message": {"role": "assistant", "content": "The answer is 4."},
+                    "finish_reason": "stop",
                 }
-            ]
+            ],
         }
 
         result = adapter.parse_response(response_json)
@@ -71,10 +63,7 @@ class TestLMStudioAdapter:
         """Test parse_response raises error if choices missing."""
         adapter = LMStudioAdapter(base_url="http://localhost:1234")
 
-        response_json = {
-            "id": "chatcmpl-123",
-            "object": "chat.completion"
-        }
+        response_json = {"id": "chatcmpl-123", "object": "chat.completion"}
 
         with pytest.raises(KeyError) as exc_info:
             adapter.parse_response(response_json)
@@ -85,9 +74,7 @@ class TestLMStudioAdapter:
         """Test parse_response raises error if choices is empty."""
         adapter = LMStudioAdapter(base_url="http://localhost:1234")
 
-        response_json = {
-            "choices": []
-        }
+        response_json = {"choices": []}
 
         with pytest.raises(IndexError):
             adapter.parse_response(response_json)
@@ -96,14 +83,7 @@ class TestLMStudioAdapter:
         """Test parse_response raises error if message missing."""
         adapter = LMStudioAdapter(base_url="http://localhost:1234")
 
-        response_json = {
-            "choices": [
-                {
-                    "index": 0,
-                    "finish_reason": "stop"
-                }
-            ]
-        }
+        response_json = {"choices": [{"index": 0, "finish_reason": "stop"}]}
 
         with pytest.raises(KeyError) as exc_info:
             adapter.parse_response(response_json)
@@ -118,13 +98,7 @@ class TestLMStudioAdapter:
         mock_response = Mock()
         mock_response.status_code = 200
         mock_response.json.return_value = {
-            "choices": [
-                {
-                    "message": {
-                        "content": "Test response from LM Studio"
-                    }
-                }
-            ]
+            "choices": [{"message": {"content": "Test response from LM Studio"}}]
         }
 
         mock_client = AsyncMock()
@@ -132,12 +106,9 @@ class TestLMStudioAdapter:
         mock_client.__aenter__ = AsyncMock(return_value=mock_client)
         mock_client.__aexit__ = AsyncMock(return_value=None)
 
-        with patch('httpx.AsyncClient', return_value=mock_client):
+        with patch("httpx.AsyncClient", return_value=mock_client):
             adapter = LMStudioAdapter(base_url="http://localhost:1234", timeout=60)
-            result = await adapter.invoke(
-                prompt="Say hello",
-                model="local-model"
-            )
+            result = await adapter.invoke(prompt="Say hello", model="local-model")
 
             assert result == "Test response from LM Studio"
             mock_client.post.assert_called_once()
@@ -163,12 +134,12 @@ class TestLMStudioAdapter:
         mock_client.__aenter__ = AsyncMock(return_value=mock_client)
         mock_client.__aexit__ = AsyncMock(return_value=None)
 
-        with patch('httpx.AsyncClient', return_value=mock_client):
+        with patch("httpx.AsyncClient", return_value=mock_client):
             adapter = LMStudioAdapter(base_url="http://localhost:1234")
             result = await adapter.invoke(
                 prompt="Current question",
                 model="test-model",
-                context="Previous context"
+                context="Previous context",
             )
 
             # Verify context was prepended

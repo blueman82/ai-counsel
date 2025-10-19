@@ -32,7 +32,7 @@ class TestDeliberationEngine:
             round_num=1,
             prompt="What is 2+2?",
             participants=participants,
-            previous_responses=[]
+            previous_responses=[],
         )
 
         assert len(responses) == 1
@@ -61,7 +61,7 @@ class TestDeliberationEngine:
             round_num=1,
             prompt="Should we use TDD?",
             participants=participants,
-            previous_responses=[]
+            previous_responses=[],
         )
 
         assert len(responses) == 2
@@ -88,7 +88,7 @@ class TestDeliberationEngine:
                 participant="codex",
                 stance="for",
                 response="Previous response",
-                timestamp=datetime.now().isoformat()
+                timestamp=datetime.now().isoformat(),
             )
         ]
 
@@ -98,7 +98,7 @@ class TestDeliberationEngine:
             round_num=2,
             prompt="Continue discussion",
             participants=participants,
-            previous_responses=previous
+            previous_responses=previous,
         )
 
         # Verify invoke was called with context
@@ -125,7 +125,7 @@ class TestDeliberationEngine:
             round_num=1,
             prompt="Test prompt",
             participants=participants,
-            previous_responses=[]
+            previous_responses=[],
         )
 
         assert len(responses) == 1
@@ -144,10 +144,7 @@ class TestDeliberationEngine:
         mock_adapters["claude"].invoke_mock.return_value = "Response"
 
         await engine.execute_round(
-            round_num=1,
-            prompt="Test",
-            participants=participants,
-            previous_responses=[]
+            round_num=1, prompt="Test", participants=participants, previous_responses=[]
         )
 
         call_args = mock_adapters["claude"].invoke_mock.call_args
@@ -167,10 +164,7 @@ class TestDeliberationEngine:
         mock_adapters["claude"].invoke_mock.return_value = "Response"
 
         responses = await engine.execute_round(
-            round_num=1,
-            prompt="Test",
-            participants=participants,
-            previous_responses=[]
+            round_num=1, prompt="Test", participants=participants, previous_responses=[]
         )
 
         timestamp = responses[0].timestamp
@@ -196,7 +190,7 @@ class TestDeliberationEngineMultiRound:
                 Participant(cli="codex", model="gpt-4", stance="neutral"),
             ],
             rounds=3,
-            mode="conference"
+            mode="conference",
         )
 
         mock_adapters["claude"].invoke_mock.return_value = "Claude response"
@@ -225,7 +219,7 @@ class TestDeliberationEngineMultiRound:
                 Participant(cli="codex", model="gpt-4", stance="neutral"),
             ],
             rounds=2,
-            mode="conference"
+            mode="conference",
         )
 
         mock_adapters["claude"].invoke_mock.return_value = "Claude response"
@@ -255,7 +249,7 @@ class TestDeliberationEngineMultiRound:
                 Participant(cli="codex", model="gpt-4", stance="neutral"),
             ],
             rounds=5,  # Request 5 rounds
-            mode="quick"  # But quick mode should override to 1
+            mode="quick",  # But quick mode should override to 1
         )
 
         mock_adapters["claude"].invoke_mock.return_value = "Claude response"
@@ -278,10 +272,12 @@ class TestDeliberationEngineMultiRound:
         request = DeliberateRequest(
             question="Should we use TypeScript?",
             participants=[
-                Participant(cli="claude", model="claude-3-5-sonnet-20241022", stance="neutral"),
+                Participant(
+                    cli="claude", model="claude-3-5-sonnet-20241022", stance="neutral"
+                ),
                 Participant(cli="codex", model="gpt-4", stance="neutral"),
             ],
-            rounds=1
+            rounds=1,
         )
 
         mock_adapters["claude"] = mock_adapters["claude"]
@@ -305,11 +301,11 @@ class TestVoteParsing:
 
     def test_parse_vote_from_response_valid_json(self):
         """Test parsing valid vote from response text."""
-        response_text = '''
+        response_text = """
         I think Option A is better because it has lower risk.
 
         VOTE: {"option": "Option A", "confidence": 0.85, "rationale": "Lower risk and better fit"}
-        '''
+        """
 
         engine = DeliberationEngine({})
         vote = engine._parse_vote(response_text)
@@ -331,11 +327,11 @@ class TestVoteParsing:
 
     def test_parse_vote_from_response_invalid_json(self):
         """Test parsing when vote JSON is malformed."""
-        response_text = '''
+        response_text = """
         My analysis here.
 
         VOTE: {invalid json}
-        '''
+        """
 
         engine = DeliberationEngine({})
         vote = engine._parse_vote(response_text)
@@ -344,11 +340,11 @@ class TestVoteParsing:
 
     def test_parse_vote_from_response_missing_fields(self):
         """Test parsing when vote JSON missing required fields."""
-        response_text = '''
+        response_text = """
         My analysis.
 
         VOTE: {"option": "Option A"}
-        '''
+        """
 
         engine = DeliberationEngine({})
         vote = engine._parse_vote(response_text)
@@ -357,11 +353,11 @@ class TestVoteParsing:
 
     def test_parse_vote_confidence_out_of_range(self):
         """Test parsing when confidence is out of valid range."""
-        response_text = '''
+        response_text = """
         Analysis here.
 
         VOTE: {"option": "Yes", "confidence": 1.5, "rationale": "Test"}
-        '''
+        """
 
         engine = DeliberationEngine({})
         vote = engine._parse_vote(response_text)
@@ -379,18 +375,18 @@ class TestVoteParsing:
         ]
 
         # Response includes a vote
-        response_with_vote = '''
+        response_with_vote = """
         I recommend Option A because it has lower risk.
 
         VOTE: {"option": "Option A", "confidence": 0.9, "rationale": "Lower risk"}
-        '''
+        """
         mock_adapters["claude"].invoke_mock.return_value = response_with_vote
 
         responses = await engine.execute_round(
             round_num=1,
             prompt="Which option?",
             participants=participants,
-            previous_responses=[]
+            previous_responses=[],
         )
 
         # Verify the response includes the full text
@@ -414,7 +410,7 @@ class TestVoteParsing:
                 Participant(cli="codex", model="gpt-4", stance="neutral"),
             ],
             rounds=2,
-            mode="conference"
+            mode="conference",
         )
 
         # Both vote for Option A in round 1
@@ -433,7 +429,9 @@ class TestVoteParsing:
         assert result.voting_result is not None
         assert result.voting_result.consensus_reached is True
         assert result.voting_result.winning_option == "Option A"
-        assert result.voting_result.final_tally["Option A"] == 4  # 2 participants x 2 rounds
+        assert (
+            result.voting_result.final_tally["Option A"] == 4
+        )  # 2 participants x 2 rounds
         assert len(result.voting_result.votes_by_round) == 4
 
 
@@ -451,7 +449,11 @@ class TestVotingPrompts:
         assert "option" in instructions
         assert "confidence" in instructions
         assert "rationale" in instructions
-        assert "0.0" in instructions or "0-1" in instructions or "between 0 and 1" in instructions.lower()
+        assert (
+            "0.0" in instructions
+            or "0-1" in instructions
+            or "between 0 and 1" in instructions.lower()
+        )
 
     def test_enhance_prompt_with_voting(self):
         """Test that prompt enhancement adds voting instructions."""

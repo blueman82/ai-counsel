@@ -46,54 +46,64 @@ class TranscriptManager:
 
         # Sort by vote count (descending) for better readability
         sorted_tally = sorted(
-            result.voting_result.final_tally.items(),
-            key=lambda x: x[1],
-            reverse=True
+            result.voting_result.final_tally.items(), key=lambda x: x[1], reverse=True
         )
 
         for option, count in sorted_tally:
-            winning_indicator = " ✓" if option == result.voting_result.winning_option else ""
+            winning_indicator = (
+                " ✓" if option == result.voting_result.winning_option else ""
+            )
             lines.append(f"- **{option}**: {count} vote(s){winning_indicator}")
 
-        lines.extend([
-            "",
-            f"**Consensus Reached:** {'Yes' if result.voting_result.consensus_reached else 'No'}",
-            "",
-        ])
+        lines.extend(
+            [
+                "",
+                f"**Consensus Reached:** {'Yes' if result.voting_result.consensus_reached else 'No'}",
+                "",
+            ]
+        )
 
         if result.voting_result.winning_option:
             lines.append(f"**Winning Option:** {result.voting_result.winning_option}")
         else:
             lines.append("**Winning Option:** No winner (tie or insufficient votes)")
 
-        lines.extend([
-            "",
-            "### Votes by Round",
-            "",
-        ])
+        lines.extend(
+            [
+                "",
+                "### Votes by Round",
+                "",
+            ]
+        )
 
         # Group votes by round
         current_voting_round = None
         for round_vote in result.voting_result.votes_by_round:
             if round_vote.round != current_voting_round:
                 current_voting_round = round_vote.round
-                lines.extend([
-                    f"#### Round {current_voting_round}",
+                lines.extend(
+                    [
+                        f"#### Round {current_voting_round}",
+                        "",
+                    ]
+                )
+
+            lines.extend(
+                [
+                    f"**{round_vote.participant}**",
+                    f"- Option: {round_vote.vote.option}",
+                    f"- Confidence: {round_vote.vote.confidence:.2f}",
+                    f"- Continue Debate: {'Yes' if round_vote.vote.continue_debate else 'No'}",
+                    f"- Rationale: {round_vote.vote.rationale}",
                     "",
-                ])
+                ]
+            )
 
-            lines.extend([
-                f"**{round_vote.participant}**",
-                f"- Option: {round_vote.vote.option}",
-                f"- Confidence: {round_vote.vote.confidence:.2f}",
-                f"- Continue Debate: {'Yes' if round_vote.vote.continue_debate else 'No'}",
-                f"- Rationale: {round_vote.vote.rationale}",
+        lines.extend(
+            [
                 "",
-            ])
-
-        lines.extend([
-            "",
-        ])
+            ]
+        )
 
         return lines
 
@@ -128,61 +138,68 @@ class TranscriptManager:
         for agreement in result.summary.key_agreements:
             lines.append(f"- {agreement}")
 
-        lines.extend([
-            "",
-            "### Key Disagreements",
-            "",
-        ])
+        lines.extend(
+            [
+                "",
+                "### Key Disagreements",
+                "",
+            ]
+        )
 
         for disagreement in result.summary.key_disagreements:
             lines.append(f"- {disagreement}")
 
-        lines.extend([
-            "",
-            f"**Final Recommendation:** {result.summary.final_recommendation}",
-            "",
-        ])
+        lines.extend(
+            [
+                "",
+                f"**Final Recommendation:** {result.summary.final_recommendation}",
+                "",
+            ]
+        )
 
         # Add voting results if available
         voting_lines = self._format_voting_section(result)
         if voting_lines:
             lines.extend(voting_lines)
 
-        lines.extend([
-            "---",
-            "",
-            "## Full Debate",
-            "",
-        ])
+        lines.extend(
+            [
+                "---",
+                "",
+                "## Full Debate",
+                "",
+            ]
+        )
 
         # Group by round
         current_round = None
         for response in result.full_debate:
             if response.round != current_round:
                 current_round = response.round
-                lines.extend([
-                    f"### Round {current_round}",
-                    "",
-                ])
+                lines.extend(
+                    [
+                        f"### Round {current_round}",
+                        "",
+                    ]
+                )
 
-            lines.extend([
-                f"**{response.participant}** ({response.stance})",
-                "",
-                response.response,
-                "",
-                f"*{response.timestamp}*",
-                "",
-                "---",
-                "",
-            ])
+            lines.extend(
+                [
+                    f"**{response.participant}** ({response.stance})",
+                    "",
+                    response.response,
+                    "",
+                    f"*{response.timestamp}*",
+                    "",
+                    "---",
+                    "",
+                ]
+            )
 
         return "\n".join(lines)
 
     def save(
-        self,
-        result: DeliberationResult,
-        question: str,
-        filename: Optional[str] = None
+        self, result: DeliberationResult, question: str, filename: Optional[str] = None
     ) -> str:
         """
         Save deliberation transcript to file.
@@ -199,13 +216,15 @@ class TranscriptManager:
         if filename is None:
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             # Create safe filename from question
-            safe_question = "".join(c for c in question[:50] if c.isalnum() or c in (' ', '-', '_'))
-            safe_question = safe_question.strip().replace(' ', '_')
+            safe_question = "".join(
+                c for c in question[:50] if c.isalnum() or c in (" ", "-", "_")
+            )
+            safe_question = safe_question.strip().replace(" ", "_")
             filename = f"{timestamp}_{safe_question}.md"
 
         # Ensure .md extension
-        if not filename.endswith('.md'):
-            filename += '.md'
+        if not filename.endswith(".md"):
+            filename += ".md"
 
         filepath = self.output_dir / filename
 
@@ -213,6 +232,6 @@ class TranscriptManager:
         markdown = f"# {question}\n\n" + self.generate_markdown(result)
 
         # Save
-        filepath.write_text(markdown, encoding='utf-8')
+        filepath.write_text(markdown, encoding="utf-8")
 
         return str(filepath)

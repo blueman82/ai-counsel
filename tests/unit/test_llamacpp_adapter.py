@@ -26,10 +26,7 @@ class TestLlamaCppAdapter:
 
     def test_should_initialize_with_correct_defaults_when_created(self):
         """Test adapter initializes with correct command and timeout."""
-        adapter = LlamaCppAdapter(
-            args=["-m", "{model}", "-p", "{prompt}"],
-            timeout=120
-        )
+        adapter = LlamaCppAdapter(args=["-m", "{model}", "-p", "{prompt}"], timeout=120)
         assert adapter.command == "llama-cli"
         assert adapter.timeout == 120
         assert adapter.args == ["-m", "{model}", "-p", "{prompt}"]
@@ -173,12 +170,15 @@ llama_print_timings: total time = 100 ms
         assert result == "Just the response text without metadata."
 
     @pytest.mark.asyncio
-    @patch('adapters.base.asyncio.create_subprocess_exec')
-    async def test_should_invoke_successfully_when_process_succeeds(self, mock_subprocess):
+    @patch("adapters.base.asyncio.create_subprocess_exec")
+    async def test_should_invoke_successfully_when_process_succeeds(
+        self, mock_subprocess
+    ):
         """Test successful CLI invocation."""
         mock_process = Mock()
-        mock_process.communicate = AsyncMock(return_value=(
-            b"""
+        mock_process.communicate = AsyncMock(
+            return_value=(
+                b"""
 llama_model_loader: loaded meta data
 sampling: repeat_last_n = 64
 
@@ -186,23 +186,25 @@ The answer is 42.
 
 llama_print_timings: total time = 100 ms
             """,
-            b""
-        ))
+                b"",
+            )
+        )
         mock_process.returncode = 0
         mock_subprocess.return_value = mock_process
 
         adapter = LlamaCppAdapter(args=["-m", "{model}", "-p", "{prompt}"])
         result = await adapter.invoke(
-            prompt="What is the answer?",
-            model="/path/to/model.gguf"
+            prompt="What is the answer?", model="/path/to/model.gguf"
         )
 
         assert result == "The answer is 42."
         mock_subprocess.assert_called_once()
 
     @pytest.mark.asyncio
-    @patch('adapters.base.asyncio.create_subprocess_exec')
-    async def test_should_raise_timeout_error_when_process_times_out(self, mock_subprocess):
+    @patch("adapters.base.asyncio.create_subprocess_exec")
+    async def test_should_raise_timeout_error_when_process_times_out(
+        self, mock_subprocess
+    ):
         """Test timeout handling."""
         mock_process = Mock()
         mock_process.communicate = AsyncMock(side_effect=asyncio.TimeoutError())
@@ -216,14 +218,13 @@ llama_print_timings: total time = 100 ms
         assert "timed out" in str(exc_info.value).lower()
 
     @pytest.mark.asyncio
-    @patch('adapters.base.asyncio.create_subprocess_exec')
+    @patch("adapters.base.asyncio.create_subprocess_exec")
     async def test_should_raise_runtime_error_when_process_fails(self, mock_subprocess):
         """Test process error handling."""
         mock_process = Mock()
-        mock_process.communicate = AsyncMock(return_value=(
-            b"",
-            b"error: failed to load model"
-        ))
+        mock_process.communicate = AsyncMock(
+            return_value=(b"", b"error: failed to load model")
+        )
         mock_process.returncode = 1
         mock_subprocess.return_value = mock_process
 
@@ -235,14 +236,13 @@ llama_print_timings: total time = 100 ms
         assert "failed" in str(exc_info.value).lower()
 
     @pytest.mark.asyncio
-    @patch('adapters.base.asyncio.create_subprocess_exec')
+    @patch("adapters.base.asyncio.create_subprocess_exec")
     async def test_should_include_context_when_provided(self, mock_subprocess):
         """Test context is prepended to prompt."""
         mock_process = Mock()
-        mock_process.communicate = AsyncMock(return_value=(
-            b"Response with context.",
-            b""
-        ))
+        mock_process.communicate = AsyncMock(
+            return_value=(b"Response with context.", b"")
+        )
         mock_process.returncode = 0
         mock_subprocess.return_value = mock_process
 
@@ -250,7 +250,7 @@ llama_print_timings: total time = 100 ms
         result = await adapter.invoke(
             prompt="Answer this:",
             model="/path/to/model.gguf",
-            context="Previous context here."
+            context="Previous context here.",
         )
 
         # Verify subprocess was called with combined prompt
@@ -289,7 +289,7 @@ llama_print_timings: total time = 200 ms
 
         assert "Here's a code example:" in result
         assert "```python" in result
-        assert 'def hello():' in result
+        assert "def hello():" in result
         assert "This demonstrates the concept." in result
         assert "llama_print_timings" not in result
 

@@ -10,9 +10,7 @@ class TestOpenRouterAdapter:
     def test_adapter_initialization(self):
         """Test adapter initializes correctly."""
         adapter = OpenRouterAdapter(
-            base_url="https://openrouter.ai/api/v1",
-            api_key="sk-test-123",
-            timeout=90
+            base_url="https://openrouter.ai/api/v1", api_key="sk-test-123", timeout=90
         )
         assert adapter.base_url == "https://openrouter.ai/api/v1"
         assert adapter.api_key == "sk-test-123"
@@ -20,23 +18,18 @@ class TestOpenRouterAdapter:
 
     def test_adapter_initialization_without_api_key(self):
         """Test adapter can be initialized without API key (will fail on request)."""
-        adapter = OpenRouterAdapter(
-            base_url="https://openrouter.ai/api/v1",
-            timeout=60
-        )
+        adapter = OpenRouterAdapter(base_url="https://openrouter.ai/api/v1", timeout=60)
         assert adapter.base_url == "https://openrouter.ai/api/v1"
         assert adapter.api_key is None
 
     def test_build_request_structure(self):
         """Test build_request returns correct OpenAI-compatible structure with auth."""
         adapter = OpenRouterAdapter(
-            base_url="https://openrouter.ai/api/v1",
-            api_key="sk-test-key-123"
+            base_url="https://openrouter.ai/api/v1", api_key="sk-test-key-123"
         )
 
         endpoint, headers, body = adapter.build_request(
-            model="anthropic/claude-3.5-sonnet",
-            prompt="What is 2+2?"
+            model="anthropic/claude-3.5-sonnet", prompt="What is 2+2?"
         )
 
         assert endpoint == "/chat/completions"
@@ -49,13 +42,11 @@ class TestOpenRouterAdapter:
     def test_build_request_without_api_key_still_includes_header(self):
         """Test build_request includes Authorization header even if api_key is None."""
         adapter = OpenRouterAdapter(
-            base_url="https://openrouter.ai/api/v1",
-            api_key=None
+            base_url="https://openrouter.ai/api/v1", api_key=None
         )
 
         endpoint, headers, body = adapter.build_request(
-            model="test-model",
-            prompt="test"
+            model="test-model", prompt="test"
         )
 
         # Should include header with "Bearer None" - will fail at API level
@@ -65,14 +56,12 @@ class TestOpenRouterAdapter:
     def test_build_request_with_long_prompt(self):
         """Test build_request handles long prompts."""
         adapter = OpenRouterAdapter(
-            base_url="https://openrouter.ai/api/v1",
-            api_key="sk-test"
+            base_url="https://openrouter.ai/api/v1", api_key="sk-test"
         )
 
         long_prompt = "A" * 5000
         endpoint, headers, body = adapter.build_request(
-            model="test-model",
-            prompt=long_prompt
+            model="test-model", prompt=long_prompt
         )
 
         assert body["messages"][0]["content"] == long_prompt
@@ -80,8 +69,7 @@ class TestOpenRouterAdapter:
     def test_parse_response_extracts_content(self):
         """Test parse_response extracts message content from OpenAI format."""
         adapter = OpenRouterAdapter(
-            base_url="https://openrouter.ai/api/v1",
-            api_key="sk-test"
+            base_url="https://openrouter.ai/api/v1", api_key="sk-test"
         )
 
         response_json = {
@@ -91,13 +79,10 @@ class TestOpenRouterAdapter:
             "choices": [
                 {
                     "index": 0,
-                    "message": {
-                        "role": "assistant",
-                        "content": "The answer is 4."
-                    },
-                    "finish_reason": "stop"
+                    "message": {"role": "assistant", "content": "The answer is 4."},
+                    "finish_reason": "stop",
                 }
-            ]
+            ],
         }
 
         result = adapter.parse_response(response_json)
@@ -106,14 +91,10 @@ class TestOpenRouterAdapter:
     def test_parse_response_handles_missing_choices(self):
         """Test parse_response raises error if choices missing."""
         adapter = OpenRouterAdapter(
-            base_url="https://openrouter.ai/api/v1",
-            api_key="sk-test"
+            base_url="https://openrouter.ai/api/v1", api_key="sk-test"
         )
 
-        response_json = {
-            "id": "gen-123",
-            "model": "test-model"
-        }
+        response_json = {"id": "gen-123", "model": "test-model"}
 
         with pytest.raises(KeyError) as exc_info:
             adapter.parse_response(response_json)
@@ -123,13 +104,10 @@ class TestOpenRouterAdapter:
     def test_parse_response_handles_empty_choices(self):
         """Test parse_response raises error if choices is empty."""
         adapter = OpenRouterAdapter(
-            base_url="https://openrouter.ai/api/v1",
-            api_key="sk-test"
+            base_url="https://openrouter.ai/api/v1", api_key="sk-test"
         )
 
-        response_json = {
-            "choices": []
-        }
+        response_json = {"choices": []}
 
         with pytest.raises(IndexError):
             adapter.parse_response(response_json)
@@ -137,18 +115,10 @@ class TestOpenRouterAdapter:
     def test_parse_response_handles_missing_message(self):
         """Test parse_response raises error if message missing."""
         adapter = OpenRouterAdapter(
-            base_url="https://openrouter.ai/api/v1",
-            api_key="sk-test"
+            base_url="https://openrouter.ai/api/v1", api_key="sk-test"
         )
 
-        response_json = {
-            "choices": [
-                {
-                    "index": 0,
-                    "finish_reason": "stop"
-                }
-            ]
-        }
+        response_json = {"choices": [{"index": 0, "finish_reason": "stop"}]}
 
         with pytest.raises(KeyError) as exc_info:
             adapter.parse_response(response_json)
@@ -163,13 +133,7 @@ class TestOpenRouterAdapter:
         mock_response = Mock()
         mock_response.status_code = 200
         mock_response.json.return_value = {
-            "choices": [
-                {
-                    "message": {
-                        "content": "Test response from OpenRouter"
-                    }
-                }
-            ]
+            "choices": [{"message": {"content": "Test response from OpenRouter"}}]
         }
 
         mock_client = AsyncMock()
@@ -177,15 +141,14 @@ class TestOpenRouterAdapter:
         mock_client.__aenter__ = AsyncMock(return_value=mock_client)
         mock_client.__aexit__ = AsyncMock(return_value=None)
 
-        with patch('httpx.AsyncClient', return_value=mock_client):
+        with patch("httpx.AsyncClient", return_value=mock_client):
             adapter = OpenRouterAdapter(
                 base_url="https://openrouter.ai/api/v1",
                 api_key="sk-test-key",
-                timeout=60
+                timeout=60,
             )
             result = await adapter.invoke(
-                prompt="Say hello",
-                model="anthropic/claude-3.5-sonnet"
+                prompt="Say hello", model="anthropic/claude-3.5-sonnet"
             )
 
             assert result == "Test response from OpenRouter"
@@ -213,15 +176,14 @@ class TestOpenRouterAdapter:
         mock_client.__aenter__ = AsyncMock(return_value=mock_client)
         mock_client.__aexit__ = AsyncMock(return_value=None)
 
-        with patch('httpx.AsyncClient', return_value=mock_client):
+        with patch("httpx.AsyncClient", return_value=mock_client):
             adapter = OpenRouterAdapter(
-                base_url="https://openrouter.ai/api/v1",
-                api_key="sk-test"
+                base_url="https://openrouter.ai/api/v1", api_key="sk-test"
             )
             result = await adapter.invoke(
                 prompt="Current question",
                 model="test-model",
-                context="Previous context"
+                context="Previous context",
             )
 
             # Verify context was prepended
@@ -241,7 +203,7 @@ class TestOpenRouterAdapter:
         adapter = OpenRouterAdapter(
             base_url="https://openrouter.ai/api/v1",
             api_key=test_key,  # In real usage, this would be resolved from ${TEST_OPENROUTER_KEY}
-            timeout=60
+            timeout=60,
         )
 
         assert adapter.api_key == test_key

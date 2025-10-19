@@ -13,7 +13,9 @@ class MockAdapter(BaseCLIAdapter):
         self.name = name
         self.invoke_mock = AsyncMock()
 
-    async def invoke(self, prompt: str, model: str, context: str = None, is_deliberation: bool = True) -> str:
+    async def invoke(
+        self, prompt: str, model: str, context: str = None, is_deliberation: bool = True
+    ) -> str:
         """Mock invoke method."""
         return await self.invoke_mock(prompt, model, context, is_deliberation)
 

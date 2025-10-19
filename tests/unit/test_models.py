@@ -18,9 +18,7 @@ class TestParticipant:
     def test_valid_participant(self):
         """Test creating a valid participant."""
         p = Participant(
-            cli="claude",
-            model="claude-3-5-sonnet-20241022",
-            stance="neutral"
+            cli="claude", model="claude-3-5-sonnet-20241022", stance="neutral"
         )
         assert p.cli == "claude"
         assert p.model == "claude-3-5-sonnet-20241022"
@@ -58,14 +56,18 @@ class TestParticipant:
 
     def test_llamacpp_participant(self):
         """Test creating a llama.cpp participant."""
-        p = Participant(cli="llamacpp", model="/path/to/llama-2-7b.Q4_K_M.gguf", stance="neutral")
+        p = Participant(
+            cli="llamacpp", model="/path/to/llama-2-7b.Q4_K_M.gguf", stance="neutral"
+        )
         assert p.cli == "llamacpp"
         assert p.model == "/path/to/llama-2-7b.Q4_K_M.gguf"
         assert p.stance == "neutral"
 
     def test_openrouter_participant(self):
         """Test creating an OpenRouter participant."""
-        p = Participant(cli="openrouter", model="anthropic/claude-3.5-sonnet", stance="against")
+        p = Participant(
+            cli="openrouter", model="anthropic/claude-3.5-sonnet", stance="against"
+        )
         assert p.cli == "openrouter"
         assert p.model == "anthropic/claude-3.5-sonnet"
         assert p.stance == "against"
@@ -81,7 +83,7 @@ class TestDeliberateRequest:
             participants=[
                 Participant(cli="claude", model="claude-3-5-sonnet-20241022"),
                 Participant(cli="codex", model="gpt-4"),
-            ]
+            ],
         )
         assert req.question == "Should we use TypeScript?"
         assert len(req.participants) == 2
@@ -93,12 +95,14 @@ class TestDeliberateRequest:
         req = DeliberateRequest(
             question="Should we refactor?",
             participants=[
-                Participant(cli="claude", model="claude-3-5-sonnet-20241022", stance="for"),
+                Participant(
+                    cli="claude", model="claude-3-5-sonnet-20241022", stance="for"
+                ),
                 Participant(cli="codex", model="gpt-4", stance="against"),
             ],
             rounds=3,
             mode="conference",
-            context="Legacy codebase, 50K LOC"
+            context="Legacy codebase, 50K LOC",
         )
         assert req.rounds == 3
         assert req.mode == "conference"
@@ -108,8 +112,7 @@ class TestDeliberateRequest:
         """Test that at least 2 participants are required."""
         with pytest.raises(ValidationError) as exc_info:
             DeliberateRequest(
-                question="Test?",
-                participants=[Participant(cli="codex", model="gpt-4")]
+                question="Test?", participants=[Participant(cli="codex", model="gpt-4")]
             )
         assert "participants" in str(exc_info.value)
 
@@ -122,7 +125,7 @@ class TestDeliberateRequest:
                     Participant(cli="claude", model="claude-3-5-sonnet-20241022"),
                     Participant(cli="codex", model="gpt-4"),
                 ],
-                rounds=0
+                rounds=0,
             )
         assert "rounds" in str(exc_info.value)
 
@@ -135,7 +138,7 @@ class TestDeliberateRequest:
                     Participant(cli="claude", model="claude-3-5-sonnet-20241022"),
                     Participant(cli="codex", model="gpt-4"),
                 ],
-                rounds=10
+                rounds=10,
             )
         assert "rounds" in str(exc_info.value)
 
@@ -150,7 +153,7 @@ class TestRoundResponse:
             participant="claude-3-5-sonnet@claude-code",
             stance="neutral",
             response="I think we should consider...",
-            timestamp="2025-10-12T15:30:00Z"
+            timestamp="2025-10-12T15:30:00Z",
         )
         assert resp.round == 1
         assert "claude-3-5-sonnet" in resp.participant
@@ -170,10 +173,10 @@ class TestDeliberationResult:
                 "consensus": "Strong agreement",
                 "key_agreements": ["Point 1", "Point 2"],
                 "key_disagreements": ["Detail A"],
-                "final_recommendation": "Proceed with approach X"
+                "final_recommendation": "Proceed with approach X",
             },
             transcript_path="/path/to/transcript.md",
-            full_debate=[]
+            full_debate=[],
         )
         assert result.status == "complete"
         assert result.rounds_completed == 2
@@ -187,7 +190,7 @@ class TestVote:
         vote = Vote(
             option="Option A",
             confidence=0.85,
-            rationale="This approach has lower risk and better architectural fit."
+            rationale="This approach has lower risk and better architectural fit.",
         )
         assert vote.option == "Option A"
         assert vote.confidence == 0.85
@@ -229,7 +232,7 @@ class TestRoundVote:
             round=2,
             participant="sonnet@claude",
             vote=vote,
-            timestamp="2025-10-14T00:00:00Z"
+            timestamp="2025-10-14T00:00:00Z",
         )
         assert round_vote.round == 2
         assert round_vote.participant == "sonnet@claude"
@@ -248,18 +251,30 @@ class TestVotingResult:
     def test_valid_voting_result_with_consensus(self):
         """Test voting result when consensus is reached."""
         vote1 = Vote(option="Option A", confidence=0.9, rationale="Strong reasons")
-        vote2 = Vote(option="Option A", confidence=0.85, rationale="Agree with analysis")
+        vote2 = Vote(
+            option="Option A", confidence=0.85, rationale="Agree with analysis"
+        )
 
         round_votes = [
-            RoundVote(round=1, participant="sonnet@claude", vote=vote1, timestamp="2025-10-14T00:00:00Z"),
-            RoundVote(round=1, participant="codex@codex", vote=vote2, timestamp="2025-10-14T00:00:01Z"),
+            RoundVote(
+                round=1,
+                participant="sonnet@claude",
+                vote=vote1,
+                timestamp="2025-10-14T00:00:00Z",
+            ),
+            RoundVote(
+                round=1,
+                participant="codex@codex",
+                vote=vote2,
+                timestamp="2025-10-14T00:00:01Z",
+            ),
         ]
 
         result = VotingResult(
             final_tally={"Option A": 2, "Option B": 0},
             votes_by_round=round_votes,
             consensus_reached=True,
-            winning_option="Option A"
+            winning_option="Option A",
         )
         assert result.consensus_reached is True
         assert result.winning_option == "Option A"
@@ -272,15 +287,25 @@ class TestVotingResult:
         vote2 = Vote(option="Option B", confidence=0.8, rationale="Reasons for B")
 
         round_votes = [
-            RoundVote(round=2, participant="sonnet@claude", vote=vote1, timestamp="2025-10-14T00:00:00Z"),
-            RoundVote(round=2, participant="codex@codex", vote=vote2, timestamp="2025-10-14T00:00:01Z"),
+            RoundVote(
+                round=2,
+                participant="sonnet@claude",
+                vote=vote1,
+                timestamp="2025-10-14T00:00:00Z",
+            ),
+            RoundVote(
+                round=2,
+                participant="codex@codex",
+                vote=vote2,
+                timestamp="2025-10-14T00:00:01Z",
+            ),
         ]
 
         result = VotingResult(
             final_tally={"Option A": 1, "Option B": 1},
             votes_by_round=round_votes,
             consensus_reached=False,
-            winning_option=None
+            winning_option=None,
         )
         assert result.consensus_reached is False
         assert result.winning_option is None

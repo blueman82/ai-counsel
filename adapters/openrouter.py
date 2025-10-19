@@ -15,9 +15,7 @@ class OpenRouterAdapter(BaseHTTPAdapter):
     """
 
     def build_request(
-        self,
-        model: str,
-        prompt: str
+        self, model: str, prompt: str
     ) -> Tuple[str, dict[str, str], dict]:
         """
         Build OpenRouter API request (OpenAI-compatible format with auth).
@@ -37,19 +35,14 @@ class OpenRouterAdapter(BaseHTTPAdapter):
 
         headers = {
             "Content-Type": "application/json",
-            "Authorization": f"Bearer {self.api_key}"
+            "Authorization": f"Bearer {self.api_key}",
         }
 
         # Convert prompt to OpenAI chat format
         body = {
             "model": model,
-            "messages": [
-                {
-                    "role": "user",
-                    "content": prompt
-                }
-            ],
-            "stream": False  # Use non-streaming for simplicity
+            "messages": [{"role": "user", "content": prompt}],
+            "stream": False,  # Use non-streaming for simplicity
         }
 
         return (endpoint, headers, body)
@@ -90,9 +83,7 @@ class OpenRouterAdapter(BaseHTTPAdapter):
             )
 
         if len(response_json["choices"]) == 0:
-            raise IndexError(
-                "OpenRouter response has empty 'choices' array"
-            )
+            raise IndexError("OpenRouter response has empty 'choices' array")
 
         choice = response_json["choices"][0]
 

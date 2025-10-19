@@ -14,8 +14,7 @@ from typing import Union
 
 
 def create_adapter(
-    name: str,
-    config: Union[CLIToolConfig, CLIAdapterConfig, HTTPAdapterConfig]
+    name: str, config: Union[CLIToolConfig, CLIAdapterConfig, HTTPAdapterConfig]
 ) -> Union[BaseCLIAdapter, BaseHTTPAdapter]:
     """
     Factory function to create appropriate adapter (CLI or HTTP).
@@ -51,9 +50,7 @@ def create_adapter(
     if isinstance(config, CLIToolConfig):
         if name in cli_adapters:
             return cli_adapters[name](
-                command=config.command,
-                args=config.args,
-                timeout=config.timeout
+                command=config.command, args=config.args, timeout=config.timeout
             )
         else:
             raise ValueError(
@@ -70,9 +67,7 @@ def create_adapter(
             )
 
         return cli_adapters[name](
-            command=config.command,
-            args=config.args,
-            timeout=config.timeout
+            command=config.command, args=config.args, timeout=config.timeout
         )
 
     elif isinstance(config, HTTPAdapterConfig):
@@ -88,7 +83,7 @@ def create_adapter(
             timeout=config.timeout,
             max_retries=config.max_retries,
             api_key=config.api_key,
-            headers=config.headers
+            headers=config.headers,
         )
 
     else:
@@ -108,5 +103,5 @@ __all__ = [
     "LlamaCppAdapter",
     "LMStudioAdapter",
     "OllamaAdapter",
-    "create_adapter"
+    "create_adapter",
 ]

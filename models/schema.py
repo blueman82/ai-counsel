@@ -6,17 +6,25 @@ from pydantic import BaseModel, Field
 class Participant(BaseModel):
     """Model representing a deliberation participant."""
 
-    cli: Literal["claude", "codex", "droid", "gemini", "llamacpp", "ollama", "lmstudio", "openrouter"] = Field(
+    cli: Literal[
+        "claude",
+        "codex",
+        "droid",
+        "gemini",
+        "llamacpp",
+        "ollama",
+        "lmstudio",
+        "openrouter",
+    ] = Field(
         ...,
-        description="Adapter to use for this participant (CLI tools or HTTP services)"
+        description="Adapter to use for this participant (CLI tools or HTTP services)",
     )
     model: str = Field(
         ...,
-        description="Model identifier (e.g., 'claude-3-5-sonnet-20241022', 'gpt-4')"
+        description="Model identifier (e.g., 'claude-3-5-sonnet-20241022', 'gpt-4')",
     )
     stance: Literal["neutral", "for", "against"] = Field(
-        default="neutral",
-        description="Stance for this participant"
+        default="neutral", description="Stance for this participant"
     )
 
 
@@ -24,28 +32,19 @@ class DeliberateRequest(BaseModel):
     """Model for deliberation request."""
 
     question: str = Field(
-        ...,
-        min_length=10,
-        description="The question or proposal to deliberate on"
+        ..., min_length=10, description="The question or proposal to deliberate on"
     )
     participants: list[Participant] = Field(
-        ...,
-        min_length=2,
-        description="List of participants (minimum 2)"
+        ..., min_length=2, description="List of participants (minimum 2)"
     )
     rounds: int = Field(
-        default=2,
-        ge=1,
-        le=5,
-        description="Number of deliberation rounds (1-5)"
+        default=2, ge=1, le=5, description="Number of deliberation rounds (1-5)"
     )
     mode: Literal["quick", "conference"] = Field(
-        default="quick",
-        description="Deliberation mode"
+        default="quick", description="Deliberation mode"
     )
     context: Optional[str] = Field(
-        default=None,
-        description="Optional additional context"
+        default=None, description="Optional additional context"
     )
 
 
@@ -71,12 +70,16 @@ class Summary(BaseModel):
 class Vote(BaseModel):
     """Model for an individual vote with confidence and rationale."""
 
-    option: str = Field(..., description="The voting option (e.g., 'Option A', 'Yes', 'Approve')")
-    confidence: float = Field(..., ge=0.0, le=1.0, description="Confidence level in this vote (0.0-1.0)")
+    option: str = Field(
+        ..., description="The voting option (e.g., 'Option A', 'Yes', 'Approve')"
+    )
+    confidence: float = Field(
+        ..., ge=0.0, le=1.0, description="Confidence level in this vote (0.0-1.0)"
+    )
     rationale: str = Field(..., description="Explanation for this vote")
     continue_debate: bool = Field(
         default=True,
-        description="Whether this participant wants to continue deliberating (False = satisfied with outcome)"
+        description="Whether this participant wants to continue deliberating (False = satisfied with outcome)",
     )
 
 
@@ -93,9 +96,13 @@ class VotingResult(BaseModel):
     """Model for aggregated voting results across all rounds."""
 
     final_tally: Dict[str, int] = Field(..., description="Final vote counts by option")
-    votes_by_round: List[RoundVote] = Field(..., description="All votes organized by round")
+    votes_by_round: List[RoundVote] = Field(
+        ..., description="All votes organized by round"
+    )
     consensus_reached: bool = Field(..., description="Whether voting reached consensus")
-    winning_option: Optional[str] = Field(..., description="The winning option (None if tie or no consensus)")
+    winning_option: Optional[str] = Field(
+        ..., description="The winning option (None if tie or no consensus)"
+    )
 
 
 class ConvergenceInfo(BaseModel):
@@ -108,18 +115,27 @@ class ConvergenceInfo(BaseModel):
 
     detected: bool = Field(
         ...,
-        description="Whether convergence was detected (True if models reached consensus)"
+        description="Whether convergence was detected (True if models reached consensus)",
     )
     detection_round: Optional[int] = Field(
         None,
-        description="Round number where convergence occurred (None if not detected or max rounds reached)"
+        description="Round number where convergence occurred (None if not detected or max rounds reached)",
     )
     final_similarity: float = Field(
         ...,
-        description="Final similarity score (minimum across all participants, range 0.0-1.0)"
+        description="Final similarity score (minimum across all participants, range 0.0-1.0)",
     )
-    status: Literal["converged", "diverging", "refining", "impasse", "max_rounds",
-                     "unanimous_consensus", "majority_decision", "tie", "unknown"] = Field(
+    status: Literal[
+        "converged",
+        "diverging",
+        "refining",
+        "impasse",
+        "max_rounds",
+        "unanimous_consensus",
+        "majority_decision",
+        "tie",
+        "unknown",
+    ] = Field(
         ...,
         description=(
             "Convergence status: "
@@ -132,15 +148,15 @@ class ConvergenceInfo(BaseModel):
             "'majority_decision' (clear winner from voting), "
             "'tie' (no clear winner from voting), "
             "'unknown' (no convergence data available)"
-        )
+        ),
     )
     scores_by_round: list[dict] = Field(
         default_factory=list,
-        description="Historical similarity scores for each round (for tracking convergence progression)"
+        description="Historical similarity scores for each round (for tracking convergence progression)",
     )
     per_participant_similarity: dict[str, float] = Field(
         default_factory=dict,
-        description="Latest similarity score for each participant (participant_id -> similarity score 0.0-1.0)"
+        description="Latest similarity score for each participant (participant_id -> similarity score 0.0-1.0)",
     )
 
 
@@ -156,9 +172,9 @@ class DeliberationResult(BaseModel):
     full_debate: list[RoundResponse] = Field(..., description="Full debate history")
     convergence_info: Optional[ConvergenceInfo] = Field(
         None,
-        description="Convergence detection information (None if detection disabled)"
+        description="Convergence detection information (None if detection disabled)",
     )
     voting_result: Optional[VotingResult] = Field(
         None,
-        description="Voting results if participants cast votes (None if no votes found)"
+        description="Voting results if participants cast votes (None if no votes found)",
     )

@@ -11,6 +11,7 @@ logger = logging.getLogger(__name__)
 # Similarity Backend Interface
 # =============================================================================
 
+
 class SimilarityBackend(ABC):
     """Abstract base class for similarity computation backends."""
 
@@ -32,6 +33,7 @@ class SimilarityBackend(ABC):
 # =============================================================================
 # Jaccard Backend (Zero Dependencies)
 # =============================================================================
+
 
 class JaccardBackend(SimilarityBackend):
     """
@@ -78,7 +80,7 @@ class JaccardBackend(SimilarityBackend):
 
         # Compute Jaccard similarity
         intersection = words1 & words2  # Words in both
-        union = words1 | words2          # All unique words
+        union = words1 | words2  # All unique words
 
         # Avoid division by zero
         if not union:
@@ -91,6 +93,7 @@ class JaccardBackend(SimilarityBackend):
 # =============================================================================
 # TF-IDF Backend (Requires scikit-learn)
 # =============================================================================
+
 
 class TFIDFBackend(SimilarityBackend):
     """
@@ -116,6 +119,7 @@ class TFIDFBackend(SimilarityBackend):
         try:
             from sklearn.feature_extraction.text import TfidfVectorizer
             from sklearn.metrics.pairwise import cosine_similarity
+
             self.vectorizer = TfidfVectorizer()
             self.cosine_similarity = cosine_similarity
         except ImportError as e:
@@ -141,6 +145,7 @@ class TFIDFBackend(SimilarityBackend):
 # =============================================================================
 # Sentence Transformer Backend (Requires sentence-transformers)
 # =============================================================================
+
 
 class SentenceTransformerBackend(SimilarityBackend):
     """
@@ -182,8 +187,10 @@ class SentenceTransformerBackend(SimilarityBackend):
             from sklearn.metrics.pairwise import cosine_similarity
 
             # Check if we can reuse cached model
-            if (SentenceTransformerBackend._model_cache is not None and
-                SentenceTransformerBackend._model_name_cache == model_name):
+            if (
+                SentenceTransformerBackend._model_cache is not None
+                and SentenceTransformerBackend._model_name_cache == model_name
+            ):
                 logger.info(f"Reusing cached sentence transformer model: {model_name}")
                 self.model = SentenceTransformerBackend._model_cache
             else:
@@ -212,8 +219,7 @@ class SentenceTransformerBackend(SimilarityBackend):
 
         # Compute cosine similarity between embeddings
         similarity = self.cosine_similarity(
-            embeddings[0].reshape(1, -1),
-            embeddings[1].reshape(1, -1)
+            embeddings[0].reshape(1, -1), embeddings[1].reshape(1, -1)
         )[0][0]
 
         return float(similarity)
@@ -222,6 +228,7 @@ class SentenceTransformerBackend(SimilarityBackend):
 # =============================================================================
 # Convergence Result
 # =============================================================================
+
 
 @dataclass
 class ConvergenceResult:
@@ -238,6 +245,7 @@ class ConvergenceResult:
 # =============================================================================
 # Convergence Detector
 # =============================================================================
+
 
 class ConvergenceDetector:
     """
@@ -265,7 +273,9 @@ class ConvergenceDetector:
         self.backend = self._select_backend()
         self.consecutive_stable_count = 0
 
-        logger.info(f"ConvergenceDetector initialized with {self.backend.__class__.__name__}")
+        logger.info(
+            f"ConvergenceDetector initialized with {self.backend.__class__.__name__}"
+        )
 
     def _select_backend(self) -> SimilarityBackend:
         """
@@ -303,7 +313,7 @@ class ConvergenceDetector:
         self,
         current_round: List,  # List[RoundResponse]
         previous_round: List,  # List[RoundResponse]
-        round_number: int
+        round_number: int,
     ) -> Optional[ConvergenceResult]:
         """
         Check if convergence has been reached.
@@ -331,8 +341,7 @@ class ConvergenceDetector:
         similarities = {}
         for participant_id, (curr_resp, prev_resp) in participant_pairs.items():
             similarity = self.backend.compute_similarity(
-                curr_resp.response,
-                prev_resp.response
+                curr_resp.response, prev_resp.response
             )
             similarities[participant_id] = similarity
 
@@ -343,7 +352,7 @@ class ConvergenceDetector:
 
         # Determine convergence status
         threshold = self.config.semantic_similarity_threshold
-        divergence_threshold = getattr(self.config, 'divergence_threshold', 0.40)
+        divergence_threshold = getattr(self.config, "divergence_threshold", 0.40)
 
         if min_similarity >= threshold:
             # All participants converged
@@ -369,8 +378,10 @@ class ConvergenceDetector:
             self.consecutive_stable_count = 0
 
         # Check for impasse (stable disagreement)
-        if (status == "diverging" and
-            self.consecutive_stable_count >= self.config.consecutive_stable_rounds):
+        if (
+            status == "diverging"
+            and self.consecutive_stable_count >= self.config.consecutive_stable_rounds
+        ):
             status = "impasse"
 
         return ConvergenceResult(
@@ -379,14 +390,10 @@ class ConvergenceDetector:
             min_similarity=min_similarity,
             avg_similarity=avg_similarity,
             per_participant_similarity=similarities,
-            consecutive_stable_rounds=self.consecutive_stable_count
+            consecutive_stable_rounds=self.consecutive_stable_count,
         )
 
-    def _match_participants(
-        self,
-        current_round: List,
-        previous_round: List
-    ) -> dict:
+    def _match_participants(self, current_round: List, previous_round: List) -> dict:
         """
         Match participants between consecutive rounds.
 
@@ -398,10 +405,7 @@ class ConvergenceDetector:
             Dict mapping participant_id -> (current_response, previous_response)
         """
         # Index previous round by participant
-        prev_by_participant = {
-            resp.participant: resp
-            for resp in previous_round
-        }
+        prev_by_participant = {resp.participant: resp for resp in previous_round}
 
         # Match with current round
         pairs = {}

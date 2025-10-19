@@ -11,7 +11,9 @@ class GeminiAdapter(BaseCLIAdapter):
     # This prevents "invalid argument" API errors seen in production
     MAX_PROMPT_CHARS = 100000
 
-    def __init__(self, command: str = "gemini", args: list[str] | None = None, timeout: int = 60):
+    def __init__(
+        self, command: str = "gemini", args: list[str] | None = None, timeout: int = 60
+    ):
         """
         Initialize Gemini adapter.
 
@@ -25,11 +27,7 @@ class GeminiAdapter(BaseCLIAdapter):
         """
         if args is None:
             raise ValueError("args must be provided from config.yaml")
-        super().__init__(
-            command=command,
-            args=args,
-            timeout=timeout
-        )
+        super().__init__(command=command, args=args, timeout=timeout)
 
     def validate_prompt_length(self, prompt: str) -> bool:
         """

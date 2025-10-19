@@ -22,7 +22,12 @@ from adapters.base import BaseCLIAdapter
 class LlamaCppAdapter(BaseCLIAdapter):
     """Adapter for llama.cpp CLI tool (llama-cli)."""
 
-    def __init__(self, command: str = "llama-cli", args: list[str] | None = None, timeout: int = 120):
+    def __init__(
+        self,
+        command: str = "llama-cli",
+        args: list[str] | None = None,
+        timeout: int = 120,
+    ):
         """
         Initialize llama.cpp adapter.
 
@@ -36,11 +41,7 @@ class LlamaCppAdapter(BaseCLIAdapter):
         """
         if args is None:
             raise ValueError("args must be provided from config.yaml")
-        super().__init__(
-            command=command,
-            args=args,
-            timeout=timeout
-        )
+        super().__init__(command=command, args=args, timeout=timeout)
 
     def parse_output(self, raw_output: str) -> str:
         """
@@ -63,19 +64,19 @@ class LlamaCppAdapter(BaseCLIAdapter):
         Returns:
             Extracted model response with metadata removed
         """
-        lines = raw_output.strip().split('\n')
+        lines = raw_output.strip().split("\n")
 
         # Metadata prefixes to filter out
         metadata_prefixes = [
-            'llama_model_loader:',
-            'llm_load_print_meta:',
-            'llama_new_context_with_model:',
-            'llama_print_timings:',
-            'sampling:',
-            'generate:',
-            'llm_load_tensors:',
-            'llama_kv_cache_init:',
-            'system_info:',
+            "llama_model_loader:",
+            "llm_load_print_meta:",
+            "llama_new_context_with_model:",
+            "llama_print_timings:",
+            "sampling:",
+            "generate:",
+            "llm_load_tensors:",
+            "llama_kv_cache_init:",
+            "system_info:",
         ]
 
         # Filter out metadata lines
@@ -83,13 +84,12 @@ class LlamaCppAdapter(BaseCLIAdapter):
         for line in lines:
             # Check if line starts with any metadata prefix
             is_metadata = any(
-                line.strip().startswith(prefix)
-                for prefix in metadata_prefixes
+                line.strip().startswith(prefix) for prefix in metadata_prefixes
             )
 
             if not is_metadata:
                 response_lines.append(line)
 
         # Join and strip the result
-        response = '\n'.join(response_lines).strip()
+        response = "\n".join(response_lines).strip()
         return response
