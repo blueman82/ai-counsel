@@ -63,6 +63,7 @@ RECOMMENDED_MODELS = {
     "codex": ["gpt-5-codex", "o3"],
     "droid": ["claude-sonnet-4-5-20250929", "gpt-5-codex", "claude-opus-4-1-20250805"],
     "gemini": ["gemini-2.5-pro", "gemini-2.0-flash"],
+    "llamacpp": ["/path/to/model.gguf"],  # Model paths depend on installed .gguf files
     "ollama": ["llama2", "mistral", "codellama", "qwen"],
     "lmstudio": ["local-model", "llama-2-7b", "mistral-7b"],  # Model names depend on what's loaded
     "openrouter": ["anthropic/claude-3.5-sonnet", "openai/gpt-4", "meta-llama/llama-3.2-90b"],
@@ -79,16 +80,17 @@ async def list_tools() -> list[Tool]:
                 "Initiate true deliberative consensus where AI models debate and "
                 "refine positions across multiple rounds. Models see each other's "
                 "responses and can adjust their reasoning. Supports both CLI tools "
-                "(claude, codex, droid, gemini) and HTTP services (ollama, lmstudio, openrouter). "
+                "(claude, codex, droid, gemini, llamacpp) and HTTP services (ollama, lmstudio, openrouter). "
                 "Use for critical decisions, architecture choices, or complex technical debates.\n\n"
                 "Example participants:\n"
                 '  [{"cli": "claude", "model": "sonnet"}, '
-                '{"cli": "openrouter", "model": "anthropic/claude-3.5-sonnet"}]\n\n'
+                '{"cli": "llamacpp", "model": "/path/to/llama-2-7b.Q4_K_M.gguf"}]\n\n'
                 "Recommended models by adapter:\n"
                 "  - claude: 'sonnet', 'opus', 'haiku'\n"
                 "  - codex: 'gpt-5-codex', 'o3'\n"
                 "  - droid: 'claude-sonnet-4-5-20250929', 'gpt-5-codex'\n"
                 "  - gemini: 'gemini-2.5-pro'\n"
+                "  - llamacpp: '/path/to/model.gguf' (path to local .gguf model file)\n"
                 "  - ollama: 'llama2', 'mistral', 'codellama', 'qwen'\n"
                 "  - lmstudio: 'local-model' (model names vary based on loaded models)\n"
                 "  - openrouter: 'anthropic/claude-3.5-sonnet', 'openai/gpt-4' (requires API key)"
@@ -108,7 +110,7 @@ async def list_tools() -> list[Tool]:
                             "properties": {
                                 "cli": {
                                     "type": "string",
-                                    "enum": ["claude", "codex", "droid", "gemini", "ollama", "lmstudio"],
+                                    "enum": ["claude", "codex", "droid", "gemini", "llamacpp", "ollama", "lmstudio", "openrouter"],
                                     "description": "Adapter to use (CLI tools or HTTP services)"
                                 },
                                 "model": {
