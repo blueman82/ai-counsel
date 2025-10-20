@@ -445,17 +445,34 @@ adapters:
 
 #### Environment Variables for API Keys
 
-HTTP adapters support secure API key storage via environment variables:
+HTTP adapters support secure API key storage via environment variables.
+
+**Quick Setup with .env.example:**
 
 ```bash
-# Add to ~/.bashrc or ~/.zshrc
+# 1. Copy the example file
+cp .env.example .env
+
+# 2. Edit .env and add your actual API key
+# Replace "sk-or-v1-your-key-here" with your real OpenRouter API key from https://openrouter.ai/keys
+
+# 3. Source the file before running the server
+source .env
+```
+
+**Alternative: Add to Shell Profile (Persistent)**
+
+```bash
+# Add to ~/.bashrc or ~/.zshrc for permanent configuration
 export OPENROUTER_API_KEY="sk-or-v1-your-key-here"
 
-# Or set for current session
+# Or set for current session only
 export OPENROUTER_API_KEY="sk-or-v1-your-key-here"
 ```
 
 The `${VAR_NAME}` syntax in `config.yaml` will be replaced with the environment variable value at runtime.
+
+**⚠️ Important**: Never commit `.env` to version control (it's in `.gitignore`). Always use `.env.example` as a template.
 
 #### Migrating from CLI Tools to Adapters
 
