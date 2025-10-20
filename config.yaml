@@ -21,6 +21,15 @@ cli_tools:
     timeout: 180
     # Valid models: "claude-sonnet-4-5-20250929", "claude-opus-4-1-20250805", "gpt-5-codex"
     # Note: Requires FULL model IDs, not short aliases
+    #
+    # Adaptive Permission Strategy (Graceful Degradation):
+    # The Droid adapter automatically handles permission levels without manual configuration.
+    # If a permission error occurs (e.g., "insufficient permission to proceed"), the adapter
+    # will automatically retry with higher permission levels:
+    #   1. First attempt: --auto low (basic file reading, safe for text generation)
+    #   2. If fails: --auto medium (allows network/git operations for context)
+    #   3. If fails: --auto high (allows production operations if needed)
+    # This ensures deliberations work seamlessly regardless of Droid's permission requirements.
 
   gemini:
     command: "gemini"
