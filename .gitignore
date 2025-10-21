@@ -55,6 +55,10 @@ docs/
 # Exception: Track HTTP adapter documentation (valuable for users)
 !/docs/http-adapters/
 !/docs/http-adapters/*.md
+# Exception: Track core documentation (convergence, voting, adapter development)
+!/docs/convergence-detection.md
+!/docs/structured-voting.md
+!/docs/adding-adapters.md
 
 # Implementation summaries (use code documentation instead)
 *_SUMMARY.md
