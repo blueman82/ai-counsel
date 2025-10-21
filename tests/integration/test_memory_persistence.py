@@ -45,7 +45,8 @@ def storage(temp_db):
 @pytest.fixture
 def integration(storage):
     """Provide integration layer."""
-    return DecisionGraphIntegration(storage)
+    # Disable background worker for deterministic testing
+    return DecisionGraphIntegration(storage, enable_background_worker=False)
 
 
 @pytest.fixture
@@ -189,7 +190,7 @@ class TestMemoryPersistence:
         """Memory survives storage layer restart."""
         # Store data in first connection
         storage1 = DecisionGraphStorage(db_path=temp_db)
-        integration1 = DecisionGraphIntegration(storage1)
+        integration1 = DecisionGraphIntegration(storage1, enable_background_worker=False)
         decision_id = integration1.store_deliberation(
             "Persistent question: Should we use GraphQL?", sample_deliberation_result
         )
@@ -197,7 +198,7 @@ class TestMemoryPersistence:
 
         # Create new connection to same database
         storage2 = DecisionGraphStorage(db_path=temp_db)
-        integration2 = DecisionGraphIntegration(storage2)
+        integration2 = DecisionGraphIntegration(storage2, enable_background_worker=False)
 
         # Data should still be there
         node = storage2.get_decision_node(decision_id)
@@ -460,7 +461,7 @@ class TestBackwardCompatibility:
         # when graph is not available
 
         storage = DecisionGraphStorage(db_path=temp_db)
-        integration = DecisionGraphIntegration(storage)
+        integration = DecisionGraphIntegration(storage, enable_background_worker=False)
 
         # Operations should work even if initial state is empty
         context = integration.get_context_for_deliberation(
@@ -589,8 +590,8 @@ class TestErrorHandling:
         storage1 = DecisionGraphStorage(db_path=temp_db)
         storage2 = DecisionGraphStorage(db_path=temp_db)
 
-        integration1 = DecisionGraphIntegration(storage1)
-        integration2 = DecisionGraphIntegration(storage2)
+        integration1 = DecisionGraphIntegration(storage1, enable_background_worker=False)
+        integration2 = DecisionGraphIntegration(storage2, enable_background_worker=False)
 
         # Both write to same database
         id1 = integration1.store_deliberation("Question 1", sample_deliberation_result)
