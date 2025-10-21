@@ -69,6 +69,42 @@ mcp__ai-counsel__deliberate({
 ```
 **Result:** Get diverse perspectives from both local and cloud models with zero API costs for local inference!
 
+## Community & Real-World Examples
+
+### Join the Conversation
+
+AI Counsel has an active community sharing experiences and insights:
+
+**[→ GitHub Discussions](https://github.com/blueman82/ai-counsel/discussions)** - Five discussion categories:
+- **Announcements** - Latest features and updates
+- **Show and Tell** - Share your use cases and success stories
+- **Q&A** - Setup help and troubleshooting
+- **Ideas** - Feature requests and brainstorm future directions
+- **General** - Model combinations, performance benchmarks, and optimization tips
+
+### Real-World Deliberation Examples
+
+See AI Counsel in action with 6 production deliberations:
+
+**[→ Real-World Examples](examples/real_world_deliberations.md)**
+
+| Deliberation | Models | Outcome |
+|--------------|--------|---------|
+| Event Sourcing for Audit Trail | Sonnet + Codex | Unanimous (3 rounds) |
+| Microservices vs Monolith | Opus + Llama + GPT-4o | Majority (2 rounds) |
+| React vs Vue | Sonnet + Mistral | Unanimous (2 rounds) |
+| Database Indexing Strategy | Sonnet + Codex + Mistral | Consensus (3 rounds) |
+| Testing Framework Migration | Sonnet + GPT-4o | Unanimous (2 rounds) |
+| API Rate Limiting | Opus + Codex + Llama | Consensus (4 rounds) |
+
+**Learn:** Performance metrics, cost impact, model combination recommendations, and decision methodology.
+
+### Get Started Quickly
+
+1. **See examples**: [Real-world deliberations](examples/real_world_deliberations.md) showing what decisions AI Counsel handles well
+2. **Join discussions**: [GitHub Discussions](https://github.com/blueman82/ai-counsel/discussions) to ask questions or share your experiences
+3. **Try a deliberation**: Install AI Counsel below and run your first debate!
+
 ## Installation
 
 ### Prerequisites
