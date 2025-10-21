@@ -52,6 +52,9 @@ docs/
 # Exception: Track reference documentation
 !/docs/CLI_MODEL_REFERENCE.md
 !/docs/CACHE_INTEGRATION_REFERENCE.md
+# Exception: Track HTTP adapter documentation (valuable for users)
+!/docs/http-adapters/
+!/docs/http-adapters/*.md
 
 # Implementation summaries (use code documentation instead)
 *_SUMMARY.md
