@@ -136,7 +136,7 @@ deliberation:
 
 # Decision Graph Memory
 decision_graph:
-  enabled: false # Feature toggle (opt-in)
+  enabled: true # Feature toggle (opt-in)
   db_path: "decision_graph.db" # SQLite database file path
   similarity_threshold: 0.7 # Minimum similarity score for context injection (0.0-1.0)
   max_context_decisions: 3 # Maximum number of past decisions to inject as context
