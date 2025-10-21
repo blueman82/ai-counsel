@@ -10,11 +10,14 @@ from datetime import datetime
 from typing import Optional
 from uuid import uuid4
 import logging
+import asyncio
 
 from decision_graph.storage import DecisionGraphStorage
 from decision_graph.schema import DecisionNode, ParticipantStance, DecisionSimilarity
 from decision_graph.retrieval import DecisionRetriever
 from decision_graph.similarity import QuestionSimilarityDetector
+from decision_graph.workers import BackgroundWorker
+from decision_graph.maintenance import DecisionGraphMaintenance
 from models.schema import DeliberationResult
 
 logger = logging.getLogger(__name__)
@@ -44,15 +47,42 @@ class DecisionGraphIntegration:
         >>> # Use context to enrich prompts
     """
 
-    def __init__(self, storage: DecisionGraphStorage):
+    def __init__(self, storage: DecisionGraphStorage, enable_background_worker: bool = True):
         """Initialize integration with storage backend.
 
         Args:
             storage: DecisionGraphStorage instance for persistence
+            enable_background_worker: Enable async background processing for similarities
         """
         self.storage = storage
         self.retriever = DecisionRetriever(storage)
+        self.worker: Optional[BackgroundWorker] = None
+        self._worker_enabled = enable_background_worker
+        self.maintenance = DecisionGraphMaintenance(storage)
+        self._decision_count = 0
+
+        # Initialize background worker if enabled
+        if enable_background_worker:
+            self.worker = BackgroundWorker(
+                storage=storage,
+                max_queue_size=1000,
+                batch_size=100,
+                similarity_threshold=0.5
+            )
+            # Note: Worker start is deferred - call ensure_worker_started() or
+            # let it auto-start on first enqueue
+
         logger.info("Initialized DecisionGraphIntegration")
+
+    async def ensure_worker_started(self) -> None:
+        """Ensure background worker is started.
+
+        This method is called automatically when needed, but can be called
+        explicitly to start the worker early.
+        """
+        if self.worker and not self.worker.running:
+            await self.worker.start()
+            logger.info("Started background worker for similarity computation")
 
     def store_deliberation(
         self, question: str, result: DeliberationResult
@@ -158,15 +188,87 @@ class DecisionGraphIntegration:
 
             logger.info(f"Saved {stances_saved} participant stances for decision {decision_id}")
 
-            # Compute similarities to past decisions
-            try:
-                self._compute_similarities(node)
-            except Exception as e:
-                # Log but don't fail if similarity computation fails
-                logger.error(
-                    f"Error computing similarities for decision {decision_id}: {e}",
-                    exc_info=True
-                )
+            # Increment decision count and perform periodic health checks
+            self._decision_count += 1
+            if self._decision_count % 100 == 0:
+                try:
+                    stats = self.maintenance.get_database_stats()
+                    logger.info(
+                        f"Decision graph stats (at {self._decision_count} stored): "
+                        f"{stats['total_decisions']} decisions, "
+                        f"{stats['total_stances']} stances, "
+                        f"{stats['total_similarities']} similarities, "
+                        f"{stats['db_size_mb']} MB"
+                    )
+
+                    # Warn if approaching archival threshold
+                    total_decisions = stats.get('total_decisions', 0)
+                    if total_decisions >= 4500:
+                        logger.warning(
+                            f"Decision graph approaching archival threshold: "
+                            f"{total_decisions} decisions (threshold: 5000)"
+                        )
+
+                    # Get growth analysis periodically (every 500 decisions)
+                    if self._decision_count % 500 == 0:
+                        growth = self.maintenance.analyze_growth(days=30)
+                        logger.info(
+                            f"Growth analysis: {growth['decisions_in_period']} decisions in "
+                            f"{growth['analysis_period_days']} days, "
+                            f"avg {growth['avg_decisions_per_day']}/day, "
+                            f"projected {growth['projected_decisions_30d']} in next 30 days"
+                        )
+                except Exception as e:
+                    logger.error(f"Error collecting maintenance stats: {e}", exc_info=True)
+
+            # Queue similarity computation to background worker (non-blocking)
+            if self.worker and self._worker_enabled:
+                try:
+                    # Get event loop and queue job
+                    try:
+                        loop = asyncio.get_event_loop()
+                        if loop.is_running():
+                            # Ensure worker is started and enqueue
+                            async def enqueue_job():
+                                await self.ensure_worker_started()
+                                await self.worker.enqueue(
+                                    decision_id=decision_id,
+                                    priority="low",
+                                    delay_seconds=5
+                                )
+                            asyncio.create_task(enqueue_job())
+                            logger.info(f"Queued similarity computation for decision {decision_id}")
+                        else:
+                            # No running loop, fall back to synchronous
+                            logger.debug("No running event loop, falling back to synchronous similarity computation")
+                            self._compute_similarities(node)
+                    except RuntimeError:
+                        # No event loop available, fall back to synchronous
+                        logger.debug("Event loop not available, falling back to synchronous similarity computation")
+                        self._compute_similarities(node)
+                except Exception as e:
+                    # Log error but don't fail - fall back to sync computation
+                    logger.warning(
+                        f"Error queueing background similarity job for {decision_id}: {e}, "
+                        "falling back to synchronous computation"
+                    )
+                    try:
+                        self._compute_similarities(node)
+                    except Exception as sync_error:
+                        logger.error(
+                            f"Error in fallback similarity computation: {sync_error}",
+                            exc_info=True
+                        )
+            else:
+                # Background worker disabled, compute synchronously
+                try:
+                    self._compute_similarities(node)
+                except Exception as e:
+                    # Log but don't fail if similarity computation fails
+                    logger.error(
+                        f"Error computing similarities for decision {decision_id}: {e}",
+                        exc_info=True
+                    )
 
             return decision_id
 
@@ -328,3 +430,99 @@ class DecisionGraphIntegration:
                 exc_info=True
             )
             return ""  # Never break deliberation due to context retrieval failure
+
+    def get_graph_stats(self) -> dict:
+        """Get current decision graph statistics for monitoring.
+
+        Returns comprehensive statistics about the decision graph including:
+        - Total counts (decisions, stances, similarities)
+        - Database size (bytes and MB)
+
+        This method is safe to call frequently for monitoring dashboards
+        or health checks. It gracefully handles errors and returns empty
+        dict on failure.
+
+        Returns:
+            Dictionary with statistics. Empty dict on error.
+
+        Example:
+            >>> integration = DecisionGraphIntegration(storage)
+            >>> stats = integration.get_graph_stats()
+            >>> print(f"Database has {stats['total_decisions']} decisions")
+            >>> print(f"Database size: {stats['db_size_mb']} MB")
+        """
+        try:
+            return self.maintenance.get_database_stats()
+        except Exception as e:
+            logger.error(f"Error retrieving graph stats: {e}", exc_info=True)
+            return {}
+
+    def health_check(self) -> dict:
+        """Perform comprehensive health check on decision graph.
+
+        Validates database integrity including:
+        - Checking for orphaned stances and similarities
+        - Validating timestamps (no future dates)
+        - Verifying required fields are populated
+        - Checking similarity scores are in valid range [0.0, 1.0]
+
+        Returns:
+            Dictionary with health check results:
+                - healthy: bool (True if all checks pass)
+                - checks_passed: int (number of successful checks)
+                - checks_failed: int (number of failed checks)
+                - issues: List[str] (descriptions of issues found)
+                - details: dict (detailed results per check)
+
+        Example:
+            >>> integration = DecisionGraphIntegration(storage)
+            >>> health = integration.health_check()
+            >>> if health['healthy']:
+            ...     print("Database is healthy")
+            ... else:
+            ...     print(f"Found {health['checks_failed']} issues:")
+            ...     for issue in health['issues']:
+            ...         print(f"  - {issue}")
+        """
+        try:
+            return self.maintenance.health_check()
+        except Exception as e:
+            logger.error(f"Error performing health check: {e}", exc_info=True)
+            return {
+                "healthy": False,
+                "checks_passed": 0,
+                "checks_failed": 1,
+                "issues": [f"Health check error: {str(e)}"],
+                "details": {},
+            }
+    async def shutdown(self) -> None:
+        """Gracefully shutdown background worker.
+
+        This method should be called when the integration is no longer needed
+        to ensure background jobs complete and resources are released.
+
+        Example:
+            >>> integration = DecisionGraphIntegration(storage)
+            >>> # ... use integration ...
+            >>> await integration.shutdown()
+        """
+        if self.worker:
+            logger.info("Shutting down background worker...")
+            try:
+                await self.worker.stop(timeout=30.0)
+                logger.info("Background worker shutdown complete")
+            except Exception as e:
+                logger.error(f"Error shutting down background worker: {e}", exc_info=True)
+
+    def __del__(self):
+        """Cleanup on destruction - attempt graceful shutdown if event loop available."""
+        if self.worker and self.worker.running:
+            try:
+                loop = asyncio.get_event_loop()
+                if loop.is_running():
+                    asyncio.create_task(self.shutdown())
+                else:
+                    # Try to run shutdown synchronously
+                    loop.run_until_complete(self.shutdown())
+            except Exception as e:
+                logger.warning(f"Could not gracefully shutdown worker in destructor: {e}")

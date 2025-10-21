@@ -7,6 +7,7 @@ deliberations and formats them as enriched context for new deliberations.
 import logging
 from typing import List, Optional
 
+from decision_graph.cache import SimilarityCache
 from decision_graph.schema import DecisionNode
 from decision_graph.similarity import QuestionSimilarityDetector
 from decision_graph.storage import DecisionGraphStorage
@@ -32,16 +33,40 @@ class DecisionRetriever:
         >>> print(context)  # Markdown-formatted past decisions
     """
 
-    def __init__(self, storage: DecisionGraphStorage):
-        """Initialize with storage backend.
+    def __init__(
+        self,
+        storage: DecisionGraphStorage,
+        cache: Optional[SimilarityCache] = None,
+        enable_cache: bool = True,
+    ):
+        """Initialize with storage backend and optional caching.
 
         Args:
             storage: DecisionGraphStorage instance for database access
+            cache: Optional SimilarityCache instance. If None and enable_cache=True,
+                   creates a default cache.
+            enable_cache: Whether to enable caching (default: True)
         """
         self.storage = storage
         self.similarity_detector = QuestionSimilarityDetector()
+
+        # Initialize cache
+        if enable_cache:
+            self.cache = cache or SimilarityCache(
+                query_cache_size=200,
+                embedding_cache_size=500,
+                query_ttl=300,  # 5 minutes
+            )
+            logger.info(
+                f"Initialized DecisionRetriever with caching enabled "
+                f"(L1: {self.cache.query_cache.maxsize}, L2: {self.cache.embedding_cache.maxsize})"
+            )
+        else:
+            self.cache = None
+            logger.info("Initialized DecisionRetriever with caching disabled")
+
         logger.info(
-            f"Initialized DecisionRetriever with {self.similarity_detector.backend.__class__.__name__}"
+            f"Using similarity backend: {self.similarity_detector.backend.__class__.__name__}"
         )
 
     def find_relevant_decisions(
@@ -89,7 +114,33 @@ class DecisionRetriever:
             logger.warning("Empty query_question provided to find_relevant_decisions")
             return []
 
-        # 1. Get all past decisions
+        # 1. Try L1 cache hit (query results)
+        if self.cache:
+            cached_similar = self.cache.get_cached_result(
+                query_question, threshold, max_results
+            )
+            if cached_similar is not None:
+                logger.info(
+                    f"L1 cache hit for query: {query_question[:50]}... "
+                    f"(threshold={threshold}, max={max_results})"
+                )
+                # Reconstruct DecisionNode objects from cached results
+                results = []
+                for match in cached_similar:
+                    decision = self.storage.get_decision_node(match["id"])
+                    if decision:
+                        results.append(decision)
+                    else:
+                        logger.warning(
+                            f"Cached decision {match['id']} not found in storage "
+                            "(may have been deleted)"
+                        )
+                return results
+
+        # 2. Cache miss - proceed with similarity computation
+        logger.debug("L1 cache miss - computing similarities")
+
+        # 3. Get all past decisions
         logger.debug("Retrieving all past decisions for similarity comparison")
         all_decisions = self.storage.get_all_decisions(limit=1000)
 
@@ -97,13 +148,13 @@ class DecisionRetriever:
             logger.info("No past decisions found in database")
             return []
 
-        # 2. Extract candidates as (id, question) tuples
+        # 4. Extract candidates as (id, question) tuples
         candidates = [(d.id, d.question) for d in all_decisions]
         logger.debug(
             f"Comparing query against {len(candidates)} candidate decisions"
         )
 
-        # 3. Find similar questions
+        # 5. Find similar questions
         similar = self.similarity_detector.find_similar(
             query_question, candidates, threshold=threshold
         )
@@ -112,9 +163,22 @@ class DecisionRetriever:
             logger.info(
                 f"No similar decisions found above threshold {threshold}"
             )
+            # Cache empty result to avoid recomputation
+            if self.cache:
+                self.cache.cache_result(query_question, threshold, max_results, [])
             return []
 
-        # 4. Fetch full DecisionNode objects for similar questions
+        # 6. Cache the similarity results (L1)
+        if self.cache:
+            self.cache.cache_result(
+                query_question, threshold, max_results, similar[:max_results]
+            )
+            logger.debug(
+                f"Cached L1 result for query: {query_question[:50]}... "
+                f"({len(similar[:max_results])} results)"
+            )
+
+        # 7. Fetch full DecisionNode objects for similar questions
         results = []
         for match in similar[:max_results]:
             decision = self.storage.get_decision_node(match["id"])
@@ -296,3 +360,27 @@ class DecisionRetriever:
             )
             # Return empty context on error (fail gracefully)
             return ""
+
+    def invalidate_cache(self) -> None:
+        """Invalidate L1 query cache when new decisions are added.
+
+        Call this method after adding new decisions to the graph to ensure
+        subsequent queries reflect the updated decision set.
+
+        Note: Does not invalidate L2 embedding cache (embeddings are immutable).
+        """
+        if self.cache:
+            self.cache.invalidate_all_queries()
+            logger.info("Invalidated L1 query cache (new decision added)")
+        else:
+            logger.debug("Cache invalidation called but caching is disabled")
+
+    def get_cache_stats(self):
+        """Get cache statistics.
+
+        Returns:
+            Dict with cache statistics if caching enabled, None otherwise
+        """
+        if self.cache:
+            return self.cache.get_stats()
+        return None
