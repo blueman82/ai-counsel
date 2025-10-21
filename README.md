@@ -707,7 +707,6 @@ ai-counsel/
 ### Future Enhancements
 - [ ] Additional HTTP adapters (Together AI, Replicate, etc.)
 - [ ] Web UI for viewing transcripts
-- [ ] Real-time streaming of deliberation progress
 - [ ] GraphQL API for programmatic access
 
 ---
