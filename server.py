@@ -73,7 +73,7 @@ for source_name, adapter_configs in adapter_sources:
 
 
 # Create engine with config for convergence detection
-engine = DeliberationEngine(adapters=adapters, config=config)
+engine = DeliberationEngine(adapters=adapters, config=config, server_dir=SERVER_DIR)
 
 # Recommended models for each adapter (CLI tools and HTTP services)
 # Note: ollama, lmstudio, and llamacpp are excluded since users can load arbitrary models
@@ -342,9 +342,11 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
 async def handle_query_decisions(arguments: dict) -> list[TextContent]:
     """Handle query_decisions tool call."""
     try:
-        storage = DecisionGraphStorage(
-            getattr(config.decision_graph, "db_path", "decision_graph.db")
-        )
+        db_path = Path(getattr(config.decision_graph, "db_path", "decision_graph.db"))
+        # Make db_path absolute - if relative, resolve from ai-counsel directory
+        if not db_path.is_absolute():
+            db_path = SERVER_DIR / db_path
+        storage = DecisionGraphStorage(str(db_path))
         engine = QueryEngine(storage)
 
         query_text = arguments.get("query_text")
@@ -427,9 +429,11 @@ async def handle_query_decisions(arguments: dict) -> list[TextContent]:
 async def handle_analyze_decisions(arguments: dict) -> list[TextContent]:
     """Handle analyze_decisions tool call."""
     try:
-        storage = DecisionGraphStorage(
-            getattr(config.decision_graph, "db_path", "decision_graph.db")
-        )
+        db_path = Path(getattr(config.decision_graph, "db_path", "decision_graph.db"))
+        # Make db_path absolute - if relative, resolve from ai-counsel directory
+        if not db_path.is_absolute():
+            db_path = SERVER_DIR / db_path
+        storage = DecisionGraphStorage(str(db_path))
         engine = QueryEngine(storage)
 
         participant = arguments.get("participant")

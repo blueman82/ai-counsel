@@ -12,14 +12,20 @@ class TranscriptManager:
     Generates markdown files with full debate history and summary.
     """
 
-    def __init__(self, output_dir: str = "transcripts"):
+    def __init__(self, output_dir: str = "transcripts", server_dir: Optional[Path] = None):
         """
         Initialize transcript manager.
 
         Args:
             output_dir: Directory to save transcripts (default: transcripts/)
+            server_dir: Server directory to resolve relative paths from
         """
-        self.output_dir = Path(output_dir)
+        output_path = Path(output_dir)
+        # Make output_dir absolute - if relative and server_dir provided, resolve from server directory
+        if not output_path.is_absolute() and server_dir is not None:
+            self.output_dir = server_dir / output_path
+        else:
+            self.output_dir = output_path
         self.output_dir.mkdir(parents=True, exist_ok=True)
 
     def _format_voting_section(self, result: DeliberationResult) -> list[str]:

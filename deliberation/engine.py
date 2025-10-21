@@ -3,6 +3,7 @@ import logging
 import json
 import re
 from datetime import datetime
+from pathlib import Path
 from typing import List, Dict, Optional, TYPE_CHECKING
 from pydantic import ValidationError
 from adapters.base import BaseCLIAdapter
@@ -29,6 +30,7 @@ class DeliberationEngine:
         adapters: Dict[str, BaseCLIAdapter],
         transcript_manager: Optional["TranscriptManager"] = None,
         config=None,
+        server_dir: Optional[Path] = None,
     ):
         """
         Initialize deliberation engine.
@@ -37,6 +39,7 @@ class DeliberationEngine:
             adapters: Dictionary mapping CLI names to adapter instances
             transcript_manager: Optional transcript manager (creates default if None)
             config: Optional configuration object for convergence detection
+            server_dir: Server directory to resolve relative paths from
         """
         self.adapters = adapters
         self.transcript_manager = transcript_manager
@@ -46,7 +49,7 @@ class DeliberationEngine:
         if transcript_manager is None:
             from deliberation.transcript import TranscriptManager
 
-            self.transcript_manager = TranscriptManager()
+            self.transcript_manager = TranscriptManager(server_dir=server_dir)
 
         # Initialize convergence detector if enabled
         self.convergence_detector = None
