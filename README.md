@@ -38,6 +38,7 @@ Unlike existing tools (like Zen's consensus feature) that gather parallel opinio
 - 🧮 **Vote Semantic Grouping:** Semantically similar vote options automatically merged (0.70+ similarity)
 - 🎛️ **Model-Controlled Stopping:** Models decide when to stop deliberating (adaptive rounds)
 - 🛡️ **Fault Tolerant:** Individual adapter failures don't halt deliberation—remaining models continue
+- 🧠 **Decision Graph Memory:** Persistent learning from past deliberations with automatic context injection for faster convergence
 
 ## Production-Ready Reliability
 
