@@ -178,3 +178,7 @@ class DeliberationResult(BaseModel):
         None,
         description="Voting results if participants cast votes (None if no votes found)",
     )
+    graph_context_summary: Optional[str] = Field(
+        None,
+        description="Summary of decision graph context used (None if not used)",
+    )

@@ -149,6 +149,17 @@ class BaseHTTPAdapter(ABC):
         # Build full URL
         full_url = f"{self.base_url}{endpoint}"
 
+        # Log request details for debugging
+        import json
+        import logging
+        logger = logging.getLogger(__name__)
+        body_str = json.dumps(body)
+        logger.debug(
+            f"HTTP request to {full_url}: "
+            f"body_size={len(body_str)} bytes, "
+            f"prompt_length={len(full_prompt)} chars"
+        )
+
         # Execute request with retry logic
         try:
             response_json = await self._execute_request_with_retry(
@@ -195,6 +206,21 @@ class BaseHTTPAdapter(ABC):
         async def _make_request():
             async with httpx.AsyncClient(timeout=self.timeout) as client:
                 response = await client.post(url, headers=headers, json=body)
+
+                # Log error response body for 4xx errors (helps debugging)
+                if 400 <= response.status_code < 500:
+                    import logging
+                    logger = logging.getLogger(__name__)
+                    try:
+                        error_body = response.json()
+                        logger.error(
+                            f"HTTP {response.status_code} error response: {error_body}"
+                        )
+                    except Exception:
+                        logger.error(
+                            f"HTTP {response.status_code} error response body: {response.text}"
+                        )
+
                 response.raise_for_status()  # Raise for 4xx/5xx
                 return response.json()
 
