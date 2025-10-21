@@ -111,6 +111,33 @@ class DeliberationConfig(BaseModel):
     enable_convergence_detection: bool
 
 
+class DecisionGraphConfig(BaseModel):
+    """Configuration for decision graph memory."""
+
+    enabled: bool = Field(
+        False,
+        description="Enable decision graph memory"
+    )
+    db_path: str = Field(
+        "decision_graph.db",
+        description="Path to SQLite database"
+    )
+    similarity_threshold: float = Field(
+        0.7,
+        ge=0.0, le=1.0,
+        description="Minimum similarity score for context injection (0.0-1.0)"
+    )
+    max_context_decisions: int = Field(
+        3,
+        ge=1, le=10,
+        description="Maximum number of past decisions to inject as context"
+    )
+    compute_similarities: bool = Field(
+        True,
+        description="Compute similarities after storing a deliberation"
+    )
+
+
 class Config(BaseModel):
     """Root configuration model."""
 
@@ -125,6 +152,7 @@ class Config(BaseModel):
     defaults: DefaultsConfig
     storage: StorageConfig
     deliberation: DeliberationConfig
+    decision_graph: Optional[DecisionGraphConfig] = None
 
     def model_post_init(self, __context):
         """Post-initialization validation."""

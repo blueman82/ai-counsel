@@ -4,7 +4,15 @@ version: "1.0"
 cli_tools:
   claude:
     command: "claude"
-    args: ["-p", "--model", "{model}", "--settings", "{{\"disableAllHooks\": true}}", "{prompt}"]
+    args:
+      [
+        "-p",
+        "--model",
+        "{model}",
+        "--settings",
+        '{{"disableAllHooks": true}}',
+        "{prompt}",
+      ]
     timeout: 300
     # Valid models: "sonnet", "opus", "haiku" or full names like "claude-sonnet-4-5-20250929"
     # Note: -p flag is auto-removed during deliberations for full engagement
@@ -63,7 +71,7 @@ adapters:
     # Valid models: llama2, mistral, codellama, qwen, etc.
     # Run 'ollama list' to see available models
     # Ollama is a local LLM runtime - no API key needed
-#
+  #
   lmstudio:
     type: http
     base_url: "http://localhost:1234"
@@ -76,7 +84,7 @@ adapters:
   openrouter:
     type: http
     base_url: "https://openrouter.ai/api/v1"
-    api_key: "${OPENROUTER_API_KEY}"  # Environment variable from .env file
+    api_key: "${OPENROUTER_API_KEY}" # Environment variable from .env file
     timeout: 90
     max_retries: 3
     # Valid models: anthropic/claude-3.5-sonnet, openai/gpt-4, meta-llama/llama-3.1-8b-instruct, etc.
@@ -105,23 +113,31 @@ deliberation:
     enabled: true
 
     # Similarity thresholds
-    semantic_similarity_threshold: 0.85  # Models converged if similarity >= this
-    divergence_threshold: 0.40           # Models diverging if similarity < this
+    semantic_similarity_threshold: 0.85 # Models converged if similarity >= this
+    divergence_threshold: 0.40 # Models diverging if similarity < this
 
     # Round constraints
-    min_rounds_before_check: 1           # Check convergence starting from round 2 (need 2 rounds to compare)
-    consecutive_stable_rounds: 2         # Require 2 stable rounds to confirm
+    min_rounds_before_check: 1 # Check convergence starting from round 2 (need 2 rounds to compare)
+    consecutive_stable_rounds: 2 # Require 2 stable rounds to confirm
 
     # Secondary metrics
-    stance_stability_threshold: 0.80     # 80% of participants must have stable stances
+    stance_stability_threshold: 0.80 # 80% of participants must have stable stances
     response_length_drop_threshold: 0.40 # Flag if response length drops >40%
 
   # Model-controlled early stopping
   early_stopping:
     enabled: true
-    threshold: 0.66                      # Stop if >=66% of models want to stop (2/3 consensus)
-    respect_min_rounds: true             # Don't stop before defaults.rounds is reached
+    threshold: 0.66 # Stop if >=66% of models want to stop (2/3 consensus)
+    respect_min_rounds: true # Don't stop before defaults.rounds is reached
 
   # Legacy settings (keep these)
   convergence_threshold: 0.8
   enable_convergence_detection: true
+
+# Decision Graph Memory
+decision_graph:
+  enabled: false # Feature toggle (opt-in)
+  db_path: "decision_graph.db" # SQLite database file path
+  similarity_threshold: 0.7 # Minimum similarity score for context injection (0.0-1.0)
+  max_context_decisions: 3 # Maximum number of past decisions to inject as context
+  compute_similarities: true # Compute edge similarities after storing deliberation

@@ -162,6 +162,21 @@ class TranscriptManager:
         if voting_lines:
             lines.extend(voting_lines)
 
+        # Add decision graph context section if available
+        if result.graph_context_summary:
+            lines.extend(
+                [
+                    "---",
+                    "",
+                    "## Decision Graph Context",
+                    "",
+                    result.graph_context_summary,
+                    "",
+                    "*Past deliberations were analyzed for similar topics and their outcomes were considered in this deliberation.*",
+                    "",
+                ]
+            )
+
         lines.extend(
             [
                 "---",

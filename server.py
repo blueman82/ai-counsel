@@ -74,6 +74,7 @@ for source_name, adapter_configs in adapter_sources:
 engine = DeliberationEngine(adapters=adapters, config=config)
 
 # Recommended models for each adapter (CLI tools and HTTP services)
+# Note: ollama, lmstudio, and llamacpp are excluded since users can load arbitrary models
 RECOMMENDED_MODELS = {
     "claude": [
         "sonnet",
@@ -85,13 +86,6 @@ RECOMMENDED_MODELS = {
     "codex": ["gpt-5-codex", "o3"],
     "droid": ["claude-sonnet-4-5-20250929", "gpt-5-codex", "claude-opus-4-1-20250805"],
     "gemini": ["gemini-2.5-pro", "gemini-2.0-flash"],
-    "llamacpp": ["/path/to/model.gguf"],  # Model paths depend on installed .gguf files
-    "ollama": ["llama2", "mistral", "codellama", "qwen"],
-    "lmstudio": [
-        "local-model",
-        "llama-2-7b",
-        "mistral-7b",
-    ],  # Model names depend on what's loaded
     "openrouter": [
         "anthropic/claude-3.5-sonnet",
         "openai/gpt-4",

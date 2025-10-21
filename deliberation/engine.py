@@ -14,6 +14,7 @@ logger = logging.getLogger(__name__)
 if TYPE_CHECKING:
     from models.schema import DeliberateRequest, DeliberationResult
     from deliberation.transcript import TranscriptManager
+    from decision_graph.integration import DecisionGraphIntegration
 
 
 class DeliberationEngine:
@@ -95,12 +96,32 @@ class DeliberationEngine:
                 "Install at least one CLI (claude, codex, droid, or gemini) for AI-powered summaries."
             )
 
+        # Initialize decision graph if enabled
+        self.graph_integration: Optional["DecisionGraphIntegration"] = None
+        if config and hasattr(config, "decision_graph") and config.decision_graph:
+            if config.decision_graph.enabled:
+                try:
+                    from decision_graph.storage import DecisionGraphStorage
+                    from decision_graph.integration import DecisionGraphIntegration
+
+                    storage = DecisionGraphStorage(config.decision_graph.db_path)
+                    self.graph_integration = DecisionGraphIntegration(storage)
+                    logger.info("Decision graph memory enabled")
+                except Exception as e:
+                    logger.warning(f"Failed to initialize decision graph: {e}")
+                    self.graph_integration = None
+            else:
+                logger.info("Decision graph memory disabled in config")
+        else:
+            logger.debug("No decision graph configuration provided")
+
     async def execute_round(
         self,
         round_num: int,
         prompt: str,
         participants: List[Participant],
         previous_responses: List[RoundResponse],
+        graph_context: str = "",
     ) -> List[RoundResponse]:
         """
         Execute a single deliberation round.
@@ -110,6 +131,7 @@ class DeliberationEngine:
             prompt: The question or topic for deliberation
             participants: List of participants for this round
             previous_responses: Responses from previous rounds for context
+            graph_context: Optional decision graph context from past deliberations
 
         Returns:
             List of RoundResponse objects from this round
@@ -120,8 +142,14 @@ class DeliberationEngine:
         """
         responses = []
 
+        # Inject graph context into round 1 prompts
+        if round_num == 1 and graph_context:
+            enhanced_prompt_base = f"{graph_context}\n\n## Current Question\n{prompt}"
+        else:
+            enhanced_prompt_base = prompt
+
         # Enhance prompt with voting instructions
-        enhanced_prompt = self._enhance_prompt_with_voting(prompt)
+        enhanced_prompt = self._enhance_prompt_with_voting(enhanced_prompt_base)
 
         # Build context from previous responses
         context = (
@@ -488,6 +516,21 @@ Provide substantive analysis from your perspective."""
         """
         from models.schema import DeliberationResult, Summary
 
+        # Retrieve decision graph context if enabled
+        graph_context = ""
+        if self.graph_integration:
+            try:
+                graph_context = self.graph_integration.get_context_for_deliberation(
+                    request.question,
+                    threshold=self.config.decision_graph.similarity_threshold,
+                    max_context_decisions=self.config.decision_graph.max_context_decisions,
+                )
+                if graph_context:
+                    logger.info(f"Retrieved decision graph context for question")
+            except Exception as e:
+                logger.warning(f"Error retrieving graph context: {e}")
+                graph_context = ""
+
         # Determine actual rounds to execute
         # Quick mode forces single round for fast deliberation
         if request.mode == "quick":
@@ -507,6 +550,7 @@ Provide substantive analysis from your perspective."""
                 prompt=request.question,
                 participants=request.participants,
                 previous_responses=all_responses,
+                graph_context=graph_context,
             )
             all_responses.extend(round_responses)
 
@@ -604,6 +648,19 @@ Provide substantive analysis from your perspective."""
         # Build participant list
         participant_ids = [f"{p.model}@{p.cli}" for p in request.participants]
 
+        # Populate graph context summary
+        graph_context_summary = None
+        if graph_context:
+            # Extract summary of what context was used
+            try:
+                # Parse graph context to count decisions and get questions
+                lines = graph_context.split('\n')
+                decisions = [l for l in lines if l.startswith('### Past Deliberation')]
+                if decisions:
+                    graph_context_summary = f"Similar past deliberations found: {len(decisions)} decision(s) injected"
+            except:
+                graph_context_summary = "Decision graph context injected"
+
         # Create result
         result = DeliberationResult(
             status="complete",
@@ -615,6 +672,7 @@ Provide substantive analysis from your perspective."""
             full_debate=all_responses,
             convergence_info=None,  # Will populate below if available
             voting_result=voting_result,  # Add voting results
+            graph_context_summary=graph_context_summary,  # Add graph context summary
         )
 
         # Add convergence info if available
@@ -676,5 +734,15 @@ Provide substantive analysis from your perspective."""
         # Save transcript
         transcript_path = self.transcript_manager.save(result, request.question)
         result.transcript_path = transcript_path
+
+        # Store deliberation in decision graph if enabled
+        if self.graph_integration:
+            try:
+                decision_id = self.graph_integration.store_deliberation(
+                    request.question, result
+                )
+                logger.info(f"Stored deliberation in decision graph: {decision_id}")
+            except Exception as e:
+                logger.warning(f"Error storing deliberation in graph: {e}")
 
         return result
