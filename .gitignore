@@ -40,6 +40,10 @@ logs/user_prompt_submit.json
 
 # Documentation (not tracked in repo)
 docs/
+# Exception: Track decision graph documentation (valuable for users)
+!/docs/decision-graph/
+!/docs/decision-graph/
+!/docs/decision-graph/*.md
 # Exception: Track troubleshooting docs (valuable for users)
-!docs/troubleshooting/
-!docs/troubleshooting/*.md
+!/docs/troubleshooting/
+!/docs/troubleshooting/*.md
