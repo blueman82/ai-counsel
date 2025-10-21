@@ -39,6 +39,8 @@ Unlike existing tools (like Zen's consensus feature) that gather parallel opinio
 - 🎛️ **Model-Controlled Stopping:** Models decide when to stop deliberating (adaptive rounds)
 - 🛡️ **Fault Tolerant:** Individual adapter failures don't halt deliberation—remaining models continue
 - 🧠 **Decision Graph Memory:** Persistent learning from past deliberations with automatic context injection for faster convergence
+- 💰 **Local Model Support:** Run Ollama, LM Studio, or llamacpp - zero API costs
+- 🔐 **Data Privacy:** Keep all data on-premises with self-hosted models
 
 ## Production-Ready Reliability
 
@@ -416,6 +418,42 @@ AI Counsel supports HTTP-based adapters for local and cloud LLM services, in add
 - **Ollama** - Local LLM server (llama3, mistral, etc.)
 - **LM Studio** - Local OpenAI-compatible API
 - **OpenRouter** - Cloud multi-provider API (Claude, GPT, Gemini, etc.)
+
+#### Local Model Inference
+
+**Zero-Cost AI Deliberations**: Run models locally and eliminate API costs entirely while maintaining complete data privacy.
+
+**Cost Comparison** (100 deliberations, 3 models, 2 rounds each = 600 API calls):
+
+| Configuration | Cost per Call | Total Cost | Savings |
+|---------------|---------------|------------|---------|
+| All Local (Ollama) | $0 | $0 | $300 |
+| All Cloud (Claude) | ~$0.50 | ~$300 | $0 |
+| Hybrid (2 local + 1 cloud) | ~$0.17 | ~$100 | $200 |
+
+**Privacy Benefits:**
+- All data stays on your machine (no external API calls)
+- Ideal for sensitive data, regulated industries, internal tools
+- No rate limits or usage quotas
+- Full control over model versions and configurations
+
+**Quick Start:**
+
+```javascript
+// Pure local inference - zero API costs
+mcp__ai-counsel__deliberate({
+  question: "Should we add unit tests to new features?",
+  participants: [
+    {cli: "ollama", model: "llama2"}
+  ],
+  mode: "quick"
+})
+```
+
+**Learn More:**
+- [HTTP Adapters Overview](docs/http-adapters/intro.md) - Architecture and setup
+- [Ollama Quickstart](docs/http-adapters/ollama-quickstart.md) - 5-minute local setup
+- **Demo Script**: Run `python demo_local_models.py` for interactive cost comparison
 
 #### Configuration
 
