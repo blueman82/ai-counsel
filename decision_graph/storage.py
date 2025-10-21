@@ -108,27 +108,37 @@ class DecisionGraphStorage:
             """)
 
             # Create indexes for efficient querying
+            # PRIMARY: Most queries filter by recency (timestamp ordering)
             conn.execute("""
                 CREATE INDEX IF NOT EXISTS idx_decision_timestamp
                 ON decision_nodes(timestamp DESC)
             """)
 
+            # For duplicate detection and question-based filtering
+            conn.execute("""
+                CREATE INDEX IF NOT EXISTS idx_decision_question
+                ON decision_nodes(question)
+            """)
+
+            # For gathering decision context (participant stances)
             conn.execute("""
                 CREATE INDEX IF NOT EXISTS idx_participant_decision
                 ON participant_stances(decision_id)
             """)
 
+            # For similarity lookups (source-based queries)
             conn.execute("""
                 CREATE INDEX IF NOT EXISTS idx_similarity_source
                 ON decision_similarities(source_id)
             """)
 
+            # For similarity score-based filtering and ordering
             conn.execute("""
                 CREATE INDEX IF NOT EXISTS idx_similarity_score
                 ON decision_similarities(similarity_score DESC)
             """)
 
-            logger.debug("Database schema initialized successfully")
+            logger.debug("Database schema and indexes initialized successfully")
 
     def save_decision_node(self, node: DecisionNode) -> str:
         """Save a decision node to the database.
