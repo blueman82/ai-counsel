@@ -66,6 +66,7 @@ docs/
 
 # Consolidated documentation (consolidate into main docs instead)
 MEMORY_QUICKSTART.md
+QUICK_START_ANNOUNCEMENT.md
 
 # Decision graph database (user-generated, not shared across clones)
 decision_graph.db
