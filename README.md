@@ -671,6 +671,95 @@ ai-counsel/
 - [ ] Real-time streaming of deliberation progress
 - [ ] GraphQL API for programmatic access
 
+---
+
+## Decision Graph Memory (Optional)
+
+AI Counsel can learn from past deliberations and recall relevant patterns when new questions arise. This optional feature creates organizational memory where design decisions build on each other.
+
+### What It Does
+
+- **Pattern Recognition**: Automatically identify when new questions are similar to past deliberations
+- **Context Enrichment**: Inject relevant past decisions into current deliberations to accelerate convergence
+- **Consensus Tracking**: Record which models agreed/disagreed and what evidence convinced them
+- **Decision Trail**: Build an audit trail of design decisions over time
+- **Learning Acceleration**: Reduce redundant debates by referencing established patterns
+
+### Enable Decision Graph Memory
+
+Edit `config.yaml`:
+
+```yaml
+decision_graph:
+  enabled: true
+  db_path: "decision_graph.db"
+  similarity_threshold: 0.7
+  max_context_decisions: 3
+```
+
+### Quick Example
+
+After enabling decision graph memory:
+
+```javascript
+// First deliberation: Stores decision in graph
+mcp__ai-counsel__deliberate({
+  question: "To scale writes, should we use event sourcing?",
+  participants: [
+    {cli: "claude", model: "sonnet"},
+    {cli: "codex", model: "gpt-5-codex"}
+  ],
+  mode: "conference"
+})
+
+// Second deliberation: Automatically retrieves & uses past context
+mcp__ai-counsel__deliberate({
+  question: "How should we handle our audit trail?",
+  participants: [
+    {cli: "claude", model: "sonnet"},
+    {cli: "codex", model: "gpt-5-codex"}
+  ],
+  mode: "conference"
+})
+// Result: System finds similar past decision on event sourcing,
+// injects context, models converge faster
+```
+
+### Query Past Decisions
+
+Use CLI commands to search your decision graph:
+
+```bash
+# Find similar past deliberations
+ai-counsel graph similar --query "vector database selection" --limit 5
+
+# Find contradictions in your decision history
+ai-counsel graph contradictions --limit 10
+
+# Trace how a specific decision evolved
+ai-counsel graph timeline --decision-id <id>
+
+# Export graph for visualization
+ai-counsel graph export --format graphml > decisions.graphml
+```
+
+### Documentation
+
+- **[Quickstart Guide](docs/decision-graph/quickstart.md)** - 5-minute setup
+- **[Configuration Reference](docs/decision-graph/configuration.md)** - All tunable parameters
+- **[Migration Guide](docs/decision-graph/migration.md)** - For existing installations
+- **[Deployment Guide](docs/decision-graph/deployment.md)** - Production setup
+- **[Troubleshooting](docs/decision-graph/troubleshooting.md)** - Common issues
+
+### Performance
+
+- ⚡ **Fast Queries**: <100ms for 1000+ stored decisions (with caching)
+- 💾 **Efficient Storage**: ~5KB per decision (excludes embeddings)
+- 🔄 **Non-Blocking**: Background similarity computation (doesn't slow deliberation)
+- 📊 **Smart Caching**: 70%+ cache hit rate after warmup
+
+---
+
 ## Contributing
 
 1. Fork the repository

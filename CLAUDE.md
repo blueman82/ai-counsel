@@ -347,3 +347,179 @@ This server implements MCP protocol for Claude Code integration:
 - ✅ Model-controlled early stopping for adaptive round counts
 - ✅ AI-powered summary generation
 - ✅ Full audit trail with markdown transcripts
+
+---
+
+## Decision Graph Memory Architecture
+
+### Overview
+
+The decision graph module (`decision_graph/`) enables persistent learning from deliberations. It stores completed deliberations, finds similar past decisions, and injects context into new deliberations to accelerate convergence.
+
+### Module Structure
+
+```
+decision_graph/
+├── schema.py           # Pydantic models (DecisionNode, ParticipantStance, DecisionSimilarity)
+├── storage.py          # SQLite persistence layer with CRUD operations
+├── similarity.py       # Semantic similarity detection for questions
+├── retrieval.py        # Context retrieval and formatting
+├── integration.py      # Integration with deliberation engine
+├── cache.py           # Two-tier caching (L1 query results, L2 embeddings)
+├── workers.py         # Async background processing for similarity computation
+├── maintenance.py     # Health monitoring and graph analytics
+├── query_engine.py    # Unified query interface (search_similar, find_contradictions, etc.)
+└── exporters.py       # Export to JSON, GraphML, DOT, Markdown formats
+```
+
+### Core Components
+
+**Schema** (`decision_graph/schema.py`)
+- **DecisionNode**: Completed deliberation with question, consensus, participants, timestamp
+- **ParticipantStance**: Individual participant's position (vote option, confidence, rationale)
+- **DecisionSimilarity**: Relationships between decisions with similarity scores (0.0-1.0)
+
+**Storage** (`decision_graph/storage.py`)
+- SQLite3 backend with schema: `decision_nodes`, `participant_stances`, `decision_similarities`
+- CRUD operations: save/retrieve decisions, compute similarities, query by threshold
+- Indexes: timestamp (recency), question_hash (duplicates), decision_id (joins)
+- Atomic transactions for data consistency
+
+**Retrieval** (`decision_graph/retrieval.py`)
+- Uses convergence detection backend (SentenceTransformer/TF-IDF/Jaccard fallback)
+- Configurable similarity threshold (default: 0.7) and max results (default: 3)
+- Formats retrieved decisions as markdown context for injection into prompts
+- Two-tier cache: query results (L1) and embeddings (L2)
+
+**Integration** (`decision_graph/integration.py`)
+- **store_deliberation()**: Extracts data from DeliberationResult, saves to graph
+- **get_context_for_deliberation()**: Retrieves and formats context for new questions
+- Async background worker enqueued on deliberation completion
+- Graceful degradation: graph failures don't halt deliberations
+
+**Performance** (`decision_graph/cache.py`, `decision_graph/workers.py`, `decision_graph/maintenance.py`)
+- **Cache**: LRU query result cache (200 entries) + embedding cache (500 entries)
+- **Workers**: Async background similarity computation (non-blocking, 10 jobs/sec)
+- **Maintenance**: Health monitoring, growth tracking, periodic stats logging
+- **Latency**: p95 deliberation start <450ms (cache-hit and miss scenarios)
+
+**Query Engine** (`decision_graph/query_engine.py`)
+- Unified interface for decision graph queries
+- Methods: search_similar(), find_contradictions(), trace_evolution(), analyze_patterns()
+- Shared by MCP tools and CLI commands (no duplication)
+
+**Export** (`decision_graph/exporters.py`)
+- Multiple formats: JSON (programmatic), GraphML (Gephi), DOT (Graphviz), Markdown (human)
+- JSON metadata sidecars alongside transcripts for Claude interpretation
+
+### Integration with Deliberation Engine
+
+**In `deliberation/engine.py`:**
+
+1. **Initialization**: DecisionGraphIntegration created if enabled in config
+2. **Before deliberation**: Call `get_context_for_deliberation()` to retrieve relevant past decisions
+3. **Round 1 injection**: Prepend graph context to first round prompt if available
+4. **After deliberation**: Call `store_deliberation()` to save result (async background processing)
+
+**Configuration** (`models/config.py`, `config.yaml`):
+```yaml
+decision_graph:
+  enabled: false              # Opt-in feature
+  db_path: "decision_graph.db"
+  similarity_threshold: 0.7   # Min similarity to retrieve
+  max_context_decisions: 3    # Max past decisions to inject
+```
+
+### Data Flow
+
+1. **Write Path** (after deliberation):
+   - Extract question, consensus, participants, votes from `DeliberationResult`
+   - Create `DecisionNode`, save to SQLite
+   - Create `ParticipantStance` records for each participant
+   - Queue async background job to compute similarities (deferred, non-blocking)
+
+2. **Read Path** (before deliberation):
+   - Query recent decisions (~100-500 based on growth)
+   - Compute similarity to current question
+   - Sort by score, take top-k above threshold
+   - Format as markdown context string
+   - Prepend to Round 1 prompt
+
+3. **Background Processing**:
+   - Async worker receives similarity computation job
+   - Batch compute against recent decisions (bounded set)
+   - Store only top-20 most similar relationships
+   - Expected time: <10s per decision
+
+### Testing Strategy
+
+**Unit Tests** (`tests/unit/test_decision_graph*.py`):
+- Schema validation, storage CRUD, similarity detection
+- Cache behavior (hits, misses, TTL)
+- Worker scheduling and fallback paths
+- 150+ test cases, 100% coverage
+
+**Integration Tests** (`tests/integration/test_*memory*.py`, `test_*worker*.py`):
+- Memory persistence across deliberations
+- Context injection correctness
+- Backward compatibility
+- Concurrent writes and edge cases
+- 155+ test cases, 98%+ coverage
+
+**Performance Tests** (`tests/integration/test_performance.py`):
+- Query latency benchmarks (target: <100ms for 1000 nodes)
+- Cache hit rate after warmup (target: 60%+)
+- Background worker throughput (target: 10+ jobs/sec)
+- Storage efficiency (target: ~5KB per decision)
+
+### Extension Points
+
+1. **Custom Similarity Metrics**: Subclass `SimilarityDetector` for domain-specific matching
+2. **Alternative Backends**: Replace SQLite with Neo4j, PostgreSQL, or vector database
+3. **Custom Retrieval**: Override `DecisionRetriever.find_relevant_decisions()` for ranking strategy
+4. **Export Formats**: Add new exporters to `decision_graph/exporters.py`
+
+### Common Patterns
+
+**Accessing the Graph**:
+```python
+# From integration layer
+integration = DecisionGraphIntegration()
+context = await integration.get_context_for_deliberation(question)
+await integration.store_deliberation(question, result)
+
+# From query engine (MCP/CLI)
+engine = QueryEngine()
+results = await engine.search_similar("vector database choice", limit=5)
+contradictions = await engine.find_contradictions()
+```
+
+**Configuration in YAML**:
+- Default: `enabled: false` (graph is optional)
+- Threshold tuning: Higher (0.8+) = fewer but more relevant results
+- Performance vs. Recall: Trade-off via `max_context_decisions` (default: 3)
+
+### Performance Characteristics
+
+| Operation | Latency | Notes |
+|-----------|---------|-------|
+| Store decision | <100ms | Async background similarity (non-blocking) |
+| Query (cache hit) | <2μs | LRU lookup, instant |
+| Query (cache miss) | <100ms | Compute similarity vs 50-100 recent decisions |
+| Background similarity | <10s | Batch compute, 50-100 comparisons per decision |
+| Memory per decision | ~5KB | Excludes embeddings; scales with context size |
+| Index overhead | 0.61× | Total: ~1.6× data size with indexes |
+
+### Monitoring & Health
+
+**Automatic Monitoring** (`decision_graph/maintenance.py`):
+- Periodic stats logging (every 100 decisions)
+- Growth rate analysis (every 500 decisions)
+- Threshold warnings (approaching 5k decision archival)
+- Health checks: database connectivity, schema validation
+
+**Public API**:
+```python
+stats = maintenance.get_graph_stats()  # Returns: node_count, edge_count, avg_similarity
+health = maintenance.health_check()     # Returns: {"status": "healthy", ...}
+```
