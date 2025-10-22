@@ -534,9 +534,9 @@ class TestDecisionRetrieverTieredFormatting:
         assert "claude" in formatted  # Participant
         assert "Better ecosystem support" in formatted  # Rationale
 
-        # Should use roughly 400-600 tokens (estimate)
+        # Should use roughly 100-300 tokens (strong tier with full details)
         tokens_used = result["tokens_used"]
-        assert 300 < tokens_used < 800, f"Expected ~500 tokens, got {tokens_used}"
+        assert 80 < tokens_used < 400, f"Expected ~100-300 tokens, got {tokens_used}"
 
         # Tier distribution should show 1 strong
         assert result["tier_distribution"]["strong"] == 1
