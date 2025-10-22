@@ -114,27 +114,28 @@ def test_graph_context_summary_after_two_deliberations():
         all_decisions_2 = storage.get_all_decisions(limit=100)
         print(f"Total decisions in DB after deliberation 2: {len(all_decisions_2)}")
 
-        # Third deliberation - context should definitely be available now
-        print("\n=== Third Deliberation ===")
-        q3 = "Should we use Python for microservices?"
+        # Third deliberation - ask a VERY similar question to Q2
+        # This should find context from Q2 since they're 95%+ similar
+        print("\n=== Third Deliberation (Same Question as 2nd) ===")
+        q3 = "Should we use Python for API development?"  # Exact same as Q2
 
         # Check what find_relevant_decisions returns
         from decision_graph.retrieval import DecisionRetriever
         retriever = integration.retriever
         relevant = retriever.find_relevant_decisions(q3, threshold=0.7, max_results=3)
-        print(f"find_relevant_decisions returned {len(relevant)} decisions")
+        print(f"find_relevant_decisions returned {len(relevant)} decisions for Q3")
         for i, dec in enumerate(relevant):
             print(f"  {i+1}. {dec.question}")
 
         context3 = integration.get_context_for_deliberation(q3, threshold=0.7, max_context_decisions=3)
-        print(f"Context retrieved for deliberation 3 (threshold=0.7): {repr(context3[:100] if context3 else context3)}")
+        print(f"Context retrieved for deliberation 3 (threshold=0.7): {repr('POPULATED' if context3 else 'EMPTY')}")
         print(f"Context is empty: {not context3}")
 
-        # Try lower threshold
-        relevant_low = retriever.find_relevant_decisions(q3, threshold=0.3, max_results=3)
-        print(f"\nfind_relevant_decisions (threshold=0.3) returned {len(relevant_low)} decisions")
-        for i, dec in enumerate(relevant_low):
-            print(f"  {i+1}. {dec.question}")
+        # Compute similarity between Q2 and Q3
+        from decision_graph.similarity import QuestionSimilarityDetector
+        detector = QuestionSimilarityDetector()
+        sim_q2_q3 = detector.compute_similarity(q2, q3)
+        print(f"Similarity between Q2 and Q3: {sim_q2_q3:.3f} (should be 1.0 - same question)")
 
         # ANALYSIS
         print("\n=== ANALYSIS ===")
