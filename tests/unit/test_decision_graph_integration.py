@@ -683,3 +683,219 @@ class TestDecisionGraphIntegrationTieredFormatting:
             # Should log deprecation warning
             warnings = [r.message for r in caplog.records if r.levelname == "WARNING"]
             assert any("deprecated" in w.lower() for w in warnings), "Expected deprecation warning"
+
+
+class TestDecisionGraphIntegrationMeasurementHooks:
+    """Test Task 8: Observability and measurement hooks for Phase 1.5 calibration."""
+
+    @pytest.fixture
+    def storage(self):
+        """Create in-memory storage for testing."""
+        return DecisionGraphStorage(":memory:")
+
+    @pytest.fixture
+    def config(self):
+        """Create mock config with budget-aware settings."""
+        from models.config import Config, DecisionGraphConfig, DefaultsConfig, StorageConfig, DeliberationConfig, ConvergenceDetectionConfig, EarlyStoppingConfig, CLIToolConfig
+
+        return Config(
+            version="1.0",
+            cli_tools={
+                "test": CLIToolConfig(
+                    command="test",
+                    args=["{prompt}"],
+                    timeout=60
+                )
+            },
+            defaults=DefaultsConfig(
+                mode="quick",
+                rounds=2,
+                max_rounds=5,
+                timeout_per_round=120
+            ),
+            storage=StorageConfig(
+                transcripts_dir="transcripts",
+                format="markdown",
+                auto_export=True
+            ),
+            deliberation=DeliberationConfig(
+                convergence_detection=ConvergenceDetectionConfig(
+                    enabled=True,
+                    semantic_similarity_threshold=0.85,
+                    divergence_threshold=0.40,
+                    min_rounds_before_check=1,
+                    consecutive_stable_rounds=2,
+                    stance_stability_threshold=0.80,
+                    response_length_drop_threshold=0.40
+                ),
+                early_stopping=EarlyStoppingConfig(
+                    enabled=True,
+                    threshold=0.66,
+                    respect_min_rounds=True
+                ),
+                convergence_threshold=0.8,
+                enable_convergence_detection=True
+            ),
+            decision_graph=DecisionGraphConfig(
+                enabled=True,
+                db_path=":memory:",
+                similarity_threshold=0.6,
+                max_context_decisions=3,
+                compute_similarities=True,
+                context_token_budget=1500,
+                tier_boundaries={"strong": 0.75, "moderate": 0.60},
+                query_window=1000
+            )
+        )
+
+    @pytest.fixture
+    def integration_with_config(self, storage, config):
+        """Create integration instance with config."""
+        return DecisionGraphIntegration(storage, enable_background_worker=False, config=config)
+
+    @pytest.fixture
+    def sample_decision(self, storage):
+        """Create a sample decision node."""
+        node = DecisionNode(
+            id="dec-1",
+            question="Should we use TypeScript?",
+            timestamp=datetime.now(),
+            consensus="Yes, TypeScript provides type safety",
+            winning_option="Adopt TypeScript",
+            convergence_status="converged",
+            participants=["claude@cli"],
+            transcript_path="/test1.md"
+        )
+        storage.save_decision_node(node)
+        return node
+
+    def test_measurement_hooks_logged(self, integration_with_config, sample_decision, caplog):
+        """Test that tier distribution is logged on every context injection."""
+        import logging
+        caplog.set_level(logging.INFO)
+
+        from unittest.mock import patch
+        with patch.object(integration_with_config.retriever, 'find_relevant_decisions') as mock_find:
+            # Return a decision with strong similarity
+            mock_find.return_value = [(sample_decision, 0.85)]
+
+            context = integration_with_config.get_context_for_deliberation(
+                "Should we adopt TypeScript for our project?"
+            )
+
+        # Verify MEASUREMENT log exists
+        measurement_logs = [r for r in caplog.records if "MEASUREMENT:" in r.message]
+        assert len(measurement_logs) > 0, "Expected MEASUREMENT log entry"
+
+        # Verify tier distribution is logged
+        log_message = measurement_logs[0].message
+        assert "tier_distribution" in log_message or "tiers=" in log_message, \
+            f"Expected tier distribution in log. Got: {log_message}"
+
+    def test_measurement_hooks_include_tokens(self, integration_with_config, sample_decision, caplog):
+        """Test that token usage is logged in measurement hooks."""
+        import logging
+        caplog.set_level(logging.INFO)
+
+        from unittest.mock import patch
+        with patch.object(integration_with_config.retriever, 'find_relevant_decisions') as mock_find:
+            mock_find.return_value = [(sample_decision, 0.85)]
+
+            context = integration_with_config.get_context_for_deliberation(
+                "Should we use TypeScript?"
+            )
+
+        # Verify token usage is logged
+        measurement_logs = [r for r in caplog.records if "MEASUREMENT:" in r.message]
+        assert len(measurement_logs) > 0, "Expected MEASUREMENT log entry"
+
+        log_message = measurement_logs[0].message
+        # Should include both tokens_used and budget
+        assert "tokens" in log_message.lower(), f"Expected token usage in log. Got: {log_message}"
+        # Should show budget (e.g., "tokens=500/1500")
+        assert "/" in log_message or "budget" in log_message.lower(), \
+            f"Expected token budget in log. Got: {log_message}"
+
+    def test_measurement_hooks_db_size_logged(self, integration_with_config, sample_decision, caplog):
+        """Test that database size metrics are logged."""
+        import logging
+        caplog.set_level(logging.INFO)
+
+        from unittest.mock import patch
+        with patch.object(integration_with_config.retriever, 'find_relevant_decisions') as mock_find:
+            mock_find.return_value = [(sample_decision, 0.85)]
+
+            context = integration_with_config.get_context_for_deliberation(
+                "Should we use TypeScript?"
+            )
+
+        # Verify database size is logged
+        measurement_logs = [r for r in caplog.records if "MEASUREMENT:" in r.message]
+        assert len(measurement_logs) > 0, "Expected MEASUREMENT log entry"
+
+        log_message = measurement_logs[0].message
+        assert "db_size" in log_message or "database" in log_message.lower(), \
+            f"Expected database size in log. Got: {log_message}"
+
+    def test_measurement_hooks_format(self, integration_with_config, sample_decision, caplog):
+        """Test that measurement logs use structured format for parsing."""
+        import logging
+        caplog.set_level(logging.INFO)
+
+        from unittest.mock import patch
+        with patch.object(integration_with_config.retriever, 'find_relevant_decisions') as mock_find:
+            mock_find.return_value = [(sample_decision, 0.85)]
+
+            context = integration_with_config.get_context_for_deliberation(
+                "Should we use TypeScript?"
+            )
+
+        # Verify structured logging format
+        measurement_logs = [r for r in caplog.records if "MEASUREMENT:" in r.message]
+        assert len(measurement_logs) > 0, "Expected MEASUREMENT log entry"
+
+        log_message = measurement_logs[0].message
+
+        # Verify format is parseable (key=value pairs)
+        # Should have format like: MEASUREMENT: question='...', scored_results=N, tier_distribution={...}, ...
+        assert "MEASUREMENT:" in log_message, "Expected MEASUREMENT: prefix"
+
+        # Check for key=value format
+        assert "=" in log_message, "Expected key=value format"
+
+        # Verify all required metrics are present
+        required_metrics = ["question", "tier_distribution", "tokens", "db_size"]
+        for metric in required_metrics:
+            assert metric in log_message.lower(), \
+                f"Expected '{metric}' in structured log. Got: {log_message}"
+
+    def test_get_graph_metrics_returns_detailed_stats(self, integration_with_config, sample_decision):
+        """Test that get_graph_metrics() returns dict with detailed statistics."""
+        # Call get_graph_metrics
+        metrics = integration_with_config.get_graph_metrics()
+
+        # Verify return type
+        assert isinstance(metrics, dict), "Expected dict return type"
+
+        # Verify required keys
+        expected_keys = ["total_decisions", "recent_100_count", "recent_1000_count"]
+        for key in expected_keys:
+            assert key in metrics, f"Expected '{key}' in metrics dict"
+
+        # Verify values are reasonable
+        assert metrics["total_decisions"] >= 0, "total_decisions should be non-negative"
+        assert metrics["recent_100_count"] >= 0, "recent_100_count should be non-negative"
+        assert metrics["recent_1000_count"] >= 0, "recent_1000_count should be non-negative"
+
+    def test_get_graph_metrics_handles_empty_db(self, storage, config):
+        """Test that get_graph_metrics() handles empty database gracefully."""
+        integration = DecisionGraphIntegration(storage, enable_background_worker=False, config=config)
+
+        # DB is empty
+        metrics = integration.get_graph_metrics()
+
+        # Should return valid dict with zeros
+        assert isinstance(metrics, dict)
+        assert metrics.get("total_decisions", 0) == 0
+        assert metrics.get("recent_100_count", 0) == 0
+        assert metrics.get("recent_1000_count", 0) == 0

@@ -378,6 +378,55 @@ class DecisionGraphIntegration:
             logger.error(f"Error in similarity computation: {e}", exc_info=True)
             # Don't raise - this is a non-critical operation
 
+    def _log_context_metrics(
+        self,
+        question: str,
+        scored_count: int,
+        tier_dist: dict,
+        tokens_used: int,
+        token_budget: int,
+        db_size: int,
+    ) -> None:
+        """Log structured measurement metrics for Phase 1.5 calibration.
+
+        This method logs metrics in a structured format that can be parsed
+        for empirical analysis of context injection effectiveness:
+        - Which tiers (strong/moderate/brief) help convergence?
+        - Should tier boundaries move based on usage patterns?
+        - Is the token budget appropriately sized?
+
+        Args:
+            question: The deliberation question (truncated for logging)
+            scored_count: Number of scored decisions retrieved
+            tier_dist: Dictionary with strong/moderate/brief counts
+            tokens_used: Tokens used in formatted context
+            token_budget: Token budget from config
+            db_size: Current database size (decision count)
+
+        Example log output:
+            MEASUREMENT: question='Should we use TypeScript?...', scored_results=3,
+            tier_distribution={'strong': 1, 'moderate': 1, 'brief': 1},
+            tokens=450/1500, db_size=250
+        """
+        # Truncate question for logging (max 30 chars)
+        truncated_question = question[:30] + "..." if len(question) > 30 else question
+
+        # Format tier distribution for readability
+        tier_str = (
+            f"strong:{tier_dist.get('strong', 0)}, "
+            f"moderate:{tier_dist.get('moderate', 0)}, "
+            f"brief:{tier_dist.get('brief', 0)}"
+        )
+
+        # Log in structured format
+        logger.info(
+            f"MEASUREMENT: question='{truncated_question}', "
+            f"scored_results={scored_count}, "
+            f"tier_distribution=({tier_str}), "
+            f"tokens={tokens_used}/{token_budget}, "
+            f"db_size={db_size}"
+        )
+
     def get_context_for_deliberation(
         self,
         question: str,
@@ -467,14 +516,18 @@ class DecisionGraphIntegration:
                     token_budget=token_budget,
                 )
 
-                # Log metrics for Phase 1.5 calibration
+                # Log metrics for Phase 1.5 calibration using structured format
                 tier_dist = result["tier_distribution"]
                 tokens_used = result["tokens_used"]
-                logger.info(
-                    f"Context injection metrics: "
-                    f"tokens={tokens_used}/{token_budget}, "
-                    f"tiers=(strong:{tier_dist['strong']}, moderate:{tier_dist['moderate']}, brief:{tier_dist['brief']}), "
-                    f"db_size={db_size}"
+
+                # Use dedicated measurement logging method
+                self._log_context_metrics(
+                    question=question,
+                    scored_count=len(scored_decisions),
+                    tier_dist=tier_dist,
+                    tokens_used=tokens_used,
+                    token_budget=token_budget,
+                    db_size=db_size,
                 )
 
                 return result["formatted"]
@@ -531,6 +584,50 @@ class DecisionGraphIntegration:
         except Exception as e:
             logger.error(f"Error retrieving graph stats: {e}", exc_info=True)
             return {}
+
+    def get_graph_metrics(self) -> dict:
+        """Get detailed graph metrics for Phase 1.5 calibration analysis.
+
+        Returns metrics useful for empirical calibration including:
+        - total_decisions: Total number of decisions in database
+        - recent_100_count: Number of decisions in last 100 entries (query window)
+        - recent_1000_count: Number of decisions in last 1000 entries (extended window)
+
+        These metrics help answer:
+        - How many decisions are typically considered for context?
+        - Is the query window appropriately sized?
+        - What is the database growth rate?
+
+        Returns:
+            Dictionary with detailed metrics. Returns zeros on error.
+
+        Example:
+            >>> integration = DecisionGraphIntegration(storage)
+            >>> metrics = integration.get_graph_metrics()
+            >>> print(f"Query window coverage: {metrics['recent_100_count']}/100")
+            >>> print(f"Extended window: {metrics['recent_1000_count']}/1000")
+        """
+        try:
+            # Get all decisions to compute counts
+            all_decisions = self.storage.get_all_decisions(limit=10000)
+            total_count = len(all_decisions)
+
+            # Compute recent counts (simulating query windows)
+            recent_100 = min(100, total_count)
+            recent_1000 = min(1000, total_count)
+
+            return {
+                "total_decisions": total_count,
+                "recent_100_count": recent_100,
+                "recent_1000_count": recent_1000,
+            }
+        except Exception as e:
+            logger.error(f"Error retrieving graph metrics: {e}", exc_info=True)
+            return {
+                "total_decisions": 0,
+                "recent_100_count": 0,
+                "recent_1000_count": 0,
+            }
 
     def health_check(self) -> dict:
         """Perform comprehensive health check on decision graph.
