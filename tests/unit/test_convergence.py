@@ -69,7 +69,7 @@ class TestTFIDFBackend:
     def test_import_skipped_if_sklearn_missing(self):
         """Should skip if scikit-learn not installed."""
         try:
-            import sklearn
+            import sklearn  # noqa: F401  # Import used to check availability
 
             pytest.skip("scikit-learn is installed, skip this test")
         except ImportError:
