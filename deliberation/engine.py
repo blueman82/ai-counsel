@@ -112,7 +112,7 @@ class DeliberationEngine:
                     from decision_graph.storage import DecisionGraphStorage
 
                     storage = DecisionGraphStorage(config.decision_graph.db_path)
-                    self.graph_integration = DecisionGraphIntegration(storage)
+                    self.graph_integration = DecisionGraphIntegration(storage, config=config)
                     logger.info("Decision graph memory enabled")
                 except Exception as e:
                     logger.warning(f"Failed to initialize decision graph: {e}")
