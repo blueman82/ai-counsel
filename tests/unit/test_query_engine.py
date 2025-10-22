@@ -10,7 +10,7 @@ import pytest
 
 from decision_graph.schema import DecisionNode, ParticipantStance
 from decision_graph.storage import DecisionGraphStorage
-from deliberation.query_engine import Analysis, QueryEngine, Timeline
+from deliberation.query_engine import QueryEngine, Timeline
 
 
 @pytest.fixture
