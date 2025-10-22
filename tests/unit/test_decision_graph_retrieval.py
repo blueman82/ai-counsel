@@ -625,7 +625,7 @@ class TestDecisionRetrieverTieredFormatting:
         ]
 
         tier_boundaries = {"strong": 0.75, "moderate": 0.60}
-        token_budget = 600  # Small budget - should only fit ~1 strong decision
+        token_budget = 150  # Small budget - should only fit ~1 strong decision
 
         # Mock stances for all decisions
         mock_storage.get_participant_stances.return_value = [
