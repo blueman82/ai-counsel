@@ -867,3 +867,31 @@ class TestDecisionGraphBudgetAwareConfig:
         assert config2.similarity_threshold == 0.8
         assert config2.context_token_budget == 2000
         assert config2.tier_boundaries == {"strong": 0.80, "moderate": 0.65}
+
+    def test_config_yaml_loads_new_parameters(self):
+        """Load config.yaml successfully with new budget-aware parameters."""
+        # Load actual config.yaml from project root
+        config = load_config()
+
+        # Verify decision_graph section exists
+        assert config.decision_graph is not None, "decision_graph section should exist"
+
+        # Verify new budget-aware parameters are loaded
+        assert hasattr(config.decision_graph, 'context_token_budget'), \
+            "config.yaml should define context_token_budget"
+        assert hasattr(config.decision_graph, 'tier_boundaries'), \
+            "config.yaml should define tier_boundaries"
+        assert hasattr(config.decision_graph, 'query_window'), \
+            "config.yaml should define query_window"
+
+        # Verify expected values from config.yaml
+        assert config.decision_graph.context_token_budget == 1500, \
+            "context_token_budget should be 1500 in config.yaml"
+        assert config.decision_graph.tier_boundaries == {"strong": 0.75, "moderate": 0.60}, \
+            "tier_boundaries should be {strong: 0.75, moderate: 0.60} in config.yaml"
+        assert config.decision_graph.query_window == 1000, \
+            "query_window should be 1000 in config.yaml"
+
+        # Verify deprecated field is still present (backward compatibility)
+        assert hasattr(config.decision_graph, 'similarity_threshold'), \
+            "similarity_threshold should still exist for backward compatibility"
