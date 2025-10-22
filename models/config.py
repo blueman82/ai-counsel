@@ -133,6 +133,66 @@ class DecisionGraphConfig(BaseModel):
         True, description="Compute similarities after storing a deliberation"
     )
 
+    @field_validator("db_path")
+    @classmethod
+    def resolve_db_path(cls, v: str) -> str:
+        """
+        Resolve db_path to absolute path relative to project root.
+
+        This validator ensures that relative database paths are always resolved
+        relative to the project root directory (where config.yaml is located),
+        not the current working directory. This prevents breakage when running
+        the server from different directories.
+
+        Processing steps:
+        1. Resolve ${ENV_VAR} environment variable references
+        2. Convert relative paths to absolute paths relative to project root
+        3. Keep absolute paths unchanged
+        4. Return normalized absolute path as string
+
+        Examples:
+            "decision_graph.db" → "/path/to/project/decision_graph.db"
+            "/tmp/foo.db" → "/tmp/foo.db" (unchanged)
+            "${DATA_DIR}/graph.db" → "/var/data/graph.db" (if DATA_DIR=/var/data)
+            "../shared/graph.db" → "/path/to/shared/graph.db"
+
+        Args:
+            v: Database path from configuration (may contain env vars)
+
+        Returns:
+            Absolute path as string
+
+        Raises:
+            ValueError: If environment variable is referenced but not set
+        """
+        # Step 1: Resolve environment variables using ${VAR_NAME} pattern
+        pattern = r"\$\{([^}]+)\}"
+
+        def replacer(match):
+            env_var = match.group(1)
+            value = os.getenv(env_var)
+            if value is None:
+                raise ValueError(
+                    f"Environment variable '{env_var}' is not set. "
+                    f"Required for db_path configuration."
+                )
+            return value
+
+        resolved = re.sub(pattern, replacer, v)
+
+        # Step 2: Convert to Path object
+        path = Path(resolved)
+
+        # Step 3: If relative, make it relative to project root
+        if not path.is_absolute():
+            # This file is at: project_root/models/config.py
+            # Project root is two levels up from this file
+            project_root = Path(__file__).parent.parent
+            path = (project_root / path).resolve()
+
+        # Step 4: Return as string (normalized, absolute)
+        return str(path)
+
 
 class Config(BaseModel):
     """Root configuration model."""
