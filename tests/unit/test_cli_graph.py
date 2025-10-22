@@ -24,9 +24,8 @@ from click.testing import CliRunner
 from cli.graph import contradictions, export, graph, similar, timeline
 from decision_graph.schema import DecisionNode, ParticipantStance
 from decision_graph.storage import DecisionGraphStorage
-from deliberation.query_engine import (Analysis, Contradiction, QueryEngine,
-                                       SimilarResult, Timeline, TimelineEntry,
-                                       VotingPattern)
+from deliberation.query_engine import (Contradiction, QueryEngine,
+                                       SimilarResult, Timeline, TimelineEntry)
 
 # ============================================================================
 # FIXTURES
