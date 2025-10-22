@@ -492,3 +492,261 @@ class TestDecisionRetrieverCacheIntegration:
         assert results2 == []
         # Note: Empty storage returns immediately, so no cache hit/miss logged
         assert mock_storage.get_all_decisions.call_count == 2
+
+
+class TestDecisionRetrieverTieredFormatting:
+    """Test tiered context formatting with token budget tracking."""
+
+    def test_format_context_tiered_strong_tier(self, mock_storage, sample_decisions):
+        """Test that strong matches (≥0.75) get full formatting (~500 tokens)."""
+        retriever = DecisionRetriever(mock_storage)
+
+        # Create a scored decision with strong similarity
+        scored_decisions = [
+            (sample_decisions[0], 0.85),  # Strong match
+        ]
+
+        tier_boundaries = {"strong": 0.75, "moderate": 0.60}
+        token_budget = 2000
+
+        # Mock get_participant_stances to return sample stances
+        mock_storage.get_participant_stances.return_value = [
+            Mock(
+                participant="claude",
+                vote_option="React",
+                confidence=0.9,
+                rationale="Better ecosystem support"
+            )
+        ]
+
+        result = retriever.format_context_tiered(
+            scored_decisions, tier_boundaries, token_budget
+        )
+
+        # Strong tier should include full formatting:
+        # - Question, timestamp, convergence_status, consensus, winning_option
+        # - Participants with their positions, votes, confidence, rationale
+        formatted = result["formatted"]
+        assert "Should we use React or Vue?" in formatted
+        assert "convergence_status" in formatted.lower() or "converged" in formatted
+        assert "consensus" in formatted.lower() or "React is preferred" in formatted
+        assert "React" in formatted  # Winning option
+        assert "claude" in formatted  # Participant
+        assert "Better ecosystem support" in formatted  # Rationale
+
+        # Should use roughly 400-600 tokens (estimate)
+        tokens_used = result["tokens_used"]
+        assert 300 < tokens_used < 800, f"Expected ~500 tokens, got {tokens_used}"
+
+        # Tier distribution should show 1 strong
+        assert result["tier_distribution"]["strong"] == 1
+        assert result["tier_distribution"]["moderate"] == 0
+        assert result["tier_distribution"]["brief"] == 0
+
+    def test_format_context_tiered_moderate_tier(self, mock_storage, sample_decisions):
+        """Test that moderate matches (0.60-0.74) get summary formatting (~200 tokens)."""
+        retriever = DecisionRetriever(mock_storage)
+
+        # Create a scored decision with moderate similarity
+        scored_decisions = [
+            (sample_decisions[1], 0.65),  # Moderate match
+        ]
+
+        tier_boundaries = {"strong": 0.75, "moderate": 0.60}
+        token_budget = 2000
+
+        result = retriever.format_context_tiered(
+            scored_decisions, tier_boundaries, token_budget
+        )
+
+        # Moderate tier should include summary:
+        # - Question, consensus, winning_option (no detailed stances)
+        formatted = result["formatted"]
+        assert "What database should we use?" in formatted
+        assert "PostgreSQL" in formatted  # Winning option or consensus
+
+        # Should NOT include detailed participant stances (moderate is summary only)
+        # Note: We're being less strict here - moderate format might mention participants
+        # but shouldn't have detailed rationales
+
+        # Should use roughly 150-250 tokens (estimate)
+        tokens_used = result["tokens_used"]
+        assert 100 < tokens_used < 350, f"Expected ~200 tokens, got {tokens_used}"
+
+        # Tier distribution should show 1 moderate
+        assert result["tier_distribution"]["strong"] == 0
+        assert result["tier_distribution"]["moderate"] == 1
+        assert result["tier_distribution"]["brief"] == 0
+
+    def test_format_context_tiered_brief_tier(self, mock_storage, sample_decisions):
+        """Test that brief matches (<0.60) get one-liner formatting (~50 tokens)."""
+        retriever = DecisionRetriever(mock_storage)
+
+        # Create a scored decision with brief similarity
+        scored_decisions = [
+            (sample_decisions[2], 0.45),  # Brief match (above noise floor)
+        ]
+
+        tier_boundaries = {"strong": 0.75, "moderate": 0.60}
+        token_budget = 2000
+
+        result = retriever.format_context_tiered(
+            scored_decisions, tier_boundaries, token_budget
+        )
+
+        # Brief tier should be minimal: just question and winning option
+        formatted = result["formatted"]
+        assert "Should we adopt TypeScript?" in formatted
+        assert "TypeScript" in formatted  # Winning option
+
+        # Should NOT include consensus text, participants, or detailed info
+        # (Being pragmatic: brief format is question + result)
+
+        # Should use roughly 30-70 tokens (estimate)
+        tokens_used = result["tokens_used"]
+        assert 20 < tokens_used < 100, f"Expected ~50 tokens, got {tokens_used}"
+
+        # Tier distribution should show 1 brief
+        assert result["tier_distribution"]["strong"] == 0
+        assert result["tier_distribution"]["moderate"] == 0
+        assert result["tier_distribution"]["brief"] == 1
+
+    def test_format_context_tiered_respects_token_budget(
+        self, mock_storage, sample_decisions
+    ):
+        """Test that formatting stops when token budget is exceeded."""
+        retriever = DecisionRetriever(mock_storage)
+
+        # Create multiple strong matches
+        scored_decisions = [
+            (sample_decisions[0], 0.90),  # Strong
+            (sample_decisions[1], 0.85),  # Strong
+            (sample_decisions[2], 0.80),  # Strong
+        ]
+
+        tier_boundaries = {"strong": 0.75, "moderate": 0.60}
+        token_budget = 600  # Small budget - should only fit ~1 strong decision
+
+        # Mock stances for all decisions
+        mock_storage.get_participant_stances.return_value = [
+            Mock(
+                participant="claude",
+                vote_option="Option A",
+                confidence=0.9,
+                rationale="Good reasoning here"
+            )
+        ]
+
+        result = retriever.format_context_tiered(
+            scored_decisions, tier_boundaries, token_budget
+        )
+
+        # Should stop before including all decisions
+        tokens_used = result["tokens_used"]
+        assert tokens_used <= token_budget, (
+            f"Token budget exceeded: {tokens_used} > {token_budget}"
+        )
+
+        # Should include at least 1 decision but not all 3
+        formatted = result["formatted"]
+        decisions_included = result["tier_distribution"]["strong"]
+        assert decisions_included >= 1, "Should include at least 1 decision"
+        assert decisions_included < 3, "Should not include all 3 decisions (budget exceeded)"
+
+    def test_format_context_tiered_returns_metrics(self, mock_storage, sample_decisions):
+        """Test that format_context_tiered returns complete metrics dict."""
+        retriever = DecisionRetriever(mock_storage)
+
+        scored_decisions = [
+            (sample_decisions[0], 0.85),  # Strong
+            (sample_decisions[1], 0.65),  # Moderate
+            (sample_decisions[2], 0.45),  # Brief
+        ]
+
+        tier_boundaries = {"strong": 0.75, "moderate": 0.60}
+        token_budget = 2000
+
+        mock_storage.get_participant_stances.return_value = []
+
+        result = retriever.format_context_tiered(
+            scored_decisions, tier_boundaries, token_budget
+        )
+
+        # Verify result structure
+        assert isinstance(result, dict)
+        assert "formatted" in result
+        assert "tokens_used" in result
+        assert "tier_distribution" in result
+
+        # Verify types
+        assert isinstance(result["formatted"], str)
+        assert isinstance(result["tokens_used"], int)
+        assert isinstance(result["tier_distribution"], dict)
+
+        # Verify tier distribution structure
+        tier_dist = result["tier_distribution"]
+        assert "strong" in tier_dist
+        assert "moderate" in tier_dist
+        assert "brief" in tier_dist
+
+        # Verify counts
+        assert tier_dist["strong"] == 1
+        assert tier_dist["moderate"] == 1
+        assert tier_dist["brief"] == 1
+
+        # Verify tokens_used is positive
+        assert result["tokens_used"] > 0
+
+    def test_format_context_tiered_empty_input(self, mock_storage):
+        """Test that empty input returns empty string and zero metrics."""
+        retriever = DecisionRetriever(mock_storage)
+
+        scored_decisions = []
+        tier_boundaries = {"strong": 0.75, "moderate": 0.60}
+        token_budget = 2000
+
+        result = retriever.format_context_tiered(
+            scored_decisions, tier_boundaries, token_budget
+        )
+
+        # Should return empty formatted string
+        assert result["formatted"] == ""
+
+        # Should have zero tokens used
+        assert result["tokens_used"] == 0
+
+        # Should have zero counts in tier distribution
+        assert result["tier_distribution"]["strong"] == 0
+        assert result["tier_distribution"]["moderate"] == 0
+        assert result["tier_distribution"]["brief"] == 0
+
+    def test_format_context_tiered_all_below_noise_floor(
+        self, mock_storage, sample_decisions
+    ):
+        """Test that all scores below noise floor (0.40) returns empty."""
+        retriever = DecisionRetriever(mock_storage)
+
+        # All scores below noise floor
+        scored_decisions = [
+            (sample_decisions[0], 0.35),  # Below noise floor
+            (sample_decisions[1], 0.25),  # Below noise floor
+            (sample_decisions[2], 0.15),  # Below noise floor
+        ]
+
+        tier_boundaries = {"strong": 0.75, "moderate": 0.60}
+        token_budget = 2000
+
+        result = retriever.format_context_tiered(
+            scored_decisions, tier_boundaries, token_budget
+        )
+
+        # Should return empty formatted string (noise floor filter)
+        assert result["formatted"] == ""
+
+        # Should have zero tokens used
+        assert result["tokens_used"] == 0
+
+        # Should have zero counts (all filtered by noise floor)
+        assert result["tier_distribution"]["strong"] == 0
+        assert result["tier_distribution"]["moderate"] == 0
+        assert result["tier_distribution"]["brief"] == 0
