@@ -58,6 +58,10 @@ All notable changes to AI Counsel are documented in this file.
 - Fixed floating point precision error in similarity score clamping (ensure score ≤ 1.0)
   - Similarity detection backends can return scores slightly > 1.0 due to numerical precision
   - Now clamped to [0.0, 1.0] before storing in database to prevent validation errors
+- **Fixed critical bug**: Decision graph integration not initialized with config parameter
+  - Engine was creating DecisionGraphIntegration(storage) without config
+  - Now correctly passes config to enable budget-aware context injection
+  - This was preventing graph_context_summary from being populated in responses
 
 #### Tests
 - Added 41 new tests covering all Phase 1 features
