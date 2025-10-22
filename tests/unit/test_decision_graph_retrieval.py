@@ -569,9 +569,9 @@ class TestDecisionRetrieverTieredFormatting:
         # Note: We're being less strict here - moderate format might mention participants
         # but shouldn't have detailed rationales
 
-        # Should use roughly 150-250 tokens (estimate)
+        # Should use roughly 50-150 tokens (moderate tier summary)
         tokens_used = result["tokens_used"]
-        assert 100 < tokens_used < 350, f"Expected ~200 tokens, got {tokens_used}"
+        assert 40 < tokens_used < 200, f"Expected ~50-150 tokens, got {tokens_used}"
 
         # Tier distribution should show 1 moderate
         assert result["tier_distribution"]["strong"] == 0
