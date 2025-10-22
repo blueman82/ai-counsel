@@ -242,6 +242,29 @@ mcp__ai-counsel__deliberate({
 })
 ```
 
+**Search Past Decisions:**
+```javascript
+mcp__ai-counsel__query_decisions({
+  query: "database choice",
+  operation: "search_similar",
+  limit: 5
+})
+// Returns: Similar past deliberations with consensus and similarity scores
+
+// Find contradictions
+mcp__ai-counsel__query_decisions({
+  operation: "find_contradictions"
+})
+// Returns: Decisions where consensus conflicts
+
+// Trace evolution
+mcp__ai-counsel__query_decisions({
+  query: "microservices architecture",
+  operation: "trace_evolution"
+})
+// Returns: How opinions evolved over time on this topic
+```
+
 ### Transcripts
 
 All deliberations saved to `transcripts/` with AI-generated summaries and full debate history.
