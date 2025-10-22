@@ -31,7 +31,8 @@ Unlike existing tools (like Zen's consensus feature) that gather parallel opinio
 - 🎛️ **Model-Controlled Stopping**: Models decide when to stop deliberating
 - 💰 **Local Model Support**: Zero API costs with Ollama, LM Studio, llamacpp
 - 🔐 **Data Privacy**: Keep all data on-premises with self-hosted models
-- 🧠 **Decision Graph Memory** (optional): Learn from past deliberations
+- 🧠 **Context Injection**: Automatically finds similar past debates and injects context for faster convergence
+- 🔍 **Semantic Search**: Query past decisions with `query_decisions` tool (finds contradictions, traces evolution, analyzes patterns)
 - 🛡️ **Fault Tolerant**: Individual adapter failures don't halt deliberation
 - 📝 **Full Transcripts**: Markdown exports with AI-generated summaries
 
