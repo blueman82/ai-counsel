@@ -7,7 +7,7 @@ and CLI commands to provide consistent functionality.
 
 import logging
 from dataclasses import dataclass, field
-from typing import Any, List, Optional
+from typing import List, Optional
 
 from decision_graph.retrieval import DecisionRetriever
 from decision_graph.schema import DecisionNode, ParticipantStance
