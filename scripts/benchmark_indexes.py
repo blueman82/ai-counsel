@@ -6,6 +6,8 @@ This script creates a test database, populates it with decisions, and measures
 query performance with and without indexes to demonstrate their impact.
 """
 
+# ruff: noqa: E402  # Standalone script requires sys.path manipulation before imports
+
 import json
 import os
 import sqlite3
