@@ -12,6 +12,8 @@ Requirements:
 - Existing transcripts in transcripts/ directory
 """
 
+# ruff: noqa: E402  # Standalone script requires sys.path manipulation before imports
+
 import asyncio
 import logging
 import sys

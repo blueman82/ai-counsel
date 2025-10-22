@@ -13,7 +13,7 @@ from adapters import create_adapter
 from decision_graph.storage import DecisionGraphStorage
 from deliberation.engine import DeliberationEngine
 from deliberation.query_engine import QueryEngine
-from models.config import load_config
+from models.config import AdapterConfig, CLIToolConfig, load_config
 from models.schema import DeliberateRequest
 
 # Get the absolute path to the server directory
@@ -49,15 +49,15 @@ except Exception as e:
 
 # Create adapters - prefer new 'adapters' section, fallback to legacy 'cli_tools'
 adapters = {}
-adapter_sources = []
+adapter_sources: list[tuple[str, dict[str, CLIToolConfig | AdapterConfig]]] = []
 
 # Try new adapters section first (preferred)
 if hasattr(config, "adapters") and config.adapters:
-    adapter_sources.append(("adapters", config.adapters))
+    adapter_sources.append(("adapters", config.adapters))  # type: ignore[arg-type]
 
 # Fallback to legacy cli_tools for backward compatibility
 if hasattr(config, "cli_tools") and config.cli_tools:
-    adapter_sources.append(("cli_tools", config.cli_tools))
+    adapter_sources.append(("cli_tools", config.cli_tools))  # type: ignore[arg-type]
 
 for source_name, adapter_configs in adapter_sources:
     for cli_name, cli_config in adapter_configs.items():
@@ -191,7 +191,7 @@ async def list_tools() -> list[Tool]:
     ]
 
     # Add decision graph tools if enabled
-    if hasattr(config, "decision_graph") and config.decision_graph.enabled:
+    if hasattr(config, "decision_graph") and config.decision_graph and config.decision_graph.enabled:
         tools.extend(
             [
                 Tool(
@@ -358,7 +358,7 @@ async def handle_query_decisions(arguments: dict) -> list[TextContent]:
         find_contradictions = arguments.get("find_contradictions", False)
         decision_id = arguments.get("decision_id")
         limit = arguments.get("limit", 5)
-        format_type = arguments.get("format", "summary")
+        # Note: format argument is currently unused
 
         result = None
 

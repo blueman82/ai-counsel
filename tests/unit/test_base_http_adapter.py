@@ -1,5 +1,6 @@
 """Unit tests for BaseHTTPAdapter."""
 import asyncio
+from typing import Optional
 from unittest.mock import AsyncMock, Mock, patch
 
 import httpx
@@ -15,8 +16,8 @@ class ConcreteHTTPAdapter:
         base_url: str,
         timeout: int = 60,
         max_retries: int = 3,
-        api_key: str = None,
-        headers: dict = None,
+        api_key: Optional[str] = None,
+        headers: Optional[dict] = None,
     ):
         self.base_url = base_url.rstrip("/")
         self.timeout = timeout
@@ -166,7 +167,7 @@ class TestHTTPAdapterInvoke:
         mock_client_class.return_value = mock_client
 
         adapter = TestAdapter(base_url="http://test", timeout=60)
-        result = await adapter.invoke(
+        await adapter.invoke(
             prompt="test prompt", model="test-model", context="Previous context"
         )
 

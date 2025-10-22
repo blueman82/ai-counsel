@@ -5,6 +5,8 @@ Inspect Decision Graph Memory
 Shows you what decisions have been stored and how they're related.
 """
 
+# ruff: noqa: E402  # Standalone script requires sys.path manipulation before imports
+
 import sys
 from pathlib import Path
 

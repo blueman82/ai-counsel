@@ -1,4 +1,5 @@
 """Pytest fixtures for all test modules."""
+from typing import Optional
 from unittest.mock import AsyncMock
 
 import pytest
@@ -16,7 +17,7 @@ class MockAdapter(BaseCLIAdapter):
         self.invoke_mock = AsyncMock()
 
     async def invoke(
-        self, prompt: str, model: str, context: str = None, is_deliberation: bool = True
+        self, prompt: str, model: str, context: Optional[str] = None, is_deliberation: bool = True
     ) -> str:
         """Mock invoke method."""
         return await self.invoke_mock(prompt, model, context, is_deliberation)

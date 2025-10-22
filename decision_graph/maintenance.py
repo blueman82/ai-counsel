@@ -60,7 +60,7 @@ class DecisionGraphMaintenance:
 
     # PHASE 1: Monitoring and analysis
 
-    def get_database_stats(self) -> Dict[str, int]:
+    def get_database_stats(self) -> Dict[str, int | float]:
         """Get current database statistics.
 
         Returns:
@@ -152,8 +152,7 @@ class DecisionGraphMaintenance:
             )
             row = cursor.fetchone()
             decisions_in_period = row[0] or 0
-            oldest_in_period = row[1]
-            newest_in_period = row[2]
+            # Note: row[1] (MIN timestamp) and row[2] (MAX timestamp) are fetched but not used
 
             # Calculate growth rate
             avg_per_day = decisions_in_period / days if days > 0 else 0

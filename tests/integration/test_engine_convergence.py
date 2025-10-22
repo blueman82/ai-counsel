@@ -82,7 +82,7 @@ class TestEngineConvergenceIntegration:
         engine.config = config
 
         # Create request for 3 rounds
-        request = DeliberateRequest(
+        DeliberateRequest(
             question="Should we use TypeScript?",
             participants=[
                 Participant(cli="claude", model="sonnet", stance="neutral"),
@@ -168,7 +168,7 @@ class TestEngineConvergenceIntegration:
         assert convergence_result is not None
         if convergence_result.consecutive_stable_rounds >= 2:
             assert (
-                convergence_result.converged == True
+                convergence_result.converged is True
                 or convergence_result.status in ["converged", "refining"]
             )
 
@@ -213,7 +213,7 @@ class TestEngineConvergenceIntegration:
 
         # Should not detect convergence
         assert convergence_result is not None
-        assert convergence_result.converged == False
+        assert convergence_result.converged is False
         assert convergence_result.status in ["refining", "diverging"]
 
     @pytest.mark.asyncio
@@ -308,7 +308,7 @@ class TestEngineConvergenceIntegration:
 
         # Verify structure
         assert result.convergence_info is not None
-        assert result.convergence_info.detected == True
+        assert result.convergence_info.detected is True
         assert result.convergence_info.detection_round == 3
         assert result.convergence_info.final_similarity == 0.87
         assert result.convergence_info.status == "converged"

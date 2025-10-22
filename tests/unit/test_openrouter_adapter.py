@@ -182,7 +182,7 @@ class TestOpenRouterAdapter:
             adapter = OpenRouterAdapter(
                 base_url="https://openrouter.ai/api/v1", api_key="sk-test"
             )
-            result = await adapter.invoke(
+            await adapter.invoke(
                 prompt="Current question",
                 model="test-model",
                 context="Previous context",
