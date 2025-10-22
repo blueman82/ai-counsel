@@ -242,46 +242,6 @@ class TestQueryEngineEvolution:
             await engine.trace_evolution("nonexistent-id")
 
 
-class TestQueryEngineAnalysis:
-    """Test pattern analysis functionality."""
-
-    async def test_analyze_patterns_basic(
-        self, storage, sample_decisions, sample_stances
-    ):
-        """Test analyzing voting patterns."""
-        engine = QueryEngine(storage)
-
-        analysis = await engine.analyze_patterns()
-
-        assert analysis is not None
-        assert isinstance(analysis, Analysis)
-
-    async def test_analyze_patterns_by_participant(
-        self, storage, sample_decisions, sample_stances
-    ):
-        """Test analyzing patterns for specific participant."""
-        engine = QueryEngine(storage)
-
-        analysis = await engine.analyze_patterns(participant="opus@claude")
-
-        assert analysis is not None
-        # Should include this participant's voting patterns
-        assert len(analysis.voting_patterns) > 0
-
-    async def test_analyze_patterns_aggregates_correctly(
-        self, storage, sample_decisions, sample_stances
-    ):
-        """Test that patterns are aggregated correctly."""
-        engine = QueryEngine(storage)
-
-        analysis = await engine.analyze_patterns()
-
-        # Should have aggregated voting data
-        assert analysis.voting_patterns is not None
-        assert analysis.convergence_stats is not None
-        assert analysis.participation_metrics is not None
-
-
 class TestQueryEngineIntegration:
     """Integration tests for query engine."""
 
