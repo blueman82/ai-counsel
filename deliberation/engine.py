@@ -528,10 +528,9 @@ Provide substantive analysis from your perspective."""
         graph_context = ""
         if self.graph_integration:
             try:
+                # Use new config-based approach (deprecated params removed)
                 graph_context = self.graph_integration.get_context_for_deliberation(
-                    request.question,
-                    threshold=self.config.decision_graph.similarity_threshold,
-                    max_context_decisions=self.config.decision_graph.max_context_decisions,
+                    request.question
                 )
                 if graph_context:
                     logger.info("Retrieved decision graph context for question")
