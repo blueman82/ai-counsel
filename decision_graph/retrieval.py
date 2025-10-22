@@ -172,20 +172,23 @@ class DecisionRetriever:
         candidates = [(d.id, d.question) for d in all_decisions]
         logger.debug(f"Comparing query against {len(candidates)} candidate decisions")
 
-        # 6. Find similar questions (use noise floor, not threshold)
+        # 6. Find similar questions (use noise floor as initial threshold)
         similar = self.similarity_detector.find_similar(
             query_question, candidates, threshold=NOISE_FLOOR
         )
 
-        if not similar:
+        # 7. Explicitly filter by noise floor (defensive check)
+        filtered_similar = [match for match in similar if match["score"] >= NOISE_FLOOR]
+
+        if not filtered_similar:
             logger.info(f"No similar decisions found above noise floor {NOISE_FLOOR}")
             # Cache empty result to avoid recomputation
             if self.cache:
                 self.cache.cache_result(query_question, cache_key_threshold, max_results, [])
             return []
 
-        # 7. Apply adaptive k limit (not threshold filtering)
-        limited_similar = similar[:adaptive_k]
+        # 8. Apply adaptive k limit (not threshold filtering)
+        limited_similar = filtered_similar[:adaptive_k]
 
         # 8. Cache the similarity results (L1) - cache with threshold=0.0
         if self.cache:
