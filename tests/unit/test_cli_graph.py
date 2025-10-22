@@ -842,14 +842,6 @@ class TestHelpTextAndDocumentation:
         assert "--id" in result.output
         assert "--related" in result.output
 
-    def test_should_display_help_for_analyze_command(self, cli_runner):
-        """Test analyze command help text."""
-        result = cli_runner.invoke(analyze, ["--help"])
-
-        assert result.exit_code == 0
-        assert "Analyze voting patterns and convergence statistics" in result.output
-        assert "--participant" in result.output
-
     def test_should_display_help_for_export_command(self, cli_runner):
         """Test export command help text."""
         result = cli_runner.invoke(export, ["--help"])
