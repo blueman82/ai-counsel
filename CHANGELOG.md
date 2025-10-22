@@ -4,16 +4,26 @@ All notable changes to AI Counsel are documented in this file.
 
 ## [Unreleased]
 
-### Phase 1.5: Empirical Calibration (Planning - Oct 22, 2025)
+### Phase 1.5: Empirical Calibration (In Progress - Oct 22, 2025)
 
-#### Planned
-- **Empirical Data Collection**: Run 50+ deliberations via MCP `deliberate` tool to populate decision graph
-- **Tier Distribution Analysis**: Measure actual tier distribution (strong/moderate/brief) across diverse domains
-- **Token Budget Calibration**: Analyze token utilization to validate 1500-token budget adequacy
-- **Convergence Correlation**: Study relationship between tier distribution and debate outcomes
-- **Recommendations**: Data-driven calibration of tier boundaries if supported by measurement results
+#### Completed
+- ✅ **Deliberation Design**: 50 diverse questions across 5 domains (Technology, Architecture, Process, Team, Product, Security)
+- ✅ **Data Collection - Batch 1 (Q1-10)**: 10 Technology Stack deliberations completed
+- ✅ **Data Collection - Batch 2 (Q11-20)**: 10 Architecture & Infrastructure deliberations completed
+- ✅ **Data Collection - Batch 3 (Q21-30)**: 10 Process & Team deliberations completed
+- ✅ **Decision Graph Integration**: Context injection working, tier distribution measurable (strong/moderate/brief)
+- ✅ **Measurement Logging**: MEASUREMENT logs capturing tier distribution, token usage, db size per deliberation
 
-**Status**: Design phase complete. Awaiting deliberation execution (50+ needed for statistical significance).
+#### Pending
+- **Data Collection - Batch 4 (Q31-40)**: Team & Product decisions (10 deliberations)
+- **Data Collection - Batch 5 (Q41-50)**: Security, Operations, Data decisions (10 deliberations)
+- **Log Analysis**: Parse 50 MEASUREMENT logs, analyze patterns
+- **Tier Distribution Analysis**: Strong/moderate/brief breakdown across all domains
+- **Token Budget Analysis**: Usage patterns, peak utilization, sufficiency assessment
+- **Convergence Correlation**: Relationship between tier distribution and debate outcomes
+- **Calibration Report**: Data-driven tier boundary and budget recommendations
+
+**Status**: 30/50 deliberations complete. Decision graph context injection verified. Ready to continue Batches 4-5 in next session.
 
 ### Phase 1: Budget-Aware Context Injection (In Progress - Oct 22, 2025)
 
