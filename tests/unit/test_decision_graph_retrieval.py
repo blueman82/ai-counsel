@@ -515,7 +515,7 @@ class TestDecisionRetrieverTieredFormatting:
                 participant="claude",
                 vote_option="React",
                 confidence=0.9,
-                rationale="Better ecosystem support"
+                rationale="Better ecosystem support",
             )
         ]
 
@@ -633,7 +633,7 @@ class TestDecisionRetrieverTieredFormatting:
                 participant="claude",
                 vote_option="Option A",
                 confidence=0.9,
-                rationale="Good reasoning here"
+                rationale="Good reasoning here",
             )
         ]
 
@@ -643,17 +643,21 @@ class TestDecisionRetrieverTieredFormatting:
 
         # Should stop before including all decisions
         tokens_used = result["tokens_used"]
-        assert tokens_used <= token_budget, (
-            f"Token budget exceeded: {tokens_used} > {token_budget}"
-        )
+        assert (
+            tokens_used <= token_budget
+        ), f"Token budget exceeded: {tokens_used} > {token_budget}"
 
         # Should include at least 1 decision but not all 3
         formatted = result["formatted"]
         decisions_included = result["tier_distribution"]["strong"]
         assert decisions_included >= 1, "Should include at least 1 decision"
-        assert decisions_included < 3, "Should not include all 3 decisions (budget exceeded)"
+        assert (
+            decisions_included < 3
+        ), "Should not include all 3 decisions (budget exceeded)"
 
-    def test_format_context_tiered_returns_metrics(self, mock_storage, sample_decisions):
+    def test_format_context_tiered_returns_metrics(
+        self, mock_storage, sample_decisions
+    ):
         """Test that format_context_tiered returns complete metrics dict."""
         retriever = DecisionRetriever(mock_storage)
 
@@ -750,3 +754,56 @@ class TestDecisionRetrieverTieredFormatting:
         assert result["tier_distribution"]["strong"] == 0
         assert result["tier_distribution"]["moderate"] == 0
         assert result["tier_distribution"]["brief"] == 0
+
+
+class TestDecisionRetrieverAdaptiveK:
+    """Test adaptive k selection based on database size."""
+
+    def test_adaptive_k_small_db_exploration(self, mock_storage):
+        """Test that small databases (<100 decisions) return k=5 for exploration."""
+        retriever = DecisionRetriever(mock_storage)
+
+        # Test various small database sizes
+        assert retriever._compute_adaptive_k(0) == 5
+        assert retriever._compute_adaptive_k(1) == 5
+        assert retriever._compute_adaptive_k(50) == 5
+        assert retriever._compute_adaptive_k(99) == 5
+
+    def test_adaptive_k_medium_db_balanced(self, mock_storage):
+        """Test that medium databases (100-999 decisions) return k=3 for balance."""
+        retriever = DecisionRetriever(mock_storage)
+
+        # Test various medium database sizes
+        assert retriever._compute_adaptive_k(100) == 3
+        assert retriever._compute_adaptive_k(250) == 3
+        assert retriever._compute_adaptive_k(500) == 3
+        assert retriever._compute_adaptive_k(999) == 3
+
+    def test_adaptive_k_large_db_precision(self, mock_storage):
+        """Test that large databases (≥1000 decisions) return k=2 for precision."""
+        retriever = DecisionRetriever(mock_storage)
+
+        # Test various large database sizes
+        assert retriever._compute_adaptive_k(1000) == 2
+        assert retriever._compute_adaptive_k(1500) == 2
+        assert retriever._compute_adaptive_k(5000) == 2
+        assert retriever._compute_adaptive_k(10000) == 2
+
+    def test_adaptive_k_boundary_conditions(self, mock_storage):
+        """Test exact boundary conditions at 100 and 1000 decisions."""
+        retriever = DecisionRetriever(mock_storage)
+
+        # Boundary at 100: 99 should be k=5 (small), 100 should be k=3 (medium)
+        assert retriever._compute_adaptive_k(99) == 5
+        assert retriever._compute_adaptive_k(100) == 3
+
+        # Boundary at 1000: 999 should be k=3 (medium), 1000 should be k=2 (large)
+        assert retriever._compute_adaptive_k(999) == 3
+        assert retriever._compute_adaptive_k(1000) == 2
+
+    def test_adaptive_k_empty_db(self, mock_storage):
+        """Test that empty database returns k=5 for exploration."""
+        retriever = DecisionRetriever(mock_storage)
+
+        # Empty database should use exploration strategy
+        assert retriever._compute_adaptive_k(0) == 5
