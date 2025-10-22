@@ -11,6 +11,8 @@ Requirements:
 - At least 2-3 existing deliberations in the graph
 """
 
+# ruff: noqa: E402  # Standalone script requires sys.path manipulation before imports
+
 import asyncio
 import logging
 import sys
