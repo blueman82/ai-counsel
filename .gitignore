@@ -74,3 +74,9 @@ QUICK_START_ANNOUNCEMENT.md
 
 # Decision graph database (user-generated, not shared across clones)
 decision_graph.db
+
+# Local project files (user-specific, never commit)
+CHANGELOG.md
+project-progress.yml
+PHASE-1.5-HANDOVER.md
+phase-1-5-deliberations.md
