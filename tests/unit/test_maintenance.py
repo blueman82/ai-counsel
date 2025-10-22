@@ -9,15 +9,16 @@ Tests verify:
 - Performance requirements (<100ms stats, <200ms growth, <1s health)
 """
 
-import pytest
-import tempfile
 import time
 from datetime import datetime, timedelta
 from typing import Generator
 
-from decision_graph.storage import DecisionGraphStorage
+import pytest
+
 from decision_graph.maintenance import DecisionGraphMaintenance
-from decision_graph.schema import DecisionNode, ParticipantStance, DecisionSimilarity
+from decision_graph.schema import (DecisionNode, DecisionSimilarity,
+                                   ParticipantStance)
+from decision_graph.storage import DecisionGraphStorage
 
 
 @pytest.fixture
@@ -64,7 +65,7 @@ class TestDatabaseStats:
         self,
         maintenance: DecisionGraphMaintenance,
         temp_storage: DecisionGraphStorage,
-        sample_decision: DecisionNode
+        sample_decision: DecisionNode,
     ):
         """Stats should accurately count database contents."""
         # Add 5 decisions
@@ -109,7 +110,7 @@ class TestDatabaseStats:
         self,
         maintenance: DecisionGraphMaintenance,
         temp_storage: DecisionGraphStorage,
-        sample_decision: DecisionNode
+        sample_decision: DecisionNode,
     ):
         """Stats collection should be <100ms even with 100 decisions."""
         # Add 100 decisions
@@ -129,10 +130,14 @@ class TestDatabaseStats:
         stats = maintenance.get_database_stats()
         elapsed_ms = (time.perf_counter() - start) * 1000
 
-        assert elapsed_ms < 100, f"Stats collection took {elapsed_ms:.2f}ms, expected <100ms"
+        assert (
+            elapsed_ms < 100
+        ), f"Stats collection took {elapsed_ms:.2f}ms, expected <100ms"
         assert stats["total_decisions"] == 100
 
-    def test_get_database_stats_error_handling(self, temp_storage: DecisionGraphStorage):
+    def test_get_database_stats_error_handling(
+        self, temp_storage: DecisionGraphStorage
+    ):
         """Stats should handle errors gracefully."""
         maintenance = DecisionGraphMaintenance(temp_storage)
 
@@ -161,9 +166,7 @@ class TestGrowthAnalysis:
         assert analysis["newest_decision_date"] is None
 
     def test_analyze_growth_with_data(
-        self,
-        maintenance: DecisionGraphMaintenance,
-        temp_storage: DecisionGraphStorage
+        self, maintenance: DecisionGraphMaintenance, temp_storage: DecisionGraphStorage
     ):
         """Growth analysis should calculate rates correctly."""
         now = datetime.now()
@@ -190,9 +193,7 @@ class TestGrowthAnalysis:
         assert 8 <= analysis["projected_decisions_30d"] <= 12
 
     def test_analyze_growth_custom_period(
-        self,
-        maintenance: DecisionGraphMaintenance,
-        temp_storage: DecisionGraphStorage
+        self, maintenance: DecisionGraphMaintenance, temp_storage: DecisionGraphStorage
     ):
         """Growth analysis should respect custom period."""
         now = datetime.now()
@@ -228,9 +229,7 @@ class TestGrowthAnalysis:
         assert analysis["avg_decisions_per_day"] == 1.0  # 7 / 7 days
 
     def test_analyze_growth_performance(
-        self,
-        maintenance: DecisionGraphMaintenance,
-        temp_storage: DecisionGraphStorage
+        self, maintenance: DecisionGraphMaintenance, temp_storage: DecisionGraphStorage
     ):
         """Growth analysis should be <200ms even with 100 decisions."""
         now = datetime.now()
@@ -252,14 +251,18 @@ class TestGrowthAnalysis:
         analysis = maintenance.analyze_growth(days=30)
         elapsed_ms = (time.perf_counter() - start) * 1000
 
-        assert elapsed_ms < 200, f"Growth analysis took {elapsed_ms:.2f}ms, expected <200ms"
+        assert (
+            elapsed_ms < 200
+        ), f"Growth analysis took {elapsed_ms:.2f}ms, expected <200ms"
         assert analysis["decisions_in_period"] == 100
 
 
 class TestArchivalEstimation:
     """Tests for archival benefit estimation."""
 
-    def test_estimate_archival_benefit_empty(self, maintenance: DecisionGraphMaintenance):
+    def test_estimate_archival_benefit_empty(
+        self, maintenance: DecisionGraphMaintenance
+    ):
         """Archival estimation should handle empty database."""
         estimate = maintenance.estimate_archival_benefit()
 
@@ -270,9 +273,7 @@ class TestArchivalEstimation:
         assert "No decisions" in estimate["trigger_reason"]
 
     def test_estimate_archival_benefit_no_old_decisions(
-        self,
-        maintenance: DecisionGraphMaintenance,
-        temp_storage: DecisionGraphStorage
+        self, maintenance: DecisionGraphMaintenance, temp_storage: DecisionGraphStorage
     ):
         """Archival should not trigger if all decisions are recent."""
         now = datetime.now()
@@ -294,13 +295,13 @@ class TestArchivalEstimation:
         assert estimate["archive_eligible_count"] == 0
         assert estimate["would_trigger_archival"] is False
         # Reason should mention either no old decisions or below threshold
-        assert ("No decisions" in estimate["trigger_reason"] or
-                "100 decisions" in estimate["trigger_reason"])
+        assert (
+            "No decisions" in estimate["trigger_reason"]
+            or "100 decisions" in estimate["trigger_reason"]
+        )
 
     def test_estimate_archival_benefit_with_old_decisions(
-        self,
-        maintenance: DecisionGraphMaintenance,
-        temp_storage: DecisionGraphStorage
+        self, maintenance: DecisionGraphMaintenance, temp_storage: DecisionGraphStorage
     ):
         """Archival estimation should identify old decisions correctly."""
         now = datetime.now()
@@ -339,9 +340,7 @@ class TestArchivalEstimation:
         assert estimate["would_trigger_archival"] is False
 
     def test_estimate_archival_benefit_would_trigger(
-        self,
-        maintenance: DecisionGraphMaintenance,
-        temp_storage: DecisionGraphStorage
+        self, maintenance: DecisionGraphMaintenance, temp_storage: DecisionGraphStorage
     ):
         """Archival should trigger when thresholds are met."""
         now = datetime.now()
@@ -367,9 +366,7 @@ class TestArchivalEstimation:
         assert "5500 decisions" in estimate["trigger_reason"]
 
     def test_estimate_archival_benefit_performance(
-        self,
-        maintenance: DecisionGraphMaintenance,
-        temp_storage: DecisionGraphStorage
+        self, maintenance: DecisionGraphMaintenance, temp_storage: DecisionGraphStorage
     ):
         """Archival estimation should be <500ms."""
         now = datetime.now()
@@ -391,7 +388,9 @@ class TestArchivalEstimation:
         estimate = maintenance.estimate_archival_benefit()
         elapsed_ms = (time.perf_counter() - start) * 1000
 
-        assert elapsed_ms < 500, f"Archival estimation took {elapsed_ms:.2f}ms, expected <500ms"
+        assert (
+            elapsed_ms < 500
+        ), f"Archival estimation took {elapsed_ms:.2f}ms, expected <500ms"
 
 
 class TestHealthCheck:
@@ -407,9 +406,7 @@ class TestHealthCheck:
         assert len(health["issues"]) == 0
 
     def test_health_check_healthy_db(
-        self,
-        maintenance: DecisionGraphMaintenance,
-        temp_storage: DecisionGraphStorage
+        self, maintenance: DecisionGraphMaintenance, temp_storage: DecisionGraphStorage
     ):
         """Health check should pass on valid data."""
         # Add valid decision
@@ -439,9 +436,7 @@ class TestHealthCheck:
         assert len(health["issues"]) == 0
 
     def test_health_check_orphaned_stances(
-        self,
-        maintenance: DecisionGraphMaintenance,
-        temp_storage: DecisionGraphStorage
+        self, maintenance: DecisionGraphMaintenance, temp_storage: DecisionGraphStorage
     ):
         """Health check should detect orphaned stances."""
         # Manually insert orphaned stance (bypassing foreign key)
@@ -465,9 +460,7 @@ class TestHealthCheck:
         assert health["details"]["orphaned_stances"] == 1
 
     def test_health_check_orphaned_similarities(
-        self,
-        maintenance: DecisionGraphMaintenance,
-        temp_storage: DecisionGraphStorage
+        self, maintenance: DecisionGraphMaintenance, temp_storage: DecisionGraphStorage
     ):
         """Health check should detect orphaned similarities."""
         # Manually insert orphaned similarity
@@ -478,7 +471,7 @@ class TestHealthCheck:
             INSERT INTO decision_similarities (source_id, target_id, similarity_score, computed_at)
             VALUES ('nonexistent-source', 'nonexistent-target', 0.8, ?)
             """,
-            (datetime.now().isoformat(),)
+            (datetime.now().isoformat(),),
         )
         temp_storage.conn.commit()
         temp_storage.conn.execute("PRAGMA foreign_keys = ON")
@@ -491,9 +484,7 @@ class TestHealthCheck:
         assert health["details"]["orphaned_similarities_target"] == 1
 
     def test_health_check_future_timestamps(
-        self,
-        maintenance: DecisionGraphMaintenance,
-        temp_storage: DecisionGraphStorage
+        self, maintenance: DecisionGraphMaintenance, temp_storage: DecisionGraphStorage
     ):
         """Health check should detect future timestamps."""
         future_date = datetime.now() + timedelta(days=10)
@@ -514,9 +505,7 @@ class TestHealthCheck:
         assert health["details"]["future_timestamps"] == 1
 
     def test_health_check_missing_fields(
-        self,
-        maintenance: DecisionGraphMaintenance,
-        temp_storage: DecisionGraphStorage
+        self, maintenance: DecisionGraphMaintenance, temp_storage: DecisionGraphStorage
     ):
         """Health check should detect missing required fields."""
         # Manually insert decision with missing question
@@ -527,7 +516,7 @@ class TestHealthCheck:
                 participants, transcript_path
             ) VALUES (?, '', ?, ?, '', '[]', '')
             """,
-            ("test-id", datetime.now().isoformat(), "consensus")
+            ("test-id", datetime.now().isoformat(), "consensus"),
         )
         temp_storage.conn.commit()
 
@@ -537,9 +526,7 @@ class TestHealthCheck:
         assert health["details"]["missing_required_fields"] >= 1
 
     def test_health_check_invalid_similarity_scores(
-        self,
-        maintenance: DecisionGraphMaintenance,
-        temp_storage: DecisionGraphStorage
+        self, maintenance: DecisionGraphMaintenance, temp_storage: DecisionGraphStorage
     ):
         """Health check should detect invalid similarity scores."""
         # Create valid decisions first
@@ -568,7 +555,7 @@ class TestHealthCheck:
             INSERT INTO decision_similarities (source_id, target_id, similarity_score, computed_at)
             VALUES (?, ?, 1.5, ?)
             """,
-            (id1, id2, datetime.now().isoformat())
+            (id1, id2, datetime.now().isoformat()),
         )
         temp_storage.conn.commit()
 
@@ -578,9 +565,7 @@ class TestHealthCheck:
         assert health["details"]["invalid_similarity_scores"] == 1
 
     def test_health_check_performance(
-        self,
-        maintenance: DecisionGraphMaintenance,
-        temp_storage: DecisionGraphStorage
+        self, maintenance: DecisionGraphMaintenance, temp_storage: DecisionGraphStorage
     ):
         """Health check should complete in <1s."""
         # Add 100 decisions
@@ -600,7 +585,9 @@ class TestHealthCheck:
         health = maintenance.health_check()
         elapsed_ms = (time.perf_counter() - start) * 1000
 
-        assert elapsed_ms < 1000, f"Health check took {elapsed_ms:.2f}ms, expected <1000ms"
+        assert (
+            elapsed_ms < 1000
+        ), f"Health check took {elapsed_ms:.2f}ms, expected <1000ms"
         assert health["healthy"] is True
 
 
@@ -608,8 +595,7 @@ class TestArchivalMethods:
     """Tests for Phase 2 archival methods (skeleton only)."""
 
     def test_identify_archive_candidates_not_implemented(
-        self,
-        maintenance: DecisionGraphMaintenance
+        self, maintenance: DecisionGraphMaintenance
     ):
         """Archive candidate identification should return empty list in Phase 1."""
         candidates = maintenance.identify_archive_candidates()
@@ -618,8 +604,7 @@ class TestArchivalMethods:
         assert isinstance(candidates, list)
 
     def test_archive_old_decisions_not_implemented(
-        self,
-        maintenance: DecisionGraphMaintenance
+        self, maintenance: DecisionGraphMaintenance
     ):
         """Archive operation should return not_implemented status in Phase 1."""
         result = maintenance.archive_old_decisions(dry_run=True)
@@ -630,8 +615,7 @@ class TestArchivalMethods:
         assert "Phase 2" in result["message"]
 
     def test_archive_old_decisions_respects_dry_run(
-        self,
-        maintenance: DecisionGraphMaintenance
+        self, maintenance: DecisionGraphMaintenance
     ):
         """Archive dry_run parameter should be passed through."""
         result = maintenance.archive_old_decisions(dry_run=False)
@@ -643,8 +627,7 @@ class TestMigrationGeneration:
     """Tests for migration SQL generation."""
 
     def test_get_pending_migrations_returns_list(
-        self,
-        maintenance: DecisionGraphMaintenance
+        self, maintenance: DecisionGraphMaintenance
     ):
         """Pending migrations should return list of SQL statements."""
         migrations = maintenance.get_pending_migrations()
@@ -653,8 +636,7 @@ class TestMigrationGeneration:
         assert len(migrations) > 0
 
     def test_get_pending_migrations_includes_archived_column(
-        self,
-        maintenance: DecisionGraphMaintenance
+        self, maintenance: DecisionGraphMaintenance
     ):
         """Migrations should include archived column addition."""
         migrations = maintenance.get_pending_migrations()
@@ -666,8 +648,7 @@ class TestMigrationGeneration:
         assert "ALTER TABLE decision_nodes" in migrations_text
 
     def test_get_pending_migrations_includes_last_accessed_column(
-        self,
-        maintenance: DecisionGraphMaintenance
+        self, maintenance: DecisionGraphMaintenance
     ):
         """Migrations should include last_accessed column addition."""
         migrations = maintenance.get_pending_migrations()
@@ -677,8 +658,7 @@ class TestMigrationGeneration:
         assert "last_accessed" in migrations_text.lower()
 
     def test_get_pending_migrations_includes_indexes(
-        self,
-        maintenance: DecisionGraphMaintenance
+        self, maintenance: DecisionGraphMaintenance
     ):
         """Migrations should include indexes for archival queries."""
         migrations = maintenance.get_pending_migrations()
@@ -686,12 +666,12 @@ class TestMigrationGeneration:
         migrations_text = " ".join(migrations)
 
         assert "CREATE INDEX" in migrations_text
-        assert "idx_decision_archived" in migrations_text or "archived" in migrations_text.lower()
+        assert (
+            "idx_decision_archived" in migrations_text
+            or "archived" in migrations_text.lower()
+        )
 
-    def test_get_pending_migrations_count(
-        self,
-        maintenance: DecisionGraphMaintenance
-    ):
+    def test_get_pending_migrations_count(self, maintenance: DecisionGraphMaintenance):
         """Should have expected number of migrations."""
         migrations = maintenance.get_pending_migrations()
 
@@ -713,8 +693,7 @@ class TestErrorHandling:
         assert stats["total_decisions"] == 0
 
     def test_growth_analysis_with_closed_connection(
-        self,
-        temp_storage: DecisionGraphStorage
+        self, temp_storage: DecisionGraphStorage
     ):
         """Growth analysis should handle errors gracefully."""
         maintenance = DecisionGraphMaintenance(temp_storage)
@@ -726,8 +705,7 @@ class TestErrorHandling:
         assert analysis["decisions_in_period"] == 0
 
     def test_health_check_with_closed_connection(
-        self,
-        temp_storage: DecisionGraphStorage
+        self, temp_storage: DecisionGraphStorage
     ):
         """Health check should handle errors gracefully."""
         maintenance = DecisionGraphMaintenance(temp_storage)
@@ -752,7 +730,9 @@ class TestMaintenanceInitialization:
         assert maintenance.ARCHIVE_TRIGGER_AGE_DAYS == 180
         assert maintenance.ARCHIVE_TRIGGER_UNUSED_DAYS == 90
 
-    def test_initialization_logs_phase(self, temp_storage: DecisionGraphStorage, caplog):
+    def test_initialization_logs_phase(
+        self, temp_storage: DecisionGraphStorage, caplog
+    ):
         """Initialization should log Phase 1 status."""
         import logging
 

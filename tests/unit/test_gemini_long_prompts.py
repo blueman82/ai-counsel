@@ -1,5 +1,6 @@
 """Test Gemini adapter with long prompts to reproduce API errors."""
 import pytest
+
 from adapters.gemini import GeminiAdapter
 
 

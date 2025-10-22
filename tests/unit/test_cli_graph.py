@@ -13,26 +13,20 @@ Tests cover:
 """
 
 import json
-import pytest
 import tempfile
 from datetime import datetime
 from pathlib import Path
-from unittest.mock import Mock, MagicMock, patch, call
+from unittest.mock import Mock, patch
+
+import pytest
 from click.testing import CliRunner
 
-from cli.graph import graph, similar, contradictions, timeline, analyze, export
+from cli.graph import analyze, contradictions, export, graph, similar, timeline
 from decision_graph.schema import DecisionNode, ParticipantStance
 from decision_graph.storage import DecisionGraphStorage
-from deliberation.query_engine import (
-    QueryEngine,
-    SimilarResult,
-    Contradiction,
-    Timeline,
-    TimelineEntry,
-    VotingPattern,
-    Analysis,
-)
-
+from deliberation.query_engine import (Analysis, Contradiction, QueryEngine,
+                                       SimilarResult, Timeline, TimelineEntry,
+                                       VotingPattern)
 
 # ============================================================================
 # FIXTURES
@@ -219,7 +213,11 @@ def mock_query_engine(sample_decisions, sample_stances):
         ],
         convergence_stats={
             "total": 3,
-            "by_status": {"unanimous_consensus": 1, "majority_decision": 1, "converged": 1},
+            "by_status": {
+                "unanimous_consensus": 1,
+                "majority_decision": 1,
+                "converged": 1,
+            },
             "convergence_rate": 0.67,
         },
         participation_metrics={
@@ -268,9 +266,7 @@ class TestGraphSimilarCommand:
                 )
 
         assert result.exit_code == 0
-        mock_query_engine._search_similar_sync.assert_called_once_with(
-            "test", 5, 0.85
-        )
+        mock_query_engine._search_similar_sync.assert_called_once_with("test", 5, 0.85)
 
     def test_should_respect_custom_limit_when_provided(
         self, cli_runner, mock_storage, mock_query_engine
@@ -284,9 +280,7 @@ class TestGraphSimilarCommand:
                 )
 
         assert result.exit_code == 0
-        mock_query_engine._search_similar_sync.assert_called_once_with(
-            "test", 10, 0.7
-        )
+        mock_query_engine._search_similar_sync.assert_called_once_with("test", 10, 0.7)
 
     def test_should_output_json_format_when_format_json_specified(
         self, cli_runner, mock_storage, mock_query_engine, sample_decisions
@@ -315,7 +309,9 @@ class TestGraphSimilarCommand:
         """Test table format calls DecisionGraphExporter."""
         with patch("cli.graph.DecisionGraphStorage", return_value=mock_storage):
             with patch("cli.graph.QueryEngine", return_value=mock_query_engine):
-                with patch("cli.graph.DecisionGraphExporter.to_summary_table") as mock_table:
+                with patch(
+                    "cli.graph.DecisionGraphExporter.to_summary_table"
+                ) as mock_table:
                     mock_table.return_value = "╔═══╗\n║Table║\n╚═══╝"
                     result = cli_runner.invoke(
                         similar,
@@ -408,7 +404,9 @@ class TestGraphContradictionsCommand:
                 )
 
         assert result.exit_code == 0
-        mock_query_engine._find_contradictions_sync.assert_called_once_with("frontend", 0.5)
+        mock_query_engine._find_contradictions_sync.assert_called_once_with(
+            "frontend", 0.5
+        )
 
     def test_should_respect_custom_threshold_when_provided(
         self, cli_runner, mock_storage, mock_query_engine
@@ -491,7 +489,9 @@ class TestGraphTimelineCommand:
                 )
 
         assert result.exit_code == 0
-        mock_query_engine._trace_evolution_sync.assert_called_once_with("dec-1", include_related=False)
+        mock_query_engine._trace_evolution_sync.assert_called_once_with(
+            "dec-1", include_related=False
+        )
 
     def test_should_include_related_when_related_flag_set(
         self, cli_runner, mock_storage, mock_query_engine
@@ -505,7 +505,9 @@ class TestGraphTimelineCommand:
                 )
 
         assert result.exit_code == 0
-        mock_query_engine._trace_evolution_sync.assert_called_once_with("dec-1", include_related=True)
+        mock_query_engine._trace_evolution_sync.assert_called_once_with(
+            "dec-1", include_related=True
+        )
 
     def test_should_output_json_format_when_format_json_specified(
         self, cli_runner, mock_storage, mock_query_engine
@@ -764,7 +766,7 @@ class TestGraphExportCommand:
         """Test Graphviz DOT export format."""
         with patch("cli.graph.DecisionGraphStorage", return_value=mock_storage):
             with patch("cli.graph.DecisionGraphExporter.to_dot") as mock_export:
-                mock_export.return_value = 'digraph DecisionGraph {'
+                mock_export.return_value = "digraph DecisionGraph {"
                 result = cli_runner.invoke(
                     export,
                     ["--format", "dot"],
@@ -772,7 +774,7 @@ class TestGraphExportCommand:
 
         assert result.exit_code == 0
         mock_export.assert_called_once_with(sample_decisions)
-        assert 'digraph DecisionGraph {' in result.output
+        assert "digraph DecisionGraph {" in result.output
 
     def test_should_export_to_markdown_format_when_format_markdown_specified(
         self, cli_runner, mock_storage, sample_decisions
@@ -780,7 +782,7 @@ class TestGraphExportCommand:
         """Test Markdown export format."""
         with patch("cli.graph.DecisionGraphStorage", return_value=mock_storage):
             with patch("cli.graph.DecisionGraphExporter.to_markdown") as mock_export:
-                mock_export.return_value = '# Decision Graph Memory Report'
+                mock_export.return_value = "# Decision Graph Memory Report"
                 result = cli_runner.invoke(
                     export,
                     ["--format", "markdown"],
@@ -788,13 +790,13 @@ class TestGraphExportCommand:
 
         assert result.exit_code == 0
         mock_export.assert_called_once_with(sample_decisions)
-        assert '# Decision Graph Memory Report' in result.output
+        assert "# Decision Graph Memory Report" in result.output
 
     def test_should_write_to_file_when_output_option_provided(
         self, cli_runner, mock_storage, sample_decisions
     ):
         """Test file output with --output option."""
-        with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.json') as tf:
+        with tempfile.NamedTemporaryFile(mode="w", delete=False, suffix=".json") as tf:
             temp_path = tf.name
 
         try:
@@ -838,7 +840,7 @@ class TestGraphExportCommand:
         with patch("cli.graph.DecisionGraphStorage") as mock_storage_class:
             mock_storage_class.return_value = mock_storage
             with patch("cli.graph.DecisionGraphExporter.to_json") as mock_export:
-                mock_export.return_value = '{}'
+                mock_export.return_value = "{}"
                 result = cli_runner.invoke(
                     export,
                     ["--format", "json", "--db", "/custom/graph.db"],
@@ -882,7 +884,9 @@ class TestErrorHandlingAndEdgeCases:
     def test_should_handle_missing_database_file(self, cli_runner):
         """Test graceful handling of missing database."""
         with patch("cli.graph.DecisionGraphStorage") as mock_storage_class:
-            mock_storage_class.side_effect = FileNotFoundError("Database file not found")
+            mock_storage_class.side_effect = FileNotFoundError(
+                "Database file not found"
+            )
             result = cli_runner.invoke(
                 similar,
                 ["--query", "test"],

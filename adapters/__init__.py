@@ -1,4 +1,6 @@
 """CLI and HTTP adapter factory and exports."""
+from typing import Union
+
 from adapters.base import BaseCLIAdapter
 from adapters.base_http import BaseHTTPAdapter
 from adapters.claude import ClaudeAdapter
@@ -9,8 +11,7 @@ from adapters.llamacpp import LlamaCppAdapter
 from adapters.lmstudio import LMStudioAdapter
 from adapters.ollama import OllamaAdapter
 from adapters.openrouter import OpenRouterAdapter
-from models.config import CLIToolConfig, CLIAdapterConfig, HTTPAdapterConfig
-from typing import Union
+from models.config import CLIAdapterConfig, CLIToolConfig, HTTPAdapterConfig
 
 
 def create_adapter(

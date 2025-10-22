@@ -6,18 +6,19 @@ computing similarities between decisions, and retrieving enriched context for
 new deliberations.
 """
 
+import asyncio
+import logging
 from datetime import datetime
 from typing import Optional
 from uuid import uuid4
-import logging
-import asyncio
 
-from decision_graph.storage import DecisionGraphStorage
-from decision_graph.schema import DecisionNode, ParticipantStance, DecisionSimilarity
-from decision_graph.retrieval import DecisionRetriever
-from decision_graph.similarity import QuestionSimilarityDetector
-from decision_graph.workers import BackgroundWorker
 from decision_graph.maintenance import DecisionGraphMaintenance
+from decision_graph.retrieval import DecisionRetriever
+from decision_graph.schema import (DecisionNode, DecisionSimilarity,
+                                   ParticipantStance)
+from decision_graph.similarity import QuestionSimilarityDetector
+from decision_graph.storage import DecisionGraphStorage
+from decision_graph.workers import BackgroundWorker
 from models.schema import DeliberationResult
 
 logger = logging.getLogger(__name__)
@@ -47,7 +48,9 @@ class DecisionGraphIntegration:
         >>> # Use context to enrich prompts
     """
 
-    def __init__(self, storage: DecisionGraphStorage, enable_background_worker: bool = True):
+    def __init__(
+        self, storage: DecisionGraphStorage, enable_background_worker: bool = True
+    ):
         """Initialize integration with storage backend.
 
         Args:
@@ -67,7 +70,7 @@ class DecisionGraphIntegration:
                 storage=storage,
                 max_queue_size=1000,
                 batch_size=100,
-                similarity_threshold=0.5
+                similarity_threshold=0.5,
             )
             # Note: Worker start is deferred - call ensure_worker_started() or
             # let it auto-start on first enqueue
@@ -84,9 +87,7 @@ class DecisionGraphIntegration:
             await self.worker.start()
             logger.info("Started background worker for similarity computation")
 
-    def store_deliberation(
-        self, question: str, result: DeliberationResult
-    ) -> str:
+    def store_deliberation(self, question: str, result: DeliberationResult) -> str:
         """Store completed deliberation in decision graph.
 
         Extracts data from DeliberationResult and saves:
@@ -143,7 +144,9 @@ class DecisionGraphIntegration:
 
             # Save decision node
             decision_id = self.storage.save_decision_node(node)
-            logger.info(f"Stored decision {decision_id} for question: {question[:50]}...")
+            logger.info(
+                f"Stored decision {decision_id} for question: {question[:50]}..."
+            )
 
             # Extract and save participant stances from final round
             stances_saved = 0
@@ -186,7 +189,9 @@ class DecisionGraphIntegration:
                     self.storage.save_participant_stance(stance)
                     stances_saved += 1
 
-            logger.info(f"Saved {stances_saved} participant stances for decision {decision_id}")
+            logger.info(
+                f"Saved {stances_saved} participant stances for decision {decision_id}"
+            )
 
             # Increment decision count and perform periodic health checks
             self._decision_count += 1
@@ -202,7 +207,7 @@ class DecisionGraphIntegration:
                     )
 
                     # Warn if approaching archival threshold
-                    total_decisions = stats.get('total_decisions', 0)
+                    total_decisions = stats.get("total_decisions", 0)
                     if total_decisions >= 4500:
                         logger.warning(
                             f"Decision graph approaching archival threshold: "
@@ -219,7 +224,9 @@ class DecisionGraphIntegration:
                             f"projected {growth['projected_decisions_30d']} in next 30 days"
                         )
                 except Exception as e:
-                    logger.error(f"Error collecting maintenance stats: {e}", exc_info=True)
+                    logger.error(
+                        f"Error collecting maintenance stats: {e}", exc_info=True
+                    )
 
             # Queue similarity computation to background worker (non-blocking)
             if self.worker and self._worker_enabled:
@@ -234,17 +241,24 @@ class DecisionGraphIntegration:
                                 await self.worker.enqueue(
                                     decision_id=decision_id,
                                     priority="low",
-                                    delay_seconds=5
+                                    delay_seconds=5,
                                 )
+
                             asyncio.create_task(enqueue_job())
-                            logger.info(f"Queued similarity computation for decision {decision_id}")
+                            logger.info(
+                                f"Queued similarity computation for decision {decision_id}"
+                            )
                         else:
                             # No running loop, fall back to synchronous
-                            logger.debug("No running event loop, falling back to synchronous similarity computation")
+                            logger.debug(
+                                "No running event loop, falling back to synchronous similarity computation"
+                            )
                             self._compute_similarities(node)
                     except RuntimeError:
                         # No event loop available, fall back to synchronous
-                        logger.debug("Event loop not available, falling back to synchronous similarity computation")
+                        logger.debug(
+                            "Event loop not available, falling back to synchronous similarity computation"
+                        )
                         self._compute_similarities(node)
                 except Exception as e:
                     # Log error but don't fail - fall back to sync computation
@@ -257,7 +271,7 @@ class DecisionGraphIntegration:
                     except Exception as sync_error:
                         logger.error(
                             f"Error in fallback similarity computation: {sync_error}",
-                            exc_info=True
+                            exc_info=True,
                         )
             else:
                 # Background worker disabled, compute synchronously
@@ -267,15 +281,14 @@ class DecisionGraphIntegration:
                     # Log but don't fail if similarity computation fails
                     logger.error(
                         f"Error computing similarities for decision {decision_id}: {e}",
-                        exc_info=True
+                        exc_info=True,
                     )
 
             return decision_id
 
         except Exception as e:
             logger.error(
-                f"Error storing deliberation in decision graph: {e}",
-                exc_info=True
+                f"Error storing deliberation in decision graph: {e}", exc_info=True
             )
             raise  # Re-raise to let caller handle
 
@@ -314,8 +327,7 @@ class DecisionGraphIntegration:
                 # Compute similarity score
                 try:
                     score = detector.compute_similarity(
-                        new_node.question,
-                        existing.question
+                        new_node.question, existing.question
                     )
 
                     # Store similarity if above threshold (0.5 = moderate similarity)
@@ -324,7 +336,7 @@ class DecisionGraphIntegration:
                             source_id=new_node.id,
                             target_id=existing.id,
                             similarity_score=score,
-                            computed_at=datetime.now()
+                            computed_at=datetime.now(),
                         )
                         self.storage.save_similarity(similarity)
                         similarities_stored += 1
@@ -335,7 +347,7 @@ class DecisionGraphIntegration:
                 except Exception as e:
                     logger.error(
                         f"Error computing similarity with decision {existing.id}: {e}",
-                        exc_info=True
+                        exc_info=True,
                     )
                     continue
 
@@ -345,10 +357,7 @@ class DecisionGraphIntegration:
             )
 
         except Exception as e:
-            logger.error(
-                f"Error in similarity computation: {e}",
-                exc_info=True
-            )
+            logger.error(f"Error in similarity computation: {e}", exc_info=True)
             # Don't raise - this is a non-critical operation
 
     def get_context_for_deliberation(
@@ -388,13 +397,13 @@ class DecisionGraphIntegration:
         try:
             # Validate parameters
             if not question or not question.strip():
-                logger.warning("Empty question provided to get_context_for_deliberation")
+                logger.warning(
+                    "Empty question provided to get_context_for_deliberation"
+                )
                 return ""
 
             if not (0.0 <= threshold <= 1.0):
-                logger.warning(
-                    f"Invalid threshold {threshold}, clamping to [0.0, 1.0]"
-                )
+                logger.warning(f"Invalid threshold {threshold}, clamping to [0.0, 1.0]")
                 threshold = max(0.0, min(1.0, threshold))
 
             if max_context_decisions < 1:
@@ -405,9 +414,7 @@ class DecisionGraphIntegration:
 
             # Retrieve enriched context
             context = self.retriever.get_enriched_context(
-                question,
-                threshold=threshold,
-                max_results=max_context_decisions
+                question, threshold=threshold, max_results=max_context_decisions
             )
 
             if context:
@@ -426,8 +433,7 @@ class DecisionGraphIntegration:
         except Exception as e:
             # Log error but return empty string for graceful degradation
             logger.error(
-                f"Error retrieving context for deliberation: {e}",
-                exc_info=True
+                f"Error retrieving context for deliberation: {e}", exc_info=True
             )
             return ""  # Never break deliberation due to context retrieval failure
 
@@ -495,6 +501,7 @@ class DecisionGraphIntegration:
                 "issues": [f"Health check error: {str(e)}"],
                 "details": {},
             }
+
     async def shutdown(self) -> None:
         """Gracefully shutdown background worker.
 
@@ -512,7 +519,9 @@ class DecisionGraphIntegration:
                 await self.worker.stop(timeout=30.0)
                 logger.info("Background worker shutdown complete")
             except Exception as e:
-                logger.error(f"Error shutting down background worker: {e}", exc_info=True)
+                logger.error(
+                    f"Error shutting down background worker: {e}", exc_info=True
+                )
 
     def __del__(self):
         """Cleanup on destruction - attempt graceful shutdown if event loop available."""
@@ -525,4 +534,6 @@ class DecisionGraphIntegration:
                     # Try to run shutdown synchronously
                     loop.run_until_complete(self.shutdown())
             except Exception as e:
-                logger.warning(f"Could not gracefully shutdown worker in destructor: {e}")
+                logger.warning(
+                    f"Could not gracefully shutdown worker in destructor: {e}"
+                )

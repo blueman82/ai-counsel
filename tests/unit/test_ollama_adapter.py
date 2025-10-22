@@ -1,6 +1,8 @@
 """Unit tests for Ollama adapter."""
+from unittest.mock import AsyncMock, Mock, patch
+
 import pytest
-from unittest.mock import Mock, AsyncMock, patch
+
 from adapters.ollama import OllamaAdapter
 
 

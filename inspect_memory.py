@@ -12,15 +12,14 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent))
 
 from decision_graph.storage import DecisionGraphStorage
-from decision_graph.query_engine import QueryEngine
 
 
 def inspect_memory():
     """Inspect the decision graph memory."""
 
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("DECISION GRAPH MEMORY INSPECTOR")
-    print("="*70)
+    print("=" * 70)
 
     # Initialize storage
     db_path = "decision_graph.db"
@@ -30,14 +29,14 @@ def inspect_memory():
 
     # Get statistics
     stats = storage.get_graph_stats()
-    print(f"\n📊 Graph Statistics:")
+    print("\n📊 Graph Statistics:")
     print(f"   • Total decisions: {stats['node_count']}")
     print(f"   • Relationships: {stats['edge_count']}")
     print(f"   • Avg similarity: {stats.get('avg_similarity', 'N/A')}")
 
     # List all decisions
-    if stats['node_count'] > 0:
-        print(f"\n📋 Stored Decisions:")
+    if stats["node_count"] > 0:
+        print("\n📋 Stored Decisions:")
         decisions = storage.get_all_decisions(limit=100)
 
         for i, decision in enumerate(decisions, 1):
@@ -52,26 +51,28 @@ def inspect_memory():
             # Get related decisions
             similar = storage.get_similar_decisions(decision.id, threshold=0.7, limit=3)
             if similar:
-                print(f"       Related decisions:")
+                print("       Related decisions:")
                 for j, (similar_decision, score) in enumerate(similar, 1):
-                    print(f"         • {j}. {similar_decision.question[:50]}... (score: {score:.2f})")
+                    print(
+                        f"         • {j}. {similar_decision.question[:50]}... (score: {score:.2f})"
+                    )
 
     else:
         print("\n   ℹ️  No decisions stored yet.")
         print("   Run demo_memory_system.py to generate sample data.")
 
     # Show health
-    print(f"\n🏥 Graph Health:")
+    print("\n🏥 Graph Health:")
     health = storage.health_check()
     print(f"   • Status: {health['status']}")
     for key, value in health.items():
-        if key != 'status':
+        if key != "status":
             print(f"   • {key}: {value}")
 
     # Close connection
     storage.close()
 
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("✅ Inspection complete\n")
 
 
@@ -81,5 +82,6 @@ if __name__ == "__main__":
     except Exception as e:
         print(f"\n❌ Error: {e}")
         import traceback
+
         traceback.print_exc()
         sys.exit(1)

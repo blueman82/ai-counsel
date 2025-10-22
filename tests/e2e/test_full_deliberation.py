@@ -8,13 +8,15 @@ PREREQUISITES:
 
 Run with: pytest tests/e2e -v -m e2e
 """
-import pytest
 from pathlib import Path
-from models.schema import DeliberateRequest, Participant
-from models.config import load_config
+
+import pytest
+
 from adapters import create_adapter
 from deliberation.engine import DeliberationEngine
 from deliberation.transcript import TranscriptManager
+from models.config import load_config
+from models.schema import DeliberateRequest, Participant
 
 
 @pytest.mark.e2e

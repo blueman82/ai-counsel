@@ -16,8 +16,10 @@ Test cases cover:
 5. Context and prompt integration
 """
 import asyncio
+from unittest.mock import AsyncMock, Mock, patch
+
 import pytest
-from unittest.mock import Mock, patch, AsyncMock
+
 from adapters.llamacpp import LlamaCppAdapter
 
 

@@ -1,7 +1,7 @@
 """Performance tests for decision graph caching layer."""
 
 import time
-import pytest
+
 from decision_graph.cache import SimilarityCache
 
 
@@ -27,7 +27,9 @@ class TestCachePerformance:
         end_time = time.perf_counter()
         avg_latency_ms = ((end_time - start_time) / iterations) * 1000
 
-        print(f"\nL1 cache lookup: {avg_latency_ms:.4f}ms (avg over {iterations} iterations)")
+        print(
+            f"\nL1 cache lookup: {avg_latency_ms:.4f}ms (avg over {iterations} iterations)"
+        )
         assert avg_latency_ms < 1.0, f"Cache lookup too slow: {avg_latency_ms}ms"
 
     def test_embedding_cache_lookup_latency(self):
@@ -50,8 +52,12 @@ class TestCachePerformance:
         end_time = time.perf_counter()
         avg_latency_ms = ((end_time - start_time) / iterations) * 1000
 
-        print(f"\nL2 cache lookup: {avg_latency_ms:.4f}ms (avg over {iterations} iterations)")
-        assert avg_latency_ms < 1.0, f"Embedding cache lookup too slow: {avg_latency_ms}ms"
+        print(
+            f"\nL2 cache lookup: {avg_latency_ms:.4f}ms (avg over {iterations} iterations)"
+        )
+        assert (
+            avg_latency_ms < 1.0
+        ), f"Embedding cache lookup too slow: {avg_latency_ms}ms"
 
     def test_cache_invalidation_latency(self):
         """Test cache invalidation is under 10ms."""
@@ -82,9 +88,7 @@ class TestCachePerformance:
             "What is the best programming language?",
         ]
 
-        rare_questions = [
-            f"Rare question {i}?" for i in range(20)
-        ]
+        rare_questions = [f"Rare question {i}?" for i in range(20)]
 
         # Warmup phase - cache common questions
         for q in common_questions:
@@ -110,7 +114,6 @@ class TestCachePerformance:
 
     def test_memory_overhead(self):
         """Test memory overhead is reasonable for cached items."""
-        import sys
 
         cache = SimilarityCache(query_cache_size=1000, embedding_cache_size=1000)
 
@@ -175,8 +178,7 @@ class TestCachePerformance:
             if cached is None:
                 # Cache miss - compute and store
                 results = [
-                    {"id": f"d{j}", "score": 0.9 - j * 0.01}
-                    for j in range(max_results)
+                    {"id": f"d{j}", "score": 0.9 - j * 0.01} for j in range(max_results)
                 ]
                 cache.cache_result(q, threshold, max_results, results)
 
@@ -187,12 +189,16 @@ class TestCachePerformance:
         hit_rate = stats["l1_query_cache"]["hit_rate"]
         avg_time_per_query_ms = total_time_ms / iterations
 
-        print(f"\nConcurrent access - Hit rate: {hit_rate:.2%}, "
-              f"Avg time per query: {avg_time_per_query_ms:.4f}ms")
+        print(
+            f"\nConcurrent access - Hit rate: {hit_rate:.2%}, "
+            f"Avg time per query: {avg_time_per_query_ms:.4f}ms"
+        )
 
         # Should achieve decent hit rate with repeated queries
         assert hit_rate > 0.5, f"Hit rate too low: {hit_rate:.2%}"
-        assert avg_time_per_query_ms < 1.0, f"Avg query time too high: {avg_time_per_query_ms}ms"
+        assert (
+            avg_time_per_query_ms < 1.0
+        ), f"Avg query time too high: {avg_time_per_query_ms}ms"
 
     def test_ttl_impact_on_hit_rate(self):
         """Test TTL doesn't prematurely expire frequently accessed items."""
@@ -283,8 +289,12 @@ class TestCachePerformance:
         actual_hits = stats["l1_query_cache"]["hits"]
         actual_misses = stats["l1_query_cache"]["misses"]
 
-        assert actual_hits == expected_hits, f"Expected {expected_hits} hits, got {actual_hits}"
-        assert actual_misses == expected_misses, f"Expected {expected_misses} misses, got {actual_misses}"
+        assert (
+            actual_hits == expected_hits
+        ), f"Expected {expected_hits} hits, got {actual_hits}"
+        assert (
+            actual_misses == expected_misses
+        ), f"Expected {expected_misses} misses, got {actual_misses}"
 
     def test_hash_collision_resistance(self):
         """Test hash function has low collision rate."""
@@ -301,7 +311,9 @@ class TestCachePerformance:
 
         collision_rate = 1 - (len(unique_hashes) / len(hashes))
 
-        print(f"\nHash collision rate: {collision_rate:.4%} ({len(hashes) - len(unique_hashes)} collisions)")
+        print(
+            f"\nHash collision rate: {collision_rate:.4%} ({len(hashes) - len(unique_hashes)} collisions)"
+        )
 
         # SHA256 should have zero collisions for this test
         assert len(unique_hashes) == len(hashes), "Unexpected hash collision detected"
@@ -326,7 +338,9 @@ class TestCachePerformance:
         print(f"\nAvg cache insertion time at capacity: {avg_time_ms:.4f}ms")
 
         # Should still be fast (under 1ms per insertion with eviction)
-        assert avg_time_ms < 1.0, f"Cache insertion too slow at capacity: {avg_time_ms}ms"
+        assert (
+            avg_time_ms < 1.0
+        ), f"Cache insertion too slow at capacity: {avg_time_ms}ms"
 
         # Verify cache is still at max size
         stats = cache.get_stats()

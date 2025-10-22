@@ -1,5 +1,6 @@
 """LM Studio HTTP adapter."""
 from typing import Tuple
+
 from adapters.base_http import BaseHTTPAdapter
 
 

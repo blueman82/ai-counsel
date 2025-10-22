@@ -1,13 +1,10 @@
 """Unit tests for model-controlled early stopping."""
 import pytest
+
 from deliberation.engine import DeliberationEngine
-from models.schema import Participant, DeliberateRequest
-from models.config import (
-    Config,
-    EarlyStoppingConfig,
-    DeliberationConfig,
-    ConvergenceDetectionConfig,
-)
+from models.config import (Config, ConvergenceDetectionConfig,
+                           DeliberationConfig, EarlyStoppingConfig)
+from models.schema import DeliberateRequest, Participant
 
 
 class TestEarlyStopping:

@@ -132,7 +132,9 @@ def similar(query: str, limit: int, threshold: float, db: str, format: str) -> N
     default="summary",
     help="Output format",
 )
-def contradictions(scope: Optional[str], threshold: float, db: str, format: str) -> None:
+def contradictions(
+    scope: Optional[str], threshold: float, db: str, format: str
+) -> None:
     """Find contradictions in decision history.
 
     Example:
@@ -202,9 +204,7 @@ def contradictions(scope: Optional[str], threshold: float, db: str, format: str)
     default="summary",
     help="Output format",
 )
-def timeline(
-    decision_id: str, related: bool, db: str, format: str
-) -> None:
+def timeline(decision_id: str, related: bool, db: str, format: str) -> None:
     """Trace the evolution of a decision.
 
     Example:
@@ -214,7 +214,9 @@ def timeline(
         storage = DecisionGraphStorage(db)
         engine = QueryEngine(storage)
 
-        timeline_data = engine._trace_evolution_sync(decision_id, include_related=related)
+        timeline_data = engine._trace_evolution_sync(
+            decision_id, include_related=related
+        )
 
         if format == "json":
             output = json.dumps(
@@ -305,7 +307,7 @@ def analyze(participant: Optional[str], db: str, format: str) -> None:
             )
             click.echo(output)
         else:
-            click.echo(f"\nAnalysis Summary\n")
+            click.echo("\nAnalysis Summary\n")
             click.echo(f"Total Decisions: {analysis.total_decisions}")
             click.echo(f"Total Participants: {analysis.total_participants}\n")
 

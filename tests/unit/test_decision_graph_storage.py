@@ -1,11 +1,12 @@
 """Unit tests for decision graph storage layer."""
-import pytest
 import sqlite3
 from datetime import datetime
-from uuid import uuid4
 
+import pytest
+
+from decision_graph.schema import (DecisionNode, DecisionSimilarity,
+                                   ParticipantStance)
 from decision_graph.storage import DecisionGraphStorage
-from decision_graph.schema import DecisionNode, ParticipantStance, DecisionSimilarity
 
 
 @pytest.fixture
@@ -65,24 +66,30 @@ class TestDecisionGraphStorageInitialization:
         cursor = storage.conn.cursor()
 
         # Check decision_nodes table exists
-        cursor.execute("""
+        cursor.execute(
+            """
             SELECT name FROM sqlite_master
             WHERE type='table' AND name='decision_nodes'
-        """)
+        """
+        )
         assert cursor.fetchone() is not None
 
         # Check participant_stances table exists
-        cursor.execute("""
+        cursor.execute(
+            """
             SELECT name FROM sqlite_master
             WHERE type='table' AND name='participant_stances'
-        """)
+        """
+        )
         assert cursor.fetchone() is not None
 
         # Check decision_similarities table exists
-        cursor.execute("""
+        cursor.execute(
+            """
             SELECT name FROM sqlite_master
             WHERE type='table' AND name='decision_similarities'
-        """)
+        """
+        )
         assert cursor.fetchone() is not None
 
     def test_storage_creates_indexes(self, storage):
@@ -90,10 +97,12 @@ class TestDecisionGraphStorageInitialization:
         cursor = storage.conn.cursor()
 
         # Get all indexes
-        cursor.execute("""
+        cursor.execute(
+            """
             SELECT name FROM sqlite_master
             WHERE type='index'
-        """)
+        """
+        )
         indexes = [row[0] for row in cursor.fetchall()]
 
         # Check expected indexes exist
@@ -172,7 +181,9 @@ class TestDecisionNodeCRUD:
 
         retrieved = storage.get_decision_node(node.id)
         # Compare as strings since we serialize to ISO format
-        assert retrieved.timestamp.replace(microsecond=0) == timestamp.replace(microsecond=0)
+        assert retrieved.timestamp.replace(microsecond=0) == timestamp.replace(
+            microsecond=0
+        )
 
     def test_get_decision_node_preserves_participants_list(self, storage):
         """Test that participants list is correctly preserved."""
@@ -344,7 +355,9 @@ class TestDecisionNodeCRUD:
 class TestParticipantStanceCRUD:
     """Tests for ParticipantStance CRUD operations."""
 
-    def test_save_participant_stance(self, storage, sample_decision_node, sample_participant_stance):
+    def test_save_participant_stance(
+        self, storage, sample_decision_node, sample_participant_stance
+    ):
         """Test saving a participant stance."""
         storage.save_decision_node(sample_decision_node)
         row_id = storage.save_participant_stance(sample_participant_stance)
@@ -393,7 +406,9 @@ class TestParticipantStanceCRUD:
         assert "opus@claude" in participants
         assert "gpt-4@codex" in participants
 
-    def test_get_participant_stances_preserves_vote_data(self, storage, sample_decision_node):
+    def test_get_participant_stances_preserves_vote_data(
+        self, storage, sample_decision_node
+    ):
         """Test that vote-related fields are preserved."""
         storage.save_decision_node(sample_decision_node)
 
@@ -414,7 +429,9 @@ class TestParticipantStanceCRUD:
         assert retrieved[0].rationale == "Best option for scalability"
         assert retrieved[0].final_position == "I recommend Option A"
 
-    def test_get_participant_stances_handles_none_values(self, storage, sample_decision_node):
+    def test_get_participant_stances_handles_none_values(
+        self, storage, sample_decision_node
+    ):
         """Test that None values in optional fields are handled correctly."""
         storage.save_decision_node(sample_decision_node)
 
@@ -432,7 +449,9 @@ class TestParticipantStanceCRUD:
         assert retrieved[0].confidence is None
         assert retrieved[0].rationale is None
 
-    def test_get_participant_stances_ordered_by_participant(self, storage, sample_decision_node):
+    def test_get_participant_stances_ordered_by_participant(
+        self, storage, sample_decision_node
+    ):
         """Test that stances are ordered by participant name."""
         storage.save_decision_node(sample_decision_node)
 
@@ -523,7 +542,9 @@ class TestDecisionSimilarityCRUD:
 
         # Should not raise an error
 
-    def test_save_similarity_requires_valid_source_id(self, storage, sample_decision_node):
+    def test_save_similarity_requires_valid_source_id(
+        self, storage, sample_decision_node
+    ):
         """Test that invalid source_id raises error."""
         storage.save_decision_node(sample_decision_node)
 
@@ -536,7 +557,9 @@ class TestDecisionSimilarityCRUD:
         with pytest.raises(sqlite3.IntegrityError):
             storage.save_similarity(similarity)
 
-    def test_save_similarity_requires_valid_target_id(self, storage, sample_decision_node):
+    def test_save_similarity_requires_valid_target_id(
+        self, storage, sample_decision_node
+    ):
         """Test that invalid target_id raises error."""
         storage.save_decision_node(sample_decision_node)
 
@@ -649,15 +672,21 @@ class TestDecisionSimilarityCRUD:
             nodes.append(node)
 
         # Create similarities with different scores
-        storage.save_similarity(DecisionSimilarity(
-            source_id=nodes[0].id, target_id=nodes[1].id, similarity_score=0.9
-        ))
-        storage.save_similarity(DecisionSimilarity(
-            source_id=nodes[0].id, target_id=nodes[2].id, similarity_score=0.5
-        ))
-        storage.save_similarity(DecisionSimilarity(
-            source_id=nodes[0].id, target_id=nodes[3].id, similarity_score=0.3
-        ))
+        storage.save_similarity(
+            DecisionSimilarity(
+                source_id=nodes[0].id, target_id=nodes[1].id, similarity_score=0.9
+            )
+        )
+        storage.save_similarity(
+            DecisionSimilarity(
+                source_id=nodes[0].id, target_id=nodes[2].id, similarity_score=0.5
+            )
+        )
+        storage.save_similarity(
+            DecisionSimilarity(
+                source_id=nodes[0].id, target_id=nodes[3].id, similarity_score=0.3
+            )
+        )
 
         # High threshold
         similar_high = storage.get_similar_decisions(nodes[0].id, threshold=0.8)
@@ -685,15 +714,21 @@ class TestDecisionSimilarityCRUD:
             nodes.append(node)
 
         # Save in non-sorted order
-        storage.save_similarity(DecisionSimilarity(
-            source_id=nodes[0].id, target_id=nodes[1].id, similarity_score=0.5
-        ))
-        storage.save_similarity(DecisionSimilarity(
-            source_id=nodes[0].id, target_id=nodes[2].id, similarity_score=0.9
-        ))
-        storage.save_similarity(DecisionSimilarity(
-            source_id=nodes[0].id, target_id=nodes[3].id, similarity_score=0.7
-        ))
+        storage.save_similarity(
+            DecisionSimilarity(
+                source_id=nodes[0].id, target_id=nodes[1].id, similarity_score=0.5
+            )
+        )
+        storage.save_similarity(
+            DecisionSimilarity(
+                source_id=nodes[0].id, target_id=nodes[2].id, similarity_score=0.9
+            )
+        )
+        storage.save_similarity(
+            DecisionSimilarity(
+                source_id=nodes[0].id, target_id=nodes[3].id, similarity_score=0.7
+            )
+        )
 
         similar = storage.get_similar_decisions(nodes[0].id, threshold=0.0)
         assert len(similar) == 3
@@ -719,11 +754,13 @@ class TestDecisionSimilarityCRUD:
 
         # Create 5 similarities
         for i in range(1, 6):
-            storage.save_similarity(DecisionSimilarity(
-                source_id=nodes[0].id,
-                target_id=nodes[i].id,
-                similarity_score=0.8,
-            ))
+            storage.save_similarity(
+                DecisionSimilarity(
+                    source_id=nodes[0].id,
+                    target_id=nodes[i].id,
+                    similarity_score=0.8,
+                )
+            )
 
         # Request with limit
         similar = storage.get_similar_decisions(nodes[0].id, threshold=0.7, limit=3)
@@ -752,11 +789,13 @@ class TestDecisionSimilarityCRUD:
         storage.save_decision_node(node2)
 
         # Create similarity
-        storage.save_similarity(DecisionSimilarity(
-            source_id=node1.id,
-            target_id=node2.id,
-            similarity_score=0.85,
-        ))
+        storage.save_similarity(
+            DecisionSimilarity(
+                source_id=node1.id,
+                target_id=node2.id,
+                similarity_score=0.85,
+            )
+        )
 
         # Retrieve
         similar = storage.get_similar_decisions(node1.id, threshold=0.8)

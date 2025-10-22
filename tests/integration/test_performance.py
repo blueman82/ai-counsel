@@ -12,23 +12,19 @@ Run with: pytest tests/integration/test_performance.py -v -m slow
 """
 
 import asyncio
-import pytest
+import os
 import tempfile
 import time
-import os
 from datetime import datetime, timedelta
 from typing import Generator
 
-from decision_graph.storage import DecisionGraphStorage
+import pytest
+
 from decision_graph.integration import DecisionGraphIntegration
-from decision_graph.schema import DecisionNode, ParticipantStance
-from models.schema import (
-    DeliberationResult,
-    Summary,
-    ConvergenceInfo,
-    RoundResponse,
-    Participant,
-)
+from decision_graph.schema import DecisionNode
+from decision_graph.storage import DecisionGraphStorage
+from models.schema import (ConvergenceInfo, DeliberationResult, RoundResponse,
+                           Summary)
 
 
 @pytest.fixture
@@ -49,7 +45,11 @@ def sample_result() -> DeliberationResult:
         status="complete",
         mode="quick",
         rounds_completed=1,
-        participants=["claude-sonnet-4-5", "gpt-5-codex", "gemini-2.0-flash-thinking-exp-01-21"],
+        participants=[
+            "claude-sonnet-4-5",
+            "gpt-5-codex",
+            "gemini-2.0-flash-thinking-exp-01-21",
+        ],
         full_debate=[
             RoundResponse(
                 round=1,
@@ -195,7 +195,9 @@ class TestGraphQueryLatency:
         print(f"\nLimited query time (10 from 50): {elapsed_ms:.2f}ms")
         print(f"Decisions retrieved: {len(decisions)}")
 
-        assert elapsed_ms < 100, f"Limited query took {elapsed_ms:.2f}ms, expected <100ms"
+        assert (
+            elapsed_ms < 100
+        ), f"Limited query took {elapsed_ms:.2f}ms, expected <100ms"
         assert len(decisions) == 10, "Should return 10 decisions"
 
         storage.close()
@@ -315,7 +317,9 @@ class TestMemoryUsage:
         print(f"Average per decision: {(db_size / 100) / 1024:.2f} KB")
 
         # Each decision ~15KB including relationships, so 100 decisions ~1.5MB
-        assert db_size_mb < 2.0, f"DB size {db_size_mb:.2f}MB too large, expected <2.0MB"
+        assert (
+            db_size_mb < 2.0
+        ), f"DB size {db_size_mb:.2f}MB too large, expected <2.0MB"
 
     def test_database_size_empty(self, temp_db: str):
         """Empty database should have minimal overhead."""
@@ -355,7 +359,7 @@ class TestMemoryUsage:
 
         storage.close()
 
-        print(f"\nDatabase growth:")
+        print("\nDatabase growth:")
         print(f"  10 decisions: {sizes[10]:.3f} MB")
         print(f"  50 decisions: {sizes[50]:.3f} MB")
         print(f" 100 decisions: {sizes[100]:.3f} MB")
@@ -368,7 +372,9 @@ class TestMemoryUsage:
         growth_rate = sizes[100] / sizes[10]
         print(f"Growth rate (10x decisions): {growth_rate:.2f}x size")
         # Realistic threshold accounting for similarity relationships: 35x for 10x data increase
-        assert growth_rate < 35, f"Growth rate {growth_rate:.2f}x too high (expected <35x for 10x increase with similarities)"
+        assert (
+            growth_rate < 35
+        ), f"Growth rate {growth_rate:.2f}x too high (expected <35x for 10x increase with similarities)"
 
 
 class TestIndexPerformance:
@@ -390,11 +396,11 @@ class TestIndexPerformance:
 
         # Verify all 5 critical indexes exist
         expected_indexes = [
-            'idx_decision_timestamp',
-            'idx_decision_question',
-            'idx_participant_decision',
-            'idx_similarity_source',
-            'idx_similarity_score',
+            "idx_decision_timestamp",
+            "idx_decision_question",
+            "idx_participant_decision",
+            "idx_similarity_source",
+            "idx_similarity_score",
         ]
 
         for expected_idx in expected_indexes:
@@ -426,16 +432,19 @@ class TestIndexPerformance:
         )
         timestamp_plan = cursor.fetchall()
         # Extract detail column (column 3) which contains the query plan details
-        timestamp_plan_details = ' '.join([str(row[3]) for row in timestamp_plan]).upper()
+        timestamp_plan_details = " ".join(
+            [str(row[3]) for row in timestamp_plan]
+        ).upper()
 
-        print(f"\n[1] Query plan for timestamp ordering:")
+        print("\n[1] Query plan for timestamp ordering:")
         for row in timestamp_plan:
             print(f"    {row[3]}")
 
         # Should use index for ordering (SCAN USING INDEX or USING COVERING INDEX)
         # SQLite uses different query plan formats depending on version
-        assert "INDEX" in timestamp_plan_details or "SCAN" in timestamp_plan_details, \
-            f"Query plan should show index usage, got: {timestamp_plan_details}"
+        assert (
+            "INDEX" in timestamp_plan_details or "SCAN" in timestamp_plan_details
+        ), f"Query plan should show index usage, got: {timestamp_plan_details}"
 
         # Test 2: Participant stances lookup (should use idx_participant_decision)
         decision_id = storage.get_all_decisions(limit=1)[0].id
@@ -443,29 +452,33 @@ class TestIndexPerformance:
             f"EXPLAIN QUERY PLAN SELECT * FROM participant_stances WHERE decision_id = '{decision_id}'"
         )
         stance_plan = cursor.fetchall()
-        stance_plan_details = ' '.join([str(row[3]) for row in stance_plan]).upper()
+        stance_plan_details = " ".join([str(row[3]) for row in stance_plan]).upper()
 
-        print(f"\n[2] Query plan for participant stances:")
+        print("\n[2] Query plan for participant stances:")
         for row in stance_plan:
             print(f"    {row[3]}")
 
         # Should use SEARCH with index, not full SCAN
-        assert "SEARCH" in stance_plan_details or "INDEX" in stance_plan_details, \
-            f"Should use index for participant lookup, got: {stance_plan_details}"
+        assert (
+            "SEARCH" in stance_plan_details or "INDEX" in stance_plan_details
+        ), f"Should use index for participant lookup, got: {stance_plan_details}"
 
         # Test 3: Similarity lookups (should use idx_similarity_source)
         cursor.execute(
             f"EXPLAIN QUERY PLAN SELECT * FROM decision_similarities WHERE source_id = '{decision_id}'"
         )
         similarity_plan = cursor.fetchall()
-        similarity_plan_details = ' '.join([str(row[3]) for row in similarity_plan]).upper()
+        similarity_plan_details = " ".join(
+            [str(row[3]) for row in similarity_plan]
+        ).upper()
 
-        print(f"\n[3] Query plan for similarity lookup:")
+        print("\n[3] Query plan for similarity lookup:")
         for row in similarity_plan:
             print(f"    {row[3]}")
 
-        assert "SEARCH" in similarity_plan_details or "INDEX" in similarity_plan_details, \
-            f"Should use index for similarity lookup, got: {similarity_plan_details}"
+        assert (
+            "SEARCH" in similarity_plan_details or "INDEX" in similarity_plan_details
+        ), f"Should use index for similarity lookup, got: {similarity_plan_details}"
 
         print("\n✓ All query plans using indexes correctly (SEARCH vs SCAN)")
 
@@ -492,8 +505,12 @@ class TestIndexPerformance:
         decisions = storage.get_all_decisions(limit=10)
         elapsed_ms_1 = (time.perf_counter() - start) * 1000
 
-        print(f"\n[1] Timestamp-ordered query (1000 decisions, limit=10): {elapsed_ms_1:.2f}ms")
-        assert elapsed_ms_1 < 50, f"Timestamp query took {elapsed_ms_1:.2f}ms, expected <50ms"
+        print(
+            f"\n[1] Timestamp-ordered query (1000 decisions, limit=10): {elapsed_ms_1:.2f}ms"
+        )
+        assert (
+            elapsed_ms_1 < 50
+        ), f"Timestamp query took {elapsed_ms_1:.2f}ms, expected <50ms"
         assert len(decisions) == 10, "Should return 10 decisions"
 
         # Test 2: Participant stances query (should use idx_participant_decision)
@@ -503,7 +520,9 @@ class TestIndexPerformance:
         elapsed_ms_2 = (time.perf_counter() - start) * 1000
 
         print(f"[2] Participant stances query: {elapsed_ms_2:.2f}ms")
-        assert elapsed_ms_2 < 50, f"Stances query took {elapsed_ms_2:.2f}ms, expected <50ms"
+        assert (
+            elapsed_ms_2 < 50
+        ), f"Stances query took {elapsed_ms_2:.2f}ms, expected <50ms"
 
         # Test 3: Similarity lookup query (should use idx_similarity_source)
         start = time.perf_counter()
@@ -511,9 +530,11 @@ class TestIndexPerformance:
         elapsed_ms_3 = (time.perf_counter() - start) * 1000
 
         print(f"[3] Similarity lookup query: {elapsed_ms_3:.2f}ms")
-        assert elapsed_ms_3 < 50, f"Similarity query took {elapsed_ms_3:.2f}ms, expected <50ms"
+        assert (
+            elapsed_ms_3 < 50
+        ), f"Similarity query took {elapsed_ms_3:.2f}ms, expected <50ms"
 
-        print(f"\n✓ All queries meet <50ms target for 1000 rows")
+        print("\n✓ All queries meet <50ms target for 1000 rows")
 
         storage.close()
 
@@ -541,25 +562,29 @@ class TestIndexPerformance:
         cursor = storage.conn.cursor()
 
         # Get data size (tables)
-        cursor.execute("""
+        cursor.execute(
+            """
             SELECT SUM(pgsize) as total_size
             FROM dbstat
             WHERE name IN ('decision_nodes', 'participant_stances', 'decision_similarities')
-        """)
+        """
+        )
         data_size = cursor.fetchone()[0] or 0
 
         # Get index size
-        cursor.execute("""
+        cursor.execute(
+            """
             SELECT SUM(pgsize) as total_size
             FROM dbstat
             WHERE name LIKE 'idx_%'
-        """)
+        """
+        )
         index_size = cursor.fetchone()[0] or 0
 
         overhead_ratio = (total_db_size / data_size) if data_size > 0 else 0
         index_ratio = (index_size / data_size) if data_size > 0 else 0
 
-        print(f"\nDatabase size analysis:")
+        print("\nDatabase size analysis:")
         print(f"  Data size: {data_size / 1024:.2f} KB")
         print(f"  Index size: {index_size / 1024:.2f} KB")
         print(f"  Total DB size: {total_db_size / 1024:.2f} KB")
@@ -569,8 +594,12 @@ class TestIndexPerformance:
         # Total DB overhead includes data + indexes + SQLite metadata/freelist
         # For a graph database with 5 indexes and many relationships, 3× is acceptable
         # Index-only overhead target is <1.5×, but total DB overhead can be higher
-        assert overhead_ratio < 3.0, f"Total overhead {overhead_ratio:.2f}× exceeds 3.0× threshold"
-        assert index_ratio < 1.5, f"Index overhead {index_ratio:.2f}× exceeds 1.5× threshold"
+        assert (
+            overhead_ratio < 3.0
+        ), f"Total overhead {overhead_ratio:.2f}× exceeds 3.0× threshold"
+        assert (
+            index_ratio < 1.5
+        ), f"Index overhead {index_ratio:.2f}× exceeds 1.5× threshold"
         print(f"\n✓ Index overhead {index_ratio:.2f}× within 1.5× target")
         print(f"✓ Total DB overhead {overhead_ratio:.2f}× within 3.0× acceptable range")
 
@@ -581,9 +610,7 @@ class TestIndexPerformance:
 class TestScalability:
     """Test scalability with increasing data - verify sub-linear scaling."""
 
-    def test_query_time_scaling(
-        self, temp_db: str, sample_result: DeliberationResult
-    ):
+    def test_query_time_scaling(self, temp_db: str, sample_result: DeliberationResult):
         """Verify query time scales sub-linearly with data size."""
         times = {}
 
@@ -624,7 +651,7 @@ class TestScalability:
         ratio_100_to_1000 = times[1000] / times[100]
         ratio_100_to_500 = times[500] / times[100]
 
-        print(f"\nScaling ratios:")
+        print("\nScaling ratios:")
         print(f"  100→500 decisions: {ratio_100_to_500:.2f}x")
         print(f"  100→1000 decisions: {ratio_100_to_1000:.2f}x")
 
@@ -657,7 +684,7 @@ class TestScalability:
         avg_first_50 = sum(storage_times[:50]) / 50
         avg_last_50 = sum(storage_times[-50:]) / 50
 
-        print(f"\nStorage time scaling:")
+        print("\nStorage time scaling:")
         print(f"  First 50 decisions: {avg_first_50:.2f}ms avg")
         print(f"  Last 50 decisions: {avg_last_50:.2f}ms avg")
         print(f"  Ratio: {avg_last_50 / avg_first_50:.2f}x")
@@ -718,7 +745,9 @@ class TestAsyncBackgroundProcessing:
             storage.close()
 
     @pytest.mark.asyncio
-    async def test_fallback_path_performance(self, temp_db: str, sample_result: DeliberationResult):
+    async def test_fallback_path_performance(
+        self, temp_db: str, sample_result: DeliberationResult
+    ):
         """Fallback synchronous computation should complete <500ms for 50 decisions."""
         from decision_graph.retrieval import DecisionRetriever
 
@@ -755,7 +784,9 @@ class TestAsyncBackgroundProcessing:
 
     @pytest.mark.asyncio
     @pytest.mark.slow
-    async def test_queue_throughput(self, temp_db: str, sample_result: DeliberationResult):
+    async def test_queue_throughput(
+        self, temp_db: str, sample_result: DeliberationResult
+    ):
         """Background worker should process >1 job/sec."""
         from decision_graph.workers import BackgroundWorker
 
@@ -787,15 +818,15 @@ class TestAsyncBackgroundProcessing:
 
             throughput = jobs_processed / elapsed if elapsed > 0 else 0
 
-            print(f"\nQueue throughput test:")
+            print("\nQueue throughput test:")
             print(f"  Jobs processed: {jobs_processed}")
             print(f"  Time elapsed: {elapsed:.2f}s")
             print(f"  Throughput: {throughput:.2f} jobs/sec")
 
             # Should process at >1 job/sec
-            assert throughput > 1.0, (
-                f"Throughput {throughput:.2f} jobs/sec too slow, expected >1.0"
-            )
+            assert (
+                throughput > 1.0
+            ), f"Throughput {throughput:.2f} jobs/sec too slow, expected >1.0"
 
         finally:
             await worker.stop()
@@ -803,10 +834,11 @@ class TestAsyncBackgroundProcessing:
 
     @pytest.mark.asyncio
     @pytest.mark.slow
-    async def test_memory_bounded_queue(self, temp_db: str, sample_result: DeliberationResult):
+    async def test_memory_bounded_queue(
+        self, temp_db: str, sample_result: DeliberationResult
+    ):
         """Queue should stay <100MB even with 1000 pending jobs."""
         from decision_graph.workers import BackgroundWorker
-        import sys
 
         storage = DecisionGraphStorage(db_path=temp_db)
         integration = DecisionGraphIntegration(storage)
@@ -814,9 +846,7 @@ class TestAsyncBackgroundProcessing:
         # Create decisions
         decision_ids = []
         for i in range(100):
-            decision_id = integration.store_deliberation(
-                f"Question {i}", sample_result
-            )
+            decision_id = integration.store_deliberation(f"Question {i}", sample_result)
             decision_ids.append(decision_id)
 
         # Create worker but don't start it (to keep jobs queued)
@@ -832,9 +862,9 @@ class TestAsyncBackgroundProcessing:
         assert worker.max_queue_size == 1000
         assert worker.low_priority_queue.maxsize == 1000
 
-        print(f"\nMemory bounded queue test:")
+        print("\nMemory bounded queue test:")
         print(f"  Max queue size: {worker.max_queue_size}")
-        print(f"  Queue configured correctly: True")
+        print("  Queue configured correctly: True")
 
         storage.close()
 
@@ -869,7 +899,9 @@ class TestMaintenancePerformance:
         print(f"  Total stances: {stats['total_stances']}")
         print(f"  DB size: {stats['db_size_mb']} MB")
 
-        assert elapsed_ms < 100, f"Stats collection took {elapsed_ms:.2f}ms, expected <100ms"
+        assert (
+            elapsed_ms < 100
+        ), f"Stats collection took {elapsed_ms:.2f}ms, expected <100ms"
         assert stats["total_decisions"] == 100
 
         storage.close()
@@ -908,7 +940,9 @@ class TestMaintenancePerformance:
         print(f"  Avg per day: {analysis['avg_decisions_per_day']}")
         print(f"  Projected 30d: {analysis['projected_decisions_30d']}")
 
-        assert elapsed_ms < 200, f"Growth analysis took {elapsed_ms:.2f}ms, expected <200ms"
+        assert (
+            elapsed_ms < 200
+        ), f"Growth analysis took {elapsed_ms:.2f}ms, expected <200ms"
         assert analysis["decisions_in_period"] == 100
 
         storage.close()
@@ -940,7 +974,9 @@ class TestMaintenancePerformance:
         print(f"  Checks passed: {health['checks_passed']}")
         print(f"  Checks failed: {health['checks_failed']}")
 
-        assert elapsed_ms < 1000, f"Health check took {elapsed_ms:.2f}ms, expected <1000ms"
+        assert (
+            elapsed_ms < 1000
+        ), f"Health check took {elapsed_ms:.2f}ms, expected <1000ms"
         assert health["healthy"] is True
 
         storage.close()
@@ -978,7 +1014,9 @@ class TestMaintenancePerformance:
         print(f"  Estimated savings: {estimate['estimated_space_savings_mb']} MB")
         print(f"  Would trigger: {estimate['would_trigger_archival']}")
 
-        assert elapsed_ms < 500, f"Archival estimation took {elapsed_ms:.2f}ms, expected <500ms"
+        assert (
+            elapsed_ms < 500
+        ), f"Archival estimation took {elapsed_ms:.2f}ms, expected <500ms"
 
         storage.close()
 
@@ -1059,7 +1097,7 @@ class TestMaintenancePerformance:
         analysis = maintenance.analyze_growth(days=365)
         assert analysis["decisions_in_period"] == 1000
 
-        print(f"\nMaintenance accuracy test (1000 decisions):")
+        print("\nMaintenance accuracy test (1000 decisions):")
         print(f"  Stats accurate: {stats['total_decisions'] == 1000}")
         print(f"  Archival accurate: {estimate['archive_eligible_count'] == old_count}")
         print(f"  Growth accurate: {analysis['decisions_in_period'] == 1000}")

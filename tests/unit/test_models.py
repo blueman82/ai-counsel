@@ -1,15 +1,9 @@
 """Unit tests for Pydantic models."""
 import pytest
 from pydantic import ValidationError
-from models.schema import (
-    Participant,
-    DeliberateRequest,
-    RoundResponse,
-    DeliberationResult,
-    Vote,
-    RoundVote,
-    VotingResult,
-)
+
+from models.schema import (DeliberateRequest, DeliberationResult, Participant,
+                           RoundResponse, RoundVote, Vote, VotingResult)
 
 
 class TestParticipant:

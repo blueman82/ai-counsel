@@ -5,7 +5,6 @@ for querying and analyzing the decision graph memory. It's used by both MCP tool
 and CLI commands to provide consistent functionality.
 """
 
-import asyncio
 import logging
 from dataclasses import dataclass, field
 from typing import List, Optional
@@ -202,7 +201,9 @@ class QueryEngine:
                     if similarity >= threshold:
                         # Check if consensus differs significantly
                         if self._consensus_differs(dec1, dec2):
-                            severity = similarity  # Similar questions, different outcomes
+                            severity = (
+                                similarity  # Similar questions, different outcomes
+                            )
 
                             contradictions.append(
                                 Contradiction(
@@ -334,9 +335,7 @@ class QueryEngine:
             logger.error(f"Error finding related decisions: {e}")
             return []
 
-    async def analyze_patterns(
-        self, participant: Optional[str] = None
-    ) -> Analysis:
+    async def analyze_patterns(self, participant: Optional[str] = None) -> Analysis:
         """Aggregate voting patterns and model behaviors.
 
         Args:
@@ -483,9 +482,7 @@ class QueryEngine:
             "total_participants": len(all_participants),
             "active_participants": len(participating),
             "participation_rate": (
-                len(participating) / len(all_participants)
-                if all_participants
-                else 0.0
+                len(participating) / len(all_participants) if all_participants else 0.0
             ),
             "avg_decisions_per_participant": (
                 len(stances) / len(participating) if participating else 0

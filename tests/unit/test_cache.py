@@ -1,8 +1,9 @@
 """Unit tests for decision graph caching layer."""
 
 import time
-import pytest
 from datetime import datetime
+
+import pytest
 
 from decision_graph.cache import LRUCache, SimilarityCache
 
@@ -293,9 +294,7 @@ class TestSimilarityCache:
         """Test L1 cache miss."""
         cache = SimilarityCache()
 
-        result = cache.get_cached_result(
-            "Test question?", threshold=0.7, max_results=3
-        )
+        result = cache.get_cached_result("Test question?", threshold=0.7, max_results=3)
 
         assert result is None
 

@@ -6,12 +6,8 @@ try:
 except ImportError:
     ConvergenceDetector = None
 
-from deliberation.convergence import (
-    JaccardBackend,
-    TFIDFBackend,
-    SentenceTransformerBackend,
-)
-
+from deliberation.convergence import (JaccardBackend,
+                                      SentenceTransformerBackend, TFIDFBackend)
 
 # =============================================================================
 # Jaccard Similarity Backend Tests

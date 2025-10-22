@@ -3,17 +3,16 @@
 Tests the complete voting pipeline from vote parsing through aggregation,
 convergence detection, and transcript generation.
 """
-import pytest
 from pathlib import Path
-from tests.conftest import MockAdapter
-from models.schema import (
-    DeliberateRequest,
-    Participant,
-)
-from models.config import load_config
+
+import pytest
+
+from deliberation.convergence import ConvergenceDetector
 from deliberation.engine import DeliberationEngine
 from deliberation.transcript import TranscriptManager
-from deliberation.convergence import ConvergenceDetector
+from models.config import load_config
+from models.schema import DeliberateRequest, Participant
+from tests.conftest import MockAdapter
 
 
 @pytest.mark.integration

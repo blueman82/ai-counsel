@@ -7,10 +7,10 @@ visualization and analysis in external tools.
 import json
 import logging
 from datetime import datetime
-from typing import Dict, List, Optional
+from typing import List, Optional
 
 from decision_graph.schema import DecisionNode, DecisionSimilarity
-from deliberation.query_engine import SimilarResult, Contradiction, Timeline
+from deliberation.query_engine import SimilarResult
 
 logger = logging.getLogger(__name__)
 
@@ -86,28 +86,40 @@ class DecisionGraphExporter:
             '  xsi:schemaLocation="http://graphml.graphdrawing.org/xmlns',
             '  http://graphml.graphdrawing.org/xmlns/1.0/graphml.xsd">',
             '  <graph mode="static" defaultedgetype="directed">',
-            '    <!-- Nodes -->',
+            "    <!-- Nodes -->",
         ]
 
         # Add node attributes
-        graphml.extend([
-            '    <key id="d_question" for="node" attr.name="question" attr.type="string"/>',
-            '    <key id="d_consensus" for="node" attr.name="consensus" attr.type="string"/>',
-            '    <key id="d_status" for="node" attr.name="status" attr.type="string"/>',
-            '    <key id="d_timestamp" for="node" attr.name="timestamp" attr.type="string"/>',
-        ])
+        graphml.extend(
+            [
+                '    <key id="d_question" for="node" attr.name="question" attr.type="string"/>',
+                '    <key id="d_consensus" for="node" attr.name="consensus" attr.type="string"/>',
+                '    <key id="d_status" for="node" attr.name="status" attr.type="string"/>',
+                '    <key id="d_timestamp" for="node" attr.name="timestamp" attr.type="string"/>',
+            ]
+        )
 
         # Add nodes
         for decision in decisions:
             graphml.append(f'    <node id="{decision.id}">')
-            graphml.append(f'      <data key="d_question">{_escape_xml(decision.question)}</data>')
-            graphml.append(f'      <data key="d_consensus">{_escape_xml(decision.consensus)}</data>')
-            graphml.append(f'      <data key="d_status">{decision.convergence_status}</data>')
-            graphml.append(f'      <data key="d_timestamp">{decision.timestamp.isoformat()}</data>')
-            graphml.append('    </node>')
+            graphml.append(
+                f'      <data key="d_question">{_escape_xml(decision.question)}</data>'
+            )
+            graphml.append(
+                f'      <data key="d_consensus">{_escape_xml(decision.consensus)}</data>'
+            )
+            graphml.append(
+                f'      <data key="d_status">{decision.convergence_status}</data>'
+            )
+            graphml.append(
+                f'      <data key="d_timestamp">{decision.timestamp.isoformat()}</data>'
+            )
+            graphml.append("    </node>")
 
-        graphml.append('    <!-- Edges -->')
-        graphml.append('    <key id="d_weight" for="edge" attr.name="weight" attr.type="double"/>')
+        graphml.append("    <!-- Edges -->")
+        graphml.append(
+            '    <key id="d_weight" for="edge" attr.name="weight" attr.type="double"/>'
+        )
 
         # Add edges (similarities)
         if similarities:
@@ -115,15 +127,19 @@ class DecisionGraphExporter:
                 graphml.append(
                     f'    <edge source="{sim.source_id}" target="{sim.target_id}">'
                 )
-                graphml.append(f'      <data key="d_weight">{sim.similarity_score}</data>')
-                graphml.append('    </edge>')
+                graphml.append(
+                    f'      <data key="d_weight">{sim.similarity_score}</data>'
+                )
+                graphml.append("    </edge>")
 
-        graphml.extend([
-            '  </graph>',
-            '</graphml>',
-        ])
+        graphml.extend(
+            [
+                "  </graph>",
+                "</graphml>",
+            ]
+        )
 
-        return '\n'.join(graphml)
+        return "\n".join(graphml)
 
     @staticmethod
     def to_dot(
@@ -140,9 +156,9 @@ class DecisionGraphExporter:
             Graphviz DOT string
         """
         lines = [
-            'digraph DecisionGraph {',
-            '  rankdir=LR;',
-            '  node [shape=box, style=rounded];',
+            "digraph DecisionGraph {",
+            "  rankdir=LR;",
+            "  node [shape=box, style=rounded];",
         ]
 
         # Add nodes
@@ -171,8 +187,8 @@ class DecisionGraphExporter:
                         f'  "{sim.source_id}" -> "{sim.target_id}" [label="{weight:.2f}", weight={weight}];'
                     )
 
-        lines.append('}')
-        return '\n'.join(lines)
+        lines.append("}")
+        return "\n".join(lines)
 
     @staticmethod
     def to_markdown(
@@ -197,32 +213,40 @@ class DecisionGraphExporter:
         if similarities:
             lines.append(f"- Total Relationships: {len(similarities)}\n")
 
-        lines.extend([
-            "\n## Decisions\n",
-        ])
+        lines.extend(
+            [
+                "\n## Decisions\n",
+            ]
+        )
 
         for i, decision in enumerate(decisions, 1):
-            lines.extend([
-                f"### {i}. {_escape_markdown(decision.question)}\n",
-                f"- **ID**: `{decision.id}`",
-                f"- **Timestamp**: {decision.timestamp.isoformat()}",
-                f"- **Consensus**: {_escape_markdown(decision.consensus)}",
-                f"- **Status**: {decision.convergence_status}",
-                f"- **Participants**: {', '.join(decision.participants)}",
-                f"- **Transcript**: {decision.transcript_path}",
-                f"- **Winning Option**: {decision.winning_option or 'N/A'}\n",
-            ])
+            lines.extend(
+                [
+                    f"### {i}. {_escape_markdown(decision.question)}\n",
+                    f"- **ID**: `{decision.id}`",
+                    f"- **Timestamp**: {decision.timestamp.isoformat()}",
+                    f"- **Consensus**: {_escape_markdown(decision.consensus)}",
+                    f"- **Status**: {decision.convergence_status}",
+                    f"- **Participants**: {', '.join(decision.participants)}",
+                    f"- **Transcript**: {decision.transcript_path}",
+                    f"- **Winning Option**: {decision.winning_option or 'N/A'}\n",
+                ]
+            )
 
         if similarities:
-            lines.extend([
-                "\n## Relationships\n",
-                "| Source | Target | Similarity |",
-                "|--------|--------|------------|",
-            ])
+            lines.extend(
+                [
+                    "\n## Relationships\n",
+                    "| Source | Target | Similarity |",
+                    "|--------|--------|------------|",
+                ]
+            )
 
             for sim in sorted(
                 similarities, key=lambda s: s.similarity_score, reverse=True
-            )[:20]:  # Top 20
+            )[
+                :20
+            ]:  # Top 20
                 source_q = next(
                     (d.question[:20] for d in decisions if d.id == sim.source_id),
                     "Unknown",
@@ -231,9 +255,11 @@ class DecisionGraphExporter:
                     (d.question[:20] for d in decisions if d.id == sim.target_id),
                     "Unknown",
                 )
-                lines.append(f"| {source_q}... | {target_q}... | {sim.similarity_score:.2%} |")
+                lines.append(
+                    f"| {source_q}... | {target_q}... | {sim.similarity_score:.2%} |"
+                )
 
-        return '\n'.join(lines)
+        return "\n".join(lines)
 
     @staticmethod
     def to_summary_table(results: List[SimilarResult]) -> str:
@@ -262,11 +288,15 @@ class DecisionGraphExporter:
             consensus = _truncate_text(result.decision.consensus, 10)
             status = result.decision.convergence_status[:11]
 
-            lines.append(f"║ {score_str} ║ {question:<29} ║ {consensus:<10} ║ {status:<11} ║")
+            lines.append(
+                f"║ {score_str} ║ {question:<29} ║ {consensus:<10} ║ {status:<11} ║"
+            )
 
-        lines.append("╚═════════╩═══════════════════════════════╩════════════╩═════════════╝\n")
+        lines.append(
+            "╚═════════╩═══════════════════════════════╩════════════╩═════════════╝\n"
+        )
 
-        return '\n'.join(lines)
+        return "\n".join(lines)
 
 
 def _escape_xml(text: str) -> str:

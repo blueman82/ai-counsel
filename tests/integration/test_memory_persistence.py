@@ -5,22 +5,17 @@ ensuring that decision graph memory maintains data integrity through database
 restarts, context injection works correctly, and backward compatibility is
 maintained.
 """
-import pytest
-import tempfile
 import os
+import tempfile
 from datetime import datetime
-from decision_graph.storage import DecisionGraphStorage
+
+import pytest
+
 from decision_graph.integration import DecisionGraphIntegration
-from decision_graph.schema import DecisionNode, ParticipantStance
-from models.schema import (
-    DeliberationResult,
-    Summary,
-    ConvergenceInfo,
-    RoundResponse,
-    Vote,
-    RoundVote,
-    VotingResult,
-)
+from decision_graph.schema import DecisionNode
+from decision_graph.storage import DecisionGraphStorage
+from models.schema import (ConvergenceInfo, DeliberationResult, RoundResponse,
+                           RoundVote, Summary, Vote, VotingResult)
 
 
 @pytest.fixture
@@ -59,28 +54,28 @@ def sample_deliberation_result():
             participant="claude",
             stance="neutral",
             response="Claude's response to the question",
-            timestamp="2025-01-01T10:00:00Z"
+            timestamp="2025-01-01T10:00:00Z",
         ),
         RoundResponse(
             round=1,
             participant="gpt-4",
             stance="neutral",
             response="GPT-4's response to the question",
-            timestamp="2025-01-01T10:00:01Z"
+            timestamp="2025-01-01T10:00:01Z",
         ),
         RoundResponse(
             round=2,
             participant="claude",
             stance="neutral",
             response="Claude's refined response after seeing GPT-4",
-            timestamp="2025-01-01T10:01:00Z"
+            timestamp="2025-01-01T10:01:00Z",
         ),
         RoundResponse(
             round=2,
             participant="gpt-4",
             stance="neutral",
             response="GPT-4's refined response after seeing Claude",
-            timestamp="2025-01-01T10:01:01Z"
+            timestamp="2025-01-01T10:01:01Z",
         ),
     ]
 
@@ -93,9 +88,9 @@ def sample_deliberation_result():
                 option="Option A",
                 confidence=0.85,
                 rationale="This is the best approach",
-                continue_debate=False
+                continue_debate=False,
             ),
-            timestamp="2025-01-01T10:01:00Z"
+            timestamp="2025-01-01T10:01:00Z",
         ),
         RoundVote(
             round=2,
@@ -104,9 +99,9 @@ def sample_deliberation_result():
                 option="Option A",
                 confidence=0.90,
                 rationale="I agree with this option",
-                continue_debate=False
+                continue_debate=False,
             ),
-            timestamp="2025-01-01T10:01:01Z"
+            timestamp="2025-01-01T10:01:01Z",
         ),
     ]
 
@@ -119,7 +114,7 @@ def sample_deliberation_result():
             consensus="We should adopt Option A",
             key_agreements=["Agreement 1", "Agreement 2"],
             key_disagreements=[],
-            final_recommendation="Proceed with Option A"
+            final_recommendation="Proceed with Option A",
         ),
         transcript_path="/tmp/transcript.md",
         full_debate=round_responses,
@@ -129,14 +124,14 @@ def sample_deliberation_result():
             final_similarity=0.85,
             status="converged",
             scores_by_round=[{"round": 2, "min_similarity": 0.85}],
-            per_participant_similarity={"claude": 0.85, "gpt-4": 0.87}
+            per_participant_similarity={"claude": 0.85, "gpt-4": 0.87},
         ),
         voting_result=VotingResult(
             final_tally={"Option A": 2},
             votes_by_round=votes,
             consensus_reached=True,
-            winning_option="Option A"
-        )
+            winning_option="Option A",
+        ),
     )
 
 
@@ -152,14 +147,16 @@ def sample_decision_node():
         convergence_status="converged",
         participants=["claude", "gpt-4"],
         transcript_path="/tmp/test_transcript.md",
-        metadata={"test": True}
+        metadata={"test": True},
     )
 
 
 class TestMemoryPersistence:
     """Test memory persistence across rounds and sessions."""
 
-    def test_memory_persists_between_rounds(self, integration, sample_deliberation_result):
+    def test_memory_persists_between_rounds(
+        self, integration, sample_deliberation_result
+    ):
         """Memory persists between deliberation rounds."""
         # Store first deliberation
         decision_id_1 = integration.store_deliberation(
@@ -190,7 +187,9 @@ class TestMemoryPersistence:
         """Memory survives storage layer restart."""
         # Store data in first connection
         storage1 = DecisionGraphStorage(db_path=temp_db)
-        integration1 = DecisionGraphIntegration(storage1, enable_background_worker=False)
+        integration1 = DecisionGraphIntegration(
+            storage1, enable_background_worker=False
+        )
         decision_id = integration1.store_deliberation(
             "Persistent question: Should we use GraphQL?", sample_deliberation_result
         )
@@ -198,18 +197,25 @@ class TestMemoryPersistence:
 
         # Create new connection to same database
         storage2 = DecisionGraphStorage(db_path=temp_db)
-        integration2 = DecisionGraphIntegration(storage2, enable_background_worker=False)
+        integration2 = DecisionGraphIntegration(
+            storage2, enable_background_worker=False
+        )
 
         # Data should still be there
         node = storage2.get_decision_node(decision_id)
         assert node is not None
         assert node.question == "Persistent question: Should we use GraphQL?"
         assert node.consensus == sample_deliberation_result.summary.consensus
-        assert node.winning_option == sample_deliberation_result.voting_result.winning_option
+        assert (
+            node.winning_option
+            == sample_deliberation_result.voting_result.winning_option
+        )
 
         storage2.close()
 
-    def test_context_injection_occurs_correctly(self, integration, sample_deliberation_result):
+    def test_context_injection_occurs_correctly(
+        self, integration, sample_deliberation_result
+    ):
         """Context injection mechanism works."""
         # Store first deliberation
         integration.store_deliberation(
@@ -220,7 +226,7 @@ class TestMemoryPersistence:
         context = integration.get_context_for_deliberation(
             "Should we use TypeScript vs JavaScript?",
             threshold=0.3,  # Lower threshold to ensure we find the match
-            max_context_decisions=5
+            max_context_decisions=5,
         )
 
         # Context should be retrieved
@@ -231,7 +237,9 @@ class TestMemoryPersistence:
         if context:
             assert "Similar Past Deliberations" in context or len(context) > 0
 
-    def test_participant_stances_persisted(self, storage, integration, sample_deliberation_result):
+    def test_participant_stances_persisted(
+        self, storage, integration, sample_deliberation_result
+    ):
         """Participant stances are correctly persisted."""
         decision_id = integration.store_deliberation(
             "Test question for stances", sample_deliberation_result
@@ -247,13 +255,15 @@ class TestMemoryPersistence:
             assert stance.decision_id == decision_id
             assert stance.participant in sample_deliberation_result.participants
 
-    def test_multiple_deliberations_independent(self, integration, sample_deliberation_result):
+    def test_multiple_deliberations_independent(
+        self, integration, sample_deliberation_result
+    ):
         """Multiple deliberations are stored independently."""
         # Store multiple deliberations with different questions
         questions = [
             "Question about architecture: Microservices vs Monolith?",
             "Question about performance: Async vs Sync?",
-            "Question about testing: TDD vs BDD?"
+            "Question about testing: TDD vs BDD?",
         ]
 
         ids = []
@@ -273,7 +283,9 @@ class TestMemoryPersistence:
         # All IDs should be unique
         assert len(set(ids)) == len(ids)
 
-    def test_similarity_relationships_preserved(self, storage, integration, sample_deliberation_result):
+    def test_similarity_relationships_preserved(
+        self, storage, integration, sample_deliberation_result
+    ):
         """Similarity relationships are computed and persisted."""
         # Store deliberation
         decision_id = integration.store_deliberation(
@@ -289,17 +301,21 @@ class TestMemoryPersistence:
         assert stored_node is not None
         assert stored_node.question == "Should we use async programming?"
 
-    def test_storage_handles_special_characters(self, integration, sample_deliberation_result):
+    def test_storage_handles_special_characters(
+        self, integration, sample_deliberation_result
+    ):
         """Storage correctly handles questions with special characters."""
         special_questions = [
             "Should we use C++ or C#?",
             "What about 'single quotes' and \"double quotes\"?",
             "Unicode test: 你好世界 🚀",
-            "SQL injection test: '; DROP TABLE decision_nodes; --"
+            "SQL injection test: '; DROP TABLE decision_nodes; --",
         ]
 
         for question in special_questions:
-            decision_id = integration.store_deliberation(question, sample_deliberation_result)
+            decision_id = integration.store_deliberation(
+                question, sample_deliberation_result
+            )
             node = integration.storage.get_decision_node(decision_id)
             assert node is not None
             assert node.question == question
@@ -336,7 +352,9 @@ class TestMemoryPersistence:
 class TestContextInjection:
     """Test context injection and retrieval mechanisms."""
 
-    def test_similar_questions_retrieve_correct_context(self, integration, storage, sample_deliberation_result):
+    def test_similar_questions_retrieve_correct_context(
+        self, integration, storage, sample_deliberation_result
+    ):
         """Similar questions retrieve correct past decisions."""
         # Store deliberations with varying similarity
         integration.store_deliberation(
@@ -351,13 +369,15 @@ class TestContextInjection:
         context = integration.get_context_for_deliberation(
             "Should we use TypeScript for backend?",
             threshold=0.3,  # Lower threshold to catch more
-            max_context_decisions=5
+            max_context_decisions=5,
         )
 
         # Should retrieve something
         assert isinstance(context, str)
 
-    def test_confidence_scores_included_in_context(self, storage, integration, sample_deliberation_result):
+    def test_confidence_scores_included_in_context(
+        self, storage, integration, sample_deliberation_result
+    ):
         """Confidence scores are included in injected context."""
         # Store deliberation with votes that have confidence
         decision_id = integration.store_deliberation(
@@ -374,8 +394,7 @@ class TestContextInjection:
 
         # Context should be retrievable
         context = integration.get_context_for_deliberation(
-            "Test question with confidence",
-            threshold=0.5
+            "Test question with confidence", threshold=0.5
         )
 
         # Context should be available
@@ -385,8 +404,7 @@ class TestContextInjection:
         """Context is empty when no similar decisions exist."""
         # Query without storing anything
         context = integration.get_context_for_deliberation(
-            "Completely unique question that has no matches",
-            threshold=0.7
+            "Completely unique question that has no matches", threshold=0.7
         )
 
         assert context == ""
@@ -402,13 +420,15 @@ class TestContextInjection:
         context_high = integration.get_context_for_deliberation(
             "What is the weather today?",  # Completely different question
             threshold=0.95,  # Very high threshold
-            max_context_decisions=5
+            max_context_decisions=5,
         )
 
         # Should be empty or have no results
         assert context_high == ""
 
-    def test_context_format_includes_metadata(self, integration, sample_deliberation_result):
+    def test_context_format_includes_metadata(
+        self, integration, sample_deliberation_result
+    ):
         """Context includes timestamp, convergence status, and participants."""
         decision_id = integration.store_deliberation(
             "Should we use microservices?", sample_deliberation_result
@@ -422,12 +442,13 @@ class TestContextInjection:
 
         # Retrieve context - should work even if no similar questions
         context = integration.get_context_for_deliberation(
-            "Should we use microservices?",
-            threshold=0.3
+            "Should we use microservices?", threshold=0.3
         )
         assert isinstance(context, str)
 
-    def test_max_context_decisions_limit_respected(self, integration, sample_deliberation_result):
+    def test_max_context_decisions_limit_respected(
+        self, integration, sample_deliberation_result
+    ):
         """Context retrieval respects max_context_decisions limit."""
         # Store multiple similar deliberations
         for i in range(10):
@@ -437,9 +458,7 @@ class TestContextInjection:
 
         # Retrieve with limit
         context = integration.get_context_for_deliberation(
-            "Should we use Python for new task?",
-            threshold=0.3,
-            max_context_decisions=3
+            "Should we use Python for new task?", threshold=0.3, max_context_decisions=3
         )
 
         # Context should be generated (or empty if no matches)
@@ -464,14 +483,14 @@ class TestBackwardCompatibility:
         integration = DecisionGraphIntegration(storage, enable_background_worker=False)
 
         # Operations should work even if initial state is empty
-        context = integration.get_context_for_deliberation(
-            "Any question"
-        )
+        context = integration.get_context_for_deliberation("Any question")
         assert context == ""  # Empty since no history
 
         storage.close()
 
-    def test_gradual_migration_path_supported(self, integration, sample_deliberation_result):
+    def test_gradual_migration_path_supported(
+        self, integration, sample_deliberation_result
+    ):
         """Memory can be enabled mid-session."""
         # Store some deliberations
         for i in range(3):
@@ -497,7 +516,7 @@ class TestBackwardCompatibility:
                 consensus="Basic consensus",
                 key_agreements=["Agreement 1"],
                 key_disagreements=[],
-                final_recommendation="Proceed"
+                final_recommendation="Proceed",
             ),
             transcript_path="/tmp/minimal.md",
             full_debate=[
@@ -506,16 +525,14 @@ class TestBackwardCompatibility:
                     participant="claude",
                     stance="neutral",
                     response="Response text",
-                    timestamp="2025-01-01T10:00:00Z"
+                    timestamp="2025-01-01T10:00:00Z",
                 )
             ],
             convergence_info=None,  # Missing
-            voting_result=None  # Missing
+            voting_result=None,  # Missing
         )
 
-        decision_id = integration.store_deliberation(
-            "Minimal question", minimal_result
-        )
+        decision_id = integration.store_deliberation("Minimal question", minimal_result)
 
         node = integration.storage.get_decision_node(decision_id)
         assert node is not None
@@ -533,7 +550,7 @@ class TestBackwardCompatibility:
             winning_option=None,
             convergence_status="converged",
             participants=["claude"],
-            transcript_path="/tmp/test.md"
+            transcript_path="/tmp/test.md",
         )
         decision_id = storage1.save_decision_node(node)
         storage1.close()
@@ -555,15 +572,13 @@ class TestErrorHandling:
 
         # Test threshold > 1.0
         context = integration.get_context_for_deliberation(
-            "Test question",
-            threshold=1.5  # Invalid, should be clamped
+            "Test question", threshold=1.5  # Invalid, should be clamped
         )
         assert isinstance(context, str)
 
         # Test threshold < 0.0
         context = integration.get_context_for_deliberation(
-            "Test question",
-            threshold=-0.5  # Invalid, should be clamped
+            "Test question", threshold=-0.5  # Invalid, should be clamped
         )
         assert isinstance(context, str)
 
@@ -575,7 +590,9 @@ class TestErrorHandling:
         context = integration.get_context_for_deliberation("   ")  # Whitespace only
         assert context == ""
 
-    def test_storage_error_does_not_crash_deliberation(self, integration, sample_deliberation_result):
+    def test_storage_error_does_not_crash_deliberation(
+        self, integration, sample_deliberation_result
+    ):
         """Storage errors are logged but don't crash deliberation."""
         # Close storage to simulate error condition
         integration.storage.close()
@@ -590,8 +607,12 @@ class TestErrorHandling:
         storage1 = DecisionGraphStorage(db_path=temp_db)
         storage2 = DecisionGraphStorage(db_path=temp_db)
 
-        integration1 = DecisionGraphIntegration(storage1, enable_background_worker=False)
-        integration2 = DecisionGraphIntegration(storage2, enable_background_worker=False)
+        integration1 = DecisionGraphIntegration(
+            storage1, enable_background_worker=False
+        )
+        integration2 = DecisionGraphIntegration(
+            storage2, enable_background_worker=False
+        )
 
         # Both write to same database
         id1 = integration1.store_deliberation("Question 1", sample_deliberation_result)
@@ -628,9 +649,7 @@ class TestPerformance:
 
         # Context retrieval should still work
         context = integration.get_context_for_deliberation(
-            "Performance test question",
-            threshold=0.3,
-            max_context_decisions=5
+            "Performance test question", threshold=0.3, max_context_decisions=5
         )
         assert isinstance(context, str)
 

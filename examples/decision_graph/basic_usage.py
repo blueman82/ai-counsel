@@ -13,8 +13,8 @@ Requirements:
 
 import asyncio
 import logging
-from pathlib import Path
 import sys
+from pathlib import Path
 
 # Add parent directories to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
@@ -22,7 +22,6 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from deliberation.engine import DeliberationEngine
 from models.config import load_config
 from models.schema import DeliberateRequest, Participant
-
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -62,8 +61,10 @@ async def main():
     )
 
     result1 = await engine.execute(request1)
-    logger.info(f"\n✅ Deliberation 1 complete")
-    logger.info(f"   Consensus: {result1.summary.consensus if result1.summary else 'N/A'}")
+    logger.info("\n✅ Deliberation 1 complete")
+    logger.info(
+        f"   Consensus: {result1.summary.consensus if result1.summary else 'N/A'}"
+    )
     logger.info(f"   Rounds: {len(result1.rounds)}")
 
     # Second deliberation: Uses context from first deliberation
@@ -81,12 +82,14 @@ async def main():
     )
 
     result2 = await engine.execute(request2)
-    logger.info(f"\n✅ Deliberation 2 complete")
-    logger.info(f"   Consensus: {result2.summary.consensus if result2.summary else 'N/A'}")
+    logger.info("\n✅ Deliberation 2 complete")
+    logger.info(
+        f"   Consensus: {result2.summary.consensus if result2.summary else 'N/A'}"
+    )
     logger.info(f"   Rounds: {len(result2.rounds)}")
 
     if result2.graph_context_summary:
-        logger.info(f"\n📚 Graph Context Used:")
+        logger.info("\n📚 Graph Context Used:")
         logger.info(f"   {result2.graph_context_summary[:200]}...")
     else:
         logger.info(

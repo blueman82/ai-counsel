@@ -10,8 +10,8 @@ If no database path is provided, creates a temporary database to verify
 index creation logic.
 """
 
-import sys
 import os
+import sys
 import tempfile
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -33,11 +33,11 @@ def verify_indexes(db_path: str) -> bool:
 
     # Expected indexes
     expected = [
-        'idx_decision_question',
-        'idx_decision_timestamp',
-        'idx_participant_decision',
-        'idx_similarity_score',
-        'idx_similarity_source',
+        "idx_decision_question",
+        "idx_decision_timestamp",
+        "idx_participant_decision",
+        "idx_similarity_score",
+        "idx_similarity_source",
     ]
 
     print("=" * 70)
@@ -60,7 +60,7 @@ def verify_indexes(db_path: str) -> bool:
     # Check for unexpected indexes
     unexpected = [idx for idx in index_names if idx not in expected]
     if unexpected:
-        print(f"\nUnexpected indexes found:")
+        print("\nUnexpected indexes found:")
         for idx in unexpected:
             print(f"  ? {idx}")
 
@@ -89,7 +89,9 @@ def main():
         success = verify_indexes(db_path)
     else:
         # Create temporary database to verify index creation logic
-        print("No database specified, creating temporary database to verify index creation...")
+        print(
+            "No database specified, creating temporary database to verify index creation..."
+        )
         print()
         with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as f:
             temp_db = f.name
