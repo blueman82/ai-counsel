@@ -807,3 +807,185 @@ class TestDecisionRetrieverAdaptiveK:
 
         # Empty database should use exploration strategy
         assert retriever._compute_adaptive_k(0) == 5
+
+
+class TestDecisionRetrieverConfidenceRanking:
+    """Test confidence ranking refactor (Task 4): find_relevant_decisions returns scores."""
+
+    def test_find_relevant_decisions_returns_scores(
+        self, mock_storage, sample_decisions
+    ):
+        """Test that find_relevant_decisions returns tuples with scores."""
+        mock_storage.get_all_decisions.return_value = sample_decisions
+
+        retriever = DecisionRetriever(mock_storage)
+
+        similar_results = [
+            {"id": "dec1", "question": sample_decisions[0].question, "score": 0.85},
+            {"id": "dec2", "question": sample_decisions[1].question, "score": 0.65},
+        ]
+
+        with patch.object(
+            retriever.similarity_detector, "find_similar", return_value=similar_results
+        ):
+            # Act: Call find_relevant_decisions
+            results = retriever.find_relevant_decisions(
+                "Should we use React?", threshold=0.7, max_results=3
+            )
+
+            # Assert: Results should be list of tuples (DecisionNode, float)
+            assert isinstance(results, list)
+            assert len(results) == 2
+
+            # Check first result
+            decision1, score1 = results[0]
+            assert isinstance(decision1, DecisionNode)
+            assert isinstance(score1, float)
+            assert decision1.id == "dec1"
+            assert score1 == 0.85
+
+            # Check second result
+            decision2, score2 = results[1]
+            assert isinstance(decision2, DecisionNode)
+            assert isinstance(score2, float)
+            assert decision2.id == "dec2"
+            assert score2 == 0.65
+
+    def test_find_relevant_decisions_adaptive_k(
+        self, mock_storage, sample_decisions
+    ):
+        """Test that find_relevant_decisions uses adaptive k (not fixed max_results)."""
+        # Create 10 sample decisions for a medium-sized DB
+        many_decisions = []
+        for i in range(150):  # Medium DB = 100-999 = k=3
+            many_decisions.append(
+                DecisionNode(
+                    id=f"dec{i}",
+                    question=f"Question {i}",
+                    timestamp=datetime.now(UTC),
+                    participants=["claude"],
+                    convergence_status="converged",
+                    consensus=f"Consensus {i}",
+                    winning_option=f"Option {i}",
+                    transcript_path=f"transcripts/dec{i}.md",
+                )
+            )
+
+        mock_storage.get_all_decisions.return_value = many_decisions
+
+        retriever = DecisionRetriever(mock_storage)
+
+        # Create 5 similar results (but adaptive k=3 for medium DB)
+        similar_results = [
+            {"id": f"dec{i}", "question": f"Question {i}", "score": 0.9 - i * 0.05}
+            for i in range(5)
+        ]
+
+        with patch.object(
+            retriever.similarity_detector, "find_similar", return_value=similar_results
+        ):
+            # Act: Call with max_results=5 (but adaptive k should limit to 3)
+            results = retriever.find_relevant_decisions(
+                "Any question?", threshold=0.7, max_results=5
+            )
+
+            # Assert: Should return only k=3 results (adaptive k for medium DB)
+            assert len(results) == 3, f"Expected 3 results (adaptive k), got {len(results)}"
+
+            # Verify top 3 by score
+            scores = [score for _, score in results]
+            assert scores == [0.9, 0.85, 0.8]
+
+    def test_find_relevant_decisions_no_threshold_filter(
+        self, mock_storage, sample_decisions
+    ):
+        """Test that find_relevant_decisions does NOT filter by threshold (returns results below 0.7)."""
+        mock_storage.get_all_decisions.return_value = sample_decisions
+
+        retriever = DecisionRetriever(mock_storage)
+
+        # Similar results include scores below threshold (0.7)
+        similar_results = [
+            {"id": "dec1", "question": sample_decisions[0].question, "score": 0.85},
+            {"id": "dec2", "question": sample_decisions[1].question, "score": 0.55},  # Below 0.7
+            {"id": "dec3", "question": sample_decisions[2].question, "score": 0.45},  # Below 0.7
+        ]
+
+        with patch.object(
+            retriever.similarity_detector, "find_similar", return_value=similar_results
+        ):
+            # Act: Call with threshold=0.7
+            results = retriever.find_relevant_decisions(
+                "Should we use React?", threshold=0.7, max_results=3
+            )
+
+            # Assert: Should return ALL results (including those below threshold)
+            # Threshold filtering is now handled by format_context_tiered()
+            assert len(results) == 3, "Should return all results, not filter by threshold"
+
+            scores = [score for _, score in results]
+            assert 0.55 in scores, "Should include result below threshold (0.55)"
+            assert 0.45 in scores, "Should include result below threshold (0.45)"
+
+    def test_find_relevant_decisions_noise_floor_only(
+        self, mock_storage, sample_decisions
+    ):
+        """Test that find_relevant_decisions only filters by noise floor (0.40), not threshold."""
+        mock_storage.get_all_decisions.return_value = sample_decisions
+
+        retriever = DecisionRetriever(mock_storage)
+
+        # Similar results with scores around noise floor boundary
+        similar_results = [
+            {"id": "dec1", "question": sample_decisions[0].question, "score": 0.85},
+            {"id": "dec2", "question": sample_decisions[1].question, "score": 0.42},  # Above noise floor
+            {"id": "dec3", "question": sample_decisions[2].question, "score": 0.35},  # Below noise floor
+        ]
+
+        with patch.object(
+            retriever.similarity_detector, "find_similar", return_value=similar_results
+        ):
+            # Act: Call find_relevant_decisions
+            results = retriever.find_relevant_decisions(
+                "Should we use React?", threshold=0.7, max_results=3
+            )
+
+            # Assert: Should return results >= 0.40 (noise floor), filter out < 0.40
+            assert len(results) == 2, "Should filter out results below noise floor (0.40)"
+
+            scores = [score for _, score in results]
+            assert 0.85 in scores, "Should include high score"
+            assert 0.42 in scores, "Should include score above noise floor (0.42)"
+            assert 0.35 not in scores, "Should exclude score below noise floor (0.35)"
+
+    def test_find_relevant_decisions_includes_metadata(
+        self, mock_storage, sample_decisions
+    ):
+        """Test that each result includes score metadata in tuple."""
+        mock_storage.get_all_decisions.return_value = sample_decisions
+
+        retriever = DecisionRetriever(mock_storage)
+
+        similar_results = [
+            {"id": "dec1", "question": sample_decisions[0].question, "score": 0.85},
+        ]
+
+        with patch.object(
+            retriever.similarity_detector, "find_similar", return_value=similar_results
+        ):
+            # Act: Call find_relevant_decisions
+            results = retriever.find_relevant_decisions(
+                "Should we use React?", threshold=0.7, max_results=3
+            )
+
+            # Assert: Each result should be a tuple with DecisionNode and score
+            assert len(results) == 1
+            result_tuple = results[0]
+
+            assert isinstance(result_tuple, tuple), "Result should be a tuple"
+            assert len(result_tuple) == 2, "Tuple should have 2 elements (DecisionNode, score)"
+
+            decision, score = result_tuple
+            assert isinstance(decision, DecisionNode), "First element should be DecisionNode"
+            assert isinstance(score, float), "Second element should be float score"
+            assert score == 0.85, "Score should match the similarity score"
