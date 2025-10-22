@@ -386,7 +386,8 @@ class TestDecisionGraphConfig:
         Test that absolute paths are kept unchanged.
 
         Verifies that absolute paths like "/tmp/graph.db" are not modified
-        and remain absolute after validation.
+        and remain absolute after validation. Note: symlinks are NOT resolved
+        for absolute paths (only relative paths get .resolve() called).
         """
         from models.config import DecisionGraphConfig
 
@@ -397,9 +398,9 @@ class TestDecisionGraphConfig:
         resolved_path = Path(config.db_path)
         assert resolved_path.is_absolute(), "Absolute path should remain absolute"
 
-        # Should be unchanged (normalized)
-        assert config.db_path == str(Path(absolute_path).resolve()), (
-            f"Absolute path should be preserved (normalized)"
+        # Should be unchanged (no symlink resolution for absolute paths)
+        assert config.db_path == absolute_path, (
+            f"Absolute path should be preserved unchanged"
         )
 
     def test_db_path_with_env_var(self, project_root, monkeypatch):
