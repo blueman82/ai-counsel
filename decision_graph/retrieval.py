@@ -316,19 +316,25 @@ class DecisionRetriever:
         threshold: float = 0.7,
         max_results: int = 3,
     ) -> str:
-        """One-stop method: find relevant decisions and format as context.
+        """One-stop method: find relevant decisions and format as tiered context.
 
         Convenience method that combines find_relevant_decisions() and
-        format_context() into a single call. Use this when you want to
-        retrieve and format context in one step.
+        format_context_tiered() into a single call. Uses budget-aware tiered
+        formatting with default tier boundaries and token budget.
+
+        NOTE: threshold and max_results parameters are DEPRECATED and ignored.
+        They are kept for backward compatibility. The method now uses:
+        - Adaptive k based on database size (not fixed max_results)
+        - Noise floor filtering (0.40) instead of threshold
+        - Tiered formatting with token budget management
 
         Args:
             query_question: The new deliberation question
-            threshold: Minimum similarity score (0.0-1.0). Defaults to 0.7.
-            max_results: Maximum past decisions to include. Defaults to 3.
+            threshold: DEPRECATED - kept for backward compatibility, ignored
+            max_results: DEPRECATED - kept for backward compatibility, ignored
 
         Returns:
-            Markdown-formatted context string (empty if no similar decisions found)
+            Markdown-formatted tiered context string (empty if no similar decisions found)
 
         Raises:
             ValueError: If threshold or max_results are invalid
@@ -337,8 +343,8 @@ class DecisionRetriever:
             >>> retriever = DecisionRetriever(storage)
             >>> context = retriever.get_enriched_context(
             ...     "Should we adopt GraphQL?",
-            ...     threshold=0.75,
-            ...     max_results=2
+            ...     threshold=0.75,  # Ignored - deprecated
+            ...     max_results=2    # Ignored - deprecated
             ... )
             >>> if context:
             ...     print("Found relevant past decisions:")
@@ -356,18 +362,37 @@ class DecisionRetriever:
                 query_question, threshold=threshold, max_results=max_results
             )
 
-            # Extract just the DecisionNode objects for format_context
-            decisions = [decision for decision, score in scored_decisions]
+            # If no relevant decisions found, return empty string
+            if not scored_decisions:
+                logger.info("No relevant context found for query")
+                return ""
 
-            # Format as context
-            context = self.format_context(decisions, query_question)
+            # Define default tier boundaries (strong ≥0.75, moderate ≥0.60, brief ≥0.40)
+            tier_boundaries = {
+                "strong": 0.75,
+                "moderate": 0.60,
+            }
+
+            # Define default token budget (reasonable for most use cases)
+            # This allows ~2-3 strong decisions or ~5-7 moderate decisions
+            token_budget = 2000
+
+            # Format using tiered approach with token budget
+            result = self.format_context_tiered(
+                scored_decisions, tier_boundaries, token_budget
+            )
+
+            # Extract formatted string from result dict
+            context = result["formatted"]
 
             if context:
                 logger.info(
-                    f"Generated enriched context with {len(decisions)} decisions"
+                    f"Generated tiered context with {sum(result['tier_distribution'].values())} decisions "
+                    f"(tokens: {result['tokens_used']}/{token_budget}, "
+                    f"distribution: {result['tier_distribution']})"
                 )
             else:
-                logger.info("No relevant context found for query")
+                logger.info("No relevant context found for query (all below noise floor)")
 
             return context
 
