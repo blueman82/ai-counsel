@@ -351,10 +351,13 @@ class DecisionRetriever:
         )
 
         try:
-            # Find relevant decisions
-            decisions = self.find_relevant_decisions(
+            # Find relevant decisions (returns tuples of (DecisionNode, score))
+            scored_decisions = self.find_relevant_decisions(
                 query_question, threshold=threshold, max_results=max_results
             )
+
+            # Extract just the DecisionNode objects for format_context
+            decisions = [decision for decision, score in scored_decisions]
 
             # Format as context
             context = self.format_context(decisions, query_question)
