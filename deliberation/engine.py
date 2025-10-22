@@ -264,7 +264,7 @@ class DeliberationEngine:
         from models.schema import RoundVote, VotingResult
 
         votes_by_round = []
-        raw_tally = {}  # Track raw string votes
+        raw_tally: dict[str, int] = {}  # Track raw string votes
         all_options = []  # Track unique options for similarity matching
 
         for response in responses:
@@ -546,7 +546,7 @@ Provide substantive analysis from your perspective."""
             rounds_to_execute = request.rounds
 
         # Execute rounds sequentially
-        all_responses = []
+        all_responses: list[RoundResponse] = []
         final_convergence_info = None
         converged = False
         model_controlled_stop = False

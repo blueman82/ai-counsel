@@ -140,7 +140,7 @@ class LRUCache:
         """Get current number of items in cache."""
         return len(self._cache)
 
-    def get_stats(self) -> Dict[str, int]:
+    def get_stats(self) -> Dict[str, int | float]:
         """Get cache statistics.
 
         Returns:

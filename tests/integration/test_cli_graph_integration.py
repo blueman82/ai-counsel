@@ -306,7 +306,7 @@ class TestDecisionGraphCLIIntegration:
         assert (
             len(similar_decisions) >= 2
         ), "Should find at least 2 TypeScript decisions"
-        decision_ids = [d.id for d in similar_decisions]
+        [d.id for d in similar_decisions]
 
         # The exact matches depend on similarity backend, but should be related
         questions = [d.question for d in similar_decisions]
@@ -326,6 +326,9 @@ class TestDecisionGraphCLIIntegration:
         # Arrange: Get the two GraphQL-related decisions
         dec_003 = populated_storage.get_decision_node("dec-003")
         dec_004 = populated_storage.get_decision_node("dec-004")
+        
+        assert dec_003 is not None, "dec-003 should exist in test data"
+        assert dec_004 is not None, "dec-004 should exist in test data"
 
         # Get similarity between them
         similar = populated_storage.get_similar_decisions(
@@ -380,7 +383,7 @@ class TestDecisionGraphCLIIntegration:
         all_decisions = populated_storage.get_all_decisions(limit=100)
 
         # Act: Analyze participant patterns
-        participant_counts = {}
+        participant_counts: dict[str, int] = {}
         for decision in all_decisions:
             for participant in decision.participants:
                 participant_counts[participant] = (
@@ -691,6 +694,7 @@ class TestDecisionGraphCLIIntegration:
 
         # Act: Get decision with stances
         decision = populated_storage.get_decision_node("dec-001")
+        assert decision is not None, "dec-001 should exist in test data"
         context = retriever.format_context([decision], "test query")
 
         # Assert: Should include stance information

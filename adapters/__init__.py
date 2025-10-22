@@ -1,5 +1,5 @@
 """CLI and HTTP adapter factory and exports."""
-from typing import Union
+from typing import Type, Union
 
 from adapters.base import BaseCLIAdapter
 from adapters.base_http import BaseHTTPAdapter
@@ -32,7 +32,7 @@ def create_adapter(
         TypeError: If config type doesn't match adapter type
     """
     # Registry of CLI adapters
-    cli_adapters = {
+    cli_adapters: dict[str, Type[BaseCLIAdapter]] = {
         "claude": ClaudeAdapter,
         "codex": CodexAdapter,
         "droid": DroidAdapter,
@@ -41,7 +41,7 @@ def create_adapter(
     }
 
     # Registry of HTTP adapters
-    http_adapters = {
+    http_adapters: dict[str, Type[BaseHTTPAdapter]] = {
         "ollama": OllamaAdapter,
         "lmstudio": LMStudioAdapter,
         "openrouter": OpenRouterAdapter,

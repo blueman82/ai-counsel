@@ -283,7 +283,7 @@ class TestConfigLoader:
 
         with warnings.catch_warnings(record=True) as w:
             warnings.simplefilter("always")
-            config = load_config(str(config_file))
+            load_config(str(config_file))
 
             # Check warning was issued
             assert len(w) == 1

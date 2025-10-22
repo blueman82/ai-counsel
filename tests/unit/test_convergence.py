@@ -203,7 +203,7 @@ class TestConvergenceDetector:
 
         # With Jaccard similarity, these should be similar enough
         # to detect convergence (shared key words)
-        assert result.converged == True
+        assert result.converged is True
         assert result.status == "converged"
         assert result.min_similarity > 0.5  # At least moderate similarity
 
@@ -262,7 +262,7 @@ class TestConvergenceDetector:
             current_round=round3, previous_round=round2, round_number=3
         )
 
-        assert result.converged == False
+        assert result.converged is False
         assert result.status in ["refining", "diverging"]
 
     def test_detects_divergence_with_different_opinions(self):
@@ -334,7 +334,7 @@ class TestConvergenceDetector:
         result = detector.check_convergence(round3, round2, round_number=3)
 
         # Should detect low similarity (diverging or refining, not converged)
-        assert result.converged == False
+        assert result.converged is False
         assert result.status in ["diverging", "refining"]
         assert result.min_similarity < 0.50  # Very different responses
 
