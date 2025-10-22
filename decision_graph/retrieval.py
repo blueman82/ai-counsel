@@ -77,60 +77,74 @@ class DecisionRetriever:
         query_question: str,
         threshold: float = 0.7,
         max_results: int = 3,
-    ) -> List[DecisionNode]:
-        """Find relevant past decisions for a new question.
+    ) -> List[Tuple[DecisionNode, float]]:
+        """Find relevant past decisions for a new question with confidence scores.
 
-        Uses semantic similarity to compare the query question against all past
-        deliberations in the database. Returns the most similar decisions above
-        the threshold.
+        BREAKING CHANGE (Task 4): Return type changed from List[DecisionNode] to
+        List[Tuple[DecisionNode, float]] to support confidence ranking.
+
+        This method now returns ALL results above noise floor (0.40), not filtered
+        by threshold. Threshold filtering is handled by format_context_tiered().
+        Uses adaptive k based on database size instead of fixed max_results.
 
         Args:
             query_question: The new deliberation question
-            threshold: Minimum similarity score (0.0-1.0). Defaults to 0.7.
-            max_results: Maximum number of results to return. Defaults to 3.
+            threshold: DEPRECATED - kept for backward compatibility, but ignored.
+                       Filtering now handled by format_context_tiered().
+            max_results: DEPRECATED - kept for backward compatibility, but adaptive
+                        k is used instead based on database size.
 
         Returns:
-            List of DecisionNode objects, sorted by similarity descending
+            List of (DecisionNode, score) tuples, sorted by similarity descending.
+            Includes all results above NOISE_FLOOR (0.40).
 
         Raises:
             ValueError: If threshold is not in range [0.0, 1.0] or max_results < 1
 
         Example:
             >>> retriever = DecisionRetriever(storage)
-            >>> decisions = retriever.find_relevant_decisions(
+            >>> results = retriever.find_relevant_decisions(
             ...     "Should we use React or Vue?",
-            ...     threshold=0.7,
-            ...     max_results=5
+            ...     threshold=0.7,  # Ignored - for backward compatibility only
+            ...     max_results=5   # Ignored - adaptive k used instead
             ... )
-            >>> for decision in decisions:
-            ...     print(f"{decision.question}: {decision.consensus}")
+            >>> for decision, score in results:
+            ...     print(f"{decision.question}: {score:.2f}")
         """
-        # Validate parameters
+        # Validate parameters (for backward compatibility)
         if not (0.0 <= threshold <= 1.0):
             raise ValueError(f"threshold must be between 0.0 and 1.0, got {threshold}")
         if max_results < 1:
             raise ValueError(f"max_results must be >= 1, got {max_results}")
 
+        # Log deprecation warning if non-default parameters passed
+        if threshold != 0.7 or max_results != 3:
+            logger.warning(
+                f"threshold and max_results parameters are deprecated. "
+                f"Using adaptive k and noise floor filtering instead. "
+                f"(threshold={threshold} ignored, max_results={max_results} ignored)"
+            )
+
         if not query_question or not query_question.strip():
             logger.warning("Empty query_question provided to find_relevant_decisions")
             return []
 
-        # 1. Try L1 cache hit (query results)
+        # 1. Try L1 cache hit (query results) - use threshold=0.0 for cache key
+        cache_key_threshold = 0.0  # Cache all results, not filtered by threshold
         if self.cache:
             cached_similar = self.cache.get_cached_result(
-                query_question, threshold, max_results
+                query_question, cache_key_threshold, max_results
             )
             if cached_similar is not None:
                 logger.info(
-                    f"L1 cache hit for query: {query_question[:50]}... "
-                    f"(threshold={threshold}, max={max_results})"
+                    f"L1 cache hit for query: {query_question[:50]}..."
                 )
-                # Reconstruct DecisionNode objects from cached results
+                # Reconstruct (DecisionNode, score) tuples from cached results
                 results = []
                 for match in cached_similar:
                     decision = self.storage.get_decision_node(match["id"])
                     if decision:
-                        results.append(decision)
+                        results.append((decision, match["score"]))
                     else:
                         logger.warning(
                             f"Cached decision {match['id']} not found in storage "
@@ -149,38 +163,46 @@ class DecisionRetriever:
             logger.info("No past decisions found in database")
             return []
 
-        # 4. Extract candidates as (id, question) tuples
+        # 4. Compute adaptive k based on database size
+        db_size = len(all_decisions)
+        adaptive_k = self._compute_adaptive_k(db_size)
+        logger.debug(f"Using adaptive k={adaptive_k} for db_size={db_size}")
+
+        # 5. Extract candidates as (id, question) tuples
         candidates = [(d.id, d.question) for d in all_decisions]
         logger.debug(f"Comparing query against {len(candidates)} candidate decisions")
 
-        # 5. Find similar questions
+        # 6. Find similar questions (use noise floor, not threshold)
         similar = self.similarity_detector.find_similar(
-            query_question, candidates, threshold=threshold
+            query_question, candidates, threshold=NOISE_FLOOR
         )
 
         if not similar:
-            logger.info(f"No similar decisions found above threshold {threshold}")
+            logger.info(f"No similar decisions found above noise floor {NOISE_FLOOR}")
             # Cache empty result to avoid recomputation
             if self.cache:
-                self.cache.cache_result(query_question, threshold, max_results, [])
+                self.cache.cache_result(query_question, cache_key_threshold, max_results, [])
             return []
 
-        # 6. Cache the similarity results (L1)
+        # 7. Apply adaptive k limit (not threshold filtering)
+        limited_similar = similar[:adaptive_k]
+
+        # 8. Cache the similarity results (L1) - cache with threshold=0.0
         if self.cache:
             self.cache.cache_result(
-                query_question, threshold, max_results, similar[:max_results]
+                query_question, cache_key_threshold, max_results, limited_similar
             )
             logger.debug(
                 f"Cached L1 result for query: {query_question[:50]}... "
-                f"({len(similar[:max_results])} results)"
+                f"({len(limited_similar)} results)"
             )
 
-        # 7. Fetch full DecisionNode objects for similar questions
+        # 9. Fetch full DecisionNode objects and build (decision, score) tuples
         results = []
-        for match in similar[:max_results]:
+        for match in limited_similar:
             decision = self.storage.get_decision_node(match["id"])
             if decision:
-                results.append(decision)
+                results.append((decision, match["score"]))
                 logger.debug(
                     f"Found relevant decision: {decision.id} "
                     f"(similarity: {match['score']:.2f})"
@@ -193,7 +215,7 @@ class DecisionRetriever:
 
         logger.info(
             f"Found {len(results)} relevant decisions for query "
-            f"(threshold={threshold}, max_results={max_results})"
+            f"(adaptive_k={adaptive_k}, noise_floor={NOISE_FLOOR})"
         )
         return results
 
