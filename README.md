@@ -10,16 +10,12 @@ True deliberative consensus MCP server where AI models debate and refine positio
 
 ## What Makes This Different
 
-Unlike existing tools (like Zen's consensus feature) that gather parallel opinions, **AI Counsel enables TRUE deliberation**:
+**AI Counsel enables TRUE deliberative consensus** where models see each other's responses and refine positions across multiple rounds:
 
-- ✅ Models see each other's responses
-- ✅ Models refine their positions based on other arguments
-- ✅ Multi-round debates with convergence tracking
-- ✅ Full audit trail with markdown transcripts
-
-**Comparison:**
-- **Zen Consensus**: Asks models separately, aggregates (no cross-pollination)
-- **AI Counsel**: Models engage in actual debate (see and respond to each other)
+- Models engage in actual debate (see and respond to each other)
+- Multi-round convergence with voting and confidence levels
+- Full audit trail with AI-generated summaries
+- Automatic early stopping when consensus reaches (saves API costs)
 
 ## Features
 
