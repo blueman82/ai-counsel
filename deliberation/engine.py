@@ -112,7 +112,7 @@ class DeliberationEngine:
                     from decision_graph.storage import DecisionGraphStorage
 
                     storage = DecisionGraphStorage(config.decision_graph.db_path)
-                    self.graph_integration = DecisionGraphIntegration(storage)
+                    self.graph_integration = DecisionGraphIntegration(storage, config=config)
                     logger.info("Decision graph memory enabled")
                 except Exception as e:
                     logger.warning(f"Failed to initialize decision graph: {e}")
@@ -528,10 +528,9 @@ Provide substantive analysis from your perspective."""
         graph_context = ""
         if self.graph_integration:
             try:
+                # Use new config-based approach (deprecated params removed)
                 graph_context = self.graph_integration.get_context_for_deliberation(
-                    request.question,
-                    threshold=self.config.decision_graph.similarity_threshold,
-                    max_context_decisions=self.config.decision_graph.max_context_decisions,
+                    request.question
                 )
                 if graph_context:
                     logger.info("Retrieved decision graph context for question")
@@ -661,13 +660,31 @@ Provide substantive analysis from your perspective."""
         if graph_context:
             # Extract summary of what context was used
             try:
-                # Parse graph context to count decisions and get questions
+                # Parse graph context to count decisions (works with both old and new formatting)
                 lines = graph_context.split("\n")
+                # Count headers with similarity scores (new tiered formatter)
                 decisions = [
-                    line for line in lines if line.startswith("### Past Deliberation")
+                    line for line in lines
+                    if ("### " in line and "similarity" in line.lower())
+                    or line.startswith("### Past Deliberation")
                 ]
                 if decisions:
-                    graph_context_summary = f"Similar past deliberations found: {len(decisions)} decision(s) injected"
+                    # Count by tier if using new formatter
+                    strong = sum(1 for d in decisions if "strong" in d.lower())
+                    moderate = sum(1 for d in decisions if "moderate" in d.lower() or "related" in d.lower())
+                    brief = sum(1 for d in decisions if "brief" in d.lower())
+
+                    if strong or moderate or brief:
+                        tier_breakdown = []
+                        if strong:
+                            tier_breakdown.append(f"{strong} strong")
+                        if moderate:
+                            tier_breakdown.append(f"{moderate} moderate")
+                        if brief:
+                            tier_breakdown.append(f"{brief} brief")
+                        graph_context_summary = f"Similar past deliberations found: {len(decisions)} decision(s) injected ({', '.join(tier_breakdown)})"
+                    else:
+                        graph_context_summary = f"Similar past deliberations found: {len(decisions)} decision(s) injected"
             except Exception:
                 graph_context_summary = "Decision graph context injected"
 

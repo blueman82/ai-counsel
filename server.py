@@ -16,8 +16,8 @@ from deliberation.query_engine import QueryEngine
 from models.config import AdapterConfig, CLIToolConfig, load_config
 from models.schema import DeliberateRequest
 
-# Get the absolute path to the server directory
-SERVER_DIR = Path(__file__).parent.absolute()
+# Get the current working directory (where server was started from)
+SERVER_DIR = Path.cwd()
 
 # Configure logging to file to avoid stdio interference
 log_file = SERVER_DIR / "mcp_server.log"
@@ -192,64 +192,46 @@ async def list_tools() -> list[Tool]:
 
     # Add decision graph tools if enabled
     if hasattr(config, "decision_graph") and config.decision_graph and config.decision_graph.enabled:
-        tools.extend(
-            [
-                Tool(
-                    name="query_decisions",
-                    description=(
-                        "Search and analyze past deliberations in the decision graph memory. "
-                        "Find similar decisions by semantic meaning, identify contradictions, "
-                        "or trace how decisions evolved over time."
-                    ),
-                    inputSchema={
-                        "type": "object",
-                        "properties": {
-                            "query_text": {
-                                "type": "string",
-                                "description": "Query text to search for similar decisions",
-                            },
-                            "find_contradictions": {
-                                "type": "boolean",
-                                "default": False,
-                                "description": "Find contradictions in decision history instead of searching",
-                            },
-                            "decision_id": {
-                                "type": "string",
-                                "description": "Trace evolution of a specific decision by ID",
-                            },
-                            "limit": {
-                                "type": "integer",
-                                "default": 5,
-                                "minimum": 1,
-                                "maximum": 20,
-                                "description": "Maximum number of results to return",
-                            },
-                            "format": {
-                                "type": "string",
-                                "enum": ["summary", "detailed", "json"],
-                                "default": "summary",
-                                "description": "Output format",
-                            },
+        tools.append(
+            Tool(
+                name="query_decisions",
+                description=(
+                    "Search and analyze past deliberations in the decision graph memory. "
+                    "Find similar decisions by semantic meaning, identify contradictions, "
+                    "or trace how decisions evolved over time."
+                ),
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "query_text": {
+                            "type": "string",
+                            "description": "Query text to search for similar decisions",
+                        },
+                        "find_contradictions": {
+                            "type": "boolean",
+                            "default": False,
+                            "description": "Find contradictions in decision history instead of searching",
+                        },
+                        "decision_id": {
+                            "type": "string",
+                            "description": "Trace evolution of a specific decision by ID",
+                        },
+                        "limit": {
+                            "type": "integer",
+                            "default": 5,
+                            "minimum": 1,
+                            "maximum": 20,
+                            "description": "Maximum number of results to return",
+                        },
+                        "format": {
+                            "type": "string",
+                            "enum": ["summary", "detailed", "json"],
+                            "default": "summary",
+                            "description": "Output format",
                         },
                     },
-                ),
-                Tool(
-                    name="analyze_decisions",
-                    description=(
-                        "Analyze aggregated patterns from past deliberations. "
-                        "Get voting patterns, convergence statistics, and participation metrics."
-                    ),
-                    inputSchema={
-                        "type": "object",
-                        "properties": {
-                            "participant": {
-                                "type": "string",
-                                "description": "Optional: filter analysis for a specific participant",
-                            },
-                        },
-                    },
-                ),
-            ]
+                },
+            )
         )
 
     return tools
@@ -261,7 +243,7 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
     Handle tool calls from MCP client.
 
     Args:
-        name: Tool name ("deliberate", "query_decisions", "analyze_decisions")
+        name: Tool name ("deliberate", "query_decisions")
         arguments: Tool arguments as dict
 
     Returns:
@@ -271,8 +253,6 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
 
     if name == "query_decisions":
         return await handle_query_decisions(arguments)
-    elif name == "analyze_decisions":
-        return await handle_analyze_decisions(arguments)
     elif name != "deliberate":
         error_msg = f"Unknown tool: {name}"
         logger.error(error_msg)
@@ -424,51 +404,6 @@ async def handle_query_decisions(arguments: dict) -> list[TextContent]:
     except Exception as e:
         logger.error(
             f"Error in query_decisions: {type(e).__name__}: {e}", exc_info=True
-        )
-        error_response = {
-            "error": str(e),
-            "error_type": type(e).__name__,
-            "status": "failed",
-        }
-        return [TextContent(type="text", text=json.dumps(error_response, indent=2))]
-
-
-async def handle_analyze_decisions(arguments: dict) -> list[TextContent]:
-    """Handle analyze_decisions tool call."""
-    try:
-        db_path = Path(getattr(config.decision_graph, "db_path", "decision_graph.db"))
-        # Make db_path absolute - if relative, resolve from ai-counsel directory
-        if not db_path.is_absolute():
-            db_path = SERVER_DIR / db_path
-        storage = DecisionGraphStorage(str(db_path))
-        engine = QueryEngine(storage)
-
-        participant = arguments.get("participant")
-
-        analysis = await engine.analyze_patterns(participant=participant)
-
-        result = {
-            "type": "analysis",
-            "total_decisions": analysis.total_decisions,
-            "total_participants": analysis.total_participants,
-            "voting_patterns": [
-                {
-                    "participant": p.participant,
-                    "total_votes": p.total_votes,
-                    "avg_confidence": p.avg_confidence,
-                    "preferred_options": p.preferred_options,
-                }
-                for p in analysis.voting_patterns
-            ],
-            "convergence_stats": analysis.convergence_stats,
-            "participation_metrics": analysis.participation_metrics,
-        }
-
-        return [TextContent(type="text", text=json.dumps(result, indent=2))]
-
-    except Exception as e:
-        logger.error(
-            f"Error in analyze_decisions: {type(e).__name__}: {e}", exc_info=True
         )
         error_response = {
             "error": str(e),

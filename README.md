@@ -31,7 +31,8 @@ Unlike existing tools (like Zen's consensus feature) that gather parallel opinio
 - 🎛️ **Model-Controlled Stopping**: Models decide when to stop deliberating
 - 💰 **Local Model Support**: Zero API costs with Ollama, LM Studio, llamacpp
 - 🔐 **Data Privacy**: Keep all data on-premises with self-hosted models
-- 🧠 **Decision Graph Memory** (optional): Learn from past deliberations
+- 🧠 **Context Injection**: Automatically finds similar past debates and injects context for faster convergence
+- 🔍 **Semantic Search**: Query past decisions with `query_decisions` tool (finds contradictions, traces evolution, analyzes patterns)
 - 🛡️ **Fault Tolerant**: Individual adapter failures don't halt deliberation
 - 📝 **Full Transcripts**: Markdown exports with AI-generated summaries
 
@@ -157,19 +158,36 @@ Add new CLI tools or HTTP adapters to fit your infrastructure. Simple 3-5 step p
 
 → **[Developer Guide](docs/adding-adapters.md)** - Step-by-step tutorials, real-world examples
 
-## Decision Graph Memory (Optional)
+## Decision Graph Memory
 
-Learn from past deliberations. The system automatically finds similar past questions and injects context into current debates for faster convergence.
+AI Counsel learns from past deliberations to accelerate future decisions. Two core capabilities:
 
+### 1. Automatic Context Injection
+When starting a new deliberation, the system:
+- Searches past debates for similar questions (semantic similarity)
+- Finds the top-k most relevant decisions (configurable, default: 3)
+- Injects context into Round 1 prompts automatically
+- Result: Models start with institutional knowledge, converge faster
+
+### 2. Semantic Search with `query_decisions`
+Query past deliberations programmatically:
+- **Search similar**: Find decisions related to a question
+- **Find contradictions**: Detect conflicting past decisions
+- **Trace evolution**: See how opinions changed over time
+- **Analyze patterns**: Identify recurring themes
+
+**Configuration** (optional - defaults work out-of-box):
 ```yaml
 decision_graph:
-  enabled: true
-  db_path: "decision_graph.db"
-  similarity_threshold: 0.7
-  max_context_decisions: 3
+  enabled: true                       # Auto-injection on by default
+  db_path: "decision_graph.db"        # Resolves to project root (works for any user/folder)
+  similarity_threshold: 0.6           # Adjust to control context relevance
+  max_context_decisions: 3            # How many past decisions to inject
 ```
 
-→ **[Quickstart](docs/decision-graph/quickstart.md)** | **[Configuration](docs/decision-graph/configuration.md)**
+**Works for any user from any directory** - database path is resolved relative to project root.
+
+→ **[Quickstart](docs/decision-graph/quickstart.md)** | **[Configuration](docs/decision-graph/configuration.md)** | **[Query API](docs/decision-graph/query-engine.md)**
 
 ## Usage
 
@@ -222,6 +240,29 @@ mcp__ai-counsel__deliberate({
   rounds: 3,
   mode: "conference"
 })
+```
+
+**Search Past Decisions:**
+```javascript
+mcp__ai-counsel__query_decisions({
+  query: "database choice",
+  operation: "search_similar",
+  limit: 5
+})
+// Returns: Similar past deliberations with consensus and similarity scores
+
+// Find contradictions
+mcp__ai-counsel__query_decisions({
+  operation: "find_contradictions"
+})
+// Returns: Decisions where consensus conflicts
+
+// Trace evolution
+mcp__ai-counsel__query_decisions({
+  query: "microservices architecture",
+  operation: "trace_evolution"
+})
+// Returns: How opinions evolved over time on this topic
 ```
 
 ### Transcripts
@@ -315,7 +356,7 @@ Inspired by the need for true deliberative AI consensus beyond parallel opinion 
 ![GitHub forks](https://img.shields.io/github/forks/blueman82/ai-counsel)
 ![GitHub last commit](https://img.shields.io/github/last-commit/blueman82/ai-counsel)
 ![Build](https://img.shields.io/badge/build-passing-brightgreen)
-![Tests](https://img.shields.io/badge/tests-113%20passing-green)
-![Version](https://img.shields.io/badge/version-1.2.0-blue)
+![Tests](https://img.shields.io/badge/tests-130%2B%20passing-green)
+![Version](https://img.shields.io/badge/version-1.2.1-blue)
 
-**Production Ready** - Multi-model deliberative consensus with structured voting and adaptive early stopping for critical technical decisions!
+**Production Ready** - Multi-model deliberative consensus with cross-user decision graph memory, structured voting, and adaptive early stopping for critical technical decisions!

@@ -329,12 +329,14 @@ class BackgroundWorker:
                         existing.question,
                     )
 
-                    # Store if above threshold
+                    # Store if above threshold (clamp score to [0, 1] to handle floating point precision)
                     if score >= self.similarity_threshold:
+                        # Clamp score to [0, 1] to prevent validation errors from floating point overflow
+                        clamped_score = max(0.0, min(1.0, score))
                         similarity = DecisionSimilarity(
                             source_id=decision_id,
                             target_id=existing.id,
-                            similarity_score=score,
+                            similarity_score=clamped_score,
                             computed_at=datetime.now(),
                         )
                         self.storage.save_similarity(similarity)
