@@ -417,10 +417,17 @@ class TestDecisionGraphIntegrationTieredFormatting:
     @pytest.fixture
     def config(self):
         """Create mock config with budget-aware settings."""
-        from models.config import Config, DecisionGraphConfig, DefaultsConfig, StorageConfig, DeliberationConfig, ConvergenceDetectionConfig, EarlyStoppingConfig
+        from models.config import Config, DecisionGraphConfig, DefaultsConfig, StorageConfig, DeliberationConfig, ConvergenceDetectionConfig, EarlyStoppingConfig, CLIToolConfig
 
         return Config(
             version="1.0",
+            cli_tools={
+                "test": CLIToolConfig(
+                    command="test",
+                    args=["{prompt}"],
+                    timeout=60
+                )
+            },
             defaults=DefaultsConfig(
                 mode="quick",
                 rounds=2,

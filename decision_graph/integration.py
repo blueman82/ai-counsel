@@ -9,7 +9,7 @@ new deliberations.
 import asyncio
 import logging
 from datetime import datetime
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 from uuid import uuid4
 
 from decision_graph.maintenance import DecisionGraphMaintenance
@@ -20,6 +20,9 @@ from decision_graph.similarity import QuestionSimilarityDetector
 from decision_graph.storage import DecisionGraphStorage
 from decision_graph.workers import BackgroundWorker
 from models.schema import DeliberationResult
+
+if TYPE_CHECKING:
+    from models.config import Config
 
 logger = logging.getLogger(__name__)
 
@@ -49,13 +52,17 @@ class DecisionGraphIntegration:
     """
 
     def __init__(
-        self, storage: DecisionGraphStorage, enable_background_worker: bool = True
+        self,
+        storage: DecisionGraphStorage,
+        enable_background_worker: bool = True,
+        config: Optional["Config"] = None,
     ):
         """Initialize integration with storage backend.
 
         Args:
             storage: DecisionGraphStorage instance for persistence
             enable_background_worker: Enable async background processing for similarities
+            config: Optional Config instance for budget-aware context injection
         """
         self.storage = storage
         self.retriever = DecisionRetriever(storage)
@@ -63,6 +70,7 @@ class DecisionGraphIntegration:
         self._worker_enabled = enable_background_worker
         self.maintenance = DecisionGraphMaintenance(storage)
         self._decision_count = 0
+        self.config = config
 
         # Initialize background worker if enabled
         if enable_background_worker:
@@ -382,21 +390,22 @@ class DecisionGraphIntegration:
         and formats them as markdown context. This context can be prepended to
         deliberation prompts to provide historical perspective.
 
+        NEW (Task 5): Uses budget-aware tiered formatting if config is available.
+        Falls back to legacy formatting if config is None.
+
         Args:
             question: The deliberation question
-            threshold: Minimum similarity threshold (0.0-1.0). Defaults to 0.7 (high similarity).
-            max_context_decisions: Maximum past decisions to include. Defaults to 3.
+            threshold: DEPRECATED - Kept for backward compatibility. Use config.tier_boundaries instead.
+            max_context_decisions: DEPRECATED - Kept for backward compatibility. Adaptive k is used instead.
 
         Returns:
             Markdown-formatted context string. Empty string if no similar decisions
             found or if any error occurs (graceful degradation).
 
         Example:
-            >>> integration = DecisionGraphIntegration(storage)
+            >>> integration = DecisionGraphIntegration(storage, config=config)
             >>> context = integration.get_context_for_deliberation(
-            ...     "Should we adopt TypeScript?",
-            ...     threshold=0.75,
-            ...     max_context_decisions=2
+            ...     "Should we adopt TypeScript?"
             ... )
             >>> if context:
             ...     print("Found relevant context:")
@@ -422,23 +431,73 @@ class DecisionGraphIntegration:
                 )
                 max_context_decisions = 1
 
-            # Retrieve enriched context
-            context = self.retriever.get_enriched_context(
-                question, threshold=threshold, max_results=max_context_decisions
-            )
+            # Log deprecation warning if non-default parameters used
+            if threshold != 0.7 or max_context_decisions != 3:
+                logger.warning(
+                    f"Parameters threshold={threshold} and max_context_decisions={max_context_decisions} "
+                    f"are deprecated. Use config.decision_graph.tier_boundaries and adaptive k instead."
+                )
 
-            if context:
+            # Branch: Use budget-aware tiered formatting if config available
+            if self.config and self.config.decision_graph:
+                logger.debug("Using budget-aware tiered formatting from config")
+
+                # Get configuration values
+                token_budget = self.config.decision_graph.context_token_budget
+                tier_boundaries = self.config.decision_graph.tier_boundaries
+
+                # Get database size for logging
+                db_stats = self.storage.get_all_decisions(limit=1)
+                db_size = len(self.storage.get_all_decisions(limit=10000))
+                logger.debug(f"Database size: {db_size} decisions")
+
+                # Find relevant decisions (returns tuples of (DecisionNode, score))
+                scored_decisions = self.retriever.find_relevant_decisions(
+                    question, threshold=threshold, max_results=max_context_decisions
+                )
+
+                if not scored_decisions:
+                    logger.info(f"No relevant decisions found for question: {question[:50]}...")
+                    return ""
+
+                # Format using tiered approach
+                result = self.retriever.format_context_tiered(
+                    scored_decisions=scored_decisions,
+                    tier_boundaries=tier_boundaries,
+                    token_budget=token_budget,
+                )
+
+                # Log metrics for Phase 1.5 calibration
+                tier_dist = result["tier_distribution"]
+                tokens_used = result["tokens_used"]
                 logger.info(
-                    f"Retrieved enriched context for question: {question[:50]}... "
-                    f"(threshold={threshold}, max_results={max_context_decisions})"
-                )
-            else:
-                logger.debug(
-                    f"No relevant context found for question: {question[:50]}... "
-                    f"(threshold={threshold})"
+                    f"Context injection metrics: "
+                    f"tokens={tokens_used}/{token_budget}, "
+                    f"tiers=(strong:{tier_dist['strong']}, moderate:{tier_dist['moderate']}, brief:{tier_dist['brief']}), "
+                    f"db_size={db_size}"
                 )
 
-            return context
+                return result["formatted"]
+
+            # Legacy path: Use old retriever.get_enriched_context
+            else:
+                logger.debug("Using legacy formatting (no config available)")
+                context = self.retriever.get_enriched_context(
+                    question, threshold=threshold, max_results=max_context_decisions
+                )
+
+                if context:
+                    logger.info(
+                        f"Retrieved enriched context for question: {question[:50]}... "
+                        f"(threshold={threshold}, max_results={max_context_decisions})"
+                    )
+                else:
+                    logger.debug(
+                        f"No relevant context found for question: {question[:50]}... "
+                        f"(threshold={threshold})"
+                    )
+
+                return context
 
         except Exception as e:
             # Log error but return empty string for graceful degradation
