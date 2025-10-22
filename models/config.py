@@ -117,12 +117,15 @@ class DecisionGraphConfig(BaseModel):
 
     enabled: bool = Field(False, description="Enable decision graph memory")
     db_path: str = Field("decision_graph.db", description="Path to SQLite database")
+
+    # DEPRECATED: Use tier_boundaries instead. Kept for backward compatibility.
     similarity_threshold: float = Field(
         0.7,
         ge=0.0,
         le=1.0,
-        description="Minimum similarity score for context injection (0.0-1.0)",
+        description="DEPRECATED: Minimum similarity score for context injection. Use tier_boundaries instead.",
     )
+
     max_context_decisions: int = Field(
         3,
         ge=1,
@@ -132,6 +135,41 @@ class DecisionGraphConfig(BaseModel):
     compute_similarities: bool = Field(
         True, description="Compute similarities after storing a deliberation"
     )
+
+    # NEW: Budget-aware context injection parameters
+    context_token_budget: int = Field(
+        1500,
+        ge=500,
+        le=10000,
+        description="Maximum tokens allowed for context injection (prevents token bloat)"
+    )
+
+    tier_boundaries: dict[str, float] = Field(
+        default_factory=lambda: {"strong": 0.75, "moderate": 0.60},
+        description="Similarity score boundaries for tiered injection (strong > moderate > 0)"
+    )
+
+    query_window: int = Field(
+        1000,
+        ge=50,
+        le=10000,
+        description="Number of recent decisions to query for scalability"
+    )
+
+    @field_validator("tier_boundaries")
+    @classmethod
+    def validate_tier_boundaries(cls, v: dict[str, float]) -> dict[str, float]:
+        """Validate tier boundaries: strong > moderate > 0."""
+        if not isinstance(v, dict) or "strong" not in v or "moderate" not in v:
+            raise ValueError("tier_boundaries must have 'strong' and 'moderate' keys")
+
+        if not (0.0 < v["moderate"] < v["strong"] <= 1.0):
+            raise ValueError(
+                f"tier_boundaries must satisfy: 0 < moderate ({v['moderate']}) "
+                f"< strong ({v['strong']}) <= 1"
+            )
+
+        return v
 
     @field_validator("db_path")
     @classmethod

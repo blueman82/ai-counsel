@@ -673,3 +673,197 @@ class TestDecisionGraphConfig:
         assert "similarity_threshold" in error_message.lower(), (
             "Should report similarity_threshold validation error"
         )
+
+
+class TestDecisionGraphBudgetAwareConfig:
+    """Tests for budget-aware context injection configuration (Task 1)."""
+
+    def test_decision_graph_config_budget_fields(self):
+        """Budget fields exist with sensible defaults."""
+        from models.config import DecisionGraphConfig
+
+        config = DecisionGraphConfig(enabled=True)
+
+        # Verify new fields exist
+        assert hasattr(config, 'context_token_budget'), "Missing context_token_budget field"
+        assert hasattr(config, 'tier_boundaries'), "Missing tier_boundaries field"
+        assert hasattr(config, 'query_window'), "Missing query_window field"
+
+        # Verify defaults
+        assert config.context_token_budget == 1500, "Default context_token_budget should be 1500"
+        assert config.tier_boundaries == {"strong": 0.75, "moderate": 0.60}, \
+            "Default tier_boundaries should be {strong: 0.75, moderate: 0.60}"
+        assert config.query_window == 1000, "Default query_window should be 1000"
+
+    def test_decision_graph_config_tier_boundaries_validation(self):
+        """Tier boundaries must be in order: strong > moderate > 0."""
+        from models.config import DecisionGraphConfig
+
+        # Valid: 0.75 > 0.60
+        config = DecisionGraphConfig(
+            enabled=True,
+            tier_boundaries={"strong": 0.75, "moderate": 0.60}
+        )
+        assert config.tier_boundaries["strong"] > config.tier_boundaries["moderate"], \
+            "Strong threshold should be greater than moderate"
+        assert config.tier_boundaries["moderate"] > 0.0, \
+            "Moderate threshold should be greater than 0"
+
+        # Invalid: strong <= moderate should raise
+        with pytest.raises(ValidationError) as exc_info:
+            DecisionGraphConfig(
+                enabled=True,
+                tier_boundaries={"strong": 0.60, "moderate": 0.60}
+            )
+        assert "tier_boundaries" in str(exc_info.value).lower(), \
+            "Error should mention tier_boundaries"
+
+        # Invalid: strong < moderate (reversed order)
+        with pytest.raises(ValidationError) as exc_info:
+            DecisionGraphConfig(
+                enabled=True,
+                tier_boundaries={"strong": 0.50, "moderate": 0.70}
+            )
+        assert "tier_boundaries" in str(exc_info.value).lower(), \
+            "Error should mention tier_boundaries"
+
+        # Invalid: moderate <= 0
+        with pytest.raises(ValidationError) as exc_info:
+            DecisionGraphConfig(
+                enabled=True,
+                tier_boundaries={"strong": 0.75, "moderate": 0.0}
+            )
+        assert "tier_boundaries" in str(exc_info.value).lower(), \
+            "Error should mention tier_boundaries"
+
+        # Invalid: missing keys
+        with pytest.raises(ValidationError) as exc_info:
+            DecisionGraphConfig(
+                enabled=True,
+                tier_boundaries={"strong": 0.75}  # Missing 'moderate'
+            )
+        assert "tier_boundaries" in str(exc_info.value).lower(), \
+            "Error should mention tier_boundaries"
+
+        # Invalid: strong > 1.0
+        with pytest.raises(ValidationError) as exc_info:
+            DecisionGraphConfig(
+                enabled=True,
+                tier_boundaries={"strong": 1.5, "moderate": 0.60}
+            )
+        assert "tier_boundaries" in str(exc_info.value).lower(), \
+            "Error should mention tier_boundaries"
+
+    def test_decision_graph_config_query_window_validation(self):
+        """Query window must be >= 50 and <= 10000."""
+        from models.config import DecisionGraphConfig
+
+        # Valid: within range
+        config = DecisionGraphConfig(enabled=True, query_window=500)
+        assert config.query_window == 500
+
+        # Valid: at lower boundary
+        config = DecisionGraphConfig(enabled=True, query_window=50)
+        assert config.query_window == 50
+
+        # Valid: at upper boundary
+        config = DecisionGraphConfig(enabled=True, query_window=10000)
+        assert config.query_window == 10000
+
+        # Invalid: below minimum
+        with pytest.raises(ValidationError) as exc_info:
+            DecisionGraphConfig(enabled=True, query_window=49)
+        assert "query_window" in str(exc_info.value).lower(), \
+            "Error should mention query_window"
+
+        # Invalid: above maximum
+        with pytest.raises(ValidationError) as exc_info:
+            DecisionGraphConfig(enabled=True, query_window=10001)
+        assert "query_window" in str(exc_info.value).lower(), \
+            "Error should mention query_window"
+
+        # Invalid: negative value
+        with pytest.raises(ValidationError) as exc_info:
+            DecisionGraphConfig(enabled=True, query_window=-100)
+        assert "query_window" in str(exc_info.value).lower(), \
+            "Error should mention query_window"
+
+    def test_decision_graph_config_context_token_budget_validation(self):
+        """Context token budget must be >= 500 and <= 10000."""
+        from models.config import DecisionGraphConfig
+
+        # Valid: within range
+        config = DecisionGraphConfig(enabled=True, context_token_budget=1500)
+        assert config.context_token_budget == 1500
+
+        # Valid: at lower boundary
+        config = DecisionGraphConfig(enabled=True, context_token_budget=500)
+        assert config.context_token_budget == 500
+
+        # Valid: at upper boundary
+        config = DecisionGraphConfig(enabled=True, context_token_budget=10000)
+        assert config.context_token_budget == 10000
+
+        # Invalid: below minimum
+        with pytest.raises(ValidationError) as exc_info:
+            DecisionGraphConfig(enabled=True, context_token_budget=499)
+        assert "context_token_budget" in str(exc_info.value).lower(), \
+            "Error should mention context_token_budget"
+
+        # Invalid: above maximum
+        with pytest.raises(ValidationError) as exc_info:
+            DecisionGraphConfig(enabled=True, context_token_budget=10001)
+        assert "context_token_budget" in str(exc_info.value).lower(), \
+            "Error should mention context_token_budget"
+
+    def test_decision_graph_config_backward_compatibility(self):
+        """Old config (without new fields) still loads with defaults."""
+        from models.config import DecisionGraphConfig
+
+        # Create config with only old fields (no new budget-aware fields)
+        config = DecisionGraphConfig(
+            enabled=True,
+            db_path="test.db",
+            similarity_threshold=0.7,
+            max_context_decisions=3,
+            compute_similarities=True
+        )
+
+        # Should still work and have default values for new fields
+        assert config.enabled is True
+        assert config.similarity_threshold == 0.7
+        assert config.max_context_decisions == 3
+
+        # New fields should have defaults
+        assert config.context_token_budget == 1500
+        assert config.tier_boundaries == {"strong": 0.75, "moderate": 0.60}
+        assert config.query_window == 1000
+
+    def test_decision_graph_config_deprecated_threshold(self):
+        """similarity_threshold still accepted for backward compatibility."""
+        from models.config import DecisionGraphConfig
+
+        # Old style: using similarity_threshold
+        config = DecisionGraphConfig(
+            enabled=True,
+            similarity_threshold=0.8
+        )
+
+        # Should still accept and store the value
+        assert config.similarity_threshold == 0.8
+
+        # Should also have new fields with defaults
+        assert config.context_token_budget == 1500
+        assert config.tier_boundaries == {"strong": 0.75, "moderate": 0.60}
+
+        # Can override new fields explicitly
+        config2 = DecisionGraphConfig(
+            enabled=True,
+            similarity_threshold=0.8,  # Old field
+            context_token_budget=2000,  # New field
+            tier_boundaries={"strong": 0.80, "moderate": 0.65}
+        )
+
+        assert config2.similarity_threshold == 0.8
+        assert config2.context_token_budget == 2000
+        assert config2.tier_boundaries == {"strong": 0.80, "moderate": 0.65}
