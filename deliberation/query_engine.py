@@ -62,27 +62,6 @@ class Timeline:
     related_decisions: List[dict] = field(default_factory=list)
 
 
-@dataclass
-class VotingPattern:
-    """Aggregated voting pattern for a participant."""
-
-    participant: str
-    total_votes: int
-    vote_types: dict  # {option: count}
-    avg_confidence: float
-    preferred_options: List[str]
-
-
-@dataclass
-class Analysis:
-    """Aggregated pattern analysis."""
-
-    total_decisions: int
-    total_participants: int
-    voting_patterns: List[VotingPattern]
-    convergence_stats: dict
-    participation_metrics: dict
-    topic_clusters: List[dict] = field(default_factory=list)
 
 
 class QueryEngine:
