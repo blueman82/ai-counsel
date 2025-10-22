@@ -1,7 +1,9 @@
 """Unit tests for deliberation engine."""
-import pytest
 from datetime import datetime
 from pathlib import Path
+
+import pytest
+
 from deliberation.engine import DeliberationEngine
 from models.schema import Participant, RoundResponse, Vote
 
@@ -520,13 +522,16 @@ class TestVoteGrouping:
         This is a regression test for bug where Option A and Option D (0.729 similarity)
         were incorrectly merged due to 0.70 threshold being too aggressive.
         """
+        import tempfile
+
         from deliberation.transcript import TranscriptManager
         from models.schema import DeliberateRequest
-        import tempfile
 
         with tempfile.TemporaryDirectory() as tmp_dir:
             manager = TranscriptManager(output_dir=tmp_dir)
-            engine = DeliberationEngine(adapters=mock_adapters, transcript_manager=manager)
+            engine = DeliberationEngine(
+                adapters=mock_adapters, transcript_manager=manager
+            )
 
             request = DeliberateRequest(
                 question="Docker compose approach?",
@@ -579,14 +584,17 @@ class TestVoteGrouping:
     @pytest.mark.asyncio
     async def test_aggregate_votes_respects_intent(self, mock_adapters):
         """Test that different options remain separate even if semantically similar."""
+        import tempfile
+
         from deliberation.transcript import TranscriptManager
         from models.schema import DeliberateRequest
-        import tempfile
 
         with tempfile.TemporaryDirectory() as tmp_dir:
             manager = TranscriptManager(output_dir=tmp_dir)
             mock_adapters["claude"] = mock_adapters["claude"]
-            engine = DeliberationEngine(adapters=mock_adapters, transcript_manager=manager)
+            engine = DeliberationEngine(
+                adapters=mock_adapters, transcript_manager=manager
+            )
 
             request = DeliberateRequest(
                 question="Test question",
@@ -599,12 +607,12 @@ class TestVoteGrouping:
             )
 
             # Two very different votes that shouldn't be merged
-            mock_adapters["claude"].invoke_mock.return_value = (
-                'Analysis\n\nVOTE: {"option": "Yes", "confidence": 0.9, "rationale": "Good idea"}'
-            )
-            mock_adapters["codex"].invoke_mock.return_value = (
-                'Analysis\n\nVOTE: {"option": "No", "confidence": 0.9, "rationale": "Bad idea"}'
-            )
+            mock_adapters[
+                "claude"
+            ].invoke_mock.return_value = 'Analysis\n\nVOTE: {"option": "Yes", "confidence": 0.9, "rationale": "Good idea"}'
+            mock_adapters[
+                "codex"
+            ].invoke_mock.return_value = 'Analysis\n\nVOTE: {"option": "No", "confidence": 0.9, "rationale": "Bad idea"}'
 
             result = await engine.execute(request)
 

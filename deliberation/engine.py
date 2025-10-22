@@ -1,21 +1,23 @@
 """Deliberation engine for orchestrating multi-model discussions."""
-import logging
 import json
+import logging
 import re
 from datetime import datetime
 from pathlib import Path
-from typing import List, Dict, Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, Dict, List, Optional
+
 from pydantic import ValidationError
+
 from adapters.base import BaseCLIAdapter
-from models.schema import Participant, RoundResponse, Vote, VotingResult
 from deliberation.convergence import ConvergenceDetector
+from models.schema import Participant, RoundResponse, Vote, VotingResult
 
 logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
-    from models.schema import DeliberateRequest, DeliberationResult
-    from deliberation.transcript import TranscriptManager
     from decision_graph.integration import DecisionGraphIntegration
+    from deliberation.transcript import TranscriptManager
+    from models.schema import DeliberateRequest, DeliberationResult
 
 
 class DeliberationEngine:
@@ -104,8 +106,8 @@ class DeliberationEngine:
         if config and hasattr(config, "decision_graph") and config.decision_graph:
             if config.decision_graph.enabled:
                 try:
-                    from decision_graph.storage import DecisionGraphStorage
                     from decision_graph.integration import DecisionGraphIntegration
+                    from decision_graph.storage import DecisionGraphStorage
 
                     storage = DecisionGraphStorage(config.decision_graph.db_path)
                     self.graph_integration = DecisionGraphIntegration(storage)
@@ -530,7 +532,7 @@ Provide substantive analysis from your perspective."""
                     max_context_decisions=self.config.decision_graph.max_context_decisions,
                 )
                 if graph_context:
-                    logger.info(f"Retrieved decision graph context for question")
+                    logger.info("Retrieved decision graph context for question")
             except Exception as e:
                 logger.warning(f"Error retrieving graph context: {e}")
                 graph_context = ""
@@ -658,11 +660,13 @@ Provide substantive analysis from your perspective."""
             # Extract summary of what context was used
             try:
                 # Parse graph context to count decisions and get questions
-                lines = graph_context.split('\n')
-                decisions = [l for l in lines if l.startswith('### Past Deliberation')]
+                lines = graph_context.split("\n")
+                decisions = [
+                    line for line in lines if line.startswith("### Past Deliberation")
+                ]
                 if decisions:
                     graph_context_summary = f"Similar past deliberations found: {len(decisions)} decision(s) injected"
-            except:
+            except Exception:
                 graph_context_summary = "Decision graph context injected"
 
         # Create result
