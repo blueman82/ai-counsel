@@ -340,10 +340,11 @@ class DeliberationEngine:
 
         try:
             backend = self.convergence_detector.backend
-            # Use moderate threshold (0.70) for vote option matching
-            # This allows grouping of semantically similar options with different wording
-            # Example: "Feature velocity with guardrails" vs "Prioritize feature velocity with guardrails"
-            similarity_threshold = 0.70
+            # Use high threshold (0.85) for vote option matching to avoid merging different options
+            # Vote grouping should only merge typos/aliases, not semantically different choices
+            # Example: "Option A" vs "option_a" (0.95+) should merge, but "Option A" vs "Option D" (0.729) should not
+            # Bug fix: Was 0.70 which caused "Option A" and "Option D" to merge at 0.729 similarity
+            similarity_threshold = 0.85
 
             logger.info(
                 f"Starting vote option grouping with {len(all_options)} unique options"
