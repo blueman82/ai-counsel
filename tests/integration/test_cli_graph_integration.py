@@ -649,9 +649,11 @@ class TestDecisionGraphCLIIntegration:
         start = time.time()
 
         # Simulate realistic CLI workflow
-        decisions = retriever.find_relevant_decisions(
+        scored_decisions = retriever.find_relevant_decisions(
             "Should we use TypeScript?", threshold=0.6, max_results=5
         )
+        # Extract decisions from tuples for format_context
+        decisions = [d for d, score in scored_decisions]
         context = retriever.format_context(decisions, "Should we use TypeScript?")
 
         end = time.time()
