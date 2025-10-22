@@ -78,7 +78,7 @@ for source_name, adapter_configs in adapter_sources:
 
 
 # Create engine with config for convergence detection
-engine = DeliberationEngine(adapters=adapters, config=config, server_dir=SERVER_DIR)
+engine = DeliberationEngine(adapters=adapters, config=config, server_dir=WORK_DIR)
 
 # Recommended models for each adapter (CLI tools and HTTP services)
 # Note: ollama, lmstudio, and llamacpp are excluded since users can load arbitrary models
