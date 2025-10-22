@@ -280,6 +280,7 @@ ai-counsel/
 │   ├── convergence.py      # Similarity detection
 │   └── transcript.py       # Markdown generation
 ├── models/                  # Data models (Pydantic)
+├── tests/                   # Unit/integration/e2e tests
 └── decision_graph/         # Optional memory system
 ```
 
