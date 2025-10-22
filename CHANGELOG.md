@@ -55,6 +55,9 @@ All notable changes to AI Counsel are documented in this file.
 #### Fixed
 - Graph context summary now properly reports injected decisions in MCP responses
 - Fixed header detection in deliberation engine to work with new tiered formatter
+- Fixed floating point precision error in similarity score clamping (ensure score ≤ 1.0)
+  - Similarity detection backends can return scores slightly > 1.0 due to numerical precision
+  - Now clamped to [0.0, 1.0] before storing in database to prevent validation errors
 
 #### Tests
 - Added 41 new tests covering all Phase 1 features
