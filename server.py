@@ -192,64 +192,46 @@ async def list_tools() -> list[Tool]:
 
     # Add decision graph tools if enabled
     if hasattr(config, "decision_graph") and config.decision_graph and config.decision_graph.enabled:
-        tools.extend(
-            [
-                Tool(
-                    name="query_decisions",
-                    description=(
-                        "Search and analyze past deliberations in the decision graph memory. "
-                        "Find similar decisions by semantic meaning, identify contradictions, "
-                        "or trace how decisions evolved over time."
-                    ),
-                    inputSchema={
-                        "type": "object",
-                        "properties": {
-                            "query_text": {
-                                "type": "string",
-                                "description": "Query text to search for similar decisions",
-                            },
-                            "find_contradictions": {
-                                "type": "boolean",
-                                "default": False,
-                                "description": "Find contradictions in decision history instead of searching",
-                            },
-                            "decision_id": {
-                                "type": "string",
-                                "description": "Trace evolution of a specific decision by ID",
-                            },
-                            "limit": {
-                                "type": "integer",
-                                "default": 5,
-                                "minimum": 1,
-                                "maximum": 20,
-                                "description": "Maximum number of results to return",
-                            },
-                            "format": {
-                                "type": "string",
-                                "enum": ["summary", "detailed", "json"],
-                                "default": "summary",
-                                "description": "Output format",
-                            },
+        tools.append(
+            Tool(
+                name="query_decisions",
+                description=(
+                    "Search and analyze past deliberations in the decision graph memory. "
+                    "Find similar decisions by semantic meaning, identify contradictions, "
+                    "or trace how decisions evolved over time."
+                ),
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "query_text": {
+                            "type": "string",
+                            "description": "Query text to search for similar decisions",
+                        },
+                        "find_contradictions": {
+                            "type": "boolean",
+                            "default": False,
+                            "description": "Find contradictions in decision history instead of searching",
+                        },
+                        "decision_id": {
+                            "type": "string",
+                            "description": "Trace evolution of a specific decision by ID",
+                        },
+                        "limit": {
+                            "type": "integer",
+                            "default": 5,
+                            "minimum": 1,
+                            "maximum": 20,
+                            "description": "Maximum number of results to return",
+                        },
+                        "format": {
+                            "type": "string",
+                            "enum": ["summary", "detailed", "json"],
+                            "default": "summary",
+                            "description": "Output format",
                         },
                     },
-                ),
-                Tool(
-                    name="analyze_decisions",
-                    description=(
-                        "Analyze aggregated patterns from past deliberations. "
-                        "Get voting patterns, convergence statistics, and participation metrics."
-                    ),
-                    inputSchema={
-                        "type": "object",
-                        "properties": {
-                            "participant": {
-                                "type": "string",
-                                "description": "Optional: filter analysis for a specific participant",
-                            },
-                        },
-                    },
-                ),
-            ]
+                },
+            )
         )
 
     return tools
