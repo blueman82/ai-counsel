@@ -135,10 +135,10 @@ class TestDecisionRetrieverCacheIntegration:
             # (still 1 call from before, but get_decision_node called to reconstruct)
             assert mock_storage.get_all_decisions.call_count == 1
 
-    def test_find_relevant_decisions_different_params_different_cache_keys(
+    def test_find_relevant_decisions_different_params_share_cache(
         self, mock_storage, sample_decisions
     ):
-        """Test different query parameters create different cache keys."""
+        """Test different thresholds now SHARE the same cache (Task 4 change)."""
         mock_storage.get_all_decisions.return_value = sample_decisions
         mock_storage.get_decision_node.side_effect = lambda id: next(
             (d for d in sample_decisions if d.id == id), None
@@ -146,33 +146,28 @@ class TestDecisionRetrieverCacheIntegration:
 
         retriever = DecisionRetriever(mock_storage)
 
-        similar_results_1 = [
-            {"id": "dec1", "question": sample_decisions[0].question, "score": 0.85},
-        ]
-        similar_results_2 = [
+        similar_results = [
             {"id": "dec1", "question": sample_decisions[0].question, "score": 0.85},
             {"id": "dec3", "question": sample_decisions[2].question, "score": 0.75},
         ]
 
         with patch.object(
-            retriever.similarity_detector, "find_similar"
+            retriever.similarity_detector, "find_similar", return_value=similar_results
         ) as mock_find_similar:
-            mock_find_similar.side_effect = [similar_results_1, similar_results_2]
-
             # Query with threshold=0.8
             results1 = retriever.find_relevant_decisions(
                 "Should we use React?", threshold=0.8, max_results=3
             )
-            assert len(results1) == 1
+            assert len(results1) == 2  # Gets all results above noise floor
 
-            # Query with threshold=0.7 (different cache key)
+            # Query with threshold=0.7 (SAME cache key now - threshold ignored)
             results2 = retriever.find_relevant_decisions(
                 "Should we use React?", threshold=0.7, max_results=3
             )
-            assert len(results2) == 2
+            assert len(results2) == 2  # Cache hit - same results
 
-            # Both should trigger similarity computation (different cache keys)
-            assert mock_find_similar.call_count == 2
+            # Only ONE similarity computation (second query hits cache)
+            assert mock_find_similar.call_count == 1
 
     def test_find_relevant_decisions_cache_disabled(
         self, mock_storage, sample_decisions
