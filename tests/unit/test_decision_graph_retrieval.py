@@ -938,6 +938,9 @@ class TestDecisionRetrieverConfidenceRanking:
     ):
         """Test that find_relevant_decisions only filters by noise floor (0.40), not threshold."""
         mock_storage.get_all_decisions.return_value = sample_decisions
+        mock_storage.get_decision_node.side_effect = lambda id: next(
+            (d for d in sample_decisions if d.id == id), None
+        )
 
         retriever = DecisionRetriever(mock_storage)
 
