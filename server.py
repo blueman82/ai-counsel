@@ -16,8 +16,8 @@ from deliberation.query_engine import QueryEngine
 from models.config import AdapterConfig, CLIToolConfig, load_config
 from models.schema import DeliberateRequest
 
-# Get the absolute path to the server directory
-SERVER_DIR = Path(__file__).parent.absolute()
+# Get the current working directory (where server was started from)
+SERVER_DIR = Path.cwd()
 
 # Configure logging to file to avoid stdio interference
 log_file = SERVER_DIR / "mcp_server.log"
