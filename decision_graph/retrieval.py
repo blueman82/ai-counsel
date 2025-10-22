@@ -190,7 +190,7 @@ class DecisionRetriever:
         # 8. Apply adaptive k limit (not threshold filtering)
         limited_similar = filtered_similar[:adaptive_k]
 
-        # 8. Cache the similarity results (L1) - cache with threshold=0.0
+        # 9. Cache the similarity results (L1) - cache with threshold=0.0
         if self.cache:
             self.cache.cache_result(
                 query_question, cache_key_threshold, max_results, limited_similar
@@ -200,7 +200,7 @@ class DecisionRetriever:
                 f"({len(limited_similar)} results)"
             )
 
-        # 9. Fetch full DecisionNode objects and build (decision, score) tuples
+        # 10. Fetch full DecisionNode objects and build (decision, score) tuples
         results = []
         for match in limited_similar:
             decision = self.storage.get_decision_node(match["id"])
