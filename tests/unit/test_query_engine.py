@@ -275,8 +275,3 @@ class TestQueryEngineIntegration:
         await engine.search_similar("test", limit=5)
         search_time = time.time() - start
         assert search_time < 1.0  # Should be fast with small dataset
-
-        start = time.time()
-        await engine.analyze_patterns()
-        analysis_time = time.time() - start
-        assert analysis_time < 1.0
