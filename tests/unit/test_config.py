@@ -408,11 +408,12 @@ class TestDecisionGraphConfig:
         Test that environment variables are resolved before path resolution.
 
         Verifies that "${DATA_DIR}/graph.db" first resolves the env var,
-        then converts the path to absolute if needed.
+        then converts the path to absolute if needed. Absolute paths after
+        env var resolution are NOT further resolved (no symlink resolution).
         """
         from models.config import DecisionGraphConfig
 
-        # Set up test environment variable
+        # Set up test environment variable with absolute path
         test_data_dir = "/var/data"
         monkeypatch.setenv("TEST_DATA_DIR", test_data_dir)
 
@@ -421,10 +422,10 @@ class TestDecisionGraphConfig:
             db_path="${TEST_DATA_DIR}/graph.db"
         )
 
-        # Should resolve env var and create absolute path
-        expected_path = Path(test_data_dir) / "graph.db"
-        assert config.db_path == str(expected_path.resolve()), (
-            f"Expected {expected_path.resolve()}, got {config.db_path}"
+        # Should resolve env var and path is already absolute (no further resolution)
+        expected_path = "/var/data/graph.db"
+        assert config.db_path == expected_path, (
+            f"Expected {expected_path}, got {config.db_path}"
         )
 
         # Path should be absolute
