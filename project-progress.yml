@@ -1,0 +1,68 @@
+---
+# AI Counsel Project Progress Tracker
+# Updated: 2025-10-22
+
+project:
+  name: AI Counsel
+  description: MCP server for deliberative consensus between AI models
+  status: Active Development
+
+current_phase:
+  name: Phase 1 + Phase 1.5
+  status: In Progress
+  phase_1_status: Complete (Oct 22, 2025)
+  phase_1_5_status: 60% Complete (30/50 deliberations)
+
+completed_work:
+  - Phase 1: Budget-Aware Context Injection
+    - Config schema (context_token_budget, tier_boundaries, query_window)
+    - Tiered formatter (strong/moderate/brief formatting)
+    - Adaptive k selection (db-size-aware)
+    - Confidence ranking (no threshold filter)
+    - Integration layer update
+    - Backward compatibility
+    - config.yaml updates
+    - Observability hooks
+    - Tests: 602 passing (41 new + 561 existing maintained)
+
+  - Phase 1.5: Empirical Calibration (In Progress)
+    - Deliberation design (50 diverse questions across 5 domains)
+    - Batch 1 (Q1-10): Technology Stack decisions - 10 completed
+    - Batch 2 (Q11-20): Architecture & Infrastructure - 10 completed
+    - Batch 3 (Q21-30): Process & Team decisions - 10 completed
+    - Decision graph context injection verified working
+    - Measurement logging capturing tier distribution and token usage
+
+pending_work:
+  - Phase 1.5: Empirical Calibration (Batches 4-5)
+    - Batch 4 (Q31-40): Team & Product decisions - 10 deliberations
+    - Batch 5 (Q41-50): Security, Operations, Data - 10 deliberations
+
+  - Phase 1.5: Analysis & Reporting
+    - Parse MEASUREMENT logs from all 50 deliberations
+    - Analyze tier distribution patterns
+    - Analyze token budget utilization
+    - Correlate tier distribution with convergence
+    - Generate calibration report
+    - Recommendations for Phase 2
+
+metrics:
+  deliberations_completed: 30
+  deliberations_target: 50
+  completion_percentage: 60
+  tests_passing: 602
+  code_coverage: Comprehensive
+  branch: feature/budget-aware-context-injection
+
+next_session_plan:
+  - Run Batches 4-5 deliberations (20 remaining)
+  - Parse and analyze all MEASUREMENT logs
+  - Generate Phase 1.5 analysis report
+  - Commit findings and update documentation
+  - Plan Phase 2 based on calibration results
+
+key_findings:
+  - Decision graph context injection working correctly
+  - Strong convergence on fundamental practices (TDD, code review, on-call rotation)
+  - Thoughtful disagreement on infrastructure decisions (DevOps team, coverage requirements)
+  - Measurement logs capturing expected data for analysis
