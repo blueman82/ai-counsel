@@ -972,6 +972,9 @@ class TestDecisionRetrieverConfidenceRanking:
     ):
         """Test that each result includes score metadata in tuple."""
         mock_storage.get_all_decisions.return_value = sample_decisions
+        mock_storage.get_decision_node.side_effect = lambda id: next(
+            (d for d in sample_decisions if d.id == id), None
+        )
 
         retriever = DecisionRetriever(mock_storage)
 
