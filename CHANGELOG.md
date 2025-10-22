@@ -4,6 +4,17 @@ All notable changes to AI Counsel are documented in this file.
 
 ## [Unreleased]
 
+### Phase 1.5: Empirical Calibration (Planning - Oct 22, 2025)
+
+#### Planned
+- **Empirical Data Collection**: Run 50+ deliberations via MCP `deliberate` tool to populate decision graph
+- **Tier Distribution Analysis**: Measure actual tier distribution (strong/moderate/brief) across diverse domains
+- **Token Budget Calibration**: Analyze token utilization to validate 1500-token budget adequacy
+- **Convergence Correlation**: Study relationship between tier distribution and debate outcomes
+- **Recommendations**: Data-driven calibration of tier boundaries if supported by measurement results
+
+**Status**: Design phase complete. Awaiting deliberation execution (50+ needed for statistical significance).
+
 ### Phase 1: Budget-Aware Context Injection (In Progress - Oct 22, 2025)
 
 #### Added
