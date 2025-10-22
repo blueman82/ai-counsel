@@ -4,11 +4,12 @@ import logging
 import re
 from datetime import datetime
 from pathlib import Path
-from typing import TYPE_CHECKING, Dict, List, Optional
+from typing import TYPE_CHECKING, Dict, List, Literal, Optional, cast
 
 from pydantic import ValidationError
 
 from adapters.base import BaseCLIAdapter
+from adapters.base_http import BaseHTTPAdapter
 from deliberation.convergence import ConvergenceDetector
 from models.schema import Participant, RoundResponse, Vote, VotingResult
 
@@ -29,7 +30,7 @@ class DeliberationEngine:
 
     def __init__(
         self,
-        adapters: Dict[str, BaseCLIAdapter],
+        adapters: Dict[str, BaseCLIAdapter | BaseHTTPAdapter],
         transcript_manager: Optional["TranscriptManager"] = None,
         config=None,
         server_dir: Optional[Path] = None,
@@ -38,7 +39,7 @@ class DeliberationEngine:
         Initialize deliberation engine.
 
         Args:
-            adapters: Dictionary mapping CLI names to adapter instances
+            adapters: Dictionary mapping adapter names to adapter instances (CLI or HTTP)
             transcript_manager: Optional transcript manager (creates default if None)
             config: Optional configuration object for convergence detection
             server_dir: Server directory to resolve relative paths from
@@ -725,6 +726,8 @@ Provide substantive analysis from your perspective."""
                 convergence_status = "unknown"
                 convergence_detected = False
 
+            # Type: The convergence_status is guaranteed to be one of the Literal values
+            # since it comes from ConvergenceInfo.status or is set to "unknown"
             result.convergence_info = ConvergenceInfo(
                 detected=convergence_detected,
                 detection_round=actual_rounds_completed
@@ -733,7 +736,7 @@ Provide substantive analysis from your perspective."""
                 final_similarity=final_convergence_info.min_similarity
                 if final_convergence_info
                 else 0.0,
-                status=convergence_status,
+                status=cast(Literal["converged", "diverging", "refining", "impasse", "max_rounds", "unanimous_consensus", "majority_decision", "tie", "unknown"], convergence_status),
                 scores_by_round=[],  # Could track all rounds if needed
                 per_participant_similarity=final_convergence_info.per_participant_similarity
                 if final_convergence_info
@@ -741,8 +744,9 @@ Provide substantive analysis from your perspective."""
             )
 
         # Save transcript
-        transcript_path = self.transcript_manager.save(result, request.question)
-        result.transcript_path = transcript_path
+        if self.transcript_manager:
+            transcript_path = self.transcript_manager.save(result, request.question)
+            result.transcript_path = transcript_path
 
         # Store deliberation in decision graph if enabled
         if self.graph_integration:
