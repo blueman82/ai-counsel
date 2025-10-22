@@ -413,51 +413,6 @@ async def handle_query_decisions(arguments: dict) -> list[TextContent]:
         return [TextContent(type="text", text=json.dumps(error_response, indent=2))]
 
 
-async def handle_analyze_decisions(arguments: dict) -> list[TextContent]:
-    """Handle analyze_decisions tool call."""
-    try:
-        db_path = Path(getattr(config.decision_graph, "db_path", "decision_graph.db"))
-        # Make db_path absolute - if relative, resolve from ai-counsel directory
-        if not db_path.is_absolute():
-            db_path = SERVER_DIR / db_path
-        storage = DecisionGraphStorage(str(db_path))
-        engine = QueryEngine(storage)
-
-        participant = arguments.get("participant")
-
-        analysis = await engine.analyze_patterns(participant=participant)
-
-        result = {
-            "type": "analysis",
-            "total_decisions": analysis.total_decisions,
-            "total_participants": analysis.total_participants,
-            "voting_patterns": [
-                {
-                    "participant": p.participant,
-                    "total_votes": p.total_votes,
-                    "avg_confidence": p.avg_confidence,
-                    "preferred_options": p.preferred_options,
-                }
-                for p in analysis.voting_patterns
-            ],
-            "convergence_stats": analysis.convergence_stats,
-            "participation_metrics": analysis.participation_metrics,
-        }
-
-        return [TextContent(type="text", text=json.dumps(result, indent=2))]
-
-    except Exception as e:
-        logger.error(
-            f"Error in analyze_decisions: {type(e).__name__}: {e}", exc_info=True
-        )
-        error_response = {
-            "error": str(e),
-            "error_type": type(e).__name__,
-            "status": "failed",
-        }
-        return [TextContent(type="text", text=json.dumps(error_response, indent=2))]
-
-
 async def main():
     """Run the MCP server."""
     logger.info("Starting AI Counsel MCP Server...")
