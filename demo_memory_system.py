@@ -8,6 +8,8 @@ This script demonstrates:
 3. Shows memory system accelerating convergence
 """
 
+# ruff: noqa: E402  # Standalone script requires sys.path manipulation before imports
+
 import asyncio
 import sys
 from pathlib import Path

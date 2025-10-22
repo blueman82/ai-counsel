@@ -137,7 +137,7 @@ class TestLMStudioAdapter:
 
         with patch("httpx.AsyncClient", return_value=mock_client):
             adapter = LMStudioAdapter(base_url="http://localhost:1234")
-            result = await adapter.invoke(
+            await adapter.invoke(
                 prompt="Current question",
                 model="test-model",
                 context="Previous context",

@@ -1,8 +1,9 @@
 """AI-powered summary generation for deliberations."""
 import logging
-from typing import Dict, List
+from typing import Dict, List, Union
 
 from adapters.base import BaseCLIAdapter
+from adapters.base_http import BaseHTTPAdapter
 from models.schema import RoundResponse, Summary
 
 logger = logging.getLogger(__name__)
@@ -19,12 +20,12 @@ class DeliberationSummarizer:
     - Final recommendation
     """
 
-    def __init__(self, adapter: BaseCLIAdapter, model: str):
+    def __init__(self, adapter: Union[BaseCLIAdapter, BaseHTTPAdapter], model: str):
         """
         Initialize summarizer.
 
         Args:
-            adapter: CLI adapter to use for summary generation
+            adapter: Adapter to use for summary generation (CLI or HTTP)
             model: Model identifier to use (e.g., "sonnet" for Claude)
         """
         self.adapter = adapter

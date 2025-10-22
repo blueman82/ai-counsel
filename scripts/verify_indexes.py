@@ -10,6 +10,8 @@ If no database path is provided, creates a temporary database to verify
 index creation logic.
 """
 
+# ruff: noqa: E402  # Standalone script requires sys.path manipulation before imports
+
 import os
 import sys
 import tempfile

@@ -9,6 +9,8 @@ This script demonstrates:
 4. Performance metrics and trade-offs
 """
 
+# ruff: noqa: E402  # Standalone script requires sys.path manipulation before imports
+
 import asyncio
 import sys
 import time

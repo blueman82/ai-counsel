@@ -11,6 +11,8 @@ Requirements:
 - At least one AI CLI tool available (claude, codex, droid, gemini)
 """
 
+# ruff: noqa: E402  # Standalone script requires sys.path manipulation before imports
+
 import asyncio
 import logging
 import sys
