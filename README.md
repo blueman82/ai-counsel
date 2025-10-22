@@ -183,7 +183,7 @@ decision_graph:
 
 **Works for any user from any directory** - database path is resolved relative to project root.
 
-→ **[Quickstart](docs/decision-graph/quickstart.md)** | **[Configuration](docs/decision-graph/configuration.md)** | **[Query API](docs/decision-graph/query-engine.md)**
+→ **[Quickstart](docs/decision-graph/quickstart.md)** | **[Configuration](docs/decision-graph/configuration.md)** | **[Context Injection](docs/decision-graph/using-context-injection.md)**
 
 ## Usage
 
