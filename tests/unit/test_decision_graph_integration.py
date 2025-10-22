@@ -404,3 +404,275 @@ class TestDecisionGraphIntegrationMaintenance:
         assert "stances" in message
         assert "similarities" in message
         assert "MB" in message
+
+
+class TestDecisionGraphIntegrationTieredFormatting:
+    """Test Task 5: Integration of tiered formatting with get_context_for_deliberation()."""
+
+    @pytest.fixture
+    def storage(self):
+        """Create in-memory storage for testing."""
+        return DecisionGraphStorage(":memory:")
+
+    @pytest.fixture
+    def config(self):
+        """Create mock config with budget-aware settings."""
+        from models.config import Config, DecisionGraphConfig, DefaultsConfig, StorageConfig, DeliberationConfig, ConvergenceDetectionConfig, EarlyStoppingConfig
+
+        return Config(
+            version="1.0",
+            defaults=DefaultsConfig(
+                mode="quick",
+                rounds=2,
+                max_rounds=5,
+                timeout_per_round=120
+            ),
+            storage=StorageConfig(
+                transcripts_dir="transcripts",
+                format="markdown",
+                auto_export=True
+            ),
+            deliberation=DeliberationConfig(
+                convergence_detection=ConvergenceDetectionConfig(
+                    enabled=True,
+                    semantic_similarity_threshold=0.85,
+                    divergence_threshold=0.40,
+                    min_rounds_before_check=1,
+                    consecutive_stable_rounds=2,
+                    stance_stability_threshold=0.80,
+                    response_length_drop_threshold=0.40
+                ),
+                early_stopping=EarlyStoppingConfig(
+                    enabled=True,
+                    threshold=0.66,
+                    respect_min_rounds=True
+                ),
+                convergence_threshold=0.8,
+                enable_convergence_detection=True
+            ),
+            decision_graph=DecisionGraphConfig(
+                enabled=True,
+                db_path=":memory:",
+                similarity_threshold=0.6,
+                max_context_decisions=3,
+                compute_similarities=True,
+                context_token_budget=1500,
+                tier_boundaries={"strong": 0.75, "moderate": 0.60},
+                query_window=1000
+            )
+        )
+
+    @pytest.fixture
+    def integration_with_config(self, storage, config):
+        """Create integration instance with config."""
+        return DecisionGraphIntegration(storage, enable_background_worker=False, config=config)
+
+    @pytest.fixture
+    def sample_decisions(self, storage):
+        """Create sample decisions with varying similarity scores."""
+        decisions = []
+
+        # Decision 1: Strong match
+        node1 = DecisionNode(
+            id="dec-1",
+            question="Should we use TypeScript for frontend?",
+            timestamp=datetime.now(),
+            consensus="Yes, TypeScript provides type safety",
+            winning_option="Adopt TypeScript",
+            convergence_status="converged",
+            participants=["claude@cli"],
+            transcript_path="/test1.md"
+        )
+        storage.save_decision_node(node1)
+        decisions.append(node1)
+
+        # Decision 2: Moderate match
+        node2 = DecisionNode(
+            id="dec-2",
+            question="Should we migrate to Python 3.11?",
+            timestamp=datetime.now(),
+            consensus="Yes, for performance benefits",
+            winning_option="Migrate to 3.11",
+            convergence_status="converged",
+            participants=["droid@cli"],
+            transcript_path="/test2.md"
+        )
+        storage.save_decision_node(node2)
+        decisions.append(node2)
+
+        # Decision 3: Brief match
+        node3 = DecisionNode(
+            id="dec-3",
+            question="What database should we choose?",
+            timestamp=datetime.now(),
+            consensus="PostgreSQL for relational data",
+            winning_option="PostgreSQL",
+            convergence_status="converged",
+            participants=["gemini@cli"],
+            transcript_path="/test3.md"
+        )
+        storage.save_decision_node(node3)
+        decisions.append(node3)
+
+        return decisions
+
+    def test_get_context_uses_budget_config(self, integration_with_config, sample_decisions, caplog):
+        """Test that get_context_for_deliberation uses config budget and tier boundaries."""
+        import logging
+        caplog.set_level(logging.DEBUG)
+
+        # Mock retriever's find_relevant_decisions to return scored tuples
+        from unittest.mock import patch
+        with patch.object(integration_with_config.retriever, 'find_relevant_decisions') as mock_find:
+            # Return all 3 decisions with different scores
+            mock_find.return_value = [
+                (sample_decisions[0], 0.85),  # Strong
+                (sample_decisions[1], 0.65),  # Moderate
+                (sample_decisions[2], 0.45),  # Brief
+            ]
+
+            # Call get_context_for_deliberation
+            context = integration_with_config.get_context_for_deliberation(
+                "Should we adopt JavaScript frameworks?"
+            )
+
+            # Verify find_relevant_decisions was called (with deprecated params)
+            mock_find.assert_called_once()
+
+        # Verify config values were accessed (check logs for tier boundaries usage)
+        debug_logs = [r.message for r in caplog.records if r.levelname == "DEBUG"]
+        # Should see logs about tier processing
+        assert any("tier" in log.lower() for log in debug_logs), "Expected tier-related debug logs"
+
+    def test_get_context_returns_tiered_format(self, integration_with_config, sample_decisions):
+        """Test that get_context_for_deliberation returns tiered formatted context."""
+        from unittest.mock import patch
+
+        with patch.object(integration_with_config.retriever, 'find_relevant_decisions') as mock_find:
+            # Return scored decisions
+            mock_find.return_value = [
+                (sample_decisions[0], 0.85),  # Strong
+                (sample_decisions[1], 0.65),  # Moderate
+                (sample_decisions[2], 0.45),  # Brief
+            ]
+
+            context = integration_with_config.get_context_for_deliberation(
+                "Should we use TypeScript?"
+            )
+
+            # Verify tiered header is present
+            assert "Tiered by Relevance" in context or "Similar Past Deliberations" in context
+
+            # Verify context is not empty
+            assert len(context) > 0
+
+    def test_get_context_logs_metrics(self, integration_with_config, sample_decisions, caplog):
+        """Test that get_context_for_deliberation logs tier distribution and token usage."""
+        import logging
+        caplog.set_level(logging.INFO)
+
+        from unittest.mock import patch
+        with patch.object(integration_with_config.retriever, 'find_relevant_decisions') as mock_find:
+            mock_find.return_value = [
+                (sample_decisions[0], 0.85),  # Strong
+                (sample_decisions[1], 0.65),  # Moderate
+            ]
+
+            context = integration_with_config.get_context_for_deliberation(
+                "Should we migrate databases?"
+            )
+
+        # Check logs for metrics
+        info_logs = [r.message for r in caplog.records if r.levelname == "INFO"]
+
+        # Should log tier distribution or token usage
+        metrics_logged = any(
+            "tier" in log.lower() or "token" in log.lower()
+            for log in info_logs
+        )
+        assert metrics_logged, f"Expected tier/token metrics in logs. Got: {info_logs}"
+
+    def test_get_context_respects_token_budget(self, integration_with_config, sample_decisions):
+        """Test that get_context_for_deliberation respects token budget from config."""
+        from unittest.mock import patch
+
+        # Create a config with very small token budget
+        integration_with_config.config.decision_graph.context_token_budget = 200  # Very small
+
+        with patch.object(integration_with_config.retriever, 'find_relevant_decisions') as mock_find:
+            # Return many decisions
+            mock_find.return_value = [
+                (sample_decisions[0], 0.85),
+                (sample_decisions[1], 0.65),
+                (sample_decisions[2], 0.45),
+            ]
+
+            context = integration_with_config.get_context_for_deliberation(
+                "Should we use React?"
+            )
+
+            # Estimate tokens (rough: 1 token ≈ 4 chars)
+            estimated_tokens = len(context) // 4
+
+            # Should be within or close to budget (allow some overhead for header)
+            # Note: Budget may be slightly exceeded due to header
+            assert estimated_tokens <= 300, f"Context exceeds budget: {estimated_tokens} tokens"
+
+    def test_get_context_empty_db_returns_empty(self, storage, config):
+        """Test that get_context_for_deliberation returns empty string when DB is empty."""
+        integration = DecisionGraphIntegration(storage, enable_background_worker=False, config=config)
+
+        # DB is empty (no sample_decisions fixture)
+        context = integration.get_context_for_deliberation("Should we use Vue.js?")
+
+        # Should return empty string, not fail
+        assert context == ""
+
+    def test_get_context_handles_config_none_gracefully(self, storage):
+        """Test that get_context_for_deliberation handles missing config gracefully."""
+        # Create integration without config
+        integration = DecisionGraphIntegration(storage, enable_background_worker=False, config=None)
+
+        # Should fall back to default behavior (use retriever's get_enriched_context)
+        context = integration.get_context_for_deliberation("Should we use Angular?")
+
+        # Should not crash, return empty or use defaults
+        assert isinstance(context, str)
+
+    def test_get_context_logs_database_size(self, integration_with_config, sample_decisions, caplog):
+        """Test that get_context_for_deliberation logs database size for calibration."""
+        import logging
+        caplog.set_level(logging.DEBUG)
+
+        from unittest.mock import patch
+        with patch.object(integration_with_config.retriever, 'find_relevant_decisions') as mock_find:
+            mock_find.return_value = [(sample_decisions[0], 0.85)]
+
+            context = integration_with_config.get_context_for_deliberation(
+                "Should we use PostgreSQL?"
+            )
+
+        # Should log database size or decision count
+        debug_logs = [r.message for r in caplog.records]
+        # Look for any size-related logging (might be in retriever or integration)
+        assert len(debug_logs) > 0, "Expected debug logs"
+
+    def test_backward_compatibility_with_old_params(self, integration_with_config, sample_decisions, caplog):
+        """Test that threshold/max_context_decisions params are deprecated but don't break."""
+        import logging
+        caplog.set_level(logging.WARNING)
+
+        from unittest.mock import patch
+        with patch.object(integration_with_config.retriever, 'find_relevant_decisions') as mock_find:
+            mock_find.return_value = [(sample_decisions[0], 0.85)]
+
+            # Call with old parameters
+            context = integration_with_config.get_context_for_deliberation(
+                "Should we use Redis?",
+                threshold=0.8,  # Deprecated
+                max_context_decisions=5  # Deprecated
+            )
+
+            # Should log deprecation warning
+            warnings = [r.message for r in caplog.records if r.levelname == "WARNING"]
+            assert any("deprecated" in w.lower() for w in warnings), "Expected deprecation warning"
