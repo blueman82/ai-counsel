@@ -243,7 +243,7 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
     Handle tool calls from MCP client.
 
     Args:
-        name: Tool name ("deliberate", "query_decisions", "analyze_decisions")
+        name: Tool name ("deliberate", "query_decisions")
         arguments: Tool arguments as dict
 
     Returns:
@@ -253,8 +253,6 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
 
     if name == "query_decisions":
         return await handle_query_decisions(arguments)
-    elif name == "analyze_decisions":
-        return await handle_analyze_decisions(arguments)
     elif name != "deliberate":
         error_msg = f"Unknown tool: {name}"
         logger.error(error_msg)
