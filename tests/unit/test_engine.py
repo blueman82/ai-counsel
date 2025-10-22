@@ -469,3 +469,147 @@ class TestVotingPrompts:
         assert "VOTE:" in enhanced
         assert "option" in enhanced.lower()
         assert "confidence" in enhanced.lower()
+
+
+class TestVoteGrouping:
+    """Tests for vote option grouping and similarity detection."""
+
+    def test_group_similar_vote_options_exact_match(self):
+        """Test that identical vote options are grouped together."""
+        engine = DeliberationEngine({})
+
+        all_options = ["Option A", "Option A", "Option B"]
+        raw_tally = {"Option A": 2, "Option B": 1}
+
+        result = engine._group_similar_vote_options(all_options, raw_tally)
+
+        # Exact matches should stay as-is with exact matching
+        assert result["Option A"] == 2
+        assert result["Option B"] == 1
+
+    def test_group_similar_vote_options_no_grouping_without_backend(self):
+        """Test that grouping requires similarity backend (returns raw tally without it)."""
+        engine = DeliberationEngine({})
+        # Engine has no convergence detector, so no backend
+        assert engine.convergence_detector is None
+
+        all_options = ["Option A", "Option B"]
+        raw_tally = {"Option A": 2, "Option B": 1}
+
+        result = engine._group_similar_vote_options(all_options, raw_tally)
+
+        # Without backend, should return raw tally unchanged
+        assert result == raw_tally
+
+    def test_group_similar_vote_options_single_option(self):
+        """Test that single option always returns as-is."""
+        engine = DeliberationEngine({})
+
+        all_options = ["Option A"]
+        raw_tally = {"Option A": 3}
+
+        result = engine._group_similar_vote_options(all_options, raw_tally)
+
+        # Single option should return unchanged
+        assert result == {"Option A": 3}
+
+    @pytest.mark.asyncio
+    async def test_aggregate_votes_different_options_not_merged(self, mock_adapters):
+        """Test that semantically different vote options (A vs D) are NOT merged.
+
+        This is a regression test for bug where Option A and Option D (0.729 similarity)
+        were incorrectly merged due to 0.70 threshold being too aggressive.
+        """
+        from deliberation.transcript import TranscriptManager
+        from models.schema import DeliberateRequest
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            manager = TranscriptManager(output_dir=tmp_dir)
+            engine = DeliberationEngine(adapters=mock_adapters, transcript_manager=manager)
+
+            request = DeliberateRequest(
+                question="Docker compose approach?",
+                participants=[
+                    Participant(cli="claude", model="sonnet", stance="neutral"),
+                    Participant(cli="codex", model="gpt-5-codex", stance="neutral"),
+                ],
+                rounds=1,
+                mode="quick",
+            )
+
+            # Simulate the actual votes from docker-compose deliberation:
+            # Claude and Codex vote for Option A
+            # Gemini votes for Option D (but we use 2 adapters in fixture)
+            # So we'll test with Claude voting A, Codex voting D instead
+            mock_adapters["claude"].invoke_mock.side_effect = [
+                'Analysis...\n\nVOTE: {"option": "Option A", "confidence": 0.94, "rationale": "Single file"}',
+            ]
+            mock_adapters["codex"].invoke_mock.side_effect = [
+                'Analysis...\n\nVOTE: {"option": "Option D", "confidence": 0.95, "rationale": "Dual file"}',
+            ]
+
+            result = await engine.execute(request)
+
+            # Verify voting result
+            assert result.voting_result is not None
+
+            # KEY ASSERTION: Verify that A and D are NOT merged
+            # Expected: 1 vote for Option A, 1 vote for Option D (tie)
+            # Buggy behavior: 2 votes for Option A (D merged with A)
+
+            if len(result.voting_result.final_tally) == 2:
+                # If threshold is correct (0.85+), A and D should NOT merge
+                assert "Option A" in result.voting_result.final_tally
+                assert "Option D" in result.voting_result.final_tally
+                assert result.voting_result.final_tally["Option A"] == 1
+                assert result.voting_result.final_tally["Option D"] == 1
+                assert result.voting_result.consensus_reached is False  # 1-1 is tie
+                assert result.voting_result.winning_option is None
+            elif len(result.voting_result.final_tally) == 1:
+                # If threshold is still aggressive (0.70), A and D would merge
+                # This test documents the bug
+                assert (
+                    result.voting_result.final_tally["Option A"] == 2
+                ), "Bug confirmed: Option D was merged into Option A due to aggressive 0.70 threshold"
+                pytest.fail(
+                    "BUG CONFIRMED: Option A and Option D were incorrectly merged (threshold too aggressive)"
+                )
+
+    @pytest.mark.asyncio
+    async def test_aggregate_votes_respects_intent(self, mock_adapters):
+        """Test that different options remain separate even if semantically similar."""
+        from deliberation.transcript import TranscriptManager
+        from models.schema import DeliberateRequest
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            manager = TranscriptManager(output_dir=tmp_dir)
+            mock_adapters["claude"] = mock_adapters["claude"]
+            engine = DeliberationEngine(adapters=mock_adapters, transcript_manager=manager)
+
+            request = DeliberateRequest(
+                question="Test question",
+                participants=[
+                    Participant(cli="claude", model="model1", stance="neutral"),
+                    Participant(cli="codex", model="model2", stance="neutral"),
+                ],
+                rounds=1,
+                mode="quick",
+            )
+
+            # Two very different votes that shouldn't be merged
+            mock_adapters["claude"].invoke_mock.return_value = (
+                'Analysis\n\nVOTE: {"option": "Yes", "confidence": 0.9, "rationale": "Good idea"}'
+            )
+            mock_adapters["codex"].invoke_mock.return_value = (
+                'Analysis\n\nVOTE: {"option": "No", "confidence": 0.9, "rationale": "Bad idea"}'
+            )
+
+            result = await engine.execute(request)
+
+            # Verify that "Yes" and "No" are never merged
+            assert result.voting_result is not None
+            assert len(result.voting_result.final_tally) == 2
+            assert result.voting_result.consensus_reached is False  # 1-1 tie
+            assert result.voting_result.winning_option is None  # No winner in tie
