@@ -385,7 +385,7 @@ class TestArchivalEstimation:
 
         # Benchmark estimation
         start = time.perf_counter()
-        estimate = maintenance.estimate_archival_benefit()
+        maintenance.estimate_archival_benefit()
         elapsed_ms = (time.perf_counter() - start) * 1000
 
         assert (
@@ -737,7 +737,7 @@ class TestMaintenanceInitialization:
         import logging
 
         caplog.set_level(logging.INFO)
-        maintenance = DecisionGraphMaintenance(temp_storage)
+        DecisionGraphMaintenance(temp_storage)
 
         assert "Phase 1" in caplog.text or "monitoring only" in caplog.text
 

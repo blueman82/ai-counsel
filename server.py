@@ -49,7 +49,7 @@ except Exception as e:
 
 # Create adapters - prefer new 'adapters' section, fallback to legacy 'cli_tools'
 adapters = {}
-adapter_sources = []
+adapter_sources: list[tuple[str, dict[str, CLIToolConfig | CLIAdapterConfig | HTTPAdapterConfig]]] = []
 
 # Try new adapters section first (preferred)
 if hasattr(config, "adapters") and config.adapters:
@@ -358,7 +358,7 @@ async def handle_query_decisions(arguments: dict) -> list[TextContent]:
         find_contradictions = arguments.get("find_contradictions", False)
         decision_id = arguments.get("decision_id")
         limit = arguments.get("limit", 5)
-        format_type = arguments.get("format", "summary")
+        # Note: format argument is currently unused
 
         result = None
 

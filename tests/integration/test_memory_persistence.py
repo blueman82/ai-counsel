@@ -197,7 +197,7 @@ class TestMemoryPersistence:
 
         # Create new connection to same database
         storage2 = DecisionGraphStorage(db_path=temp_db)
-        integration2 = DecisionGraphIntegration(
+        DecisionGraphIntegration(
             storage2, enable_background_worker=False
         )
 

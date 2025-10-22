@@ -7,7 +7,7 @@ and CLI commands to provide consistent functionality.
 
 import logging
 from dataclasses import dataclass, field
-from typing import List, Optional
+from typing import Any, List, Optional
 
 from decision_graph.retrieval import DecisionRetriever
 from decision_graph.schema import DecisionNode, ParticipantStance
@@ -404,7 +404,7 @@ class QueryEngine:
         self, stances: List[ParticipantStance]
     ) -> List[VotingPattern]:
         """Compute aggregated voting patterns."""
-        patterns = {}
+        patterns: dict[str, dict[str, Any]] = {}
 
         for stance in stances:
             if stance.participant not in patterns:
@@ -451,7 +451,7 @@ class QueryEngine:
         if not decisions:
             return {}
 
-        statuses = {}
+        statuses: dict[str, int] = {}
         for decision in decisions:
             status = decision.convergence_status
             statuses[status] = statuses.get(status, 0) + 1

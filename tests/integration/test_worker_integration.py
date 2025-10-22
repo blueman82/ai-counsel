@@ -182,7 +182,7 @@ class TestNonBlockingStorage:
     ):
         """Similarities should be computed in background after store returns."""
         # Store first decision
-        decision_id_1 = integration.store_deliberation(
+        integration.store_deliberation(
             "Should we use Python for backend?", sample_result
         )
 
@@ -320,7 +320,7 @@ class TestGracefulShutdown:
         await asyncio.sleep(0.5)
 
         # Get initial stats
-        stats_before = integration.worker.get_stats()
+        integration.worker.get_stats()
 
         # Shutdown (should wait for jobs)
         await integration.shutdown()

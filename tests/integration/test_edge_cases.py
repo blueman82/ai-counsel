@@ -387,7 +387,7 @@ class TestDatabaseCorruptionRecovery:
         # Retrieval should raise JSONDecodeError (current behavior)
         # Note: In production, storage layer could wrap this in try/except
         with pytest.raises(json.JSONDecodeError):
-            retrieved = storage.get_decision_node("n1")
+            storage.get_decision_node("n1")
 
     def test_null_values_in_required_fields(self, storage):
         """NULL values in required fields handled gracefully."""

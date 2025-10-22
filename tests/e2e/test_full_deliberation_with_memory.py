@@ -463,7 +463,7 @@ class TestSimilarityComputation:
         id1 = engine.graph_integration.store_deliberation(
             "Should we use Python?", result1
         )
-        id2 = engine.graph_integration.store_deliberation(
+        engine.graph_integration.store_deliberation(
             "Should we use Python for backend?", result2
         )
 

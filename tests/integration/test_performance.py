@@ -341,7 +341,7 @@ class TestMemoryUsage:
         storage = DecisionGraphStorage(db_path=temp_db)
         integration = DecisionGraphIntegration(storage)
 
-        sizes = {}
+        sizes: dict[int, float] = {}
         for count in [10, 50, 100]:
             # Add more decisions
             for i in range(count if count == 10 else count - sum(sizes.keys())):
@@ -516,7 +516,7 @@ class TestIndexPerformance:
         # Test 2: Participant stances query (should use idx_participant_decision)
         decision_id = decisions[0].id
         start = time.perf_counter()
-        stances = storage.get_participant_stances(decision_id)
+        storage.get_participant_stances(decision_id)
         elapsed_ms_2 = (time.perf_counter() - start) * 1000
 
         print(f"[2] Participant stances query: {elapsed_ms_2:.2f}ms")
@@ -526,7 +526,7 @@ class TestIndexPerformance:
 
         # Test 3: Similarity lookup query (should use idx_similarity_source)
         start = time.perf_counter()
-        similar = storage.get_similar_decisions(decision_id, threshold=0.5, limit=10)
+        storage.get_similar_decisions(decision_id, threshold=0.5, limit=10)
         elapsed_ms_3 = (time.perf_counter() - start) * 1000
 
         print(f"[3] Similarity lookup query: {elapsed_ms_3:.2f}ms")
@@ -631,7 +631,7 @@ class TestScalability:
 
             # Benchmark query
             start = time.perf_counter()
-            context = integration.get_context_for_deliberation(
+            integration.get_context_for_deliberation(
                 question="Question about topic 10?",
                 threshold=0.5,
                 max_context_decisions=5,
@@ -855,7 +855,7 @@ class TestAsyncBackgroundProcessing:
         # Track memory before enqueueing
         # Note: We can't easily measure Python memory usage accurately
         # Instead, verify queue size limits are enforced
-        initial_queue_size = worker.low_priority_queue.qsize()
+        worker.low_priority_queue.qsize()
 
         # Attempt to enqueue jobs (will fail because worker not started)
         # This tests that queue size limits are configured correctly
@@ -913,7 +913,7 @@ class TestMaintenancePerformance:
         from decision_graph.maintenance import DecisionGraphMaintenance
 
         storage = DecisionGraphStorage(db_path=temp_db)
-        integration = DecisionGraphIntegration(storage)
+        DecisionGraphIntegration(storage)
         maintenance = DecisionGraphMaintenance(storage)
 
         # Populate with 100 decisions spread over 30 days
@@ -988,7 +988,7 @@ class TestMaintenancePerformance:
         from decision_graph.maintenance import DecisionGraphMaintenance
 
         storage = DecisionGraphStorage(db_path=temp_db)
-        integration = DecisionGraphIntegration(storage)
+        DecisionGraphIntegration(storage)
         maintenance = DecisionGraphMaintenance(storage)
 
         # Populate with 100 decisions (mix of old and new)
@@ -1038,7 +1038,7 @@ class TestMaintenancePerformance:
             )
 
         # Run maintenance stats collection
-        stats = maintenance.get_database_stats()
+        maintenance.get_database_stats()
 
         # Immediately after, run a query (should not be blocked)
         start = time.perf_counter()
@@ -1061,7 +1061,7 @@ class TestMaintenancePerformance:
         from decision_graph.maintenance import DecisionGraphMaintenance
 
         storage = DecisionGraphStorage(db_path=temp_db)
-        integration = DecisionGraphIntegration(storage)
+        DecisionGraphIntegration(storage)
         maintenance = DecisionGraphMaintenance(storage)
 
         # Populate with 1000 decisions

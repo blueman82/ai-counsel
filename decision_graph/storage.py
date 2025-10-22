@@ -36,7 +36,7 @@ class DecisionGraphStorage:
             db_path: Path to SQLite database file. Use ":memory:" for in-memory database.
         """
         self.db_path = db_path
-        self._conn = None
+        self._conn: Optional[sqlite3.Connection] = None
         self._initialize_db()
         logger.info(f"Initialized DecisionGraphStorage at {db_path}")
 
