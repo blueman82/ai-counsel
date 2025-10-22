@@ -16,11 +16,13 @@ from deliberation.query_engine import QueryEngine
 from models.config import AdapterConfig, CLIToolConfig, load_config
 from models.schema import DeliberateRequest
 
-# Get the current working directory (where server was started from)
-SERVER_DIR = Path.cwd()
+# Project directory (where server.py is located) - for config and logs
+PROJECT_DIR = Path(__file__).parent.absolute()
+# Working directory (where server was started from) - for transcripts
+WORK_DIR = Path.cwd()
 
-# Configure logging to file to avoid stdio interference
-log_file = SERVER_DIR / "mcp_server.log"
+# Configure logging to file in project directory
+log_file = PROJECT_DIR / "mcp_server.log"
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
@@ -36,9 +38,9 @@ logger = logging.getLogger(__name__)
 app = Server("ai-counsel")
 
 
-# Load configuration with absolute path
+# Load configuration from project directory
 try:
-    config_path = SERVER_DIR / "config.yaml"
+    config_path = PROJECT_DIR / "config.yaml"
     logger.info(f"Loading config from: {config_path}")
     config = load_config(str(config_path))
     logger.info("Configuration loaded successfully")
