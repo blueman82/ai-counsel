@@ -1,9 +1,11 @@
 """Integration tests for convergence detection in deliberation engine."""
-import pytest
 from unittest.mock import AsyncMock
-from models.schema import DeliberateRequest, Participant, RoundResponse
-from models.config import load_config
+
+import pytest
+
 from deliberation.engine import DeliberationEngine
+from models.config import load_config
+from models.schema import DeliberateRequest, Participant, RoundResponse
 
 
 @pytest.mark.integration
@@ -258,12 +260,10 @@ class TestEngineConvergenceIntegration:
 
     def test_convergence_detector_backend_selection(self, config):
         """Test that convergence detector selects best available backend."""
-        from deliberation.convergence import (
-            ConvergenceDetector,
-            JaccardBackend,
-            TFIDFBackend,
-            SentenceTransformerBackend,
-        )
+        from deliberation.convergence import (ConvergenceDetector,
+                                              JaccardBackend,
+                                              SentenceTransformerBackend,
+                                              TFIDFBackend)
 
         detector = ConvergenceDetector(config)
 
@@ -280,7 +280,7 @@ class TestEngineConvergenceIntegration:
         self, config, mock_adapters
     ):
         """Test that DeliberationResult can include convergence_info."""
-        from models.schema import DeliberationResult, Summary, ConvergenceInfo
+        from models.schema import ConvergenceInfo, DeliberationResult, Summary
 
         # Create a result with convergence info
         result = DeliberationResult(

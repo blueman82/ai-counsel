@@ -12,7 +12,8 @@ from contextlib import contextmanager
 from datetime import datetime
 from typing import List, Optional, Tuple
 
-from decision_graph.schema import DecisionNode, DecisionSimilarity, ParticipantStance
+from decision_graph.schema import (DecisionNode, DecisionSimilarity,
+                                   ParticipantStance)
 
 logger = logging.getLogger(__name__)
 
@@ -66,7 +67,8 @@ class DecisionGraphStorage:
         """Create database schema if it doesn't exist."""
         with self.transaction() as conn:
             # Create decision_nodes table
-            conn.execute("""
+            conn.execute(
+                """
                 CREATE TABLE IF NOT EXISTS decision_nodes (
                     id TEXT PRIMARY KEY,
                     question TEXT NOT NULL,
@@ -78,10 +80,12 @@ class DecisionGraphStorage:
                     transcript_path TEXT NOT NULL,
                     metadata TEXT
                 )
-            """)
+            """
+            )
 
             # Create participant_stances table
-            conn.execute("""
+            conn.execute(
+                """
                 CREATE TABLE IF NOT EXISTS participant_stances (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     decision_id TEXT NOT NULL,
@@ -92,10 +96,12 @@ class DecisionGraphStorage:
                     final_position TEXT,
                     FOREIGN KEY (decision_id) REFERENCES decision_nodes(id)
                 )
-            """)
+            """
+            )
 
             # Create decision_similarities table
-            conn.execute("""
+            conn.execute(
+                """
                 CREATE TABLE IF NOT EXISTS decision_similarities (
                     source_id TEXT NOT NULL,
                     target_id TEXT NOT NULL,
@@ -105,38 +111,49 @@ class DecisionGraphStorage:
                     FOREIGN KEY (source_id) REFERENCES decision_nodes(id),
                     FOREIGN KEY (target_id) REFERENCES decision_nodes(id)
                 )
-            """)
+            """
+            )
 
             # Create indexes for efficient querying
             # PRIMARY: Most queries filter by recency (timestamp ordering)
-            conn.execute("""
+            conn.execute(
+                """
                 CREATE INDEX IF NOT EXISTS idx_decision_timestamp
                 ON decision_nodes(timestamp DESC)
-            """)
+            """
+            )
 
             # For duplicate detection and question-based filtering
-            conn.execute("""
+            conn.execute(
+                """
                 CREATE INDEX IF NOT EXISTS idx_decision_question
                 ON decision_nodes(question)
-            """)
+            """
+            )
 
             # For gathering decision context (participant stances)
-            conn.execute("""
+            conn.execute(
+                """
                 CREATE INDEX IF NOT EXISTS idx_participant_decision
                 ON participant_stances(decision_id)
-            """)
+            """
+            )
 
             # For similarity lookups (source-based queries)
-            conn.execute("""
+            conn.execute(
+                """
                 CREATE INDEX IF NOT EXISTS idx_similarity_source
                 ON decision_similarities(source_id)
-            """)
+            """
+            )
 
             # For similarity score-based filtering and ordering
-            conn.execute("""
+            conn.execute(
+                """
                 CREATE INDEX IF NOT EXISTS idx_similarity_score
                 ON decision_similarities(similarity_score DESC)
-            """)
+            """
+            )
 
             logger.debug("Database schema and indexes initialized successfully")
 
@@ -225,7 +242,9 @@ class DecisionGraphStorage:
         )
 
         nodes = [self._row_to_decision_node(row) for row in cursor.fetchall()]
-        logger.debug(f"Retrieved {len(nodes)} decision nodes (limit={limit}, offset={offset})")
+        logger.debug(
+            f"Retrieved {len(nodes)} decision nodes (limit={limit}, offset={offset})"
+        )
         return nodes
 
     def save_participant_stance(self, stance: ParticipantStance) -> int:

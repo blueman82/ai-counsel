@@ -27,9 +27,9 @@ async def demo():
 
     # Load configuration
     config = load_config("config.yaml")
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("AI COUNSEL - LOCAL MODEL SUPPORT DEMO")
-    print("="*70)
+    print("=" * 70)
 
     # Initialize deliberation engine
     engine = DeliberationEngine(config)
@@ -42,9 +42,9 @@ async def demo():
     print("   • Full control over model versions and configurations")
 
     # Cost comparison
-    print("\n" + "-"*70)
+    print("\n" + "-" * 70)
     print("COST COMPARISON: Local vs Cloud (100 deliberations)")
-    print("-"*70)
+    print("-" * 70)
     print("\nScenario: 100 technical decisions, 3 models, 2 rounds each")
     print("Total API calls: 600 (100 deliberations × 3 models × 2 rounds)")
     print("\n┌─────────────────────────────────────────────────────────────┐")
@@ -58,9 +58,9 @@ async def demo():
     print("\nSavings with local models: $200-300 per 100 deliberations")
 
     # First deliberation - pure local with Ollama
-    print("\n" + "-"*70)
+    print("\n" + "-" * 70)
     print("DELIBERATION #1: Pure Local (Ollama Only)")
-    print("-"*70)
+    print("-" * 70)
 
     question_1 = """
     Should we add comprehensive unit tests to all new features before merging?
@@ -80,30 +80,30 @@ async def demo():
         question=question_1,
         participants=participants_1,
         rounds=2,
-        context="Small startup team, rapid iteration cycle"
+        context="Small startup team, rapid iteration cycle",
     )
 
     print(f"\nQuestion: {question_1.strip()}")
     print(f"Participants: {len(participants_1)} local model (Ollama)")
     print(f"Rounds: {request_1.rounds}")
-    print(f"API Cost: $0.00")
+    print("API Cost: $0.00")
 
     print("\n🔄 Running deliberation with local model...")
     start_time = time.time()
     result_1 = await engine.execute(request_1)
     duration_1 = time.time() - start_time
 
-    print(f"\n✅ Deliberation #1 Complete:")
+    print("\n✅ Deliberation #1 Complete:")
     print(f"   • Duration: {duration_1:.2f} seconds")
-    print(f"   • API Cost: $0.00")
+    print("   • API Cost: $0.00")
     print(f"   • Consensus: {result_1.consensus}")
     print(f"   • Convergence Status: {result_1.convergence_info.status}")
     print(f"   • Transcript: {result_1.transcript_path}")
 
     # Second deliberation - hybrid (local + cloud)
-    print("\n" + "-"*70)
+    print("\n" + "-" * 70)
     print("DELIBERATION #2: Hybrid (Local + Cloud Models)")
-    print("-"*70)
+    print("-" * 70)
 
     question_2 = """
     For a user authentication system, should we use JWT tokens or session-based auth?
@@ -124,44 +124,45 @@ async def demo():
         question=question_2,
         participants=participants_2,
         rounds=2,
-        context="E-commerce platform with 50K active users, Redis available"
+        context="E-commerce platform with 50K active users, Redis available",
     )
 
     print(f"\nQuestion: {question_2.strip()}")
     print(f"Participants: {len(participants_2)} models (1 local + 1 cloud)")
     print(f"Rounds: {request_2.rounds}")
-    print(f"Estimated API Cost: ~$0.50 (only for Claude)")
+    print("Estimated API Cost: ~$0.50 (only for Claude)")
 
     print("\n🔄 Running hybrid deliberation...")
     start_time = time.time()
     result_2 = await engine.execute(request_2)
     duration_2 = time.time() - start_time
 
-    print(f"\n✅ Deliberation #2 Complete:")
+    print("\n✅ Deliberation #2 Complete:")
     print(f"   • Duration: {duration_2:.2f} seconds")
-    print(f"   • Estimated API Cost: ~$0.50")
+    print("   • Estimated API Cost: ~$0.50")
     print(f"   • Consensus: {result_2.consensus}")
     print(f"   • Convergence Status: {result_2.convergence_info.status}")
     print(f"   • Transcript: {result_2.transcript_path}")
 
     # Performance comparison
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("📊 PERFORMANCE ANALYSIS")
-    print("="*70)
+    print("=" * 70)
 
-    print(f"\n┌─────────────────────────────────────────────────────────────┐")
-    print(f"│ Configuration          │ Duration      │ Cost per Run     │")
-    print(f"├────────────────────────┼───────────────┼──────────────────┤")
+    print("\n┌─────────────────────────────────────────────────────────────┐")
+    print("│ Configuration          │ Duration      │ Cost per Run     │")
+    print("├────────────────────────┼───────────────┼──────────────────┤")
     print(f"│ Pure Local (Ollama)    │ {duration_1:>6.2f}s       │ $0.00            │")
     print(f"│ Hybrid (1 local + 1    │ {duration_2:>6.2f}s       │ ~$0.50           │")
-    print(f"│ cloud)                 │               │                  │")
-    print(f"└────────────────────────┴───────────────┴──────────────────┘")
+    print("│ cloud)                 │               │                  │")
+    print("└────────────────────────┴───────────────┴──────────────────┘")
 
     # Key insights
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("💡 KEY INSIGHTS & RECOMMENDATIONS")
-    print("="*70)
-    print("""
+    print("=" * 70)
+    print(
+        """
     ✓ Cost Savings: Local models eliminate API costs entirely
       → Ideal for: prototyping, high-volume testing, cost-sensitive deployments
 
@@ -181,13 +182,15 @@ async def demo():
       → All Local: Development, testing, high-volume automation
       → Hybrid: Production systems requiring quality + cost efficiency
       → All Cloud: Critical decisions requiring highest model quality
-    """)
+    """
+    )
 
     # Setup guide
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("🚀 GETTING STARTED WITH LOCAL MODELS")
-    print("="*70)
-    print("""
+    print("=" * 70)
+    print(
+        """
     1. Install Ollama (https://ollama.ai):
        curl -fsSL https://ollama.ai/install.sh | sh
 
@@ -210,7 +213,8 @@ async def demo():
     Alternative Local Options:
     - LM Studio: OpenAI-compatible GUI app
     - llamacpp: Direct GGUF inference (maximum control)
-    """)
+    """
+    )
 
     print("\n📚 Documentation:")
     print("   - HTTP Adapters: docs/http-adapters/intro.md")
@@ -233,5 +237,6 @@ if __name__ == "__main__":
     except Exception as e:
         print(f"\n\n❌ Demo failed: {e}")
         import traceback
+
         traceback.print_exc()
         sys.exit(1)

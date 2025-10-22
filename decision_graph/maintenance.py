@@ -19,7 +19,7 @@ Phase 2 (Future, Month 6+): Soft archival
 import logging
 import os
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional
 
 from decision_graph.storage import DecisionGraphStorage
 
@@ -148,7 +148,7 @@ class DecisionGraphMaintenance:
                 FROM decision_nodes
                 WHERE timestamp >= ?
                 """,
-                (cutoff_date.isoformat(),)
+                (cutoff_date.isoformat(),),
             )
             row = cursor.fetchone()
             decisions_in_period = row[0] or 0
@@ -160,9 +160,7 @@ class DecisionGraphMaintenance:
             projected_30d = int(avg_per_day * 30)
 
             # Get overall oldest and newest
-            cursor.execute(
-                "SELECT MIN(timestamp), MAX(timestamp) FROM decision_nodes"
-            )
+            cursor.execute("SELECT MIN(timestamp), MAX(timestamp) FROM decision_nodes")
             row = cursor.fetchone()
             oldest_overall = row[0]
             newest_overall = row[1]
@@ -237,11 +235,13 @@ class DecisionGraphMaintenance:
                 FROM decision_nodes
                 WHERE timestamp < ?
                 """,
-                (cutoff_age.isoformat(),)
+                (cutoff_age.isoformat(),),
             )
             eligible_count = cursor.fetchone()[0] or 0
 
-            eligible_percent = (eligible_count / total_decisions * 100) if total_decisions > 0 else 0
+            eligible_percent = (
+                (eligible_count / total_decisions * 100) if total_decisions > 0 else 0
+            )
 
             # Estimate space savings (rough: avg decision ~15KB including relationships)
             # This is conservative; actual savings depend on compression
@@ -250,8 +250,7 @@ class DecisionGraphMaintenance:
 
             # Check if archival would trigger in Phase 2
             would_trigger = (
-                total_decisions >= self.ARCHIVE_TRIGGER_DECISIONS
-                and eligible_count > 0
+                total_decisions >= self.ARCHIVE_TRIGGER_DECISIONS and eligible_count > 0
             )
 
             if would_trigger:
@@ -265,7 +264,9 @@ class DecisionGraphMaintenance:
                     f"(<{self.ARCHIVE_TRIGGER_DECISIONS} trigger threshold)"
                 )
             else:
-                trigger_reason = f"No decisions >{self.ARCHIVE_TRIGGER_AGE_DAYS} days old"
+                trigger_reason = (
+                    f"No decisions >{self.ARCHIVE_TRIGGER_AGE_DAYS} days old"
+                )
 
             result = {
                 "archive_eligible_count": eligible_count,
@@ -318,28 +319,32 @@ class DecisionGraphMaintenance:
             cursor = self.storage.conn.cursor()
 
             # Check 1: Orphaned participant stances
-            cursor.execute("""
+            cursor.execute(
+                """
                 SELECT COUNT(*)
                 FROM participant_stances ps
                 WHERE NOT EXISTS (
                     SELECT 1 FROM decision_nodes dn
                     WHERE dn.id = ps.decision_id
                 )
-            """)
+            """
+            )
             orphaned_stances = cursor.fetchone()[0] or 0
             details["orphaned_stances"] = orphaned_stances
             if orphaned_stances > 0:
                 issues.append(f"Found {orphaned_stances} orphaned participant stances")
 
             # Check 2: Orphaned similarities (source)
-            cursor.execute("""
+            cursor.execute(
+                """
                 SELECT COUNT(*)
                 FROM decision_similarities ds
                 WHERE NOT EXISTS (
                     SELECT 1 FROM decision_nodes dn
                     WHERE dn.id = ds.source_id
                 )
-            """)
+            """
+            )
             orphaned_similarities_source = cursor.fetchone()[0] or 0
             details["orphaned_similarities_source"] = orphaned_similarities_source
             if orphaned_similarities_source > 0:
@@ -348,14 +353,16 @@ class DecisionGraphMaintenance:
                 )
 
             # Check 3: Orphaned similarities (target)
-            cursor.execute("""
+            cursor.execute(
+                """
                 SELECT COUNT(*)
                 FROM decision_similarities ds
                 WHERE NOT EXISTS (
                     SELECT 1 FROM decision_nodes dn
                     WHERE dn.id = ds.target_id
                 )
-            """)
+            """
+            )
             orphaned_similarities_target = cursor.fetchone()[0] or 0
             details["orphaned_similarities_target"] = orphaned_similarities_target
             if orphaned_similarities_target > 0:
@@ -371,33 +378,41 @@ class DecisionGraphMaintenance:
                 FROM decision_nodes
                 WHERE timestamp > ?
                 """,
-                (future_cutoff.isoformat(),)
+                (future_cutoff.isoformat(),),
             )
             future_timestamps = cursor.fetchone()[0] or 0
             details["future_timestamps"] = future_timestamps
             if future_timestamps > 0:
-                issues.append(f"Found {future_timestamps} decisions with future timestamps")
+                issues.append(
+                    f"Found {future_timestamps} decisions with future timestamps"
+                )
 
             # Check 5: Missing required fields
-            cursor.execute("""
+            cursor.execute(
+                """
                 SELECT COUNT(*)
                 FROM decision_nodes
                 WHERE question IS NULL OR question = ''
                    OR consensus IS NULL
                    OR convergence_status IS NULL OR convergence_status = ''
                    OR participants IS NULL OR participants = '[]'
-            """)
+            """
+            )
             missing_fields = cursor.fetchone()[0] or 0
             details["missing_required_fields"] = missing_fields
             if missing_fields > 0:
-                issues.append(f"Found {missing_fields} decisions with missing required fields")
+                issues.append(
+                    f"Found {missing_fields} decisions with missing required fields"
+                )
 
             # Check 6: Invalid similarity scores
-            cursor.execute("""
+            cursor.execute(
+                """
                 SELECT COUNT(*)
                 FROM decision_similarities
                 WHERE similarity_score < 0.0 OR similarity_score > 1.0
-            """)
+            """
+            )
             invalid_scores = cursor.fetchone()[0] or 0
             details["invalid_similarity_scores"] = invalid_scores
             if invalid_scores > 0:
@@ -441,9 +456,7 @@ class DecisionGraphMaintenance:
     # PHASE 2: Archival methods (skeleton only, not implemented)
 
     def identify_archive_candidates(
-        self,
-        age_days: Optional[int] = None,
-        unused_days: Optional[int] = None
+        self, age_days: Optional[int] = None, unused_days: Optional[int] = None
     ) -> List[str]:
         """Identify decisions eligible for archival (Phase 2 - NOT IMPLEMENTED).
 
@@ -510,26 +523,22 @@ class DecisionGraphMaintenance:
             ALTER TABLE decision_nodes
             ADD COLUMN archived BOOLEAN DEFAULT FALSE;
             """,
-
             # Migration 2: Add last_accessed column (default to timestamp)
             """
             ALTER TABLE decision_nodes
             ADD COLUMN last_accessed TEXT DEFAULT NULL;
             """,
-
             # Migration 3: Initialize last_accessed to timestamp for existing rows
             """
             UPDATE decision_nodes
             SET last_accessed = timestamp
             WHERE last_accessed IS NULL;
             """,
-
             # Migration 4: Add index on archived column for queries
             """
             CREATE INDEX IF NOT EXISTS idx_decision_archived
             ON decision_nodes(archived);
             """,
-
             # Migration 5: Add index on last_accessed for archival queries
             """
             CREATE INDEX IF NOT EXISTS idx_decision_last_accessed

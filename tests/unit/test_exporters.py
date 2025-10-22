@@ -13,14 +13,9 @@ from unittest.mock import patch
 import pytest
 
 from decision_graph.schema import DecisionNode, DecisionSimilarity
-from deliberation.exporters import (
-    DecisionGraphExporter,
-    _escape_markdown,
-    _escape_xml,
-    _truncate_text,
-)
+from deliberation.exporters import (DecisionGraphExporter, _escape_markdown,
+                                    _escape_xml, _truncate_text)
 from deliberation.query_engine import SimilarResult
-
 
 # ============================================================================
 # FIXTURES
@@ -263,10 +258,10 @@ class TestToGraphml:
         assert '<node id="dec-003">' in result
 
         # Check node attributes
-        assert "<key id=\"d_question\"" in result
-        assert "<key id=\"d_consensus\"" in result
-        assert "<key id=\"d_status\"" in result
-        assert "<key id=\"d_timestamp\"" in result
+        assert '<key id="d_question"' in result
+        assert '<key id="d_consensus"' in result
+        assert '<key id="d_status"' in result
+        assert '<key id="d_timestamp"' in result
 
         # Check closing tags
         assert "</graph>" in result
@@ -301,7 +296,7 @@ class TestToGraphml:
 
         # Check edge elements
         assert '<edge source="dec-001" target="dec-002">' in result
-        assert "<data key=\"d_weight\">0.85</data>" in result
+        assert '<data key="d_weight">0.85</data>' in result
 
     def test_should_handle_empty_decisions_in_graphml(self):
         """Test GraphML export with empty decisions list."""
@@ -339,7 +334,7 @@ class TestToDot:
         assert result.startswith("digraph DecisionGraph {")
         assert result.endswith("}")
         assert "rankdir=LR;" in result
-        assert 'node [shape=box, style=rounded];' in result
+        assert "node [shape=box, style=rounded];" in result
 
     def test_should_create_nodes_with_correct_labels(self, sample_decision_nodes):
         """Test DOT export creates nodes with truncated labels."""
@@ -474,7 +469,10 @@ class TestToMarkdown:
         # Markdown escaping only applies to question and consensus fields
         # The _escape_markdown function is called on question and consensus
         # Check that the question is escaped
-        assert "Should we use <XML> & 'JSON' for \\\"data\\\"?" in result or "Should we use <XML>" in result
+        assert (
+            "Should we use <XML> & 'JSON' for \\\"data\\\"?" in result
+            or "Should we use <XML>" in result
+        )
         # Winning option is displayed as-is in the winning option field (not in a table)
         assert "Option A|B|C" in result  # Not escaped in winning_option field
 
@@ -536,7 +534,9 @@ class TestToMarkdown:
 
         # Count relationship rows (exclude header rows)
         relationship_rows = [
-            line for line in result.split("\n") if line.startswith("| ") and "..." in line
+            line
+            for line in result.split("\n")
+            if line.startswith("| ") and "..." in line
         ]
         assert len(relationship_rows) == 20
 
@@ -574,11 +574,23 @@ class TestToSummaryTable:
         result = DecisionGraphExporter.to_summary_table(sample_similar_results)
 
         # Check box drawing characters
-        assert "╔═══════════════════════════════════════════════════════════════════╗" in result
+        assert (
+            "╔═══════════════════════════════════════════════════════════════════╗"
+            in result
+        )
         assert "║ Similar Decisions" in result
-        assert "╠═════════╦═══════════════════════════════╦════════════╦═════════════╣" in result
-        assert "║ Score   ║ Question                      ║ Consensus  ║ Status      ║" in result
-        assert "╚═════════╩═══════════════════════════════╩════════════╩═════════════╝" in result
+        assert (
+            "╠═════════╦═══════════════════════════════╦════════════╦═════════════╣"
+            in result
+        )
+        assert (
+            "║ Score   ║ Question                      ║ Consensus  ║ Status      ║"
+            in result
+        )
+        assert (
+            "╚═════════╩═══════════════════════════════╩════════════╩═════════════╝"
+            in result
+        )
 
     def test_should_include_all_results_up_to_10(self, sample_similar_results):
         """Test ASCII table includes up to 10 results."""
@@ -593,9 +605,7 @@ class TestToSummaryTable:
         """Test ASCII table limits to top 10 results."""
         # Create 15 similar results
         results = [
-            SimilarResult(
-                decision=sample_decision_nodes[0], score=0.95 - (i * 0.05)
-            )
+            SimilarResult(decision=sample_decision_nodes[0], score=0.95 - (i * 0.05))
             for i in range(15)
         ]
 
@@ -618,7 +628,10 @@ class TestToSummaryTable:
 
         # Check truncation occurred (question limited to 27 chars + "...")
         # The actual truncation appears to be "This is a very long ques..." (28 chars total)
-        assert "This is a very long ques..." in result or "This is a very long que..." in result
+        assert (
+            "This is a very long ques..." in result
+            or "This is a very long que..." in result
+        )
 
         # Consensus also truncated (to 10 chars)
         assert "This is..." in result or "This is a..." in result

@@ -13,9 +13,8 @@ Requirements:
 
 import asyncio
 import logging
-from pathlib import Path
 import sys
-import json
+from pathlib import Path
 
 # Add parent directories to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
@@ -23,7 +22,6 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from decision_graph.query_engine import QueryEngine
 from decision_graph.storage import DecisionGraphStorage
 from models.config import load_config
-
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -48,7 +46,7 @@ async def main():
 
     # Get all decisions
     all_decisions = storage.get_all_decisions(limit=100)
-    logger.info(f"📊 Graph Statistics:")
+    logger.info("📊 Graph Statistics:")
     logger.info(f"   Total decisions stored: {len(all_decisions)}")
 
     if not all_decisions:
@@ -59,7 +57,7 @@ async def main():
         return
 
     # Display stored decisions
-    logger.info(f"\n📋 Stored Decisions:")
+    logger.info("\n📋 Stored Decisions:")
     for i, decision in enumerate(all_decisions[:5], 1):
         logger.info(f"\n   {i}. {decision.question[:80]}...")
         logger.info(f"      ID: {decision.id[:8]}...")
@@ -71,7 +69,7 @@ async def main():
     engine = QueryEngine(config)
 
     # Search for similar deliberations
-    logger.info(f"\n🔎 Searching for similar decisions...")
+    logger.info("\n🔎 Searching for similar decisions...")
     query = "database architecture and scaling"
     similar = await engine.search_similar(query, limit=3)
 
@@ -85,20 +83,20 @@ async def main():
         logger.info(f"\n   No similar decisions found for: '{query}'")
 
     # Find contradictions
-    logger.info(f"\n⚠️  Looking for contradictions in decision history...")
+    logger.info("\n⚠️  Looking for contradictions in decision history...")
     contradictions = await engine.find_contradictions(threshold=0.3)
 
     if contradictions:
         logger.info(f"\n   Found {len(contradictions)} contradictions:")
         for i, contradiction in enumerate(contradictions[:3], 1):
             logger.info(f"\n   {i}. {contradiction.get('type', 'Unknown')}")
-            logger.info(f"      Between decisions on similar topics")
-            logger.info(f"      Recommendation: Review and reconcile")
+            logger.info("      Between decisions on similar topics")
+            logger.info("      Recommendation: Review and reconcile")
     else:
-        logger.info(f"\n   No significant contradictions found ✓")
+        logger.info("\n   No significant contradictions found ✓")
 
     # Analyze decision patterns
-    logger.info(f"\n📈 Decision Patterns:")
+    logger.info("\n📈 Decision Patterns:")
     patterns = await engine.analyze_patterns()
 
     if patterns:
@@ -108,14 +106,16 @@ async def main():
         )
         logger.info(f"   Convergence time: {patterns.get('avg_rounds', 0):.1f} rounds")
     else:
-        logger.info(f"\n   Insufficient data for pattern analysis yet")
+        logger.info("\n   Insufficient data for pattern analysis yet")
 
     logger.info("\n" + "=" * 60)
     logger.info("✨ Inspection complete!")
     logger.info("\nMore commands:")
     logger.info("- Search: ai-counsel graph similar --query 'your question'")
     logger.info("- Timeline: ai-counsel graph timeline --decision-id <id>")
-    logger.info("- Export: ai-counsel graph export --format graphml > decisions.graphml")
+    logger.info(
+        "- Export: ai-counsel graph export --format graphml > decisions.graphml"
+    )
 
 
 if __name__ == "__main__":

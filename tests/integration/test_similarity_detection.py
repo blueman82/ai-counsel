@@ -9,12 +9,10 @@ These are integration tests because they test the full similarity detection
 pipeline with real backends, not mocked components.
 """
 import pytest
+
 from decision_graph.similarity import QuestionSimilarityDetector
-from deliberation.convergence import (
-    SentenceTransformerBackend,
-    TFIDFBackend,
-    JaccardBackend,
-)
+from deliberation.convergence import (JaccardBackend,
+                                      SentenceTransformerBackend, TFIDFBackend)
 
 
 @pytest.mark.integration
@@ -29,7 +27,9 @@ class TestSimilarityDetection:
         q2 = "Should we use Python for backend development?"
 
         score = detector.compute_similarity(q1, q2)
-        assert score > 0.95, f"Identical questions should have high similarity, got {score}"
+        assert (
+            score > 0.95
+        ), f"Identical questions should have high similarity, got {score}"
 
     def test_paraphrased_questions_high_similarity(self):
         """Paraphrased questions should have similarity >0.75."""
@@ -42,9 +42,13 @@ class TestSimilarityDetection:
         # Note: Jaccard might not achieve >0.75 for paraphrases
         # But TF-IDF and SentenceTransformer should
         if isinstance(detector.backend, JaccardBackend):
-            assert score > 0.30, f"Paraphrased questions (Jaccard) should have moderate similarity, got {score}"
+            assert (
+                score > 0.30
+            ), f"Paraphrased questions (Jaccard) should have moderate similarity, got {score}"
         else:
-            assert score > 0.60, f"Paraphrased questions should have high similarity, got {score}"
+            assert (
+                score > 0.60
+            ), f"Paraphrased questions should have high similarity, got {score}"
 
     def test_related_questions_moderate_similarity(self):
         """Related but different questions should have 0.2-0.8 similarity."""
@@ -54,7 +58,9 @@ class TestSimilarityDetection:
         q2 = "What database should we use?"
 
         score = detector.compute_similarity(q1, q2)
-        assert 0.0 <= score < 0.8, f"Related questions should have moderate/low similarity, got {score}"
+        assert (
+            0.0 <= score < 0.8
+        ), f"Related questions should have moderate/low similarity, got {score}"
 
     def test_unrelated_questions_low_similarity(self):
         """Unrelated questions should have similarity <0.40."""
@@ -64,7 +70,9 @@ class TestSimilarityDetection:
         q2 = "What color should the logo be?"
 
         score = detector.compute_similarity(q1, q2)
-        assert score < 0.40, f"Unrelated questions should have low similarity, got {score}"
+        assert (
+            score < 0.40
+        ), f"Unrelated questions should have low similarity, got {score}"
 
     def test_empty_questions_handled(self):
         """Empty questions should not crash."""
@@ -101,7 +109,9 @@ class TestSimilarityDetection:
         q2 = "Python"
 
         score = detector.compute_similarity(q1, q2)
-        assert score > 0.95, f"Identical single words should have high similarity, got {score}"
+        assert (
+            score > 0.95
+        ), f"Identical single words should have high similarity, got {score}"
 
 
 @pytest.mark.integration
@@ -161,7 +171,9 @@ class TestTopKSearch:
         ]
 
         threshold = 0.3
-        results = detector.find_similar("Should we use Python?", candidates, threshold=threshold)
+        results = detector.find_similar(
+            "Should we use Python?", candidates, threshold=threshold
+        )
 
         for result in results:
             assert (
@@ -224,7 +236,9 @@ class TestTopKSearch:
 
         # Should only have 2 results (q2 skipped)
         assert len(results) == 2, "Empty candidates should be skipped"
-        assert all(r["id"] != "q2" for r in results), "Empty candidate should be excluded"
+        assert all(
+            r["id"] != "q2" for r in results
+        ), "Empty candidate should be excluded"
 
 
 @pytest.mark.integration
@@ -250,7 +264,9 @@ class TestBackendFallback:
             backend = TFIDFBackend()
             detector = QuestionSimilarityDetector(backend=backend)
 
-            score = detector.compute_similarity("Python programming", "Python programming")
+            score = detector.compute_similarity(
+                "Python programming", "Python programming"
+            )
             assert score > 0.9, "TF-IDF backend should work"
         except ImportError:
             pytest.skip("scikit-learn not available")
@@ -415,7 +431,9 @@ class TestThresholdValidation:
         ]
 
         results = detector.find_similar("Query", candidates, threshold=0.0)
-        assert len(results) == len(candidates), "Threshold 0.0 should include all candidates"
+        assert len(results) == len(
+            candidates
+        ), "Threshold 0.0 should include all candidates"
 
     def test_threshold_1_only_perfect_matches(self):
         """Threshold 1.0 should only include identical matches."""
@@ -427,10 +445,14 @@ class TestThresholdValidation:
             ("q3", "Something else"),
         ]
 
-        results = detector.find_similar("Should we use Python?", candidates, threshold=1.0)
+        results = detector.find_similar(
+            "Should we use Python?", candidates, threshold=1.0
+        )
         # Should only get perfect matches (accounting for floating point)
         # Jaccard will give 1.0 for identical, others might give 0.9999...
-        assert all(r["score"] >= 0.99 for r in results), "Threshold 1.0 should only return near-perfect matches"
+        assert all(
+            r["score"] >= 0.99 for r in results
+        ), "Threshold 1.0 should only return near-perfect matches"
 
     def test_threshold_0_5_moderate_filter(self):
         """Threshold 0.5 should filter out low-similarity candidates."""
@@ -442,10 +464,14 @@ class TestThresholdValidation:
             ("q3", "What color is the sky?"),  # Unrelated
         ]
 
-        results = detector.find_similar("Should we use Python?", candidates, threshold=0.5)
+        results = detector.find_similar(
+            "Should we use Python?", candidates, threshold=0.5
+        )
 
         # All results should have score >= 0.5
-        assert all(r["score"] >= 0.5 for r in results), "All results should be above threshold"
+        assert all(
+            r["score"] >= 0.5 for r in results
+        ), "All results should be above threshold"
 
 
 @pytest.mark.integration
@@ -462,9 +488,13 @@ class TestRealWorldScenarios:
         score = detector.compute_similarity(q1, q2)
         # Both are about testing frameworks
         if isinstance(detector.backend, JaccardBackend):
-            assert score > 0.2, "Similar technical questions should have some similarity"
+            assert (
+                score > 0.2
+            ), "Similar technical questions should have some similarity"
         else:
-            assert score > 0.4, "Similar technical questions should have moderate similarity"
+            assert (
+                score > 0.4
+            ), "Similar technical questions should have moderate similarity"
 
     def test_architecture_questions_similar(self):
         """Similar architecture questions should be detected."""
@@ -476,9 +506,13 @@ class TestRealWorldScenarios:
         score = detector.compute_similarity(q1, q2)
         # Both are about architecture choices
         if isinstance(detector.backend, JaccardBackend):
-            assert score > 0.2, "Similar architecture questions should have some similarity"
+            assert (
+                score > 0.2
+            ), "Similar architecture questions should have some similarity"
         else:
-            assert score > 0.4, "Similar architecture questions should have moderate similarity"
+            assert (
+                score > 0.4
+            ), "Similar architecture questions should have moderate similarity"
 
     def test_deployment_questions_different(self):
         """Different deployment questions should have lower similarity."""
@@ -489,7 +523,9 @@ class TestRealWorldScenarios:
 
         score = detector.compute_similarity(q1, q2)
         # Both about deployment but different aspects
-        assert score < 0.7, "Different deployment questions should have moderate/low similarity"
+        assert (
+            score < 0.7
+        ), "Different deployment questions should have moderate/low similarity"
 
     def test_mixed_domain_questions_low_similarity(self):
         """Questions from different domains should have low similarity."""
@@ -534,7 +570,9 @@ class TestPerformance:
 
         # Run same search multiple times
         for _ in range(10):
-            results = detector.find_similar("Should we use Python?", candidates, threshold=0.5)
+            results = detector.find_similar(
+                "Should we use Python?", candidates, threshold=0.5
+            )
             assert len(results) > 0, "Should find results consistently"
 
 
@@ -564,7 +602,9 @@ class TestBackendConsistency:
         try:
             st = SentenceTransformerBackend()
             st_score = st.compute_similarity(q1, q2)
-            assert st_score > 0.95, "SentenceTransformer should give high score for identical"
+            assert (
+                st_score > 0.95
+            ), "SentenceTransformer should give high score for identical"
         except ImportError:
             pass
 
@@ -590,7 +630,9 @@ class TestBackendConsistency:
         try:
             st = SentenceTransformerBackend()
             st_score = st.compute_similarity(q1, q2)
-            assert st_score < 0.4, "SentenceTransformer should give low score for unrelated"
+            assert (
+                st_score < 0.4
+            ), "SentenceTransformer should give low score for unrelated"
         except ImportError:
             pass
 
@@ -657,7 +699,7 @@ class TestErrorHandling:
 
     def test_find_similar_handles_exception_in_candidate(self):
         """find_similar should handle exceptions gracefully for individual candidates."""
-        from unittest.mock import Mock, patch
+        from unittest.mock import patch
 
         detector = QuestionSimilarityDetector()
 

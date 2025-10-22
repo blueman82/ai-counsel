@@ -1,14 +1,16 @@
 """Unit tests for CLI adapters."""
 import asyncio
+from unittest.mock import AsyncMock, Mock, patch
+
 import pytest
-from unittest.mock import Mock, patch, AsyncMock
+
+from adapters import create_adapter
 from adapters.base import BaseCLIAdapter
 from adapters.claude import ClaudeAdapter
 from adapters.codex import CodexAdapter
 from adapters.droid import DroidAdapter
 from adapters.gemini import GeminiAdapter
-from adapters import create_adapter
-from models.config import CLIToolConfig, CLIAdapterConfig, HTTPAdapterConfig
+from models.config import CLIAdapterConfig, CLIToolConfig, HTTPAdapterConfig
 
 
 class TestBaseCLIAdapter:

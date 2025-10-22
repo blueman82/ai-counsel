@@ -104,9 +104,7 @@ class DecisionRetriever:
         """
         # Validate parameters
         if not (0.0 <= threshold <= 1.0):
-            raise ValueError(
-                f"threshold must be between 0.0 and 1.0, got {threshold}"
-            )
+            raise ValueError(f"threshold must be between 0.0 and 1.0, got {threshold}")
         if max_results < 1:
             raise ValueError(f"max_results must be >= 1, got {max_results}")
 
@@ -150,9 +148,7 @@ class DecisionRetriever:
 
         # 4. Extract candidates as (id, question) tuples
         candidates = [(d.id, d.question) for d in all_decisions]
-        logger.debug(
-            f"Comparing query against {len(candidates)} candidate decisions"
-        )
+        logger.debug(f"Comparing query against {len(candidates)} candidate decisions")
 
         # 5. Find similar questions
         similar = self.similarity_detector.find_similar(
@@ -160,9 +156,7 @@ class DecisionRetriever:
         )
 
         if not similar:
-            logger.info(
-                f"No similar decisions found above threshold {threshold}"
-            )
+            logger.info(f"No similar decisions found above threshold {threshold}")
             # Cache empty result to avoid recomputation
             if self.cache:
                 self.cache.cache_result(query_question, threshold, max_results, [])
@@ -200,9 +194,7 @@ class DecisionRetriever:
         )
         return results
 
-    def format_context(
-        self, decisions: List[DecisionNode], query: str
-    ) -> str:
+    def format_context(self, decisions: List[DecisionNode], query: str) -> str:
         """Format relevant decisions as context string for deliberation.
 
         Generates a markdown-formatted context string that includes:
@@ -240,9 +232,7 @@ class DecisionRetriever:
             # Basic decision metadata
             lines.append(f"### Past Deliberation {i}: {decision.question}")
             lines.append(f"**Date**: {decision.timestamp.isoformat()}")
-            lines.append(
-                f"**Convergence Status**: {decision.convergence_status}"
-            )
+            lines.append(f"**Convergence Status**: {decision.convergence_status}")
             lines.append(f"**Consensus**: {decision.consensus}")
 
             # Winning option (optional)
@@ -266,9 +256,7 @@ class DecisionRetriever:
                             stance_line += f"Voted for '{stance.vote_option}'"
                             if stance.confidence is not None:
                                 confidence_pct = stance.confidence * 100
-                                stance_line += (
-                                    f" (confidence: {confidence_pct:.0f}%)"
-                                )
+                                stance_line += f" (confidence: {confidence_pct:.0f}%)"
 
                         # Rationale (if available)
                         if stance.rationale:
@@ -284,9 +272,7 @@ class DecisionRetriever:
                     f"Error retrieving stances for decision {decision.id}: {e}",
                     exc_info=True,
                 )
-                lines.append(
-                    "\n*[Error retrieving participant positions]*"
-                )
+                lines.append("\n*[Error retrieving participant positions]*")
 
             lines.append("")  # Blank line between decisions
 
@@ -355,9 +341,7 @@ class DecisionRetriever:
             return context
 
         except Exception as e:
-            logger.error(
-                f"Error generating enriched context: {e}", exc_info=True
-            )
+            logger.error(f"Error generating enriched context: {e}", exc_info=True)
             # Return empty context on error (fail gracefully)
             return ""
 

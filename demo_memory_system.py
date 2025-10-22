@@ -25,9 +25,9 @@ async def demo():
 
     # Load configuration
     config = load_config("config.yaml")
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("AI COUNSEL - DECISION GRAPH MEMORY SYSTEM DEMO")
-    print("="*70)
+    print("=" * 70)
 
     # Initialize deliberation engine
     engine = DeliberationEngine(config)
@@ -39,9 +39,9 @@ async def demo():
     print(f"   ✓ Max Context Decisions: {config.decision_graph.max_context_decisions}")
 
     # First deliberation - vector database choice
-    print("\n" + "-"*70)
+    print("\n" + "-" * 70)
     print("DELIBERATION #1: Choosing a Vector Database")
-    print("-"*70)
+    print("-" * 70)
 
     question_1 = """
     Our team needs to choose between three vector database options for our AI search system:
@@ -61,7 +61,7 @@ async def demo():
         question=question_1,
         participants=participants_1,
         rounds=2,
-        context="We have a lean team (5 engineers) and need to launch in 3 months"
+        context="We have a lean team (5 engineers) and need to launch in 3 months",
     )
 
     print(f"\nQuestion: {question_1.strip()}")
@@ -71,7 +71,7 @@ async def demo():
     print("\n🔄 Running deliberation...")
     result_1 = await engine.execute(request_1)
 
-    print(f"\n✅ Deliberation #1 Complete:")
+    print("\n✅ Deliberation #1 Complete:")
     print(f"   • Consensus: {result_1.consensus}")
     print(f"   • Convergence Status: {result_1.convergence_info.status}")
     print(f"   • Rounds Completed: {len(result_1.rounds)}")
@@ -81,9 +81,9 @@ async def demo():
     await asyncio.sleep(1)
 
     # Second deliberation - related but different question
-    print("\n" + "-"*70)
+    print("\n" + "-" * 70)
     print("DELIBERATION #2: Real-time Search Requirements")
-    print("-"*70)
+    print("-" * 70)
 
     question_2 = """
     For a real-time search product, what are the critical vector database requirements?
@@ -106,7 +106,7 @@ async def demo():
         question=question_2,
         participants=participants_2,
         rounds=2,
-        context="Building a product for enterprise customers with <50ms latency SLA"
+        context="Building a product for enterprise customers with <50ms latency SLA",
     )
 
     print(f"\nQuestion: {question_2.strip()}")
@@ -120,16 +120,16 @@ async def demo():
     print("\n🔄 Running deliberation with memory context...")
     result_2 = await engine.execute(request_2)
 
-    print(f"\n✅ Deliberation #2 Complete:")
+    print("\n✅ Deliberation #2 Complete:")
     print(f"   • Consensus: {result_2.consensus}")
     print(f"   • Convergence Status: {result_2.convergence_info.status}")
     print(f"   • Rounds Completed: {len(result_2.rounds)}")
     print(f"   • Transcript: {result_2.transcript_path}")
 
     # Show graph statistics
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("📊 DECISION GRAPH STATISTICS")
-    print("="*70)
+    print("=" * 70)
 
     if engine.graph_integration:
         try:
@@ -144,10 +144,11 @@ async def demo():
             print(f"⚠ Could not retrieve stats: {e}")
 
     # Summary
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("✨ MEMORY SYSTEM BENEFITS")
-    print("="*70)
-    print("""
+    print("=" * 70)
+    print(
+        """
     ✓ Context Injection: Related past decisions automatically injected
     ✓ Acceleration: Models converge faster with historical context
     ✓ Consistency: Reasoning patterns tracked across deliberations
@@ -158,7 +159,8 @@ async def demo():
     - SQLite database: decision_graph.db
     - Transcripts: transcripts/ directory
     - Relationships computed asynchronously (non-blocking)
-    """)
+    """
+    )
 
     print("\n📂 View Your Decisions:")
     print("   - Transcripts: ls transcripts/")
@@ -181,5 +183,6 @@ if __name__ == "__main__":
     except Exception as e:
         print(f"\n\n❌ Demo failed: {e}")
         import traceback
+
         traceback.print_exc()
         sys.exit(1)

@@ -9,23 +9,16 @@ Tests verify that:
 """
 
 import asyncio
-import pytest
-import tempfile
 import os
+import tempfile
 import time
-from datetime import datetime
 
-from decision_graph.storage import DecisionGraphStorage
+import pytest
+
 from decision_graph.integration import DecisionGraphIntegration
-from models.schema import (
-    DeliberationResult,
-    Summary,
-    ConvergenceInfo,
-    RoundResponse,
-    Vote,
-    RoundVote,
-    VotingResult,
-)
+from decision_graph.storage import DecisionGraphStorage
+from models.schema import (ConvergenceInfo, DeliberationResult, RoundResponse,
+                           RoundVote, Summary, Vote, VotingResult)
 
 
 @pytest.fixture
@@ -71,21 +64,21 @@ def sample_result():
                 participant="claude",
                 stance="neutral",
                 response="Claude's final response",
-                timestamp="2025-01-01T10:00:00Z"
+                timestamp="2025-01-01T10:00:00Z",
             ),
             RoundResponse(
                 round=2,
                 participant="gpt-4",
                 stance="neutral",
                 response="GPT-4's final response",
-                timestamp="2025-01-01T10:00:01Z"
+                timestamp="2025-01-01T10:00:01Z",
             ),
         ],
         summary=Summary(
             consensus="Test consensus",
             key_agreements=["Agreement 1"],
             key_disagreements=[],
-            final_recommendation="Proceed"
+            final_recommendation="Proceed",
         ),
         convergence_info=ConvergenceInfo(
             detected=True,
@@ -93,7 +86,7 @@ def sample_result():
             final_similarity=0.85,
             status="converged",
             scores_by_round=[],
-            per_participant_similarity={}
+            per_participant_similarity={},
         ),
         voting_result=VotingResult(
             final_tally={"Option A": 2},
@@ -105,9 +98,9 @@ def sample_result():
                         option="Option A",
                         confidence=0.9,
                         rationale="Best option",
-                        continue_debate=False
+                        continue_debate=False,
                     ),
-                    timestamp="2025-01-01T10:00:00Z"
+                    timestamp="2025-01-01T10:00:00Z",
                 ),
                 RoundVote(
                     round=2,
@@ -116,15 +109,15 @@ def sample_result():
                         option="Option A",
                         confidence=0.85,
                         rationale="Agree",
-                        continue_debate=False
+                        continue_debate=False,
                     ),
-                    timestamp="2025-01-01T10:00:01Z"
+                    timestamp="2025-01-01T10:00:01Z",
                 ),
             ],
             consensus_reached=True,
-            winning_option="Option A"
+            winning_option="Option A",
         ),
-        transcript_path="/tmp/test.md"
+        transcript_path="/tmp/test.md",
     )
 
 
@@ -168,13 +161,14 @@ class TestNonBlockingStorage:
         # Measure time to store
         start = time.perf_counter()
         decision_id = integration.store_deliberation(
-            "Test question for timing",
-            sample_result
+            "Test question for timing", sample_result
         )
         elapsed_ms = (time.perf_counter() - start) * 1000
 
         # Should complete quickly (<100ms) - not waiting for similarity computation
-        assert elapsed_ms < 100, f"store_deliberation took {elapsed_ms:.2f}ms, expected <100ms"
+        assert (
+            elapsed_ms < 100
+        ), f"store_deliberation took {elapsed_ms:.2f}ms, expected <100ms"
         assert decision_id is not None
 
         # Decision should be stored immediately
@@ -183,18 +177,18 @@ class TestNonBlockingStorage:
         assert node.question == "Test question for timing"
 
     @pytest.mark.asyncio
-    async def test_similarity_computed_asynchronously(self, integration, storage, sample_result):
+    async def test_similarity_computed_asynchronously(
+        self, integration, storage, sample_result
+    ):
         """Similarities should be computed in background after store returns."""
         # Store first decision
         decision_id_1 = integration.store_deliberation(
-            "Should we use Python for backend?",
-            sample_result
+            "Should we use Python for backend?", sample_result
         )
 
         # Store second similar decision
         decision_id_2 = integration.store_deliberation(
-            "Should we use Python for server-side code?",
-            sample_result
+            "Should we use Python for server-side code?", sample_result
         )
 
         # Immediately after store, similarities might not be computed yet
@@ -207,22 +201,30 @@ class TestNonBlockingStorage:
         stats = integration.worker.get_stats()
 
         # Now similarities should be computed
-        similarities = storage.get_similar_decisions(decision_id_2, threshold=0.3, limit=10)
+        similarities = storage.get_similar_decisions(
+            decision_id_2, threshold=0.3, limit=10
+        )
 
         # Should find decision_id_1 as similar (both mention "Python")
         # Note: If jobs were processed, similarities should exist
-        assert stats["jobs_processed"] >= 2, f"Expected at least 2 jobs processed, got {stats['jobs_processed']}"
-        assert len(similarities) > 0, f"Expected to find similarities after background processing. Stats: {stats}"
+        assert (
+            stats["jobs_processed"] >= 2
+        ), f"Expected at least 2 jobs processed, got {stats['jobs_processed']}"
+        assert (
+            len(similarities) > 0
+        ), f"Expected to find similarities after background processing. Stats: {stats}"
 
     @pytest.mark.asyncio
-    async def test_multiple_stores_dont_block_each_other(self, integration, sample_result):
+    async def test_multiple_stores_dont_block_each_other(
+        self, integration, sample_result
+    ):
         """Multiple store operations should not block each other."""
         questions = [
             "Question 1: Use TypeScript?",
             "Question 2: Use Python?",
             "Question 3: Use Go?",
             "Question 4: Use Rust?",
-            "Question 5: Use Java?"
+            "Question 5: Use Java?",
         ]
 
         # Store multiple deliberations quickly
@@ -251,8 +253,7 @@ class TestFallbackBehavior:
 
         # Store deliberation
         decision_id = integration.store_deliberation(
-            "Test synchronous fallback",
-            sample_result
+            "Test synchronous fallback", sample_result
         )
 
         # Similarity computation should have happened synchronously
@@ -272,6 +273,7 @@ class TestFallbackBehavior:
         # Override worker with tiny queue for testing
         await integration.shutdown()
         from decision_graph.workers import BackgroundWorker
+
         integration.worker = BackgroundWorker(storage, max_queue_size=2)
         await integration.worker.start()
 
@@ -306,7 +308,9 @@ class TestGracefulShutdown:
         assert integration.worker.running is False
 
     @pytest.mark.asyncio
-    async def test_shutdown_waits_for_active_jobs(self, integration, storage, sample_result):
+    async def test_shutdown_waits_for_active_jobs(
+        self, integration, storage, sample_result
+    ):
         """Shutdown should wait for active jobs to complete."""
         # Queue some work
         integration.store_deliberation("Question 1", sample_result)
@@ -390,18 +394,14 @@ class TestBackwardCompatibility:
     async def test_context_retrieval_still_works(self, integration, sample_result):
         """Context retrieval should work with background processing."""
         # Store deliberation
-        integration.store_deliberation(
-            "Should we use TypeScript?",
-            sample_result
-        )
+        integration.store_deliberation("Should we use TypeScript?", sample_result)
 
         # Wait for background processing
         await asyncio.sleep(1.0)
 
         # Retrieve context for similar question
         context = integration.get_context_for_deliberation(
-            "Should we use TypeScript or JavaScript?",
-            threshold=0.3
+            "Should we use TypeScript or JavaScript?", threshold=0.3
         )
 
         # Context should be available (or empty if no matches)

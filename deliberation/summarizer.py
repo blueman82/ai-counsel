@@ -1,8 +1,9 @@
 """AI-powered summary generation for deliberations."""
 import logging
-from typing import List, Dict
-from models.schema import RoundResponse, Summary
+from typing import Dict, List
+
 from adapters.base import BaseCLIAdapter
+from models.schema import RoundResponse, Summary
 
 logger = logging.getLogger(__name__)
 

@@ -9,10 +9,10 @@ import asyncio
 import logging
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Optional, List, Callable
+from typing import List, Optional
 from uuid import uuid4
 
-from decision_graph.schema import DecisionNode, DecisionSimilarity
+from decision_graph.schema import DecisionSimilarity
 from decision_graph.similarity import QuestionSimilarityDetector
 from decision_graph.storage import DecisionGraphStorage
 
@@ -29,6 +29,7 @@ class SimilarityJob:
         created_at: Timestamp when job was created
         job_id: Unique job identifier
     """
+
     decision_id: str
     priority: str = "low"  # "high" or "low"
     created_at: datetime = field(default_factory=datetime.now)
@@ -135,9 +136,14 @@ class BackgroundWorker:
 
         # Wait for active jobs with timeout
         if self.active_jobs:
-            logger.info(f"Waiting for {len(self.active_jobs)} active jobs to complete...")
+            logger.info(
+                f"Waiting for {len(self.active_jobs)} active jobs to complete..."
+            )
             start_time = asyncio.get_event_loop().time()
-            while self.active_jobs and (asyncio.get_event_loop().time() - start_time) < timeout:
+            while (
+                self.active_jobs
+                and (asyncio.get_event_loop().time() - start_time) < timeout
+            ):
                 await asyncio.sleep(0.1)
 
             if self.active_jobs:

@@ -5,24 +5,20 @@ Tests circular references, duplicates, empty queries, corruption recovery,
 size limits, and concurrent operations.
 """
 
-import pytest
-import tempfile
 import concurrent.futures
 import json
 import os
+import tempfile
 from datetime import datetime
-from uuid import uuid4
 
-from decision_graph.storage import DecisionGraphStorage
+import pytest
+
 from decision_graph.integration import DecisionGraphIntegration
-from decision_graph.schema import DecisionNode, ParticipantStance, DecisionSimilarity
-from models.schema import (
-    DeliberationResult,
-    Summary,
-    ConvergenceInfo,
-    RoundResponse,
-    Vote,
-)
+from decision_graph.schema import (DecisionNode, DecisionSimilarity,
+                                   ParticipantStance)
+from decision_graph.storage import DecisionGraphStorage
+from models.schema import (ConvergenceInfo, DeliberationResult, RoundResponse,
+                           Summary)
 
 
 @pytest.fixture
@@ -261,15 +257,11 @@ class TestDuplicateDecisionHandling:
         storage.save_decision_node(node2)
 
         # Save similarity
-        sim1 = DecisionSimilarity(
-            source_id="n1", target_id="n2", similarity_score=0.7
-        )
+        sim1 = DecisionSimilarity(source_id="n1", target_id="n2", similarity_score=0.7)
         storage.save_similarity(sim1)
 
         # Save again with different score (should upsert)
-        sim2 = DecisionSimilarity(
-            source_id="n1", target_id="n2", similarity_score=0.9
-        )
+        sim2 = DecisionSimilarity(source_id="n1", target_id="n2", similarity_score=0.9)
         storage.save_similarity(sim2)
 
         # Verify updated score
@@ -405,7 +397,15 @@ class TestDatabaseCorruptionRecovery:
         with pytest.raises(Exception):
             cursor.execute(
                 "INSERT INTO decision_nodes (id, question, timestamp, consensus, convergence_status, participants, transcript_path) VALUES (?, ?, ?, ?, ?, ?, ?)",
-                ("n1", None, datetime.now().isoformat(), "C", "converged", "[]", "/tmp/t.md"),
+                (
+                    "n1",
+                    None,
+                    datetime.now().isoformat(),
+                    "C",
+                    "converged",
+                    "[]",
+                    "/tmp/t.md",
+                ),
             )
             storage.conn.commit()
 
@@ -554,7 +554,9 @@ class TestConcurrentWrites:
                 transcript_path=f"/tmp/t{index}.md",
             )
 
-            decision_id = integration.store_deliberation(f"Concurrent question {index}?", result)
+            decision_id = integration.store_deliberation(
+                f"Concurrent question {index}?", result
+            )
             storage.close()
             return decision_id
 
@@ -632,7 +634,9 @@ class TestConcurrentWrites:
                 transcript_path=f"/tmp/tw{index}.md",
             )
 
-            decision_id = integration.store_deliberation(f"Writer question {index}?", result)
+            decision_id = integration.store_deliberation(
+                f"Writer question {index}?", result
+            )
             storage.close()
             return decision_id
 
@@ -699,15 +703,11 @@ class TestConstraintEnforcement:
         storage.save_decision_node(node2)
 
         # Save similarity
-        sim1 = DecisionSimilarity(
-            source_id="n1", target_id="n2", similarity_score=0.7
-        )
+        sim1 = DecisionSimilarity(source_id="n1", target_id="n2", similarity_score=0.7)
         storage.save_similarity(sim1)
 
         # Save again - should upsert, not create duplicate
-        sim2 = DecisionSimilarity(
-            source_id="n1", target_id="n2", similarity_score=0.9
-        )
+        sim2 = DecisionSimilarity(source_id="n1", target_id="n2", similarity_score=0.9)
         storage.save_similarity(sim2)
 
         # Verify only one similarity exists

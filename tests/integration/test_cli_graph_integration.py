@@ -12,17 +12,19 @@ These tests use real DecisionGraphStorage (in-memory) with realistic decision da
 to validate the full integration between CLI commands, query engine, storage, and exporters.
 """
 import json
-import pytest
 import tempfile
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Dict, List
 from xml.etree import ElementTree as ET
 
-from decision_graph.schema import DecisionNode, ParticipantStance, DecisionSimilarity
-from decision_graph.storage import DecisionGraphStorage
-from decision_graph.retrieval import DecisionRetriever
+import pytest
+
 from decision_graph.integration import DecisionGraphIntegration
+from decision_graph.retrieval import DecisionRetriever
+from decision_graph.schema import (DecisionNode, DecisionSimilarity,
+                                   ParticipantStance)
+from decision_graph.storage import DecisionGraphStorage
 
 
 @pytest.mark.integration
@@ -219,8 +221,10 @@ class TestDecisionGraphCLIIntegration:
 
     @pytest.fixture
     def populated_storage(
-        self, storage: DecisionGraphStorage, sample_decisions: List[DecisionNode],
-        sample_stances: Dict[str, List[ParticipantStance]]
+        self,
+        storage: DecisionGraphStorage,
+        sample_decisions: List[DecisionNode],
+        sample_stances: Dict[str, List[ParticipantStance]],
     ) -> DecisionGraphStorage:
         """Create storage populated with sample decisions and stances."""
         # Save all decisions
@@ -234,28 +238,34 @@ class TestDecisionGraphCLIIntegration:
 
         # Compute and save similarity relationships
         # dec-001 and dec-002 are both about TypeScript (high similarity)
-        storage.save_similarity(DecisionSimilarity(
-            source_id="dec-002",
-            target_id="dec-001",
-            similarity_score=0.82,
-            computed_at=datetime.now(),
-        ))
+        storage.save_similarity(
+            DecisionSimilarity(
+                source_id="dec-002",
+                target_id="dec-001",
+                similarity_score=0.82,
+                computed_at=datetime.now(),
+            )
+        )
 
         # dec-003 and dec-004 are both about GraphQL (high similarity, potential contradiction)
-        storage.save_similarity(DecisionSimilarity(
-            source_id="dec-004",
-            target_id="dec-003",
-            similarity_score=0.78,
-            computed_at=datetime.now(),
-        ))
+        storage.save_similarity(
+            DecisionSimilarity(
+                source_id="dec-004",
+                target_id="dec-003",
+                similarity_score=0.78,
+                computed_at=datetime.now(),
+            )
+        )
 
         # dec-001 and dec-004 have moderate similarity (both about frontend tech)
-        storage.save_similarity(DecisionSimilarity(
-            source_id="dec-004",
-            target_id="dec-001",
-            similarity_score=0.65,
-            computed_at=datetime.now(),
-        ))
+        storage.save_similarity(
+            DecisionSimilarity(
+                source_id="dec-004",
+                target_id="dec-001",
+                similarity_score=0.65,
+                computed_at=datetime.now(),
+            )
+        )
 
         return storage
 
@@ -289,18 +299,20 @@ class TestDecisionGraphCLIIntegration:
 
         # Act: Find similar decisions
         similar_decisions = retriever.find_relevant_decisions(
-            query_question=query,
-            threshold=0.6,
-            max_results=5
+            query_question=query, threshold=0.6, max_results=5
         )
 
         # Assert: Should find TypeScript-related decisions
-        assert len(similar_decisions) >= 2, "Should find at least 2 TypeScript decisions"
+        assert (
+            len(similar_decisions) >= 2
+        ), "Should find at least 2 TypeScript decisions"
         decision_ids = [d.id for d in similar_decisions]
 
         # The exact matches depend on similarity backend, but should be related
         questions = [d.question for d in similar_decisions]
-        typescript_count = sum(1 for q in questions if "TypeScript" in q or "JavaScript" in q)
+        typescript_count = sum(
+            1 for q in questions if "TypeScript" in q or "JavaScript" in q
+        )
         assert typescript_count >= 1, "Should find TypeScript-related decisions"
 
     async def test_should_detect_contradictions_between_similar_decisions(
@@ -316,16 +328,22 @@ class TestDecisionGraphCLIIntegration:
         dec_004 = populated_storage.get_decision_node("dec-004")
 
         # Get similarity between them
-        similar = populated_storage.get_similar_decisions("dec-004", threshold=0.7, limit=5)
+        similar = populated_storage.get_similar_decisions(
+            "dec-004", threshold=0.7, limit=5
+        )
 
         # Act: Check if dec-003 is in similar decisions
         similar_ids = [node.id for node, score in similar]
 
         # Assert: Should detect high similarity
-        assert "dec-003" in similar_ids, "Should detect similarity between GraphQL decisions"
+        assert (
+            "dec-003" in similar_ids
+        ), "Should detect similarity between GraphQL decisions"
 
         # Find the similarity score
-        dec_003_similarity = next((score for node, score in similar if node.id == "dec-003"), None)
+        dec_003_similarity = next(
+            (score for node, score in similar if node.id == "dec-003"), None
+        )
         assert dec_003_similarity is not None
         assert dec_003_similarity >= 0.7, "Should have high similarity score"
 
@@ -365,7 +383,9 @@ class TestDecisionGraphCLIIntegration:
         participant_counts = {}
         for decision in all_decisions:
             for participant in decision.participants:
-                participant_counts[participant] = participant_counts.get(participant, 0) + 1
+                participant_counts[participant] = (
+                    participant_counts.get(participant, 0) + 1
+                )
 
         # Assert: Should identify frequent participants
         assert "opus@claude" in participant_counts, "opus@claude should participate"
@@ -387,7 +407,9 @@ class TestDecisionGraphCLIIntegration:
     ):
         """Test export to GraphML format with valid XML structure."""
         # Arrange: Create temporary export file
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.graphml', delete=False) as f:
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".graphml", delete=False
+        ) as f:
             export_path = Path(f.name)
 
         try:
@@ -404,24 +426,26 @@ class TestDecisionGraphCLIIntegration:
             root = tree.getroot()
 
             # Verify GraphML structure
-            assert root.tag.endswith('graphml'), "Root should be graphml element"
+            assert root.tag.endswith("graphml"), "Root should be graphml element"
 
             # Find graph element
-            graph = root.find('.//{http://graphml.graphdrawing.org/xmlns}graph')
+            graph = root.find(".//{http://graphml.graphdrawing.org/xmlns}graph")
             assert graph is not None, "Should contain graph element"
 
             # Verify nodes (decisions)
-            nodes = root.findall('.//{http://graphml.graphdrawing.org/xmlns}node')
+            nodes = root.findall(".//{http://graphml.graphdrawing.org/xmlns}node")
             assert len(nodes) == 7, f"Should have 7 decision nodes, found {len(nodes)}"
 
             # Verify edges (similarities)
-            edges = root.findall('.//{http://graphml.graphdrawing.org/xmlns}edge')
-            assert len(edges) >= 3, f"Should have at least 3 similarity edges, found {len(edges)}"
+            edges = root.findall(".//{http://graphml.graphdrawing.org/xmlns}edge")
+            assert (
+                len(edges) >= 3
+            ), f"Should have at least 3 similarity edges, found {len(edges)}"
 
             # Verify node data
-            node_ids = [node.get('id') for node in nodes]
-            assert 'dec-001' in node_ids, "Should include dec-001"
-            assert 'dec-007' in node_ids, "Should include dec-007"
+            node_ids = [node.get("id") for node in nodes]
+            assert "dec-001" in node_ids, "Should include dec-001"
+            assert "dec-007" in node_ids, "Should include dec-007"
 
         finally:
             # Cleanup
@@ -433,7 +457,7 @@ class TestDecisionGraphCLIIntegration:
     ):
         """Test export to JSON format with valid structure."""
         # Arrange: Create temporary export file
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
             export_path = Path(f.name)
 
         try:
@@ -465,7 +489,7 @@ class TestDecisionGraphCLIIntegration:
             assert export_path.exists(), "Export file should be created"
 
             # Parse and verify
-            with open(export_path, 'r') as f:
+            with open(export_path, "r") as f:
                 loaded_data = json.load(f)
 
             assert "decisions" in loaded_data, "Should have decisions key"
@@ -489,7 +513,7 @@ class TestDecisionGraphCLIIntegration:
     ):
         """Test CLI file I/O: reading from database file."""
         # Arrange: Create temporary database file
-        with tempfile.NamedTemporaryFile(suffix='.db', delete=False) as f:
+        with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as f:
             db_path = Path(f.name)
 
         try:
@@ -530,10 +554,14 @@ class TestDecisionGraphCLIIntegration:
             graphml_path.write_text(graphml_content)
 
             # Write JSON
-            json_content = json.dumps({
-                "decisions": [d.model_dump(mode='json') for d in decisions],
-                "total": len(decisions)
-            }, indent=2, default=str)
+            json_content = json.dumps(
+                {
+                    "decisions": [d.model_dump(mode="json") for d in decisions],
+                    "total": len(decisions),
+                },
+                indent=2,
+                default=str,
+            )
             json_path.write_text(json_content)
 
             # Assert: Verify files exist and are readable
@@ -616,9 +644,7 @@ class TestDecisionGraphCLIIntegration:
 
         # Simulate realistic CLI workflow
         decisions = retriever.find_relevant_decisions(
-            "Should we use TypeScript?",
-            threshold=0.6,
-            max_results=5
+            "Should we use TypeScript?", threshold=0.6, max_results=5
         )
         context = retriever.format_context(decisions, "Should we use TypeScript?")
 
@@ -626,7 +652,9 @@ class TestDecisionGraphCLIIntegration:
         duration = end - start
 
         # Assert: Should complete quickly
-        assert duration < 5.0, f"Query workflow took {duration:.2f}s, should be under 5s"
+        assert (
+            duration < 5.0
+        ), f"Query workflow took {duration:.2f}s, should be under 5s"
         assert len(context) > 0, "Should generate context"
 
     async def test_should_retrieve_enriched_context_for_deliberation(
@@ -640,14 +668,18 @@ class TestDecisionGraphCLIIntegration:
         context = integration.get_context_for_deliberation(
             question="Should we migrate to TypeScript for our codebase?",
             threshold=0.6,
-            max_context_decisions=3
+            max_context_decisions=3,
         )
 
         # Assert: Should return formatted context
         assert context != "", "Should return non-empty context"
         assert "Similar Past Deliberations" in context, "Should have context header"
-        assert "TypeScript" in context or "JavaScript" in context, "Should mention related decisions"
-        assert "**Consensus**:" in context, "Should include consensus from past decisions"
+        assert (
+            "TypeScript" in context or "JavaScript" in context
+        ), "Should mention related decisions"
+        assert (
+            "**Consensus**:" in context
+        ), "Should include consensus from past decisions"
         assert "**Participants**:" in context, "Should list participants"
 
     async def test_should_format_participant_stances_in_context(
@@ -675,7 +707,7 @@ class TestDecisionGraphCLIIntegration:
     ) -> str:
         """Create GraphML XML content from decisions."""
         graphml_ns = "http://graphml.graphdrawing.org/xmlns"
-        ET.register_namespace('', graphml_ns)
+        ET.register_namespace("", graphml_ns)
 
         # Create root element
         root = ET.Element(f"{{{graphml_ns}}}graphml")
@@ -689,7 +721,10 @@ class TestDecisionGraphCLIIntegration:
         ]:
             key = ET.SubElement(root, f"{{{graphml_ns}}}key")
             key.set("id", attr_id)
-            key.set("for", "node" if attr_id.startswith("d") and int(attr_id[1:]) < 3 else "edge")
+            key.set(
+                "for",
+                "node" if attr_id.startswith("d") and int(attr_id[1:]) < 3 else "edge",
+            )
             key.set("attr.name", attr_name)
             key.set("attr.type", attr_type)
 
@@ -718,7 +753,9 @@ class TestDecisionGraphCLIIntegration:
 
         # Add edges (similarities)
         for decision in decisions:
-            similar = storage.get_similar_decisions(decision.id, threshold=0.5, limit=10)
+            similar = storage.get_similar_decisions(
+                decision.id, threshold=0.5, limit=10
+            )
             for target_node, score in similar:
                 edge = ET.SubElement(graph, f"{{{graphml_ns}}}edge")
                 edge.set("source", decision.id)
@@ -729,7 +766,7 @@ class TestDecisionGraphCLIIntegration:
                 data_sim.text = str(score)
 
         # Convert to string
-        return ET.tostring(root, encoding='unicode', method='xml')
+        return ET.tostring(root, encoding="unicode", method="xml")
 
 
 @pytest.mark.integration
@@ -748,19 +785,19 @@ class TestDecisionGraphExportFormats:
         node = ET.SubElement(graph, f"{{{graphml_ns}}}node")
         node.set("id", "n1")
 
-        xml_str = ET.tostring(root, encoding='unicode')
+        xml_str = ET.tostring(root, encoding="unicode")
 
         # Act: Parse XML
         tree = ET.ElementTree(ET.fromstring(xml_str))
         parsed_root = tree.getroot()
 
         # Assert: Verify structure
-        assert parsed_root.tag.endswith('graphml')
+        assert parsed_root.tag.endswith("graphml")
         graph_elem = parsed_root.find(f".//{{{graphml_ns}}}graph")
         assert graph_elem is not None
         node_elem = graph_elem.find(f".//{{{graphml_ns}}}node")
         assert node_elem is not None
-        assert node_elem.get('id') == 'n1'
+        assert node_elem.get("id") == "n1"
 
     async def test_json_export_has_required_fields(self):
         """Test that JSON export contains required fields."""

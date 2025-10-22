@@ -1,15 +1,15 @@
 """Unit tests for background worker similarity computation."""
 
 import asyncio
-import pytest
-import tempfile
 import os
+import tempfile
 from datetime import datetime
-from unittest.mock import Mock, patch, AsyncMock
 
-from decision_graph.workers import BackgroundWorker, SimilarityJob
+import pytest
+
+from decision_graph.schema import DecisionNode
 from decision_graph.storage import DecisionGraphStorage
-from decision_graph.schema import DecisionNode, DecisionSimilarity
+from decision_graph.workers import BackgroundWorker, SimilarityJob
 
 
 @pytest.fixture
@@ -589,6 +589,7 @@ class TestBackgroundWorkerFallback:
 
         # Should complete quickly
         import time
+
         start = time.perf_counter()
 
         similarities = []
@@ -627,6 +628,7 @@ class TestBackgroundWorkerPerformance:
 
         # Enqueue all jobs
         import time
+
         start = time.perf_counter()
         for node in nodes:
             await worker.enqueue(node.id, delay_seconds=0)
@@ -644,7 +646,7 @@ class TestBackgroundWorkerPerformance:
     async def test_deliberation_start_not_blocked(self, worker, storage):
         """Background processing should not block deliberation start."""
         from decision_graph.integration import DecisionGraphIntegration
-        from models.schema import DeliberationResult, Summary, ConvergenceInfo
+        from models.schema import ConvergenceInfo, DeliberationResult, Summary
 
         integration = DecisionGraphIntegration(storage)
         await worker.start()
@@ -674,6 +676,7 @@ class TestBackgroundWorkerPerformance:
 
         # Store deliberation (which would trigger background processing)
         import time
+
         start = time.perf_counter()
         decision_id = integration.store_deliberation("Test question?", result)
         elapsed_ms = (time.perf_counter() - start) * 1000

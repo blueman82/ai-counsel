@@ -5,31 +5,19 @@ Tests full deliberation lifecycle, memory-enhanced convergence, context recall,
 and graceful degradation.
 """
 
-import pytest
-import tempfile
 import os
-from datetime import datetime
+import tempfile
 
-from decision_graph.storage import DecisionGraphStorage
+import pytest
+
 from decision_graph.integration import DecisionGraphIntegration
 from deliberation.engine import DeliberationEngine
-from models.schema import (
-    DeliberateRequest,
-    Participant,
-    DeliberationResult,
-    Summary,
-    ConvergenceInfo,
-    RoundResponse,
-)
-from models.config import (
-    Config,
-    DecisionGraphConfig,
-    DeliberationConfig,
-    DefaultsConfig,
-    StorageConfig,
-    ConvergenceDetectionConfig,
-    EarlyStoppingConfig,
-)
+from models.config import (Config, ConvergenceDetectionConfig,
+                           DecisionGraphConfig, DefaultsConfig,
+                           DeliberationConfig, EarlyStoppingConfig,
+                           StorageConfig)
+from models.schema import (ConvergenceInfo, DeliberationResult, RoundResponse,
+                           Summary)
 
 
 def make_result(consensus: str, participants=None, transcript_path="/tmp/t.md"):
@@ -108,8 +96,12 @@ def config_with_memory(temp_db):
             convergence_threshold=0.85,
             enable_convergence_detection=True,
         ),
-        defaults=DefaultsConfig(mode="quick", rounds=3, max_rounds=5, timeout_per_round=120),
-        storage=StorageConfig(transcripts_dir="transcripts", format="markdown", auto_export=True),
+        defaults=DefaultsConfig(
+            mode="quick", rounds=3, max_rounds=5, timeout_per_round=120
+        ),
+        storage=StorageConfig(
+            transcripts_dir="transcripts", format="markdown", auto_export=True
+        ),
         adapters={},
     )
     return config
@@ -139,8 +131,12 @@ def config_without_memory():
             convergence_threshold=0.85,
             enable_convergence_detection=True,
         ),
-        defaults=DefaultsConfig(mode="quick", rounds=3, max_rounds=5, timeout_per_round=120),
-        storage=StorageConfig(transcripts_dir="transcripts", format="markdown", auto_export=True),
+        defaults=DefaultsConfig(
+            mode="quick", rounds=3, max_rounds=5, timeout_per_round=120
+        ),
+        storage=StorageConfig(
+            transcripts_dir="transcripts", format="markdown", auto_export=True
+        ),
         adapters={},
     )
     return config
@@ -197,8 +193,12 @@ class TestMemoryEnhancedDeliberation:
         engine = DeliberationEngine(adapters={}, config=config_with_memory)
 
         # First deliberation - populate memory
-        result1 = make_result(consensus="Python is recommended", transcript_path="/tmp/t1.md")
-        decision_id1 = engine.graph_integration.store_deliberation("Should we use Python?", result1)
+        result1 = make_result(
+            consensus="Python is recommended", transcript_path="/tmp/t1.md"
+        )
+        decision_id1 = engine.graph_integration.store_deliberation(
+            "Should we use Python?", result1
+        )
         assert decision_id1 is not None
 
         # Second deliberation - should find context from first
@@ -208,7 +208,9 @@ class TestMemoryEnhancedDeliberation:
         assert isinstance(context, str)
 
         # Store second deliberation
-        result2 = make_result(consensus="Python is good for web", transcript_path="/tmp/t2.md")
+        result2 = make_result(
+            consensus="Python is good for web", transcript_path="/tmp/t2.md"
+        )
         decision_id2 = engine.graph_integration.store_deliberation(
             "Should we use Python for web development?", result2
         )
@@ -224,8 +226,12 @@ class TestMemoryRecallAccuracy:
         engine = DeliberationEngine(adapters={}, config=config_with_memory)
 
         # Store first decision
-        result1 = make_result(consensus="Yes, Python is excellent", transcript_path="/tmp/t1.md")
-        engine.graph_integration.store_deliberation("Should we use Python for backend?", result1)
+        result1 = make_result(
+            consensus="Yes, Python is excellent", transcript_path="/tmp/t1.md"
+        )
+        engine.graph_integration.store_deliberation(
+            "Should we use Python for backend?", result1
+        )
 
         # Retrieve context for similar question
         context = engine.graph_integration.get_context_for_deliberation(
@@ -280,17 +286,23 @@ class TestContextInjectionEffectiveness:
         result = make_result(consensus="Test consensus")
         engine.graph_integration.store_deliberation("Test question?", result)
 
-        context = engine.graph_integration.get_context_for_deliberation("Test question?", threshold=0.5)
+        context = engine.graph_integration.get_context_for_deliberation(
+            "Test question?", threshold=0.5
+        )
 
         # Context should be markdown formatted if not empty
         if context:
-            assert "#" in context or "context" in context.lower() or "Previous" in context
+            assert (
+                "#" in context or "context" in context.lower() or "Previous" in context
+            )
 
     def test_context_includes_key_information(self, config_with_memory):
         """Context includes consensus information."""
         engine = DeliberationEngine(adapters={}, config=config_with_memory)
 
-        result = make_result(consensus="Refactoring is needed", transcript_path="/tmp/t.md")
+        result = make_result(
+            consensus="Refactoring is needed", transcript_path="/tmp/t.md"
+        )
         engine.graph_integration.store_deliberation("Should we refactor?", result)
 
         context = engine.graph_integration.get_context_for_deliberation(
@@ -314,7 +326,9 @@ class TestGracefulDegradation:
         engine = DeliberationEngine(adapters={}, config=config_with_memory)
 
         try:
-            context = engine.graph_integration.get_context_for_deliberation("", threshold=0.7)
+            context = engine.graph_integration.get_context_for_deliberation(
+                "", threshold=0.7
+            )
             assert isinstance(context, str), "Should return empty string, not raise"
         except Exception as e:
             pytest.fail(f"Memory error should not propagate: {e}")
@@ -354,7 +368,9 @@ class TestMultipleDeliberations:
         ]
 
         for i, question in enumerate(questions):
-            result = make_result(consensus=f"Decision {i}", transcript_path=f"/tmp/t{i}.md")
+            result = make_result(
+                consensus=f"Decision {i}", transcript_path=f"/tmp/t{i}.md"
+            )
             engine.graph_integration.store_deliberation(question, result)
 
         # Final question should potentially find context from previous
@@ -369,8 +385,12 @@ class TestMultipleDeliberations:
 
         # Simulate multiple deliberations
         for i in range(10):
-            result = make_result(consensus=f"Consensus {i}", transcript_path=f"/tmp/t{i}.md")
-            engine.graph_integration.store_deliberation(f"Question about topic {i % 3}?", result)
+            result = make_result(
+                consensus=f"Consensus {i}", transcript_path=f"/tmp/t{i}.md"
+            )
+            engine.graph_integration.store_deliberation(
+                f"Question about topic {i % 3}?", result
+            )
 
         # Verify accumulation
         all_decisions = engine.graph_integration.storage.get_all_decisions(limit=20)
@@ -382,8 +402,12 @@ class TestMultipleDeliberations:
 
         # Store many similar decisions
         for i in range(10):
-            result = make_result(consensus=f"Python works for {i}", transcript_path=f"/tmp/t{i}.md")
-            engine.graph_integration.store_deliberation(f"Should we use Python for use case {i}?", result)
+            result = make_result(
+                consensus=f"Python works for {i}", transcript_path=f"/tmp/t{i}.md"
+            )
+            engine.graph_integration.store_deliberation(
+                f"Should we use Python for use case {i}?", result
+            )
 
         # Retrieve context
         context = engine.graph_integration.get_context_for_deliberation(
@@ -400,8 +424,12 @@ class TestParticipantStanceTracking:
         """Participant stances are stored with decisions."""
         engine = DeliberationEngine(adapters={}, config=config_with_memory)
 
-        result = make_result(consensus="Proceed with caution", participants=["alice", "bob"])
-        decision_id = engine.graph_integration.store_deliberation("Should we proceed?", result)
+        result = make_result(
+            consensus="Proceed with caution", participants=["alice", "bob"]
+        )
+        decision_id = engine.graph_integration.store_deliberation(
+            "Should we proceed?", result
+        )
 
         # Verify stances stored
         stances = engine.graph_integration.storage.get_participant_stances(decision_id)
@@ -428,13 +456,21 @@ class TestSimilarityComputation:
 
         # Store two similar decisions
         result1 = make_result(consensus="Python is good", transcript_path="/tmp/t1.md")
-        result2 = make_result(consensus="Python is good for backend", transcript_path="/tmp/t2.md")
+        result2 = make_result(
+            consensus="Python is good for backend", transcript_path="/tmp/t2.md"
+        )
 
-        id1 = engine.graph_integration.store_deliberation("Should we use Python?", result1)
-        id2 = engine.graph_integration.store_deliberation("Should we use Python for backend?", result2)
+        id1 = engine.graph_integration.store_deliberation(
+            "Should we use Python?", result1
+        )
+        id2 = engine.graph_integration.store_deliberation(
+            "Should we use Python for backend?", result2
+        )
 
         # Similarities may or may not be found depending on backend
-        similar = engine.graph_integration.storage.get_similar_decisions(id1, threshold=0.5)
+        similar = engine.graph_integration.storage.get_similar_decisions(
+            id1, threshold=0.5
+        )
         assert isinstance(similar, list)
 
     def test_similarity_threshold_filtering(self, config_with_memory):
@@ -445,10 +481,14 @@ class TestSimilarityComputation:
         id1 = engine.graph_integration.store_deliberation("Python question?", result1)
 
         # Query with high threshold
-        similar_high = engine.graph_integration.storage.get_similar_decisions(id1, threshold=0.9)
+        similar_high = engine.graph_integration.storage.get_similar_decisions(
+            id1, threshold=0.9
+        )
 
         # Query with low threshold
-        similar_low = engine.graph_integration.storage.get_similar_decisions(id1, threshold=0.3)
+        similar_low = engine.graph_integration.storage.get_similar_decisions(
+            id1, threshold=0.3
+        )
 
         # Low threshold should return same or more results
         assert len(similar_low) >= len(similar_high)

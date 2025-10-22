@@ -2,6 +2,7 @@
 import asyncio
 import logging
 from typing import Optional
+
 from adapters.base import BaseCLIAdapter
 
 logger = logging.getLogger(__name__)
@@ -104,9 +105,7 @@ class DroidAdapter(BaseCLIAdapter):
             f"Droid failed with all permission levels {self.PERMISSION_LEVELS}. "
             f"Last error: {last_error}"
         )
-        raise RuntimeError(
-            f"Droid CLI failed with all permission levels: {last_error}"
-        )
+        raise RuntimeError(f"Droid CLI failed with all permission levels: {last_error}")
 
     async def _invoke_with_permission(
         self,
@@ -189,7 +188,9 @@ class DroidAdapter(BaseCLIAdapter):
         except asyncio.TimeoutError:
             raise TimeoutError(f"CLI invocation timed out after {self.timeout}s")
 
-    def _inject_permission_level(self, args: list[str], permission_level: str) -> list[str]:
+    def _inject_permission_level(
+        self, args: list[str], permission_level: str
+    ) -> list[str]:
         """
         Inject --auto permission_level into droid args.
 
@@ -206,7 +207,9 @@ class DroidAdapter(BaseCLIAdapter):
             Modified argument list with permission level injected
         """
         if not args or args[0] != "exec":
-            logger.warning(f"Unexpected droid args format: {args}. Injecting permission level anyway.")
+            logger.warning(
+                f"Unexpected droid args format: {args}. Injecting permission level anyway."
+            )
 
         # Insert --auto and permission_level after "exec"
         new_args = args.copy()

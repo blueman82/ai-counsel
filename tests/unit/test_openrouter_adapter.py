@@ -1,6 +1,8 @@
 """Tests for OpenRouter adapter."""
-import pytest
 import os
+
+import pytest
+
 from adapters.openrouter import OpenRouterAdapter
 
 
@@ -128,7 +130,7 @@ class TestOpenRouterAdapter:
     @pytest.mark.asyncio
     async def test_invoke_success(self):
         """Test successful invocation with mocked HTTP client."""
-        from unittest.mock import Mock, AsyncMock, patch
+        from unittest.mock import AsyncMock, Mock, patch
 
         mock_response = Mock()
         mock_response.status_code = 200
@@ -163,7 +165,7 @@ class TestOpenRouterAdapter:
     @pytest.mark.asyncio
     async def test_invoke_with_context(self):
         """Test invocation with context prepends context to prompt."""
-        from unittest.mock import Mock, AsyncMock, patch
+        from unittest.mock import AsyncMock, Mock, patch
 
         mock_response = Mock()
         mock_response.status_code = 200

@@ -1,5 +1,6 @@
 """Pydantic models for AI Counsel."""
-from typing import Literal, Optional, Dict, List
+from typing import Dict, List, Literal, Optional
+
 from pydantic import BaseModel, Field
 
 

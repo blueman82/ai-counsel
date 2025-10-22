@@ -11,11 +11,12 @@ Usage:
 If no path provided, defaults to ./config.yaml
 """
 
-import sys
-import yaml
-from pathlib import Path
-from typing import Dict, Any
 import shutil
+import sys
+from pathlib import Path
+from typing import Any, Dict
+
+import yaml
 
 
 def migrate_config_dict(config: Dict[str, Any]) -> Dict[str, Any]:

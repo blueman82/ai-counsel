@@ -4,18 +4,13 @@ This module tests the QueryEngine class which provides a unified interface
 for querying and analyzing the decision graph, used by both MCP tools and CLI.
 """
 
-import pytest
 from datetime import datetime
-from typing import List
 
-from deliberation.query_engine import (
-    QueryEngine,
-    Contradiction,
-    Timeline,
-    Analysis,
-)
+import pytest
+
 from decision_graph.schema import DecisionNode, ParticipantStance
 from decision_graph.storage import DecisionGraphStorage
+from deliberation.query_engine import Analysis, QueryEngine, Timeline
 
 
 @pytest.fixture
@@ -117,9 +112,7 @@ class TestQueryEngineSimilarSearch:
         """Test basic similar search returns results."""
         engine = QueryEngine(storage)
         results = await engine.search_similar(
-            query="TypeScript migration strategy",
-            limit=5,
-            threshold=0.5
+            query="TypeScript migration strategy", limit=5, threshold=0.5
         )
 
         assert results is not None
@@ -128,8 +121,8 @@ class TestQueryEngineSimilarSearch:
         assert len(results) > 0
         # Results should have required fields
         for result in results:
-            assert hasattr(result, 'decision')
-            assert hasattr(result, 'score')
+            assert hasattr(result, "decision")
+            assert hasattr(result, "score")
             assert 0.0 <= result.score <= 1.0
 
     async def test_search_similar_with_threshold(self, storage, sample_decisions):
@@ -138,16 +131,12 @@ class TestQueryEngineSimilarSearch:
 
         # High threshold should return fewer results
         high_threshold_results = await engine.search_similar(
-            query="TypeScript",
-            limit=10,
-            threshold=0.9
+            query="TypeScript", limit=10, threshold=0.9
         )
 
         # Lower threshold should return more results
         low_threshold_results = await engine.search_similar(
-            query="TypeScript",
-            limit=10,
-            threshold=0.3
+            query="TypeScript", limit=10, threshold=0.3
         )
 
         assert len(low_threshold_results) >= len(high_threshold_results)
@@ -157,9 +146,7 @@ class TestQueryEngineSimilarSearch:
         engine = QueryEngine(storage)
 
         results = await engine.search_similar(
-            query="TypeScript",
-            limit=2,
-            threshold=0.0
+            query="TypeScript", limit=2, threshold=0.0
         )
 
         assert len(results) <= 2
@@ -171,9 +158,7 @@ class TestQueryEngineSimilarSearch:
         engine = QueryEngine(storage)
 
         results = await engine.search_similar(
-            query="TypeScript",
-            limit=10,
-            threshold=0.0
+            query="TypeScript", limit=10, threshold=0.0
         )
 
         if len(results) > 1:
@@ -198,9 +183,7 @@ class TestQueryEngineContradictions:
         """Test filtering contradictions by scope."""
         engine = QueryEngine(storage)
 
-        contradictions = await engine.find_contradictions(
-            scope="TypeScript"
-        )
+        contradictions = await engine.find_contradictions(scope="TypeScript")
 
         assert contradictions is not None
         assert isinstance(contradictions, list)
@@ -209,13 +192,9 @@ class TestQueryEngineContradictions:
         """Test contradiction threshold filtering."""
         engine = QueryEngine(storage)
 
-        tight_contradictions = await engine.find_contradictions(
-            threshold=0.9
-        )
+        tight_contradictions = await engine.find_contradictions(threshold=0.9)
 
-        loose_contradictions = await engine.find_contradictions(
-            threshold=0.3
-        )
+        loose_contradictions = await engine.find_contradictions(threshold=0.3)
 
         # Tighter threshold should find fewer contradictions
         assert len(tight_contradictions) <= len(loose_contradictions)
@@ -248,10 +227,7 @@ class TestQueryEngineEvolution:
         """Test evolution can include related decisions."""
         engine = QueryEngine(storage)
 
-        timeline = await engine.trace_evolution(
-            "dec-1",
-            include_related=True
-        )
+        timeline = await engine.trace_evolution("dec-1", include_related=True)
 
         assert timeline is not None
         # Related decisions should be populated
@@ -269,7 +245,9 @@ class TestQueryEngineEvolution:
 class TestQueryEngineAnalysis:
     """Test pattern analysis functionality."""
 
-    async def test_analyze_patterns_basic(self, storage, sample_decisions, sample_stances):
+    async def test_analyze_patterns_basic(
+        self, storage, sample_decisions, sample_stances
+    ):
         """Test analyzing voting patterns."""
         engine = QueryEngine(storage)
 
@@ -284,9 +262,7 @@ class TestQueryEngineAnalysis:
         """Test analyzing patterns for specific participant."""
         engine = QueryEngine(storage)
 
-        analysis = await engine.analyze_patterns(
-            participant="opus@claude"
-        )
+        analysis = await engine.analyze_patterns(participant="opus@claude")
 
         assert analysis is not None
         # Should include this participant's voting patterns
@@ -330,7 +306,9 @@ class TestQueryEngineIntegration:
         contradictions = await engine.find_contradictions()
         assert contradictions is not None
 
-    async def test_performance_acceptable(self, storage, sample_decisions, sample_stances):
+    async def test_performance_acceptable(
+        self, storage, sample_decisions, sample_stances
+    ):
         """Test that query performance is acceptable."""
         import time
 

@@ -13,8 +13,8 @@ import hashlib
 import logging
 import time
 from collections import OrderedDict
-from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Tuple, Any
+from datetime import datetime
+from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -225,9 +225,7 @@ class SimilarityCache:
         """
         return hashlib.sha256(question.encode("utf-8")).hexdigest()
 
-    def _make_query_key(
-        self, question: str, threshold: float, max_results: int
-    ) -> str:
+    def _make_query_key(self, question: str, threshold: float, max_results: int) -> str:
         """Generate cache key for query results.
 
         Args:
@@ -344,9 +342,7 @@ class SimilarityCache:
         self.query_cache.clear()
         self._last_invalidation = datetime.now()
 
-        logger.info(
-            "Invalidated all L1 query results (new decision added to graph)"
-        )
+        logger.info("Invalidated all L1 query results (new decision added to graph)")
 
     def invalidate_all(self) -> None:
         """Invalidate both L1 and L2 caches completely.
@@ -372,8 +368,10 @@ class SimilarityCache:
         # Calculate combined hit rate
         total_hits = l1_stats["hits"] + l2_stats["hits"]
         total_requests = (
-            l1_stats["hits"] + l1_stats["misses"] +
-            l2_stats["hits"] + l2_stats["misses"]
+            l1_stats["hits"]
+            + l1_stats["misses"]
+            + l2_stats["hits"]
+            + l2_stats["misses"]
         )
         combined_hit_rate = total_hits / total_requests if total_requests > 0 else 0.0
 
@@ -382,9 +380,7 @@ class SimilarityCache:
             "l2_embedding_cache": l2_stats,
             "combined_hit_rate": combined_hit_rate,
             "last_invalidation": (
-                self._last_invalidation.isoformat()
-                if self._last_invalidation
-                else None
+                self._last_invalidation.isoformat() if self._last_invalidation else None
             ),
             "query_ttl_seconds": self.query_ttl,
         }

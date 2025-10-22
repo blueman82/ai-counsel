@@ -6,18 +6,18 @@ This script creates a test database, populates it with decisions, and measures
 query performance with and without indexes to demonstrate their impact.
 """
 
+import json
+import os
 import sqlite3
+import sys
 import tempfile
 import time
 from datetime import datetime
-import json
-import os
-import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from decision_graph.storage import DecisionGraphStorage
 from decision_graph.schema import DecisionNode
+from decision_graph.storage import DecisionGraphStorage
 
 
 def create_test_database_without_indexes(db_path: str, num_decisions: int = 1000):
@@ -25,7 +25,8 @@ def create_test_database_without_indexes(db_path: str, num_decisions: int = 1000
     conn = sqlite3.connect(db_path)
 
     # Create tables without indexes
-    conn.execute("""
+    conn.execute(
+        """
         CREATE TABLE decision_nodes (
             id TEXT PRIMARY KEY,
             question TEXT NOT NULL,
@@ -37,9 +38,11 @@ def create_test_database_without_indexes(db_path: str, num_decisions: int = 1000
             transcript_path TEXT NOT NULL,
             metadata TEXT
         )
-    """)
+    """
+    )
 
-    conn.execute("""
+    conn.execute(
+        """
         CREATE TABLE participant_stances (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             decision_id TEXT NOT NULL,
@@ -50,9 +53,11 @@ def create_test_database_without_indexes(db_path: str, num_decisions: int = 1000
             final_position TEXT,
             FOREIGN KEY (decision_id) REFERENCES decision_nodes(id)
         )
-    """)
+    """
+    )
 
-    conn.execute("""
+    conn.execute(
+        """
         CREATE TABLE decision_similarities (
             source_id TEXT NOT NULL,
             target_id TEXT NOT NULL,
@@ -62,7 +67,8 @@ def create_test_database_without_indexes(db_path: str, num_decisions: int = 1000
             FOREIGN KEY (source_id) REFERENCES decision_nodes(id),
             FOREIGN KEY (target_id) REFERENCES decision_nodes(id)
         )
-    """)
+    """
+    )
 
     # Populate with test data
     print(f"Populating database with {num_decisions} decisions...")
@@ -109,7 +115,7 @@ def create_test_database_without_indexes(db_path: str, num_decisions: int = 1000
 
     conn.commit()
     conn.close()
-    print(f"✓ Database populated")
+    print("✓ Database populated")
 
 
 def benchmark_query(db_path: str, query: str, description: str) -> float:
@@ -165,15 +171,15 @@ def main():
     queries = [
         (
             "SELECT * FROM decision_nodes ORDER BY timestamp DESC LIMIT 10",
-            "Timestamp-ordered query (LIMIT 10)"
+            "Timestamp-ordered query (LIMIT 10)",
         ),
         (
             "SELECT * FROM participant_stances WHERE decision_id = 'test-000500'",
-            "Participant stances lookup"
+            "Participant stances lookup",
         ),
         (
             "SELECT COUNT(*) FROM decision_nodes WHERE timestamp > '2025-01-01'",
-            "Timestamp filter count"
+            "Timestamp filter count",
         ),
     ]
 
@@ -185,11 +191,15 @@ def main():
 
     for query, description in queries:
         time_no_idx, results_no_idx = benchmark_query(db_no_idx, query, description)
-        time_with_idx, results_with_idx = benchmark_query(db_with_idx, query, description)
+        time_with_idx, results_with_idx = benchmark_query(
+            db_with_idx, query, description
+        )
 
         speedup = time_no_idx / time_with_idx if time_with_idx > 0 else 0
 
-        print(f"{description:<40} {time_no_idx:>10.2f}ms {time_with_idx:>10.2f}ms {speedup:>8.1f}x")
+        print(
+            f"{description:<40} {time_no_idx:>10.2f}ms {time_with_idx:>10.2f}ms {speedup:>8.1f}x"
+        )
 
     print("-" * 70)
     print()

@@ -2,6 +2,7 @@
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
+
 from models.schema import DeliberationResult
 
 
@@ -12,7 +13,9 @@ class TranscriptManager:
     Generates markdown files with full debate history and summary.
     """
 
-    def __init__(self, output_dir: str = "transcripts", server_dir: Optional[Path] = None):
+    def __init__(
+        self, output_dir: str = "transcripts", server_dir: Optional[Path] = None
+    ):
         """
         Initialize transcript manager.
 

@@ -1,12 +1,13 @@
 """Configuration loading and validation."""
-from pathlib import Path
 import os
 import re
 import warnings
+from pathlib import Path
+from typing import Annotated, Literal, Optional, Union
+
 import yaml
-from typing import Literal, Union, Optional, Annotated
-from pydantic import BaseModel, Field, field_validator
 from dotenv import load_dotenv
+from pydantic import BaseModel, Field, field_validator
 
 
 class CLIAdapterConfig(BaseModel):
@@ -114,27 +115,22 @@ class DeliberationConfig(BaseModel):
 class DecisionGraphConfig(BaseModel):
     """Configuration for decision graph memory."""
 
-    enabled: bool = Field(
-        False,
-        description="Enable decision graph memory"
-    )
-    db_path: str = Field(
-        "decision_graph.db",
-        description="Path to SQLite database"
-    )
+    enabled: bool = Field(False, description="Enable decision graph memory")
+    db_path: str = Field("decision_graph.db", description="Path to SQLite database")
     similarity_threshold: float = Field(
         0.7,
-        ge=0.0, le=1.0,
-        description="Minimum similarity score for context injection (0.0-1.0)"
+        ge=0.0,
+        le=1.0,
+        description="Minimum similarity score for context injection (0.0-1.0)",
     )
     max_context_decisions: int = Field(
         3,
-        ge=1, le=10,
-        description="Maximum number of past decisions to inject as context"
+        ge=1,
+        le=10,
+        description="Maximum number of past decisions to inject as context",
     )
     compute_similarities: bool = Field(
-        True,
-        description="Compute similarities after storing a deliberation"
+        True, description="Compute similarities after storing a deliberation"
     )
 
 

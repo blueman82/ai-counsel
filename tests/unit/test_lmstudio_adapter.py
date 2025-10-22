@@ -1,5 +1,6 @@
 """Tests for LM Studio adapter."""
 import pytest
+
 from adapters.lmstudio import LMStudioAdapter
 
 
@@ -93,7 +94,7 @@ class TestLMStudioAdapter:
     @pytest.mark.asyncio
     async def test_invoke_success(self):
         """Test successful invocation with mocked HTTP client."""
-        from unittest.mock import Mock, AsyncMock, patch
+        from unittest.mock import AsyncMock, Mock, patch
 
         mock_response = Mock()
         mock_response.status_code = 200
@@ -121,7 +122,7 @@ class TestLMStudioAdapter:
     @pytest.mark.asyncio
     async def test_invoke_with_context(self):
         """Test invocation with context prepends context to prompt."""
-        from unittest.mock import Mock, AsyncMock, patch
+        from unittest.mock import AsyncMock, Mock, patch
 
         mock_response = Mock()
         mock_response.status_code = 200

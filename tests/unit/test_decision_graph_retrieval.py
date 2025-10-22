@@ -1,8 +1,8 @@
 """Unit tests for DecisionRetriever with caching integration."""
 
 import time
-from datetime import datetime, UTC
-from unittest.mock import Mock, MagicMock, patch
+from datetime import UTC, datetime
+from unittest.mock import Mock, patch
 
 import pytest
 

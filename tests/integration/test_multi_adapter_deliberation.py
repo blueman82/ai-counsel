@@ -1,9 +1,11 @@
 """Integration tests for multi-adapter deliberation (CLI + HTTP)."""
-import pytest
 from unittest.mock import AsyncMock
-from models.schema import DeliberateRequest, Participant
-from models.config import load_config
+
+import pytest
+
 from deliberation.engine import DeliberationEngine
+from models.config import load_config
+from models.schema import DeliberateRequest, Participant
 
 
 @pytest.mark.integration

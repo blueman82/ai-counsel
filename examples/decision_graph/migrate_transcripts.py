@@ -14,18 +14,16 @@ Requirements:
 
 import asyncio
 import logging
-from pathlib import Path
 import sys
 from datetime import datetime
+from pathlib import Path
 
 # Add parent directories to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from decision_graph.integration import DecisionGraphIntegration
+from decision_graph.schema import DecisionNode
 from decision_graph.storage import DecisionGraphStorage
-from decision_graph.schema import DecisionNode, ParticipantStance
 from models.config import load_config
-
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -71,13 +69,14 @@ def extract_metadata_from_transcript(transcript_path: Path) -> dict:
             summary_section = content[summary_start : summary_start + 500]
             if "**Consensus:** " in summary_section:
                 consensus_line = [
-                    line for line in summary_section.split("\n")
+                    line
+                    for line in summary_section.split("\n")
                     if "**Consensus:** " in line
                 ]
                 if consensus_line:
-                    metadata["consensus"] = consensus_line[0].replace(
-                        "**Consensus:** ", ""
-                    ).strip()
+                    metadata["consensus"] = (
+                        consensus_line[0].replace("**Consensus:** ", "").strip()
+                    )
 
         # Look for participants
         if "**Participants:** " in content:
@@ -202,7 +201,9 @@ async def main():
             logger.info("=" * 60)
             logger.info(f"\n✨ Migration complete: {count_actual} transcripts migrated")
             logger.info("\nNext steps:")
-            logger.info("- Query the graph: ai-counsel graph similar --query 'your topic'")
+            logger.info(
+                "- Query the graph: ai-counsel graph similar --query 'your topic'"
+            )
             logger.info("- View graph stats: ai-counsel graph analyze")
         else:
             logger.info("Migration cancelled.")

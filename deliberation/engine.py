@@ -106,7 +106,8 @@ class DeliberationEngine:
         if config and hasattr(config, "decision_graph") and config.decision_graph:
             if config.decision_graph.enabled:
                 try:
-                    from decision_graph.integration import DecisionGraphIntegration
+                    from decision_graph.integration import \
+                        DecisionGraphIntegration
                     from decision_graph.storage import DecisionGraphStorage
 
                     storage = DecisionGraphStorage(config.decision_graph.db_path)

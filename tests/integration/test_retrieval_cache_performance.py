@@ -5,7 +5,7 @@ operations, demonstrating the latency improvements from the two-tier cache.
 """
 
 import time
-from datetime import datetime, UTC
+from datetime import UTC, datetime
 
 import pytest
 
@@ -75,7 +75,7 @@ class TestRetrievalCachePerformance:
 
         # Log performance metrics
         speedup = miss_time / hit_time if hit_time > 0 else float("inf")
-        print(f"\nCache performance:")
+        print("\nCache performance:")
         print(f"  Cache miss: {miss_time*1000:.2f}ms")
         print(f"  Cache hit:  {hit_time*1000:.2f}ms")
         print(f"  Speedup:    {speedup:.1f}x")
@@ -108,7 +108,7 @@ class TestRetrievalCachePerformance:
         # Average cache hit time should be much faster than miss
         assert avg_hit_time < first_time
 
-        print(f"\nMultiple query performance:")
+        print("\nMultiple query performance:")
         print(f"  Initial query (miss): {first_time*1000:.2f}ms")
         print(f"  Avg cached query:     {avg_hit_time*1000:.2f}ms")
         print(f"  Speedup:              {first_time/avg_hit_time:.1f}x")
@@ -117,7 +117,9 @@ class TestRetrievalCachePerformance:
         stats = retriever.get_cache_stats()
         assert stats["l1_query_cache"]["hits"] == num_iterations - 1
         assert stats["l1_query_cache"]["misses"] == 1
-        assert stats["l1_query_cache"]["hit_rate"] == (num_iterations - 1) / num_iterations
+        assert (
+            stats["l1_query_cache"]["hit_rate"] == (num_iterations - 1) / num_iterations
+        )
 
     def test_uncached_retrieval_performance_baseline(self, storage_with_decisions):
         """Baseline test: uncached retrieval always recomputes."""
@@ -134,7 +136,7 @@ class TestRetrievalCachePerformance:
 
         avg_time = sum(times) / len(times)
 
-        print(f"\nUncached retrieval baseline:")
+        print("\nUncached retrieval baseline:")
         print(f"  Average query time: {avg_time*1000:.2f}ms")
         print(f"  Min time:          {min(times)*1000:.2f}ms")
         print(f"  Max time:          {max(times)*1000:.2f}ms")
@@ -172,8 +174,8 @@ class TestRetrievalCachePerformance:
         expected_hit_rate = 6 / 9
         assert abs(stats["l1_query_cache"]["hit_rate"] - expected_hit_rate) < 0.001
 
-        print(f"\nCache hit rate tracking:")
-        print(f"  Total requests: 9")
+        print("\nCache hit rate tracking:")
+        print("  Total requests: 9")
         print(f"  Cache hits:     {stats['l1_query_cache']['hits']}")
         print(f"  Cache misses:   {stats['l1_query_cache']['misses']}")
         print(f"  Hit rate:       {stats['l1_query_cache']['hit_rate']:.1%}")
@@ -208,7 +210,7 @@ class TestRetrievalCachePerformance:
         # Allow some variance due to system noise
         assert post_invalidation_time > cached_time
 
-        print(f"\nCache invalidation performance:")
+        print("\nCache invalidation performance:")
         print(f"  Initial miss:         {first_time*1000:.2f}ms")
         print(f"  Cached hit:           {cached_time*1000:.2f}ms")
         print(f"  Post-invalidation:    {post_invalidation_time*1000:.2f}ms")
@@ -238,10 +240,10 @@ class TestRetrievalCachePerformance:
         assert stats["l1_query_cache"]["misses"] == 2
         assert stats["l1_query_cache"]["hits"] == 0
 
-        print(f"\nDifferent params performance:")
+        print("\nDifferent params performance:")
         print(f"  Query (threshold=0.7): {time1*1000:.2f}ms")
         print(f"  Query (threshold=0.8): {time2*1000:.2f}ms")
-        print(f"  Both are cache misses (no cross-benefit)")
+        print("  Both are cache misses (no cross-benefit)")
 
     def test_empty_result_caching_performance(self, storage_with_decisions):
         """Test empty results are cached efficiently."""
@@ -252,20 +254,24 @@ class TestRetrievalCachePerformance:
 
         # First query - cache miss
         start = time.perf_counter()
-        results1 = retriever.find_relevant_decisions(query, threshold=0.9, max_results=3)
+        results1 = retriever.find_relevant_decisions(
+            query, threshold=0.9, max_results=3
+        )
         miss_time = time.perf_counter() - start
 
         assert len(results1) == 0  # No matches
 
         # Second query - cache hit (even for empty result)
         start = time.perf_counter()
-        results2 = retriever.find_relevant_decisions(query, threshold=0.9, max_results=3)
+        results2 = retriever.find_relevant_decisions(
+            query, threshold=0.9, max_results=3
+        )
         hit_time = time.perf_counter() - start
 
         assert len(results2) == 0  # Still no matches
         assert hit_time < miss_time  # But faster due to cache
 
-        print(f"\nEmpty result caching:")
+        print("\nEmpty result caching:")
         print(f"  First query (miss):  {miss_time*1000:.2f}ms")
         print(f"  Second query (hit):  {hit_time*1000:.2f}ms")
         print(f"  Speedup:             {miss_time/hit_time:.1f}x")

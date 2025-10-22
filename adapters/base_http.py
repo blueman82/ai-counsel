@@ -1,9 +1,11 @@
 """Base HTTP adapter with request/retry management."""
 import asyncio
-import httpx
 from abc import ABC, abstractmethod
 from typing import Optional, Tuple
-from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception
+
+import httpx
+from tenacity import (retry, retry_if_exception, stop_after_attempt,
+                      wait_exponential)
 
 
 def is_retryable_http_error(exception):
@@ -152,6 +154,7 @@ class BaseHTTPAdapter(ABC):
         # Log request details for debugging
         import json
         import logging
+
         logger = logging.getLogger(__name__)
         body_str = json.dumps(body)
         logger.debug(
@@ -210,6 +213,7 @@ class BaseHTTPAdapter(ABC):
                 # Log error response body for 4xx errors (helps debugging)
                 if 400 <= response.status_code < 500:
                     import logging
+
                     logger = logging.getLogger(__name__)
                     try:
                         error_body = response.json()

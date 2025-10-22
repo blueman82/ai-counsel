@@ -1,8 +1,10 @@
 """Unit tests for transcript management."""
-import pytest
 from pathlib import Path
+
+import pytest
+
 from deliberation.transcript import TranscriptManager
-from models.schema import RoundResponse, DeliberationResult, Summary
+from models.schema import DeliberationResult, RoundResponse, Summary
 
 
 @pytest.fixture

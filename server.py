@@ -1,19 +1,20 @@
 """AI Counsel MCP Server."""
 import asyncio
+import json
 import logging
-from pathlib import Path
 import sys
+from pathlib import Path
+
 from mcp.server import Server
 from mcp.server.stdio import stdio_server
-from mcp.types import Tool, TextContent
-import json
+from mcp.types import TextContent, Tool
 
-from models.config import load_config
-from models.schema import DeliberateRequest
 from adapters import create_adapter
+from decision_graph.storage import DecisionGraphStorage
 from deliberation.engine import DeliberationEngine
 from deliberation.query_engine import QueryEngine
-from decision_graph.storage import DecisionGraphStorage
+from models.config import load_config
+from models.schema import DeliberateRequest
 
 # Get the absolute path to the server directory
 SERVER_DIR = Path(__file__).parent.absolute()
@@ -51,18 +52,20 @@ adapters = {}
 adapter_sources = []
 
 # Try new adapters section first (preferred)
-if hasattr(config, 'adapters') and config.adapters:
-    adapter_sources.append(('adapters', config.adapters))
+if hasattr(config, "adapters") and config.adapters:
+    adapter_sources.append(("adapters", config.adapters))
 
 # Fallback to legacy cli_tools for backward compatibility
-if hasattr(config, 'cli_tools') and config.cli_tools:
-    adapter_sources.append(('cli_tools', config.cli_tools))
+if hasattr(config, "cli_tools") and config.cli_tools:
+    adapter_sources.append(("cli_tools", config.cli_tools))
 
 for source_name, adapter_configs in adapter_sources:
     for cli_name, cli_config in adapter_configs.items():
         # Skip if already loaded from preferred source
         if cli_name in adapters:
-            logger.debug(f"Adapter '{cli_name}' already loaded from preferred source, skipping {source_name}")
+            logger.debug(
+                f"Adapter '{cli_name}' already loaded from preferred source, skipping {source_name}"
+            )
             continue
 
         try:
@@ -189,63 +192,65 @@ async def list_tools() -> list[Tool]:
 
     # Add decision graph tools if enabled
     if hasattr(config, "decision_graph") and config.decision_graph.enabled:
-        tools.extend([
-            Tool(
-                name="query_decisions",
-                description=(
-                    "Search and analyze past deliberations in the decision graph memory. "
-                    "Find similar decisions by semantic meaning, identify contradictions, "
-                    "or trace how decisions evolved over time."
-                ),
-                inputSchema={
-                    "type": "object",
-                    "properties": {
-                        "query_text": {
-                            "type": "string",
-                            "description": "Query text to search for similar decisions",
-                        },
-                        "find_contradictions": {
-                            "type": "boolean",
-                            "default": False,
-                            "description": "Find contradictions in decision history instead of searching",
-                        },
-                        "decision_id": {
-                            "type": "string",
-                            "description": "Trace evolution of a specific decision by ID",
-                        },
-                        "limit": {
-                            "type": "integer",
-                            "default": 5,
-                            "minimum": 1,
-                            "maximum": 20,
-                            "description": "Maximum number of results to return",
-                        },
-                        "format": {
-                            "type": "string",
-                            "enum": ["summary", "detailed", "json"],
-                            "default": "summary",
-                            "description": "Output format",
-                        },
-                    },
-                },
-            ),
-            Tool(
-                name="analyze_decisions",
-                description=(
-                    "Analyze aggregated patterns from past deliberations. "
-                    "Get voting patterns, convergence statistics, and participation metrics."
-                ),
-                inputSchema={
-                    "type": "object",
-                    "properties": {
-                        "participant": {
-                            "type": "string",
-                            "description": "Optional: filter analysis for a specific participant",
+        tools.extend(
+            [
+                Tool(
+                    name="query_decisions",
+                    description=(
+                        "Search and analyze past deliberations in the decision graph memory. "
+                        "Find similar decisions by semantic meaning, identify contradictions, "
+                        "or trace how decisions evolved over time."
+                    ),
+                    inputSchema={
+                        "type": "object",
+                        "properties": {
+                            "query_text": {
+                                "type": "string",
+                                "description": "Query text to search for similar decisions",
+                            },
+                            "find_contradictions": {
+                                "type": "boolean",
+                                "default": False,
+                                "description": "Find contradictions in decision history instead of searching",
+                            },
+                            "decision_id": {
+                                "type": "string",
+                                "description": "Trace evolution of a specific decision by ID",
+                            },
+                            "limit": {
+                                "type": "integer",
+                                "default": 5,
+                                "minimum": 1,
+                                "maximum": 20,
+                                "description": "Maximum number of results to return",
+                            },
+                            "format": {
+                                "type": "string",
+                                "enum": ["summary", "detailed", "json"],
+                                "default": "summary",
+                                "description": "Output format",
+                            },
                         },
                     },
-                },
-            ),
-        ])
+                ),
+                Tool(
+                    name="analyze_decisions",
+                    description=(
+                        "Analyze aggregated patterns from past deliberations. "
+                        "Get voting patterns, convergence statistics, and participation metrics."
+                    ),
+                    inputSchema={
+                        "type": "object",
+                        "properties": {
+                            "participant": {
+                                "type": "string",
+                                "description": "Optional: filter analysis for a specific participant",
+                            },
+                        },
+                    },
+                ),
+            ]
+        )
 
     return tools
 
@@ -417,7 +422,9 @@ async def handle_query_decisions(arguments: dict) -> list[TextContent]:
         return [TextContent(type="text", text=json.dumps(result, indent=2))]
 
     except Exception as e:
-        logger.error(f"Error in query_decisions: {type(e).__name__}: {e}", exc_info=True)
+        logger.error(
+            f"Error in query_decisions: {type(e).__name__}: {e}", exc_info=True
+        )
         error_response = {
             "error": str(e),
             "error_type": type(e).__name__,
@@ -460,7 +467,9 @@ async def handle_analyze_decisions(arguments: dict) -> list[TextContent]:
         return [TextContent(type="text", text=json.dumps(result, indent=2))]
 
     except Exception as e:
-        logger.error(f"Error in analyze_decisions: {type(e).__name__}: {e}", exc_info=True)
+        logger.error(
+            f"Error in analyze_decisions: {type(e).__name__}: {e}", exc_info=True
+        )
         error_response = {
             "error": str(e),
             "error_type": type(e).__name__,

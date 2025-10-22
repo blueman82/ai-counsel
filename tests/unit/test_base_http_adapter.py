@@ -1,8 +1,9 @@
 """Unit tests for BaseHTTPAdapter."""
 import asyncio
-import pytest
-from unittest.mock import Mock, AsyncMock, patch
+from unittest.mock import AsyncMock, Mock, patch
+
 import httpx
+import pytest
 
 
 # Concrete test implementation for testing abstract base

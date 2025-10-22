@@ -1,8 +1,10 @@
 """Unit tests for configuration loading."""
 import os
+
 import pytest
 import yaml
 from pydantic import ValidationError
+
 from models.config import load_config
 
 
@@ -130,8 +132,9 @@ class TestAdapterConfig:
 
     def test_adapter_config_discriminates_cli_type(self):
         """Test AdapterConfig discriminates to CLIAdapterConfig."""
-        from models.config import CLIAdapterConfig
         from pydantic import TypeAdapter
+
+        from models.config import CLIAdapterConfig
 
         data = {
             "type": "cli",
@@ -149,8 +152,9 @@ class TestAdapterConfig:
 
     def test_adapter_config_discriminates_http_type(self):
         """Test AdapterConfig discriminates to HTTPAdapterConfig."""
-        from models.config import HTTPAdapterConfig
         from pydantic import TypeAdapter
+
+        from models.config import HTTPAdapterConfig
 
         data = {"type": "http", "base_url": "http://localhost:11434", "timeout": 60}
 
