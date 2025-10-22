@@ -137,7 +137,7 @@ deliberation:
 # Decision Graph Memory
 decision_graph:
   enabled: true # Feature toggle (opt-in)
-  db_path: "/Users/harrison/Documents/Github/ai-counsel/decision_graph.db" # Absolute path - ensures all debates populate same DB
+  db_path: "decision_graph.db" # Relative to project root - works for any user
   similarity_threshold: 0.7 # Minimum similarity score for context injection (0.0-1.0)
   max_context_decisions: 3 # Maximum number of past decisions to inject as context
   compute_similarities: true # Compute edge similarities after storing deliberation
