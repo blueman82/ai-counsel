@@ -138,6 +138,17 @@ deliberation:
 decision_graph:
   enabled: true # Feature toggle (opt-in)
   db_path: "decision_graph.db" # Relative to project root - works for any user
+
+  # DEPRECATED: similarity_threshold is no longer used. Use tier_boundaries instead.
   similarity_threshold: 0.6 # Minimum similarity score for context injection (0.0-1.0)
+
+  # NEW: Budget-aware context injection parameters
+  context_token_budget: 1500 # Max tokens for context injection (prevents token bloat)
+  tier_boundaries:
+    strong: 0.75 # Strong matches get full formatting (~500 tokens each)
+    moderate: 0.60 # Moderate matches get summary formatting (~200 tokens each)
+  query_window: 1000 # Recent decisions to query (scalability limit)
+
+  # Keep for backward compatibility
   max_context_decisions: 3 # Maximum number of past decisions to inject as context
   compute_similarities: true # Compute edge similarities after storing deliberation
