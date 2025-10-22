@@ -158,24 +158,36 @@ Add new CLI tools or HTTP adapters to fit your infrastructure. Simple 3-5 step p
 
 → **[Developer Guide](docs/adding-adapters.md)** - Step-by-step tutorials, real-world examples
 
-## Decision Graph Memory (Optional)
+## Decision Graph Memory
 
-Learn from past deliberations. The system automatically finds similar past questions and injects context into current debates for faster convergence. **Works for any user from any directory** - database path is resolved relative to project root.
+AI Counsel learns from past deliberations to accelerate future decisions. Two core capabilities:
 
+### 1. Automatic Context Injection
+When starting a new deliberation, the system:
+- Searches past debates for similar questions (semantic similarity)
+- Finds the top-k most relevant decisions (configurable, default: 3)
+- Injects context into Round 1 prompts automatically
+- Result: Models start with institutional knowledge, converge faster
+
+### 2. Semantic Search with `query_decisions`
+Query past deliberations programmatically:
+- **Search similar**: Find decisions related to a question
+- **Find contradictions**: Detect conflicting past decisions
+- **Trace evolution**: See how opinions changed over time
+- **Analyze patterns**: Identify recurring themes
+
+**Configuration** (optional - defaults work out-of-box):
 ```yaml
 decision_graph:
-  enabled: true
+  enabled: true                       # Auto-injection on by default
   db_path: "decision_graph.db"        # Resolves to project root (works for any user/folder)
   similarity_threshold: 0.6           # Adjust to control context relevance
-  max_context_decisions: 3            # How many past decisions to include
+  max_context_decisions: 3            # How many past decisions to inject
 ```
 
-**Recent Fixes:**
-- ✅ **Cache invalidation bug** - Context now retrieves correctly on 2nd and subsequent debates
-- ✅ **Cross-user path resolution** - Any user running from any folder populates same database (not folder-specific)
-- ✅ **13+ comprehensive tests** - Path resolution, cache behavior, all edge cases covered
+**Works for any user from any directory** - database path is resolved relative to project root.
 
-→ **[Quickstart](docs/decision-graph/quickstart.md)** | **[Configuration](docs/decision-graph/configuration.md)**
+→ **[Quickstart](docs/decision-graph/quickstart.md)** | **[Configuration](docs/decision-graph/configuration.md)** | **[Query API](docs/decision-graph/query-engine.md)**
 
 ## Usage
 
