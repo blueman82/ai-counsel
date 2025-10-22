@@ -9,7 +9,7 @@ new deliberations.
 import asyncio
 import logging
 from datetime import datetime
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 from uuid import uuid4
 
 from decision_graph.maintenance import DecisionGraphMaintenance
@@ -20,6 +20,9 @@ from decision_graph.similarity import QuestionSimilarityDetector
 from decision_graph.storage import DecisionGraphStorage
 from decision_graph.workers import BackgroundWorker
 from models.schema import DeliberationResult
+
+if TYPE_CHECKING:
+    from models.config import Config
 
 logger = logging.getLogger(__name__)
 
@@ -49,13 +52,17 @@ class DecisionGraphIntegration:
     """
 
     def __init__(
-        self, storage: DecisionGraphStorage, enable_background_worker: bool = True
+        self,
+        storage: DecisionGraphStorage,
+        enable_background_worker: bool = True,
+        config: Optional["Config"] = None,
     ):
         """Initialize integration with storage backend.
 
         Args:
             storage: DecisionGraphStorage instance for persistence
             enable_background_worker: Enable async background processing for similarities
+            config: Optional Config instance for budget-aware context injection
         """
         self.storage = storage
         self.retriever = DecisionRetriever(storage)
@@ -63,6 +70,7 @@ class DecisionGraphIntegration:
         self._worker_enabled = enable_background_worker
         self.maintenance = DecisionGraphMaintenance(storage)
         self._decision_count = 0
+        self.config = config
 
         # Initialize background worker if enabled
         if enable_background_worker:
@@ -284,6 +292,16 @@ class DecisionGraphIntegration:
                         exc_info=True,
                     )
 
+            # Invalidate retriever cache so next query reflects this new decision
+            # This ensures that subsequent get_context_for_deliberation() calls
+            # will find context from this newly stored decision
+            try:
+                self.retriever.invalidate_cache()
+            except Exception as e:
+                logger.warning(
+                    f"Error invalidating retriever cache after storing decision {decision_id}: {e}"
+                )
+
             return decision_id
 
         except Exception as e:
@@ -360,6 +378,55 @@ class DecisionGraphIntegration:
             logger.error(f"Error in similarity computation: {e}", exc_info=True)
             # Don't raise - this is a non-critical operation
 
+    def _log_context_metrics(
+        self,
+        question: str,
+        scored_count: int,
+        tier_dist: dict,
+        tokens_used: int,
+        token_budget: int,
+        db_size: int,
+    ) -> None:
+        """Log structured measurement metrics for Phase 1.5 calibration.
+
+        This method logs metrics in a structured format that can be parsed
+        for empirical analysis of context injection effectiveness:
+        - Which tiers (strong/moderate/brief) help convergence?
+        - Should tier boundaries move based on usage patterns?
+        - Is the token budget appropriately sized?
+
+        Args:
+            question: The deliberation question (truncated for logging)
+            scored_count: Number of scored decisions retrieved
+            tier_dist: Dictionary with strong/moderate/brief counts
+            tokens_used: Tokens used in formatted context
+            token_budget: Token budget from config
+            db_size: Current database size (decision count)
+
+        Example log output:
+            MEASUREMENT: question='Should we use TypeScript?...', scored_results=3,
+            tier_distribution={'strong': 1, 'moderate': 1, 'brief': 1},
+            tokens=450/1500, db_size=250
+        """
+        # Truncate question for logging (max 30 chars)
+        truncated_question = question[:30] + "..." if len(question) > 30 else question
+
+        # Format tier distribution for readability
+        tier_str = (
+            f"strong:{tier_dist.get('strong', 0)}, "
+            f"moderate:{tier_dist.get('moderate', 0)}, "
+            f"brief:{tier_dist.get('brief', 0)}"
+        )
+
+        # Log in structured format
+        logger.info(
+            f"MEASUREMENT: question='{truncated_question}', "
+            f"scored_results={scored_count}, "
+            f"tier_distribution=({tier_str}), "
+            f"tokens={tokens_used}/{token_budget}, "
+            f"db_size={db_size}"
+        )
+
     def get_context_for_deliberation(
         self,
         question: str,
@@ -372,21 +439,22 @@ class DecisionGraphIntegration:
         and formats them as markdown context. This context can be prepended to
         deliberation prompts to provide historical perspective.
 
+        NEW (Task 5): Uses budget-aware tiered formatting if config is available.
+        Falls back to legacy formatting if config is None.
+
         Args:
             question: The deliberation question
-            threshold: Minimum similarity threshold (0.0-1.0). Defaults to 0.7 (high similarity).
-            max_context_decisions: Maximum past decisions to include. Defaults to 3.
+            threshold: DEPRECATED - Kept for backward compatibility. Use config.tier_boundaries instead.
+            max_context_decisions: DEPRECATED - Kept for backward compatibility. Adaptive k is used instead.
 
         Returns:
             Markdown-formatted context string. Empty string if no similar decisions
             found or if any error occurs (graceful degradation).
 
         Example:
-            >>> integration = DecisionGraphIntegration(storage)
+            >>> integration = DecisionGraphIntegration(storage, config=config)
             >>> context = integration.get_context_for_deliberation(
-            ...     "Should we adopt TypeScript?",
-            ...     threshold=0.75,
-            ...     max_context_decisions=2
+            ...     "Should we adopt TypeScript?"
             ... )
             >>> if context:
             ...     print("Found relevant context:")
@@ -412,23 +480,77 @@ class DecisionGraphIntegration:
                 )
                 max_context_decisions = 1
 
-            # Retrieve enriched context
-            context = self.retriever.get_enriched_context(
-                question, threshold=threshold, max_results=max_context_decisions
-            )
-
-            if context:
-                logger.info(
-                    f"Retrieved enriched context for question: {question[:50]}... "
-                    f"(threshold={threshold}, max_results={max_context_decisions})"
+            # Log deprecation warning if non-default parameters used
+            if threshold != 0.7 or max_context_decisions != 3:
+                logger.warning(
+                    f"Parameters threshold={threshold} and max_context_decisions={max_context_decisions} "
+                    f"are deprecated. Use config.decision_graph.tier_boundaries and adaptive k instead."
                 )
+
+            # Branch: Use budget-aware tiered formatting if config available
+            if self.config and self.config.decision_graph:
+                logger.debug("Using budget-aware tiered formatting from config")
+
+                # Get configuration values
+                token_budget = self.config.decision_graph.context_token_budget
+                tier_boundaries = self.config.decision_graph.tier_boundaries
+
+                # Get database size for logging
+                db_stats = self.storage.get_all_decisions(limit=1)
+                db_size = len(self.storage.get_all_decisions(limit=10000))
+                logger.debug(f"Database size: {db_size} decisions")
+
+                # Find relevant decisions (returns tuples of (DecisionNode, score))
+                scored_decisions = self.retriever.find_relevant_decisions(
+                    question, threshold=threshold, max_results=max_context_decisions
+                )
+
+                if not scored_decisions:
+                    logger.info(f"No relevant decisions found for question: {question[:50]}...")
+                    return ""
+
+                # Format using tiered approach
+                result = self.retriever.format_context_tiered(
+                    scored_decisions=scored_decisions,
+                    tier_boundaries=tier_boundaries,
+                    token_budget=token_budget,
+                )
+
+                # Log metrics for Phase 1.5 calibration using structured format
+                tier_dist = result["tier_distribution"]
+                tokens_used = result["tokens_used"]
+
+                # Use dedicated measurement logging method
+                self._log_context_metrics(
+                    question=question,
+                    scored_count=len(scored_decisions),
+                    tier_dist=tier_dist,
+                    tokens_used=tokens_used,
+                    token_budget=token_budget,
+                    db_size=db_size,
+                )
+
+                return result["formatted"]
+
+            # Legacy path: Use old retriever.get_enriched_context
             else:
-                logger.debug(
-                    f"No relevant context found for question: {question[:50]}... "
-                    f"(threshold={threshold})"
+                logger.debug("Using legacy formatting (no config available)")
+                context = self.retriever.get_enriched_context(
+                    question, threshold=threshold, max_results=max_context_decisions
                 )
 
-            return context
+                if context:
+                    logger.info(
+                        f"Retrieved enriched context for question: {question[:50]}... "
+                        f"(threshold={threshold}, max_results={max_context_decisions})"
+                    )
+                else:
+                    logger.debug(
+                        f"No relevant context found for question: {question[:50]}... "
+                        f"(threshold={threshold})"
+                    )
+
+                return context
 
         except Exception as e:
             # Log error but return empty string for graceful degradation
@@ -462,6 +584,50 @@ class DecisionGraphIntegration:
         except Exception as e:
             logger.error(f"Error retrieving graph stats: {e}", exc_info=True)
             return {}
+
+    def get_graph_metrics(self) -> dict:
+        """Get detailed graph metrics for Phase 1.5 calibration analysis.
+
+        Returns metrics useful for empirical calibration including:
+        - total_decisions: Total number of decisions in database
+        - recent_100_count: Number of decisions in last 100 entries (query window)
+        - recent_1000_count: Number of decisions in last 1000 entries (extended window)
+
+        These metrics help answer:
+        - How many decisions are typically considered for context?
+        - Is the query window appropriately sized?
+        - What is the database growth rate?
+
+        Returns:
+            Dictionary with detailed metrics. Returns zeros on error.
+
+        Example:
+            >>> integration = DecisionGraphIntegration(storage)
+            >>> metrics = integration.get_graph_metrics()
+            >>> print(f"Query window coverage: {metrics['recent_100_count']}/100")
+            >>> print(f"Extended window: {metrics['recent_1000_count']}/1000")
+        """
+        try:
+            # Get all decisions to compute counts
+            all_decisions = self.storage.get_all_decisions(limit=10000)
+            total_count = len(all_decisions)
+
+            # Compute recent counts (simulating query windows)
+            recent_100 = min(100, total_count)
+            recent_1000 = min(1000, total_count)
+
+            return {
+                "total_decisions": total_count,
+                "recent_100_count": recent_100,
+                "recent_1000_count": recent_1000,
+            }
+        except Exception as e:
+            logger.error(f"Error retrieving graph metrics: {e}", exc_info=True)
+            return {
+                "total_decisions": 0,
+                "recent_100_count": 0,
+                "recent_1000_count": 0,
+            }
 
     def health_check(self) -> dict:
         """Perform comprehensive health check on decision graph.
