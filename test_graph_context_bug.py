@@ -117,9 +117,24 @@ def test_graph_context_summary_after_two_deliberations():
         # Third deliberation - context should definitely be available now
         print("\n=== Third Deliberation ===")
         q3 = "Should we use Python for microservices?"
+
+        # Check what find_relevant_decisions returns
+        from decision_graph.retrieval import DecisionRetriever
+        retriever = integration.retriever
+        relevant = retriever.find_relevant_decisions(q3, threshold=0.7, max_results=3)
+        print(f"find_relevant_decisions returned {len(relevant)} decisions")
+        for i, dec in enumerate(relevant):
+            print(f"  {i+1}. {dec.question}")
+
         context3 = integration.get_context_for_deliberation(q3, threshold=0.7, max_context_decisions=3)
-        print(f"Context retrieved for deliberation 3 (threshold=0.7): {repr(context3)}")
+        print(f"Context retrieved for deliberation 3 (threshold=0.7): {repr(context3[:100] if context3 else context3)}")
         print(f"Context is empty: {not context3}")
+
+        # Try lower threshold
+        relevant_low = retriever.find_relevant_decisions(q3, threshold=0.3, max_results=3)
+        print(f"\nfind_relevant_decisions (threshold=0.3) returned {len(relevant_low)} decisions")
+        for i, dec in enumerate(relevant_low):
+            print(f"  {i+1}. {dec.question}")
 
         # ANALYSIS
         print("\n=== ANALYSIS ===")
