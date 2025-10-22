@@ -116,8 +116,8 @@ class TestDecisionRetrieverCacheIntegration:
             )
 
             assert len(results1) == 2
-            assert results1[0].id == "dec1"
-            assert results1[1].id == "dec3"
+            assert results1[0][0].id == "dec1"  # results are tuples (decision, score)
+            assert results1[1][0].id == "dec3"
 
             # Verify storage was accessed
             assert mock_storage.get_all_decisions.call_count == 1
@@ -128,8 +128,8 @@ class TestDecisionRetrieverCacheIntegration:
             )
 
             assert len(results2) == 2
-            assert results2[0].id == "dec1"
-            assert results2[1].id == "dec3"
+            assert results2[0][0].id == "dec1"  # results are tuples (decision, score)
+            assert results2[1][0].id == "dec3"
 
             # Storage should NOT be accessed again for similarity computation
             # (still 1 call from before, but get_decision_node called to reconstruct)
