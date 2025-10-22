@@ -62,6 +62,10 @@ All notable changes to AI Counsel are documented in this file.
   - Engine was creating DecisionGraphIntegration(storage) without config
   - Now correctly passes config to enable budget-aware context injection
   - This was preventing graph_context_summary from being populated in responses
+- **Fixed deprecated parameter warnings**: Engine was passing threshold/max_context_decisions
+  - Removed old params from get_context_for_deliberation() call
+  - Now uses config-based approach with budget-aware tiering
+  - Eliminates deprecation warnings in logs
 
 #### Tests
 - Added 41 new tests covering all Phase 1 features
