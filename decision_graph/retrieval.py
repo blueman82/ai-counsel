@@ -368,3 +368,247 @@ class DecisionRetriever:
         if self.cache:
             return self.cache.get_stats()
         return None
+
+    def _estimate_tokens(self, formatted_str: str) -> int:
+        """Estimate token count for a formatted string.
+
+        Uses rough heuristic: 1 token ≈ 4 characters (conservative estimate).
+
+        Args:
+            formatted_str: The formatted string to estimate tokens for
+
+        Returns:
+            Estimated token count
+        """
+        return len(formatted_str) // 4
+
+    def _format_strong_tier(self, decision: DecisionNode, score: float) -> str:
+        """Format a strong similarity match with full details.
+
+        Strong tier (≥0.75 similarity) gets comprehensive formatting:
+        - Question, timestamp, convergence status, consensus
+        - Winning option
+        - Participants with detailed stances (votes, confidence, rationale)
+
+        Args:
+            decision: DecisionNode to format
+            score: Similarity score (for display)
+
+        Returns:
+            Formatted markdown string with full details (~400-600 tokens)
+        """
+        lines = []
+
+        # Header with score
+        lines.append(f"### Strong Match (similarity: {score:.2f}): {decision.question}")
+        lines.append(f"**Date**: {decision.timestamp.isoformat()}")
+        lines.append(f"**Convergence Status**: {decision.convergence_status}")
+        lines.append(f"**Consensus**: {decision.consensus}")
+
+        # Winning option (optional)
+        if decision.winning_option:
+            lines.append(f"**Winning Option**: {decision.winning_option}")
+
+        # Participants
+        participants_str = ", ".join(decision.participants)
+        lines.append(f"**Participants**: {participants_str}")
+
+        # Get stances for this decision
+        try:
+            stances = self.storage.get_participant_stances(decision.id)
+            if stances:
+                lines.append("\n**Participant Positions**:")
+                for stance in stances:
+                    stance_line = f"- **{stance.participant}**: "
+
+                    # Vote information (if available)
+                    if stance.vote_option:
+                        stance_line += f"Voted for '{stance.vote_option}'"
+                        if stance.confidence is not None:
+                            confidence_pct = stance.confidence * 100
+                            stance_line += f" (confidence: {confidence_pct:.0f}%)"
+
+                    # Rationale (if available)
+                    if stance.rationale:
+                        stance_line += f" - {stance.rationale}"
+
+                    lines.append(stance_line)
+        except Exception as e:
+            logger.error(
+                f"Error retrieving stances for decision {decision.id}: {e}",
+                exc_info=True,
+            )
+            lines.append("\n*[Error retrieving participant positions]*")
+
+        lines.append("")  # Blank line
+        return "\n".join(lines)
+
+    def _format_moderate_tier(self, decision: DecisionNode, score: float) -> str:
+        """Format a moderate similarity match with summary details.
+
+        Moderate tier (0.60-0.74 similarity) gets summary formatting:
+        - Question, consensus, winning option
+        - No detailed participant stances
+
+        Args:
+            decision: DecisionNode to format
+            score: Similarity score (for display)
+
+        Returns:
+            Formatted markdown string with summary (~150-250 tokens)
+        """
+        lines = []
+
+        # Header with score
+        lines.append(f"### Moderate Match (similarity: {score:.2f}): {decision.question}")
+        lines.append(f"**Consensus**: {decision.consensus}")
+
+        # Winning option (optional)
+        if decision.winning_option:
+            lines.append(f"**Result**: {decision.winning_option}")
+
+        lines.append("")  # Blank line
+        return "\n".join(lines)
+
+    def _format_brief_tier(self, decision: DecisionNode, score: float) -> str:
+        """Format a brief similarity match with minimal details.
+
+        Brief tier (<0.60 similarity, ≥0.40 noise floor) gets one-liner:
+        - Question and winning option only
+
+        Args:
+            decision: DecisionNode to format
+            score: Similarity score (for display)
+
+        Returns:
+            Formatted markdown string with minimal info (~30-70 tokens)
+        """
+        # One-liner format
+        result = decision.winning_option or decision.consensus[:50]
+        return f"- **Brief Match** ({score:.2f}): {decision.question} → {result}\n"
+
+    def format_context_tiered(
+        self,
+        scored_decisions: List[tuple[DecisionNode, float]],
+        tier_boundaries: dict[str, float],
+        token_budget: int,
+    ) -> dict:
+        """Format decisions using tiered approach with token budget tracking.
+
+        This method implements budget-aware context injection by formatting decisions
+        based on their similarity scores (strong/moderate/brief tiers) and stopping
+        when the token budget is exceeded.
+
+        Tiers:
+        - Strong (≥strong_threshold): Full formatting with stances (~500 tokens)
+        - Moderate (≥moderate_threshold, <strong): Summary format (~200 tokens)
+        - Brief (≥0.40, <moderate): One-liner format (~50 tokens)
+        - Noise floor (<0.40): Filtered out entirely
+
+        Args:
+            scored_decisions: List of (DecisionNode, score) tuples sorted by score descending
+            tier_boundaries: Dict with 'strong' and 'moderate' thresholds
+            token_budget: Maximum tokens allowed for context injection
+
+        Returns:
+            Dict with:
+            - formatted (str): Markdown-formatted context string
+            - tokens_used (int): Total tokens used
+            - tier_distribution (dict): Count of decisions in each tier
+                {"strong": int, "moderate": int, "brief": int}
+
+        Example:
+            >>> scored = [(decision1, 0.85), (decision2, 0.65), (decision3, 0.45)]
+            >>> result = retriever.format_context_tiered(
+            ...     scored, {"strong": 0.75, "moderate": 0.60}, 1500
+            ... )
+            >>> print(result["formatted"])
+            >>> print(f"Tokens used: {result['tokens_used']}/{1500}")
+        """
+        NOISE_FLOOR = 0.40
+
+        # Initialize metrics
+        tier_distribution = {"strong": 0, "moderate": 0, "brief": 0}
+        tokens_used = 0
+        formatted_parts = []
+
+        # Early return for empty input
+        if not scored_decisions:
+            return {
+                "formatted": "",
+                "tokens_used": 0,
+                "tier_distribution": tier_distribution,
+            }
+
+        # Add header
+        header = "## Similar Past Deliberations (Tiered by Relevance)\n\n"
+        formatted_parts.append(header)
+        tokens_used += self._estimate_tokens(header)
+
+        # Extract thresholds
+        strong_threshold = tier_boundaries["strong"]
+        moderate_threshold = tier_boundaries["moderate"]
+
+        # Process decisions in order of similarity
+        for decision, score in scored_decisions:
+            # Apply noise floor filter
+            if score < NOISE_FLOOR:
+                logger.debug(
+                    f"Skipping decision {decision.id} (score {score:.2f} below noise floor {NOISE_FLOOR})"
+                )
+                continue
+
+            # Determine tier and format accordingly
+            if score >= strong_threshold:
+                formatted = self._format_strong_tier(decision, score)
+                tier = "strong"
+            elif score >= moderate_threshold:
+                formatted = self._format_moderate_tier(decision, score)
+                tier = "moderate"
+            else:
+                formatted = self._format_brief_tier(decision, score)
+                tier = "brief"
+
+            # Estimate tokens for this decision
+            decision_tokens = self._estimate_tokens(formatted)
+
+            # Check if adding this decision would exceed budget
+            if tokens_used + decision_tokens > token_budget:
+                logger.info(
+                    f"Token budget reached: {tokens_used} + {decision_tokens} > {token_budget}. "
+                    f"Stopping context injection (processed {sum(tier_distribution.values())} decisions)"
+                )
+                break
+
+            # Add to context
+            formatted_parts.append(formatted)
+            tokens_used += decision_tokens
+            tier_distribution[tier] += 1
+
+            logger.debug(
+                f"Added {tier} tier decision {decision.id} "
+                f"(score: {score:.2f}, tokens: {decision_tokens}, total: {tokens_used}/{token_budget})"
+            )
+
+        # Combine all parts
+        final_formatted = "\n".join(formatted_parts)
+
+        # If all decisions were filtered by noise floor, return empty
+        if sum(tier_distribution.values()) == 0:
+            return {
+                "formatted": "",
+                "tokens_used": 0,
+                "tier_distribution": tier_distribution,
+            }
+
+        logger.info(
+            f"Formatted {sum(tier_distribution.values())} decisions "
+            f"(strong: {tier_distribution['strong']}, moderate: {tier_distribution['moderate']}, "
+            f"brief: {tier_distribution['brief']}) using {tokens_used} tokens"
+        )
+
+        return {
+            "formatted": final_formatted,
+            "tokens_used": tokens_used,
+            "tier_distribution": tier_distribution,
+        }
