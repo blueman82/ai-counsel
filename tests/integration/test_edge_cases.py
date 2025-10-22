@@ -423,7 +423,7 @@ class TestDatabaseCorruptionRecovery:
             node = storage.get_decision_node("n1")
             # Should either parse or return None
             assert node is None or isinstance(node.timestamp, datetime)
-        except:
+        except Exception:  # Broad catch intentional for error resilience testing
             # Acceptable to fail on malformed data
             pass
 
