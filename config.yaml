@@ -138,6 +138,6 @@ deliberation:
 decision_graph:
   enabled: true # Feature toggle (opt-in)
   db_path: "decision_graph.db" # Relative to project root - works for any user
-  similarity_threshold: 0.7 # Minimum similarity score for context injection (0.0-1.0)
+  similarity_threshold: 0.6 # Minimum similarity score for context injection (0.0-1.0)
   max_context_decisions: 3 # Maximum number of past decisions to inject as context
   compute_similarities: true # Compute edge similarities after storing deliberation
