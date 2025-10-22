@@ -284,6 +284,16 @@ class DecisionGraphIntegration:
                         exc_info=True,
                     )
 
+            # Invalidate retriever cache so next query reflects this new decision
+            # This ensures that subsequent get_context_for_deliberation() calls
+            # will find context from this newly stored decision
+            try:
+                self.retriever.invalidate_cache()
+            except Exception as e:
+                logger.warning(
+                    f"Error invalidating retriever cache after storing decision {decision_id}: {e}"
+                )
+
             return decision_id
 
         except Exception as e:
