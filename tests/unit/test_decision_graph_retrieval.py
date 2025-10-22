@@ -602,9 +602,9 @@ class TestDecisionRetrieverTieredFormatting:
         # Should NOT include consensus text, participants, or detailed info
         # (Being pragmatic: brief format is question + result)
 
-        # Should use roughly 30-70 tokens (estimate)
+        # Should use roughly 20-60 tokens (brief tier one-liner)
         tokens_used = result["tokens_used"]
-        assert 20 < tokens_used < 100, f"Expected ~50 tokens, got {tokens_used}"
+        assert 15 < tokens_used < 80, f"Expected ~20-60 tokens, got {tokens_used}"
 
         # Tier distribution should show 1 brief
         assert result["tier_distribution"]["strong"] == 0
