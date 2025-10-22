@@ -5,7 +5,7 @@ deliberations and formats them as enriched context for new deliberations.
 """
 
 import logging
-from typing import List, Optional
+from typing import List, Optional, Tuple
 
 from decision_graph.cache import SimilarityCache
 from decision_graph.schema import DecisionNode
@@ -13,6 +13,9 @@ from decision_graph.similarity import QuestionSimilarityDetector
 from decision_graph.storage import DecisionGraphStorage
 
 logger = logging.getLogger(__name__)
+
+# Constants
+NOISE_FLOOR = 0.40  # Filter out results below this similarity score
 
 
 class DecisionRetriever:
