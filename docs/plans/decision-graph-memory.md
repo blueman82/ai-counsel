@@ -1905,7 +1905,7 @@ The plan balances **pragmatism** (YAGNI, defer premature optimization) with **qu
 
 ### Phase 4 Key Achievements
 - QueryEngine with 4 unified query methods (search_similar, find_contradictions, trace_evolution, analyze_patterns)
-- 2 new MCP tools (query_decisions, analyze_decisions) for Claude Code integration
+- New MCP tool (query_decisions) for Claude Code integration
 - 5 CLI commands (similar, contradictions, timeline, analyze, export) via Click
 - 4 export formats (JSON, GraphML, DOT, Markdown) with ASCII table output
 - Comprehensive test coverage: 893-line exporters tests + 1,021-line CLI tests + 670-line integration tests

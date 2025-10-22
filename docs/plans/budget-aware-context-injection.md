@@ -1604,13 +1604,12 @@ Phase 1.5 uses the MCP analysis tools to study decision graph data and optimize 
 **What you need before starting Phase 1.5**:
 - ✅ Phase 1 implementation complete (all 8 tasks done)
 - ✅ config.yaml loaded with budget-aware parameters
-- ✅ MCP server running with deliberate, query_decisions, analyze_decisions tools
+- ✅ MCP server running with deliberate and query_decisions tools
 - ✅ Several debates completed (database has at least 8-10 decisions)
 
 **Tools available**:
 1. **`deliberate`** - Run new debates (creates new decision nodes)
 2. **`query_decisions`** - Search & retrieve similar decisions with scores
-3. **`analyze_decisions`** - Analyze patterns (contradictions, evolution, metrics)
 
 ---
 
@@ -1784,29 +1783,18 @@ Observations:
 
 ### What you're doing
 
-Use `analyze_decisions` to identify if similar questions led to different answers (contradictions), and track how thinking evolved across debates.
+Use `query_decisions` to identify if similar questions led to different answers (contradictions), and track how thinking evolved across debates.
 
 ### Run These Analyses
 
 ```python
-# Find contradictions
-analyze_decisions(type="contradictions")
+# Find similar decisions and compare outcomes manually
+query_decisions(query_text="[your topic]", limit=10)
 
-# Expected output:
-# {
-#   "type": "contradictions",
-#   "contradictions": [
-#     {
-#       "question_1": "Should we use X?",
-#       "question_2": "Should we use Y?",  (similar but maybe opposite answer)
-#       "severity": "high/medium/low"
-#     },
-#     ...
-#   ]
-# }
-
-# Trace evolution for specific decision
-analyze_decisions(type="evolution", decision_id="[pick a decision ID]")
+# You can manually compare results to identify:
+# - Similar questions with different conclusions
+# - Evolution of thinking across related debates
+# - Patterns in decision-making
 ```
 
 ### Questions to Answer

@@ -258,11 +258,7 @@ class TestQueryEngineIntegration:
             timeline = await engine.trace_evolution(similar[0].decision.id)
             assert timeline is not None
 
-        # 3. Analyze patterns
-        analysis = await engine.analyze_patterns()
-        assert analysis is not None
-
-        # 4. Find contradictions
+        # 3. Find contradictions
         contradictions = await engine.find_contradictions()
         assert contradictions is not None
 
