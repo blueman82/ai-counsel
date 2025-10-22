@@ -59,6 +59,8 @@ docs/
 !/docs/convergence-detection.md
 !/docs/structured-voting.md
 !/docs/adding-adapters.md
+# Exception: Track release notes
+!/docs/RELEASE_NOTES.md
 
 # Implementation summaries (use code documentation instead)
 *_SUMMARY.md
