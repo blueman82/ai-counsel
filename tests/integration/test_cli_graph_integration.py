@@ -297,19 +297,22 @@ class TestDecisionGraphCLIIntegration:
         query = "Should we use TypeScript in our project?"
         retriever = DecisionRetriever(populated_storage)
 
-        # Act: Find similar decisions
-        similar_decisions = retriever.find_relevant_decisions(
+        # Act: Find similar decisions (returns tuples of (DecisionNode, score))
+        scored_decisions = retriever.find_relevant_decisions(
             query_question=query, threshold=0.6, max_results=5
         )
 
         # Assert: Should find TypeScript-related decisions
         assert (
-            len(similar_decisions) >= 2
+            len(scored_decisions) >= 2
         ), "Should find at least 2 TypeScript decisions"
-        [d.id for d in similar_decisions]
+
+        # Extract decisions from tuples
+        decisions = [d for d, score in scored_decisions]
+        [d.id for d in decisions]
 
         # The exact matches depend on similarity backend, but should be related
-        questions = [d.question for d in similar_decisions]
+        questions = [d.question for d in decisions]
         typescript_count = sum(
             1 for q in questions if "TypeScript" in q or "JavaScript" in q
         )
