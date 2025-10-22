@@ -159,15 +159,20 @@ Add new CLI tools or HTTP adapters to fit your infrastructure. Simple 3-5 step p
 
 ## Decision Graph Memory (Optional)
 
-Learn from past deliberations. The system automatically finds similar past questions and injects context into current debates for faster convergence.
+Learn from past deliberations. The system automatically finds similar past questions and injects context into current debates for faster convergence. **Works for any user from any directory** - database path is resolved relative to project root.
 
 ```yaml
 decision_graph:
   enabled: true
-  db_path: "decision_graph.db"
-  similarity_threshold: 0.7
-  max_context_decisions: 3
+  db_path: "decision_graph.db"        # Resolves to project root (works for any user/folder)
+  similarity_threshold: 0.6           # Adjust to control context relevance
+  max_context_decisions: 3            # How many past decisions to include
 ```
+
+**Recent Fixes:**
+- ✅ **Cache invalidation bug** - Context now retrieves correctly on 2nd and subsequent debates
+- ✅ **Cross-user path resolution** - Any user running from any folder populates same database (not folder-specific)
+- ✅ **13+ comprehensive tests** - Path resolution, cache behavior, all edge cases covered
 
 → **[Quickstart](docs/decision-graph/quickstart.md)** | **[Configuration](docs/decision-graph/configuration.md)**
 
