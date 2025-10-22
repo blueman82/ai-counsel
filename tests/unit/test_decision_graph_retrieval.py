@@ -255,7 +255,7 @@ class TestDecisionRetrieverCacheIntegration:
 
             # Should only return dec1 (dec_deleted not found)
             assert len(results1) == 1
-            assert results1[0].id == "dec1"
+            assert results1[0][0].id == "dec1"  # results are tuples (decision, score)
 
             # Second call - cache hit, but dec_deleted still not found
             results2 = retriever.find_relevant_decisions(
@@ -263,7 +263,7 @@ class TestDecisionRetrieverCacheIntegration:
             )
 
             assert len(results2) == 1
-            assert results2[0].id == "dec1"
+            assert results2[0][0].id == "dec1"  # results are tuples (decision, score)
 
     def test_invalidate_cache(self, mock_storage, sample_decisions):
         """Test cache invalidation."""
