@@ -330,9 +330,9 @@ async def handle_query_decisions(arguments: dict) -> list[TextContent]:
     """Handle query_decisions tool call."""
     try:
         db_path = Path(getattr(config.decision_graph, "db_path", "decision_graph.db"))
-        # Make db_path absolute - if relative, resolve from ai-counsel directory
+        # Make db_path absolute - if relative, resolve from project directory
         if not db_path.is_absolute():
-            db_path = SERVER_DIR / db_path
+            db_path = PROJECT_DIR / db_path
         storage = DecisionGraphStorage(str(db_path))
         engine = QueryEngine(storage)
 
