@@ -190,43 +190,6 @@ def mock_query_engine(sample_decisions, sample_stances):
         ],
     )
 
-    # Mock analyze
-    engine._analyze_patterns_sync.return_value = Analysis(
-        total_decisions=3,
-        total_participants=3,
-        voting_patterns=[
-            VotingPattern(
-                participant="opus@claude",
-                total_votes=3,
-                vote_types={"Yes": 2, "Upgrade": 1},
-                avg_confidence=0.87,
-                preferred_options=["Yes", "Upgrade"],
-            ),
-            VotingPattern(
-                participant="gpt4@codex",
-                total_votes=1,
-                vote_types={"Yes": 1},
-                avg_confidence=0.88,
-                preferred_options=["Yes"],
-            ),
-        ],
-        convergence_stats={
-            "total": 3,
-            "by_status": {
-                "unanimous_consensus": 1,
-                "majority_decision": 1,
-                "converged": 1,
-            },
-            "convergence_rate": 0.67,
-        },
-        participation_metrics={
-            "total_participants": 3,
-            "active_participants": 2,
-            "participation_rate": 0.67,
-            "avg_decisions_per_participant": 2.0,
-        },
-    )
-
     return engine
 
 
