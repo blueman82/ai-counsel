@@ -996,3 +996,232 @@ class TestDecisionRetrieverConfidenceRanking:
             assert isinstance(decision, DecisionNode), "First element should be DecisionNode"
             assert isinstance(score, float), "Second element should be float score"
             assert score == 0.85, "Score should match the similarity score"
+
+
+class TestGetEnrichedContextTieredIntegration:
+    """Test get_enriched_context integration with tiered formatting (Task 6)."""
+
+    def test_get_enriched_context_uses_tiered_formatting(
+        self, mock_storage, sample_decisions
+    ):
+        """Test that get_enriched_context calls format_context_tiered, not format_context."""
+        mock_storage.get_all_decisions.return_value = sample_decisions
+        mock_storage.get_decision_node.side_effect = lambda id: next(
+            (d for d in sample_decisions if d.id == id), None
+        )
+
+        retriever = DecisionRetriever(mock_storage)
+
+        similar_results = [
+            {"id": "dec1", "question": sample_decisions[0].question, "score": 0.85},
+        ]
+
+        with patch.object(
+            retriever.similarity_detector, "find_similar", return_value=similar_results
+        ):
+            # Mock format_context_tiered to verify it's called
+            with patch.object(retriever, "format_context_tiered") as mock_tiered:
+                mock_tiered.return_value = {
+                    "formatted": "## Tiered Context",
+                    "tokens_used": 100,
+                    "tier_distribution": {"strong": 1, "moderate": 0, "brief": 0},
+                }
+
+                # Act: Call get_enriched_context
+                context = retriever.get_enriched_context(
+                    "Should we use React?", threshold=0.7, max_results=3
+                )
+
+                # Assert: format_context_tiered should be called
+                mock_tiered.assert_called_once()
+
+                # Verify it received scored decisions (tuples)
+                call_args = mock_tiered.call_args[0]
+                scored_decisions = call_args[0]
+                assert len(scored_decisions) == 1
+                assert isinstance(scored_decisions[0], tuple)
+                assert scored_decisions[0][1] == 0.85  # Score preserved
+
+    def test_get_enriched_context_returns_tiered_context(
+        self, mock_storage, sample_decisions
+    ):
+        """Test that get_enriched_context returns tiered context with tier labels."""
+        mock_storage.get_all_decisions.return_value = sample_decisions
+        mock_storage.get_decision_node.side_effect = lambda id: next(
+            (d for d in sample_decisions if d.id == id), None
+        )
+        mock_storage.get_participant_stances.return_value = []
+
+        retriever = DecisionRetriever(mock_storage)
+
+        # Create scored results for tiered formatting
+        similar_results = [
+            {"id": "dec1", "question": sample_decisions[0].question, "score": 0.85},  # Strong
+            {"id": "dec2", "question": sample_decisions[1].question, "score": 0.65},  # Moderate
+            {"id": "dec3", "question": sample_decisions[2].question, "score": 0.45},  # Brief
+        ]
+
+        with patch.object(
+            retriever.similarity_detector, "find_similar", return_value=similar_results
+        ):
+            # Act: Call get_enriched_context
+            context = retriever.get_enriched_context(
+                "Should we use React?", threshold=0.7, max_results=3
+            )
+
+            # Assert: Context should include tier labels from format_context_tiered
+            assert "Tiered by Relevance" in context, "Should use tiered formatting"
+            assert "Strong Match" in context or "Moderate Match" in context or "Brief Match" in context, \
+                "Should include tier indicators"
+
+    def test_get_enriched_context_backward_compat_format_context(
+        self, mock_storage, sample_decisions
+    ):
+        """Test that old format_context() method is still callable directly."""
+        mock_storage.get_participant_stances.return_value = []
+
+        retriever = DecisionRetriever(mock_storage)
+
+        # Act: Call format_context directly (legacy method)
+        context = retriever.format_context(
+            sample_decisions[:2],  # Just DecisionNode list
+            "Should we use React?"
+        )
+
+        # Assert: Should work without errors
+        assert "Similar Past Deliberations (Decision Graph Memory)" in context
+        assert "React or Vue" in context
+        assert "What database should we use?" in context
+
+    def test_format_context_still_works_with_nodes(
+        self, mock_storage, sample_decisions
+    ):
+        """Test that legacy format_context() still accepts DecisionNode list (no scores)."""
+        mock_storage.get_participant_stances.return_value = []
+
+        retriever = DecisionRetriever(mock_storage)
+
+        # Act: Call format_context with DecisionNode list (no scores)
+        decisions = [sample_decisions[0], sample_decisions[1]]
+        context = retriever.format_context(decisions, "Test query")
+
+        # Assert: Should format correctly without scores
+        assert isinstance(context, str)
+        assert len(context) > 0
+        assert "React or Vue" in context
+        assert "What database should we use?" in context
+
+        # Should NOT include tier labels (legacy format)
+        assert "Strong Match" not in context
+        assert "Moderate Match" not in context
+        assert "Tiered by Relevance" not in context
+
+    def test_get_enriched_context_handles_score_tuples(
+        self, mock_storage, sample_decisions
+    ):
+        """Test that get_enriched_context properly unpacks and uses score tuples."""
+        mock_storage.get_all_decisions.return_value = sample_decisions
+        mock_storage.get_decision_node.side_effect = lambda id: next(
+            (d for d in sample_decisions if d.id == id), None
+        )
+        mock_storage.get_participant_stances.return_value = []
+
+        retriever = DecisionRetriever(mock_storage)
+
+        # Create similar results with specific scores
+        similar_results = [
+            {"id": "dec1", "question": sample_decisions[0].question, "score": 0.92},
+            {"id": "dec2", "question": sample_decisions[1].question, "score": 0.68},
+        ]
+
+        with patch.object(
+            retriever.similarity_detector, "find_similar", return_value=similar_results
+        ):
+            # Act: Call get_enriched_context
+            context = retriever.get_enriched_context(
+                "Should we use React?", threshold=0.7, max_results=3
+            )
+
+            # Assert: Scores should appear in formatted output
+            assert "0.92" in context, "Should include score 0.92 in formatted output"
+            assert "0.68" in context, "Should include score 0.68 in formatted output"
+
+    def test_get_enriched_context_uses_default_tier_boundaries(
+        self, mock_storage, sample_decisions
+    ):
+        """Test that get_enriched_context uses sensible default tier boundaries."""
+        mock_storage.get_all_decisions.return_value = sample_decisions
+        mock_storage.get_decision_node.side_effect = lambda id: next(
+            (d for d in sample_decisions if d.id == id), None
+        )
+        mock_storage.get_participant_stances.return_value = []
+
+        retriever = DecisionRetriever(mock_storage)
+
+        similar_results = [
+            {"id": "dec1", "question": sample_decisions[0].question, "score": 0.85},
+        ]
+
+        with patch.object(
+            retriever.similarity_detector, "find_similar", return_value=similar_results
+        ):
+            # Mock format_context_tiered to inspect tier boundaries
+            with patch.object(retriever, "format_context_tiered") as mock_tiered:
+                mock_tiered.return_value = {
+                    "formatted": "## Test",
+                    "tokens_used": 100,
+                    "tier_distribution": {"strong": 1, "moderate": 0, "brief": 0},
+                }
+
+                # Act: Call get_enriched_context
+                retriever.get_enriched_context(
+                    "Should we use React?", threshold=0.7, max_results=3
+                )
+
+                # Assert: Check tier boundaries passed to format_context_tiered
+                call_args = mock_tiered.call_args[0]
+                tier_boundaries = call_args[1]
+
+                assert "strong" in tier_boundaries, "Should define strong threshold"
+                assert "moderate" in tier_boundaries, "Should define moderate threshold"
+                assert tier_boundaries["strong"] >= 0.75, "Strong threshold should be >= 0.75"
+                assert tier_boundaries["moderate"] >= 0.60, "Moderate threshold should be >= 0.60"
+
+    def test_get_enriched_context_uses_default_token_budget(
+        self, mock_storage, sample_decisions
+    ):
+        """Test that get_enriched_context uses a sensible default token budget."""
+        mock_storage.get_all_decisions.return_value = sample_decisions
+        mock_storage.get_decision_node.side_effect = lambda id: next(
+            (d for d in sample_decisions if d.id == id), None
+        )
+
+        retriever = DecisionRetriever(mock_storage)
+
+        similar_results = [
+            {"id": "dec1", "question": sample_decisions[0].question, "score": 0.85},
+        ]
+
+        with patch.object(
+            retriever.similarity_detector, "find_similar", return_value=similar_results
+        ):
+            # Mock format_context_tiered to inspect token budget
+            with patch.object(retriever, "format_context_tiered") as mock_tiered:
+                mock_tiered.return_value = {
+                    "formatted": "## Test",
+                    "tokens_used": 100,
+                    "tier_distribution": {"strong": 1, "moderate": 0, "brief": 0},
+                }
+
+                # Act: Call get_enriched_context
+                retriever.get_enriched_context(
+                    "Should we use React?", threshold=0.7, max_results=3
+                )
+
+                # Assert: Check token budget passed to format_context_tiered
+                call_args = mock_tiered.call_args[0]
+                token_budget = call_args[2]
+
+                assert isinstance(token_budget, int), "Token budget should be an integer"
+                assert token_budget >= 1000, "Token budget should be at least 1000 (reasonable minimum)"
+                assert token_budget <= 5000, "Token budget should be <= 5000 (reasonable maximum)"
