@@ -382,6 +382,37 @@ class DecisionRetriever:
         """
         return len(formatted_str) // 4
 
+    def _compute_adaptive_k(self, db_size: int) -> int:
+        """Compute adaptive k (number of candidates) based on database size.
+
+        As the database grows, we reduce k to prevent noise accumulation and
+        maintain precision. This implements automatic threshold tuning without
+        manual configuration.
+
+        Strategy:
+        - Small DB (<100 decisions): k=5 (exploration, maximize coverage)
+        - Medium DB (100-999 decisions): k=3 (balanced precision/recall)
+        - Large DB (≥1000 decisions): k=2 (precision, avoid noise)
+
+        Args:
+            db_size: Number of decisions in the database
+
+        Returns:
+            Adaptive k value (2, 3, or 5)
+
+        Example:
+            >>> retriever = DecisionRetriever(storage)
+            >>> k = retriever._compute_adaptive_k(50)   # Returns 5 (small DB)
+            >>> k = retriever._compute_adaptive_k(500)  # Returns 3 (medium DB)
+            >>> k = retriever._compute_adaptive_k(5000) # Returns 2 (large DB)
+        """
+        if db_size < 100:
+            return 5  # Exploration phase
+        elif db_size < 1000:
+            return 3  # Balanced phase
+        else:
+            return 2  # Precision phase
+
     def _format_strong_tier(self, decision: DecisionNode, score: float) -> str:
         """Format a strong similarity match with full details.
 
@@ -460,7 +491,9 @@ class DecisionRetriever:
         lines = []
 
         # Header with score
-        lines.append(f"### Moderate Match (similarity: {score:.2f}): {decision.question}")
+        lines.append(
+            f"### Moderate Match (similarity: {score:.2f}): {decision.question}"
+        )
         lines.append(f"**Consensus**: {decision.consensus}")
 
         # Winning option (optional)
