@@ -71,7 +71,6 @@ class QueryEngine:
     - Similar decision search
     - Contradiction detection
     - Decision evolution tracing
-    - Pattern analysis
 
     Used by both MCP tools and CLI commands.
     """
