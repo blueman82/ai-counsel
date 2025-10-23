@@ -31,8 +31,15 @@ class HTTPAdapterConfig(BaseModel):
 
     @field_validator("api_key", "base_url")
     @classmethod
-    def resolve_env_vars(cls, v: Optional[str]) -> Optional[str]:
-        """Resolve ${ENV_VAR} references in string fields."""
+    def resolve_env_vars(cls, v: Optional[str], info) -> Optional[str]:
+        """Resolve ${ENV_VAR} references in string fields.
+
+        For optional fields like api_key:
+        - If env var is missing, returns None (allows graceful degradation)
+
+        For required fields like base_url:
+        - If env var is missing, raises ValueError
+        """
         if v is None:
             return v
 
@@ -43,13 +50,21 @@ class HTTPAdapterConfig(BaseModel):
             env_var = match.group(1)
             value = os.getenv(env_var)
             if value is None:
+                # For optional fields, return None if env var is missing
+                if info.field_name == "api_key":
+                    return None  # type: ignore
+                # For required fields, raise error
                 raise ValueError(
                     f"Environment variable '{env_var}' is not set. "
                     f"Required for configuration."
                 )
             return value
 
-        return re.sub(pattern, replacer, v)
+        result = re.sub(pattern, replacer, v)
+        # If result contains None sentinel values (from api_key missing), return None
+        if info.field_name == "api_key" and result == "None":
+            return None
+        return result
 
 
 # Discriminated union - Pydantic uses 'type' field to determine which model to use
