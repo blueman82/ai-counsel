@@ -45,14 +45,15 @@ class HTTPAdapterConfig(BaseModel):
 
         # Pattern: ${VAR_NAME}
         pattern = r"\$\{([^}]+)\}"
+        is_api_key = info.field_name == "api_key"
 
         def replacer(match):
             env_var = match.group(1)
             value = os.getenv(env_var)
             if value is None:
-                # For optional fields, return None if env var is missing
-                if info.field_name == "api_key":
-                    return None  # type: ignore
+                # For optional fields like api_key, use a sentinel marker
+                if is_api_key:
+                    return "__MISSING_API_KEY__"  # Sentinel to detect later
                 # For required fields, raise error
                 raise ValueError(
                     f"Environment variable '{env_var}' is not set. "
@@ -61,8 +62,8 @@ class HTTPAdapterConfig(BaseModel):
             return value
 
         result = re.sub(pattern, replacer, v)
-        # If result contains None sentinel values (from api_key missing), return None
-        if info.field_name == "api_key" and result == "None":
+        # If api_key has sentinel marker, return None (graceful degradation)
+        if is_api_key and "__MISSING_API_KEY__" in result:
             return None
         return result
 

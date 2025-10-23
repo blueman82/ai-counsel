@@ -109,23 +109,40 @@ class TestHTTPAdapterConfig:
         with pytest.raises(ValidationError):
             HTTPAdapterConfig(type="http", timeout=60)
 
-    def test_http_adapter_missing_env_var_raises_error(self):
-        """Test that missing environment variable raises clear error."""
+    def test_http_adapter_missing_api_key_env_var_becomes_none(self):
+        """Test that missing api_key environment variable gracefully becomes None."""
         from models.config import HTTPAdapterConfig
 
         # Make sure the env var doesn't exist
         if "NONEXISTENT_VAR" in os.environ:
             del os.environ["NONEXISTENT_VAR"]
 
+        # api_key is optional, so missing env var should result in None
+        config = HTTPAdapterConfig(
+            type="http",
+            base_url="http://test",
+            api_key="${NONEXISTENT_VAR}",
+            timeout=60,
+        )
+        assert config.api_key is None
+
+    def test_http_adapter_missing_base_url_env_var_raises_error(self):
+        """Test that missing required base_url env var raises clear error."""
+        from models.config import HTTPAdapterConfig
+
+        # Make sure the env var doesn't exist
+        if "NONEXISTENT_BASE_URL_VAR" in os.environ:
+            del os.environ["NONEXISTENT_BASE_URL_VAR"]
+
+        # base_url is required, so missing env var should raise error
         with pytest.raises(ValidationError) as exc_info:
             HTTPAdapterConfig(
                 type="http",
-                base_url="http://test",
-                api_key="${NONEXISTENT_VAR}",
+                base_url="${NONEXISTENT_BASE_URL_VAR}",
                 timeout=60,
             )
 
-        assert "NONEXISTENT_VAR" in str(exc_info.value)
+        assert "NONEXISTENT_BASE_URL_VAR" in str(exc_info.value)
 
 
 class TestAdapterConfig:
