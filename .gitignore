@@ -52,6 +52,7 @@ docs/
 # Exception: Track reference documentation
 !/docs/CLI_MODEL_REFERENCE.md
 !/docs/CACHE_INTEGRATION_REFERENCE.md
+!/docs/model-registry-and-picker.md
 # Exception: Track HTTP adapter documentation (valuable for users)
 !/docs/http-adapters/
 !/docs/http-adapters/*.md
@@ -80,3 +81,4 @@ CHANGELOG.md
 project-progress.yml
 PHASE-1.5-HANDOVER.md
 phase-1-5-deliberations.md
+IMPLEMENTATION_GUIDE.md

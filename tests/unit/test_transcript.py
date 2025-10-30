@@ -1,5 +1,6 @@
 """Unit tests for transcript management."""
 from pathlib import Path
+import shutil
 
 import pytest
 
@@ -81,3 +82,16 @@ class TestTranscriptManager:
         assert file1 != file2
         assert Path(file1).exists()
         assert Path(file2).exists()
+
+    def test_save_recreates_missing_directory(self, sample_result, tmp_path):
+        """Transcript saving should recreate output directory if it was removed."""
+        output_dir = tmp_path / "transcripts"
+        manager = TranscriptManager(output_dir=str(output_dir))
+
+        # Remove directory after initialization to simulate external deletion
+        shutil.rmtree(output_dir)
+
+        filepath = manager.save(sample_result, "Recover Missing Dir")
+
+        assert Path(filepath).exists()
+        assert output_dir.exists()

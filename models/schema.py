@@ -20,9 +20,12 @@ class Participant(BaseModel):
         ...,
         description="Adapter to use for this participant (CLI tools or HTTP services)",
     )
-    model: str = Field(
-        ...,
-        description="Model identifier (e.g., 'claude-3-5-sonnet-20241022', 'gpt-4')",
+    model: Optional[str] = Field(
+        default=None,
+        description=(
+            "Model identifier (e.g., 'claude-3-5-sonnet-20241022', 'gpt-4'). "
+            "If omitted, the server will use the session default or the recommended default for the adapter."
+        ),
     )
     stance: Literal["neutral", "for", "against"] = Field(
         default="neutral", description="Stance for this participant"

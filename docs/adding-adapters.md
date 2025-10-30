@@ -243,19 +243,24 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
     # ... rest of tool handler ...
 ```
 
-### Step 5: Add Recommended Models
+### Step 5: Update the Model Registry
 
-Update the `RECOMMENDED_MODELS` dictionary in `server.py`:
+Declare your adapter’s supported models in the `model_registry` section of `config.yaml`. This drives the MCP picker UI and server-side validation.
 
-```python
-RECOMMENDED_MODELS = {
-    "claude": ["sonnet-4-5", "opus-4", "haiku-4"],
-    "codex": ["gpt-5-codex", "gpt-4o"],
-    "droid": ["claude-sonnet-4-5-20250929", "gpt-5-codex"],
-    "gemini": ["gemini-2.5-pro-002", "gemini-2.0-flash-001"],
-    "your-tool": ["your-model-v1", "your-model-v2"],  # Add recommendations
-}
+```yaml
+model_registry:
+  your-tool:
+    - id: "your-model-v1"
+      label: "Your Model v1"
+      tier: "general"
+      default: true
+    - id: "your-model-v2"
+      label: "Your Model v2"
+      tier: "premium"
+      note: "Best for complex workloads"
 ```
+
+See [Model Registry & Picker](model-registry-and-picker.md) for complete details.
 
 ### Step 6: Write Tests
 
