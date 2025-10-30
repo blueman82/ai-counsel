@@ -23,6 +23,12 @@ class TestParticipant:
         p = Participant(cli="codex", model="gpt-4")
         assert p.stance == "neutral"
 
+    def test_participant_allows_missing_model(self):
+        """Participants can defer to defaults when model omitted."""
+        p = Participant(cli="claude")
+        assert p.model is None
+        assert p.stance == "neutral"
+
     def test_invalid_cli_raises_error(self):
         """Test that invalid CLI tool raises validation error."""
         with pytest.raises(ValidationError) as exc_info:
@@ -83,6 +89,18 @@ class TestDeliberateRequest:
         assert len(req.participants) == 2
         assert req.rounds == 2  # Default
         assert req.mode == "quick"  # Default
+
+    def test_request_allows_missing_model(self):
+        """Missing model values are permitted and default later."""
+        req = DeliberateRequest(
+            question="Is Rust suitable for this service?",
+            participants=[
+                Participant(cli="claude"),
+                Participant(cli="codex"),
+            ],
+        )
+        assert req.participants[0].model is None
+        assert req.participants[1].model is None
 
     def test_valid_request_full(self):
         """Test valid request with all fields."""

@@ -32,55 +32,16 @@ True deliberative consensus MCP server where AI models debate and refine positio
 - 🛡️ **Fault Tolerant**: Individual adapter failures don't halt deliberation
 - 📝 **Full Transcripts**: Markdown exports with AI-generated summaries
 
+git clone https://github.com/blueman82/ai-counsel.git
 ## Quick Start
 
-**Install & Run** (5 minutes):
+Get up and running in minutes:
 
-```bash
-# 1. Clone & setup
-git clone https://github.com/blueman82/ai-counsel.git
-cd ai-counsel
-python3 -m venv .venv
-source .venv/bin/activate  # macOS/Linux; Windows: .venv\Scripts\activate
-pip install -r requirements.txt
+1. **Install** – follow the commands in [Installation](#installation) to clone the repo, create a virtualenv, and install requirements.
+2. **Configure** – set up your MCP client using the `.mcp.json` example in [Configure in Claude Code](#configure-in-claude-code).
+3. **Run** – start the server with `python server.py` and trigger the `deliberate` tool using the examples in [Usage](#usage).
 
-# 2. Add to Claude Code MCP config
-# Create .mcp.json in project root:
-cat > .mcp.json << 'EOF'
-{
-  "mcpServers": {
-    "ai-counsel": {
-      "type": "stdio",
-      "command": ".venv/bin/python",
-      "args": ["server.py"],
-      "env": {}
-    }
-  }
-}
-EOF
-
-# 3. Use the deliberate tool!
-# In Claude Code, simply ask:
-# "Use the deliberate tool to answer: Should we use microservices or monolith?"
-```
-
-**Try a Deliberation:**
-
-```javascript
-// Mix local + cloud models, zero API costs for local models
-mcp__ai-counsel__deliberate({
-  question: "Should we add unit tests to new features?",
-  participants: [
-    {cli: "ollama", model: "llama2"},           // Local
-    {cli: "lmstudio", model: "mistral"},        // Local
-    {cli: "claude", model: "sonnet"}            // Cloud
-  ],
-  mode: "quick"
-})
-```
-
-**Available Models**: `claude` (sonnet, opus, haiku), `codex` (gpt-5-codex), `droid`, `gemini`, HTTP adapters (ollama, lmstudio, openrouter).
-See [CLI Model Reference](docs/CLI_MODEL_REFERENCE.md) for complete details.
+For model choices and picker workflow, see [Model Registry & Picker](docs/model-registry-and-picker.md).
 
 ## Installation
 
@@ -214,6 +175,12 @@ python server.py
 
 After configuration, restart Claude Code.
 
+### Model Selection & Session Defaults
+
+- Discover the allowlisted models for each adapter by running the MCP tool `list_models`.
+- Set per-session defaults with `set_session_models`; leave `model` blank in `deliberate` to use those defaults.
+- Full instructions and request examples live in [Model Registry & Picker](docs/model-registry-and-picker.md).
+
 ### Examples
 
 **Quick Mode:**
@@ -304,7 +271,7 @@ ai-counsel/
 ### Development
 - **[Adding Adapters](docs/adding-adapters.md)** - CLI and HTTP adapter development
 - **[CLAUDE.md](CLAUDE.md)** - Architecture, development workflow, gotchas
-- **[CLI Model Reference](docs/CLI_MODEL_REFERENCE.md)** - Model parameters per CLI
+- **[Model Registry & Picker](docs/model-registry-and-picker.md)** - Managing allowlisted models and MCP picker tools
 
 ### Reference
 - **[Troubleshooting](docs/troubleshooting/http-adapters.md)** - HTTP adapter issues
