@@ -625,7 +625,7 @@ context: "E-commerce site, 10K users, $5K/month budget, 3-person team"
 **Solution**:
 - Refine question to be more specific
 - Provide explicit options in context
-- Use `stance` parameter to guide perspectives
+- Add context explaining the trade-offs and constraints
 - Review grouping logs in `mcp_server.log` to see similarity scores
 
 ### Vote Grouping Not Merging Expected Options
