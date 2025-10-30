@@ -16,6 +16,10 @@ transcripts/*.json
 .env
 config.local.yaml
 
+# Demo/test files (not tracked)
+demo.cast
+demo_script.sh
+
 # Auto-added by Claude Code auto-commit hook
 logs/
 *.log
