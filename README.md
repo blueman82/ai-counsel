@@ -197,8 +197,8 @@ mcp__ai-counsel__deliberate({
 mcp__ai-counsel__deliberate({
   question: "JWT vs session-based auth?",
   participants: [
-    {cli: "claude", model: "sonnet", stance: "neutral"},
-    {cli: "codex", model: "gpt-5-codex", stance: "for"}
+    {cli: "claude", model: "sonnet"},
+    {cli: "codex", model: "gpt-5-codex"}
   ],
   rounds: 3,
   mode: "conference"
