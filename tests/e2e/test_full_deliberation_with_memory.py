@@ -34,7 +34,6 @@ def make_result(consensus: str, participants=None, transcript_path="/tmp/t.md"):
             RoundResponse(
                 round=1,
                 participant=p,
-                stance="neutral",
                 response=f"Response from {p}",
                 timestamp="2024-01-01T00:00:00Z",
             )

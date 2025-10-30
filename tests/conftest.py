@@ -15,12 +15,28 @@ class MockAdapter(BaseCLIAdapter):
         super().__init__(command=f"mock-{name}", args=[], timeout=timeout)
         self.name = name
         self.invoke_mock = AsyncMock()
+        self.response_counter = 0
+        # Set a default return value
+        self._set_default_responses()
+
+    def _set_default_responses(self):
+        """Set sensible default responses for mock deliberations."""
+        responses = [
+            "After careful analysis, I believe the proposed approach has merit. It addresses the core concerns while maintaining practical feasibility. The implementation timeline seems reasonable.",
+            "I see several valid points, though I'd like to emphasize the risk mitigation aspects. We should prioritize robustness and comprehensive testing.",
+            "Both perspectives are valuable. I lean towards the collaborative approach as it balances innovation with stability. Let's proceed with Phase 1 as outlined.",
+            "The discussion has been productive. I concur with the consensus emerging. The recommendations are sound and actionable.",
+        ]
+        self.invoke_mock.side_effect = lambda *args, **kwargs: responses[self.response_counter % len(responses)]
+        self.response_counter = 0
 
     async def invoke(
         self, prompt: str, model: str, context: Optional[str] = None, is_deliberation: bool = True
     ) -> str:
         """Mock invoke method."""
-        return await self.invoke_mock(prompt, model, context, is_deliberation)
+        result = await self.invoke_mock(prompt, model, context, is_deliberation)
+        self.response_counter += 1
+        return result
 
     def parse_output(self, raw_output: str) -> str:
         """Mock parse_output method."""

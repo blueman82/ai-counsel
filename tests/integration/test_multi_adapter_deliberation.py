@@ -62,9 +62,9 @@ class TestMultiAdapterDeliberation:
         request = DeliberateRequest(
             question="Should we use TypeScript or JavaScript for our new project?",
             participants=[
-                Participant(cli="claude", model="sonnet", stance="neutral"),
-                Participant(cli="ollama", model="llama3", stance="neutral"),
-                Participant(cli="lmstudio", model="mistral", stance="neutral"),
+                Participant(cli="claude", model="sonnet"),
+                Participant(cli="ollama", model="llama3"),
+                Participant(cli="lmstudio", model="mistral"),
             ],
             rounds=2,
             mode="conference",
@@ -118,9 +118,9 @@ class TestMultiAdapterDeliberation:
         request = DeliberateRequest(
             question="What is the best database choice?",
             participants=[
-                Participant(cli="claude", model="sonnet", stance="neutral"),
-                Participant(cli="ollama", model="llama3", stance="neutral"),
-                Participant(cli="lmstudio", model="mistral", stance="neutral"),
+                Participant(cli="claude", model="sonnet"),
+                Participant(cli="ollama", model="llama3"),
+                Participant(cli="lmstudio", model="mistral"),
             ],
             rounds=1,
             mode="quick",
@@ -177,10 +177,10 @@ class TestMultiAdapterDeliberation:
         request = DeliberateRequest(
             question="What caching solution should we use?",
             participants=[
-                Participant(cli="ollama", model="llama3", stance="neutral"),
-                Participant(cli="lmstudio", model="mistral", stance="neutral"),
+                Participant(cli="ollama", model="llama3"),
+                Participant(cli="lmstudio", model="mistral"),
                 Participant(
-                    cli="openrouter", model="claude-3-5-sonnet", stance="neutral"
+                    cli="openrouter", model="claude-3-5-sonnet"
                 ),
             ],
             rounds=1,
@@ -233,8 +233,8 @@ class TestMultiAdapterDeliberation:
         request = DeliberateRequest(
             question="TypeScript or JavaScript?",
             participants=[
-                Participant(cli="claude", model="sonnet", stance="neutral"),
-                Participant(cli="ollama", model="llama3", stance="neutral"),
+                Participant(cli="claude", model="sonnet"),
+                Participant(cli="ollama", model="llama3"),
             ],
             rounds=3,
             mode="conference",
@@ -272,9 +272,9 @@ class TestMultiAdapterDeliberation:
         request = DeliberateRequest(
             question="TypeScript or JavaScript?",
             participants=[
-                Participant(cli="claude", model="sonnet", stance="neutral"),
-                Participant(cli="ollama", model="llama3", stance="neutral"),
-                Participant(cli="lmstudio", model="mistral", stance="neutral"),
+                Participant(cli="claude", model="sonnet"),
+                Participant(cli="ollama", model="llama3"),
+                Participant(cli="lmstudio", model="mistral"),
             ],
             rounds=5,  # Request 5 rounds but should stop early
             mode="conference",

@@ -27,14 +27,12 @@ def sample_result():
             RoundResponse(
                 round=1,
                 participant="claude-3-5-sonnet@claude-code",
-                stance="neutral",
                 response="I think TypeScript offers...",
                 timestamp="2025-10-12T15:30:00Z",
             ),
             RoundResponse(
                 round=1,
                 participant="gpt-4@codex",
-                stance="for",
                 response="TypeScript is excellent because...",
                 timestamp="2025-10-12T15:30:05Z",
             ),

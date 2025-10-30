@@ -118,8 +118,8 @@ async def demo():
     """
 
     participants_2 = [
-        Participant(cli="ollama", model="llama2", stance="neutral"),
-        Participant(cli="claude", model="sonnet", stance="neutral"),
+        Participant(cli="ollama", model="llama2"),
+        Participant(cli="claude", model="sonnet"),
     ]
 
     request_2 = DeliberateRequest(

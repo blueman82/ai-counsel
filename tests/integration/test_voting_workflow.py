@@ -131,9 +131,9 @@ VOTE: {"option": "Option A", "confidence": 0.93, "rationale": "Unanimous agreeme
         request = DeliberateRequest(
             question="Should we implement Option A or Option B?",
             participants=[
-                Participant(cli="claude", model="claude-sonnet-4-5", stance="neutral"),
-                Participant(cli="codex", model="gpt-4", stance="neutral"),
-                Participant(cli="droid", model="claude-sonnet-4-5", stance="neutral"),
+                Participant(cli="claude", model="claude-sonnet-4-5"),
+                Participant(cli="codex", model="gpt-4"),
+                Participant(cli="droid", model="claude-sonnet-4-5"),
             ],
             rounds=2,
             mode="conference",
@@ -194,9 +194,9 @@ VOTE: {"option": "Option A", "confidence": 0.93, "rationale": "Unanimous agreeme
         request = DeliberateRequest(
             question="Should we prioritize safety or speed?",
             participants=[
-                Participant(cli="claude", model="claude-sonnet-4-5", stance="neutral"),
-                Participant(cli="codex", model="gpt-4", stance="neutral"),
-                Participant(cli="droid", model="claude-sonnet-4-5", stance="neutral"),
+                Participant(cli="claude", model="claude-sonnet-4-5"),
+                Participant(cli="codex", model="gpt-4"),
+                Participant(cli="droid", model="claude-sonnet-4-5"),
             ],
             rounds=2,
             mode="conference",
@@ -250,9 +250,9 @@ VOTE: {"option": "Option A", "confidence": 0.93, "rationale": "Unanimous agreeme
         request = DeliberateRequest(
             question="Should we implement Option A or Option B?",
             participants=[
-                Participant(cli="claude", model="claude-sonnet-4-5", stance="neutral"),
-                Participant(cli="codex", model="gpt-4", stance="neutral"),
-                Participant(cli="droid", model="claude-sonnet-4-5", stance="neutral"),
+                Participant(cli="claude", model="claude-sonnet-4-5"),
+                Participant(cli="codex", model="gpt-4"),
+                Participant(cli="droid", model="claude-sonnet-4-5"),
             ],
             rounds=2,
             mode="conference",
@@ -295,9 +295,9 @@ VOTE: {"option": "Option A", "confidence": 0.93, "rationale": "Unanimous agreeme
         request = DeliberateRequest(
             question="Should we implement Option A or Option B?",
             participants=[
-                Participant(cli="claude", model="claude-sonnet-4-5", stance="neutral"),
-                Participant(cli="codex", model="gpt-4", stance="neutral"),
-                Participant(cli="droid", model="claude-sonnet-4-5", stance="neutral"),
+                Participant(cli="claude", model="claude-sonnet-4-5"),
+                Participant(cli="codex", model="gpt-4"),
+                Participant(cli="droid", model="claude-sonnet-4-5"),
             ],
             rounds=2,
             mode="conference",
@@ -351,9 +351,9 @@ VOTE: {"option": "Option A", "confidence": 0.93, "rationale": "Unanimous agreeme
         request = DeliberateRequest(
             question="Should we implement Option A or Option B?",
             participants=[
-                Participant(cli="claude", model="claude-sonnet-4-5", stance="neutral"),
-                Participant(cli="codex", model="gpt-4", stance="neutral"),
-                Participant(cli="droid", model="claude-sonnet-4-5", stance="neutral"),
+                Participant(cli="claude", model="claude-sonnet-4-5"),
+                Participant(cli="codex", model="gpt-4"),
+                Participant(cli="droid", model="claude-sonnet-4-5"),
             ],
             rounds=2,
             mode="conference",
@@ -427,8 +427,8 @@ VOTE: {"option": "Option A", "confidence": 0.93, "rationale": "Unanimous agreeme
         request = DeliberateRequest(
             question="Should we implement Option A?",
             participants=[
-                Participant(cli="claude", model="claude-sonnet-4-5", stance="neutral"),
-                Participant(cli="codex", model="gpt-4", stance="neutral"),
+                Participant(cli="claude", model="claude-sonnet-4-5"),
+                Participant(cli="codex", model="gpt-4"),
             ],
             rounds=2,
             mode="conference",

@@ -209,7 +209,7 @@ class TranscriptManager:
 
             lines.extend(
                 [
-                    f"**{response.participant}** ({response.stance})",
+                    f"**{response.participant}**",
                     "",
                     response.response,
                     "",

@@ -166,14 +166,12 @@ class TestConvergenceDetector:
             RoundResponse(
                 round=2,
                 participant="claude@cli",
-                stance="for",
                 response="TypeScript is better for large projects",
                 timestamp="2025-01-01T00:00:00",
             ),
             RoundResponse(
                 round=2,
                 participant="codex@cli",
-                stance="for",
                 response="I agree TypeScript scales better",
                 timestamp="2025-01-01T00:00:01",
             ),
@@ -184,14 +182,12 @@ class TestConvergenceDetector:
             RoundResponse(
                 round=3,
                 participant="claude@cli",
-                stance="for",
                 response="TypeScript is better for large projects",
                 timestamp="2025-01-01T00:01:00",
             ),
             RoundResponse(
                 round=3,
                 participant="codex@cli",
-                stance="for",
                 response="I agree TypeScript scales better",
                 timestamp="2025-01-01T00:01:01",
             ),
@@ -241,7 +237,6 @@ class TestConvergenceDetector:
             RoundResponse(
                 round=2,
                 participant="claude@cli",
-                stance="for",
                 response="TypeScript is better",
                 timestamp="2025-01-01T00:00:00",
             )
@@ -252,7 +247,6 @@ class TestConvergenceDetector:
             RoundResponse(
                 round=3,
                 participant="claude@cli",
-                stance="against",
                 response="Actually JavaScript is more flexible",
                 timestamp="2025-01-01T00:01:00",
             )
@@ -300,14 +294,12 @@ class TestConvergenceDetector:
             RoundResponse(
                 round=2,
                 participant="claude@cli",
-                stance="for",
                 response="Static typing provides safety",
                 timestamp="2025-01-01T00:00:00",
             ),
             RoundResponse(
                 round=2,
                 participant="codex@cli",
-                stance="against",
                 response="Dynamic flexibility enables rapid prototyping",
                 timestamp="2025-01-01T00:00:01",
             ),
@@ -318,14 +310,12 @@ class TestConvergenceDetector:
             RoundResponse(
                 round=3,
                 participant="claude@cli",
-                stance="for",
                 response="Compile-time checking catches bugs early",
                 timestamp="2025-01-01T00:01:00",
             ),
             RoundResponse(
                 round=3,
                 participant="codex@cli",
-                stance="against",
                 response="Runtime freedom allows creative solutions",
                 timestamp="2025-01-01T00:01:01",
             ),
@@ -369,7 +359,6 @@ class TestConvergenceDetector:
             RoundResponse(
                 round=1,
                 participant="claude@cli",
-                stance="neutral",
                 response="Initial response",
                 timestamp="2025-01-01T00:00:00",
             )
@@ -379,7 +368,6 @@ class TestConvergenceDetector:
             RoundResponse(
                 round=2,
                 participant="claude@cli",
-                stance="neutral",
                 response="Initial response",
                 timestamp="2025-01-01T00:01:00",
             )

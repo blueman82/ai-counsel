@@ -54,21 +54,18 @@ def sample_result() -> DeliberationResult:
             RoundResponse(
                 round=1,
                 participant="claude-sonnet-4-5",
-                stance="neutral",
                 response="Response from Claude",
                 timestamp="2025-01-15T10:00:00Z",
             ),
             RoundResponse(
                 round=1,
                 participant="gpt-5-codex",
-                stance="neutral",
                 response="Response from Codex",
                 timestamp="2025-01-15T10:00:01Z",
             ),
             RoundResponse(
                 round=1,
                 participant="gemini-2.0-flash-thinking-exp-01-21",
-                stance="neutral",
                 response="Response from Gemini",
                 timestamp="2025-01-15T10:00:02Z",
             ),
