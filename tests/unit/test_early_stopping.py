@@ -61,8 +61,8 @@ class TestEarlyStopping:
         request = DeliberateRequest(
             question="Should we stop?",
             participants=[
-                Participant(cli="claude", model="claude-3-5-sonnet", stance="neutral"),
-                Participant(cli="codex", model="gpt-4", stance="neutral"),
+                Participant(cli="claude", model="claude-3-5-sonnet"),
+                Participant(cli="codex", model="gpt-4"),
             ],
             rounds=5,  # Request 5 rounds
             mode="conference",
@@ -146,8 +146,8 @@ class TestEarlyStopping:
         request = DeliberateRequest(
             question="Test question",
             participants=[
-                Participant(cli="claude", model="claude-3-5-sonnet", stance="neutral"),
-                Participant(cli="codex", model="gpt-4", stance="neutral"),
+                Participant(cli="claude", model="claude-3-5-sonnet"),
+                Participant(cli="codex", model="gpt-4"),
             ],
             rounds=3,  # Minimum 3 rounds
             mode="conference",
@@ -219,9 +219,9 @@ class TestEarlyStopping:
         request = DeliberateRequest(
             question="Continue debating?",
             participants=[
-                Participant(cli="claude", model="claude-3-5-sonnet", stance="neutral"),
-                Participant(cli="codex", model="gpt-4", stance="neutral"),
-                Participant(cli="gemini", model="gemini-2.5-pro", stance="neutral"),
+                Participant(cli="claude", model="claude-3-5-sonnet"),
+                Participant(cli="codex", model="gpt-4"),
+                Participant(cli="gemini", model="gemini-2.5-pro"),
             ],
             rounds=3,
             mode="conference",
@@ -296,8 +296,8 @@ class TestEarlyStopping:
         request = DeliberateRequest(
             question="Should we stop early?",
             participants=[
-                Participant(cli="claude", model="claude-3-5-sonnet", stance="neutral"),
-                Participant(cli="codex", model="gpt-4", stance="neutral"),
+                Participant(cli="claude", model="claude-3-5-sonnet"),
+                Participant(cli="codex", model="gpt-4"),
             ],
             rounds=3,
             mode="conference",

@@ -187,7 +187,6 @@ class DeliberationEngine:
             response = RoundResponse(
                 round=round_num,
                 participant=f"{participant.model}@{participant.cli}",
-                stance=participant.stance,
                 response=response_text,
                 timestamp=datetime.now().isoformat(),
             )
@@ -210,7 +209,7 @@ class DeliberationEngine:
 
         for resp in previous_responses:
             context_parts.append(
-                f"Round {resp.round} - {resp.participant} ({resp.stance}): "
+                f"Round {resp.round} - {resp.participant}: "
                 f"{resp.response}\n"
             )
 

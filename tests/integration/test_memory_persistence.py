@@ -52,28 +52,24 @@ def sample_deliberation_result():
         RoundResponse(
             round=1,
             participant="claude",
-            stance="neutral",
             response="Claude's response to the question",
             timestamp="2025-01-01T10:00:00Z",
         ),
         RoundResponse(
             round=1,
             participant="gpt-4",
-            stance="neutral",
             response="GPT-4's response to the question",
             timestamp="2025-01-01T10:00:01Z",
         ),
         RoundResponse(
             round=2,
             participant="claude",
-            stance="neutral",
             response="Claude's refined response after seeing GPT-4",
             timestamp="2025-01-01T10:01:00Z",
         ),
         RoundResponse(
             round=2,
             participant="gpt-4",
-            stance="neutral",
             response="GPT-4's refined response after seeing Claude",
             timestamp="2025-01-01T10:01:01Z",
         ),
@@ -523,7 +519,6 @@ class TestBackwardCompatibility:
                 RoundResponse(
                     round=1,
                     participant="claude",
-                    stance="neutral",
                     response="Response text",
                     timestamp="2025-01-01T10:00:00Z",
                 )

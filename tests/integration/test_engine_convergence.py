@@ -85,8 +85,8 @@ class TestEngineConvergenceIntegration:
         DeliberateRequest(
             question="Should we use TypeScript?",
             participants=[
-                Participant(cli="claude", model="sonnet", stance="neutral"),
-                Participant(cli="codex", model="gpt-4", stance="neutral"),
+                Participant(cli="claude", model="sonnet"),
+                Participant(cli="codex", model="gpt-4"),
             ],
             rounds=3,
             mode="conference",
@@ -97,14 +97,12 @@ class TestEngineConvergenceIntegration:
             RoundResponse(
                 round=1,
                 participant="sonnet@claude",
-                stance="neutral",
                 response="TypeScript is better for large projects",
                 timestamp="2025-01-01T00:00:00",
             ),
             RoundResponse(
                 round=1,
                 participant="gpt-4@codex",
-                stance="neutral",
                 response="I agree TypeScript scales better",
                 timestamp="2025-01-01T00:00:01",
             ),
@@ -115,14 +113,12 @@ class TestEngineConvergenceIntegration:
             RoundResponse(
                 round=2,
                 participant="sonnet@claude",
-                stance="neutral",
                 response="TypeScript is better for large projects due to type safety",
                 timestamp="2025-01-01T00:01:00",
             ),
             RoundResponse(
                 round=2,
                 participant="gpt-4@codex",
-                stance="neutral",
                 response="I agree TypeScript scales better with static typing",
                 timestamp="2025-01-01T00:01:01",
             ),
@@ -144,14 +140,12 @@ class TestEngineConvergenceIntegration:
             RoundResponse(
                 round=3,
                 participant="sonnet@claude",
-                stance="neutral",
                 response="TypeScript is better for large projects due to type safety features",
                 timestamp="2025-01-01T00:02:00",
             ),
             RoundResponse(
                 round=3,
                 participant="gpt-4@codex",
-                stance="neutral",
                 response="I agree TypeScript scales better with static typing system",
                 timestamp="2025-01-01T00:02:01",
             ),
@@ -187,7 +181,6 @@ class TestEngineConvergenceIntegration:
             RoundResponse(
                 round=1,
                 participant="sonnet@claude",
-                stance="for",
                 response="TypeScript is better",
                 timestamp="2025-01-01T00:00:00",
             )
@@ -198,7 +191,6 @@ class TestEngineConvergenceIntegration:
             RoundResponse(
                 round=2,
                 participant="sonnet@claude",
-                stance="against",
                 response="Actually JavaScript is more flexible and easier",
                 timestamp="2025-01-01T00:01:00",
             )
@@ -231,7 +223,6 @@ class TestEngineConvergenceIntegration:
             RoundResponse(
                 round=1,
                 participant="sonnet@claude",
-                stance="neutral",
                 response="Initial response",
                 timestamp="2025-01-01T00:00:00",
             )
@@ -242,7 +233,6 @@ class TestEngineConvergenceIntegration:
             RoundResponse(
                 round=2,
                 participant="sonnet@claude",
-                stance="neutral",
                 response="Initial response",
                 timestamp="2025-01-01T00:01:00",
             )

@@ -25,7 +25,7 @@ class TestDeliberationEngine:
         engine = DeliberationEngine(mock_adapters)
 
         participants = [
-            Participant(cli="claude", model="claude-3-5-sonnet", stance="neutral")
+            Participant(cli="claude", model="claude-3-5-sonnet")
         ]
 
         mock_adapters["claude"].invoke_mock.return_value = "This is Claude's response"
@@ -41,7 +41,6 @@ class TestDeliberationEngine:
         assert isinstance(responses[0], RoundResponse)
         assert responses[0].round == 1
         assert responses[0].participant == "claude-3-5-sonnet@claude"
-        assert responses[0].stance == "neutral"
         assert responses[0].response == "This is Claude's response"
         assert responses[0].timestamp is not None
 
@@ -52,8 +51,8 @@ class TestDeliberationEngine:
         engine = DeliberationEngine(mock_adapters)
 
         participants = [
-            Participant(cli="claude", model="claude-3-5-sonnet", stance="for"),
-            Participant(cli="codex", model="gpt-4", stance="against"),
+            Participant(cli="claude", model="claude-3-5-sonnet"),
+            Participant(cli="codex", model="gpt-4"),
         ]
 
         mock_adapters["claude"].invoke_mock.return_value = "Claude says yes"
@@ -68,10 +67,8 @@ class TestDeliberationEngine:
 
         assert len(responses) == 2
         assert responses[0].participant == "claude-3-5-sonnet@claude"
-        assert responses[0].stance == "for"
         assert responses[0].response == "Claude says yes"
         assert responses[1].participant == "gpt-4@codex"
-        assert responses[1].stance == "against"
         assert responses[1].response == "Codex says no"
 
     @pytest.mark.asyncio
@@ -81,14 +78,13 @@ class TestDeliberationEngine:
         engine = DeliberationEngine(mock_adapters)
 
         participants = [
-            Participant(cli="claude", model="claude-3-5-sonnet", stance="neutral")
+            Participant(cli="claude", model="claude-3-5-sonnet")
         ]
 
         previous = [
             RoundResponse(
                 round=1,
                 participant="codex",
-                stance="for",
                 response="Previous response",
                 timestamp=datetime.now().isoformat(),
             )
@@ -117,7 +113,7 @@ class TestDeliberationEngine:
         engine = DeliberationEngine(mock_adapters)
 
         participants = [
-            Participant(cli="claude", model="claude-3-5-sonnet", stance="neutral")
+            Participant(cli="claude", model="claude-3-5-sonnet")
         ]
 
         mock_adapters["claude"].invoke_mock.side_effect = RuntimeError("API Error")
@@ -140,7 +136,7 @@ class TestDeliberationEngine:
         engine = DeliberationEngine(mock_adapters)
 
         participants = [
-            Participant(cli="claude", model="claude-3-opus", stance="neutral")
+            Participant(cli="claude", model="claude-3-opus")
         ]
 
         mock_adapters["claude"].invoke_mock.return_value = "Response"
@@ -160,7 +156,7 @@ class TestDeliberationEngine:
         engine = DeliberationEngine(mock_adapters)
 
         participants = [
-            Participant(cli="claude", model="claude-3-5-sonnet", stance="neutral")
+            Participant(cli="claude", model="claude-3-5-sonnet")
         ]
 
         mock_adapters["claude"].invoke_mock.return_value = "Response"
@@ -188,8 +184,8 @@ class TestDeliberationEngineMultiRound:
         request = DeliberateRequest(
             question="What is the best programming language?",
             participants=[
-                Participant(cli="claude", model="claude-3-5-sonnet", stance="neutral"),
-                Participant(cli="codex", model="gpt-4", stance="neutral"),
+                Participant(cli="claude", model="claude-3-5-sonnet"),
+                Participant(cli="codex", model="gpt-4"),
             ],
             rounds=3,
             mode="conference",
@@ -217,8 +213,8 @@ class TestDeliberationEngineMultiRound:
         request = DeliberateRequest(
             question="Test question",
             participants=[
-                Participant(cli="claude", model="claude-3-5-sonnet", stance="neutral"),
-                Participant(cli="codex", model="gpt-4", stance="neutral"),
+                Participant(cli="claude", model="claude-3-5-sonnet"),
+                Participant(cli="codex", model="gpt-4"),
             ],
             rounds=2,
             mode="conference",
@@ -247,8 +243,8 @@ class TestDeliberationEngineMultiRound:
         request = DeliberateRequest(
             question="Test question",
             participants=[
-                Participant(cli="claude", model="claude-3-5-sonnet", stance="neutral"),
-                Participant(cli="codex", model="gpt-4", stance="neutral"),
+                Participant(cli="claude", model="claude-3-5-sonnet"),
+                Participant(cli="codex", model="gpt-4"),
             ],
             rounds=5,  # Request 5 rounds
             mode="quick",  # But quick mode should override to 1
@@ -275,9 +271,9 @@ class TestDeliberationEngineMultiRound:
             question="Should we use TypeScript?",
             participants=[
                 Participant(
-                    cli="claude", model="claude-3-5-sonnet-20241022", stance="neutral"
+                    cli="claude", model="claude-3-5-sonnet-20241022"
                 ),
-                Participant(cli="codex", model="gpt-4", stance="neutral"),
+                Participant(cli="codex", model="gpt-4"),
             ],
             rounds=1,
         )
@@ -373,7 +369,7 @@ class TestVoteParsing:
         engine = DeliberationEngine(mock_adapters)
 
         participants = [
-            Participant(cli="claude", model="claude-3-5-sonnet", stance="neutral")
+            Participant(cli="claude", model="claude-3-5-sonnet")
         ]
 
         # Response includes a vote
@@ -408,8 +404,8 @@ class TestVoteParsing:
         request = DeliberateRequest(
             question="Should we implement Option A or Option B?",
             participants=[
-                Participant(cli="claude", model="claude-3-5-sonnet", stance="neutral"),
-                Participant(cli="codex", model="gpt-4", stance="neutral"),
+                Participant(cli="claude", model="claude-3-5-sonnet"),
+                Participant(cli="codex", model="gpt-4"),
             ],
             rounds=2,
             mode="conference",
@@ -536,8 +532,8 @@ class TestVoteGrouping:
             request = DeliberateRequest(
                 question="Docker compose approach?",
                 participants=[
-                    Participant(cli="claude", model="sonnet", stance="neutral"),
-                    Participant(cli="codex", model="gpt-5-codex", stance="neutral"),
+                    Participant(cli="claude", model="sonnet"),
+                    Participant(cli="codex", model="gpt-5-codex"),
                 ],
                 rounds=1,
                 mode="quick",
@@ -599,8 +595,8 @@ class TestVoteGrouping:
             request = DeliberateRequest(
                 question="Test question",
                 participants=[
-                    Participant(cli="claude", model="model1", stance="neutral"),
-                    Participant(cli="codex", model="model2", stance="neutral"),
+                    Participant(cli="claude", model="model1"),
+                    Participant(cli="codex", model="model2"),
                 ],
                 rounds=1,
                 mode="quick",

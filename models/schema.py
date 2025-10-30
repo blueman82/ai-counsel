@@ -27,9 +27,6 @@ class Participant(BaseModel):
             "If omitted, the server will use the session default or the recommended default for the adapter."
         ),
     )
-    stance: Literal["neutral", "for", "against"] = Field(
-        default="neutral", description="Stance for this participant"
-    )
 
 
 class DeliberateRequest(BaseModel):
@@ -57,7 +54,6 @@ class RoundResponse(BaseModel):
 
     round: int = Field(..., description="Round number")
     participant: str = Field(..., description="Participant identifier")
-    stance: str = Field(..., description="Participant's stance")
     response: str = Field(..., description="The response text")
     timestamp: str = Field(..., description="ISO 8601 timestamp")
 
