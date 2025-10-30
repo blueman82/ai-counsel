@@ -102,13 +102,6 @@ CLI_TITLES = {
 def _build_participant_variants() -> list[dict]:
     """Construct JSON schema variants for participants per adapter."""
 
-    stance_property = {
-        "type": "string",
-        "enum": ["neutral", "for", "against"],
-        "default": "neutral",
-        "description": "Stance for this participant",
-    }
-
     variants: list[dict] = []
     all_clis = [
         "claude",
@@ -170,7 +163,6 @@ def _build_participant_variants() -> list[dict]:
                     "description": "Adapter to use (CLI tools or HTTP services)",
                 },
                 "model": model_schema,
-                "stance": stance_property,
             },
             "required": ["cli"],
             "additionalProperties": False,
