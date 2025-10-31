@@ -125,7 +125,7 @@ model_registry:
     - id: "gpt-5-codex"
       label: "GPT-5 Codex (via Droid)"
       tier: "coding"
-    - id: "Droid Core (GLM-4.6)"
+    - id: "glm-4.6"
       label: "Droid Core (GLM-4.6)"
       tier: "open-source"
   gemini:
