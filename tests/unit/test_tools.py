@@ -297,3 +297,80 @@ class TestReadFileTool:
     async def test_tool_name(self, tool):
         """Test tool has correct name."""
         assert tool.name == "read_file"
+
+
+class TestSearchCodeTool:
+    """Tests for SearchCodeTool implementation."""
+
+    @pytest.fixture
+    def tool(self):
+        """Create SearchCodeTool instance."""
+        from deliberation.tools import SearchCodeTool
+        return SearchCodeTool()
+
+    @pytest.fixture
+    def test_codebase(self, tmp_path):
+        """Create test codebase with multiple files."""
+        # Create test files
+        (tmp_path / "file1.py").write_text("def hello():\n    print('world')\n")
+        (tmp_path / "file2.py").write_text("class World:\n    pass\n")
+        (tmp_path / "subdir").mkdir()
+        (tmp_path / "subdir" / "file3.py").write_text("# world comment\n")
+        return tmp_path
+
+    @pytest.mark.asyncio
+    async def test_search_finds_matches(self, tool, test_codebase):
+        """Test searching finds matches across files."""
+        result = await tool.execute({
+            "pattern": "world",
+            "path": str(test_codebase)
+        })
+
+        assert result.success is True
+        assert "file1.py" in result.output  # Has 'world' in lowercase
+        assert "subdir" in result.output and "file3.py" in result.output  # Has 'world' in comment
+        # file2.py has 'World' capitalized, so won't match case-sensitive search
+
+    @pytest.mark.asyncio
+    async def test_search_with_no_matches_returns_empty(self, tool, test_codebase):
+        """Test search with no matches returns empty result."""
+        result = await tool.execute({
+            "pattern": "nonexistent_pattern_12345",
+            "path": str(test_codebase)
+        })
+
+        assert result.success is True
+        assert "No matches found" in result.output
+
+    @pytest.mark.asyncio
+    async def test_search_with_invalid_regex_returns_error(self, tool, test_codebase):
+        """Test search with invalid regex returns error."""
+        result = await tool.execute({
+            "pattern": "[invalid(regex",
+            "path": str(test_codebase)
+        })
+
+        assert result.success is False
+        assert "regex" in result.error.lower() or "pattern" in result.error.lower()
+
+    @pytest.mark.asyncio
+    async def test_search_missing_pattern_argument(self, tool):
+        """Test search without pattern argument returns error."""
+        result = await tool.execute({"path": "."})
+
+        assert result.success is False
+        assert "pattern" in result.error.lower()
+
+    @pytest.mark.asyncio
+    async def test_search_defaults_to_current_directory(self, tool):
+        """Test search uses current directory if path not specified."""
+        # This test just verifies the tool doesn't crash without path
+        result = await tool.execute({"pattern": "test"})
+        
+        # Should complete (success or no matches), not crash
+        assert result.success is True or "No matches found" in result.output
+
+    @pytest.mark.asyncio
+    async def test_tool_name(self, tool):
+        """Test tool has correct name."""
+        assert tool.name == "search_code"

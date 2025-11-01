@@ -2,6 +2,7 @@
 import logging
 import json
 import re
+import subprocess
 from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Dict, List
@@ -217,3 +218,153 @@ class ReadFileTool(BaseTool):
                 output=None,
                 error=f"{type(e).__name__}: {str(e)}"
             )
+
+
+class SearchCodeTool(BaseTool):
+    """Tool for searching code patterns in codebase."""
+
+    MAX_RESULTS = 100
+
+    @property
+    def name(self) -> str:
+        return "search_code"
+
+    async def execute(self, arguments: dict) -> ToolResult:
+        """
+        Search for pattern in codebase.
+
+        Args:
+            arguments: Must contain 'pattern' (regex) and optional 'path' (directory)
+
+        Returns:
+            ToolResult with matching lines or error
+        """
+        pattern = arguments.get("pattern")
+        search_path = arguments.get("path", ".")
+
+        if not pattern:
+            return ToolResult(
+                tool_name=self.name,
+                success=False,
+                output=None,
+                error="Missing required argument: 'pattern'"
+            )
+
+        try:
+            # Try ripgrep first (faster)
+            result = await self._search_with_ripgrep(pattern, search_path)
+            if result:
+                return result
+
+            # Fallback to Python regex
+            return await self._search_with_python(pattern, search_path)
+
+        except Exception as e:
+            return ToolResult(
+                tool_name=self.name,
+                success=False,
+                output=None,
+                error=f"{type(e).__name__}: {str(e)}"
+            )
+
+    async def _search_with_ripgrep(self, pattern: str, search_path: str) -> ToolResult:
+        """Search using ripgrep if available."""
+        try:
+            # Check if rg is available
+            subprocess.run(["rg", "--version"], capture_output=True, timeout=1)
+
+            # Run ripgrep
+            proc = subprocess.run(
+                ["rg", "--line-number", "--max-count", str(self.MAX_RESULTS), pattern, search_path],
+                capture_output=True,
+                text=True,
+                timeout=10
+            )
+
+            if proc.returncode == 1:
+                # No matches found
+                return ToolResult(
+                    tool_name=self.name,
+                    success=True,
+                    output="No matches found",
+                    error=None
+                )
+            elif proc.returncode != 0:
+                # Error occurred (e.g., invalid regex)
+                return ToolResult(
+                    tool_name=self.name,
+                    success=False,
+                    output=None,
+                    error=f"Search error: {proc.stderr}"
+                )
+
+            return ToolResult(
+                tool_name=self.name,
+                success=True,
+                output=proc.stdout.strip(),
+                error=None
+            )
+
+        except FileNotFoundError:
+            # ripgrep not available
+            return None
+        except subprocess.TimeoutExpired:
+            return ToolResult(
+                tool_name=self.name,
+                success=False,
+                output=None,
+                error="Search timed out after 10 seconds"
+            )
+
+    async def _search_with_python(self, pattern: str, search_path: str) -> ToolResult:
+        """Fallback search using Python regex."""
+        try:
+            regex = re.compile(pattern)
+        except re.error as e:
+            return ToolResult(
+                tool_name=self.name,
+                success=False,
+                output=None,
+                error=f"Invalid regex pattern: {e}"
+            )
+
+        matches = []
+        path = Path(search_path)
+
+        if not path.exists():
+            return ToolResult(
+                tool_name=self.name,
+                success=False,
+                output=None,
+                error=f"Path not found: {search_path}"
+            )
+
+        # Walk directory and search files
+        for file_path in path.rglob("*.py"):  # Only search Python files
+            if len(matches) >= self.MAX_RESULTS:
+                break
+
+            try:
+                content = file_path.read_text(encoding="utf-8")
+                for line_num, line in enumerate(content.splitlines(), 1):
+                    if regex.search(line):
+                        matches.append(f"{file_path}:{line_num}:{line.strip()}")
+                        if len(matches) >= self.MAX_RESULTS:
+                            break
+            except (UnicodeDecodeError, PermissionError):
+                # Skip binary or inaccessible files
+                continue
+
+        if not matches:
+            output = "No matches found"
+        else:
+            output = "\n".join(matches)
+            if len(matches) >= self.MAX_RESULTS:
+                output += f"\n\n(Showing first {self.MAX_RESULTS} results)"
+
+        return ToolResult(
+            tool_name=self.name,
+            success=True,
+            output=output,
+            error=None
+        )
