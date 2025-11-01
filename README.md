@@ -67,7 +67,6 @@ mcp__ai-counsel__deliberate({
 - 🛡️ **Fault Tolerant**: Individual adapter failures don't halt deliberation
 - 📝 **Full Transcripts**: Markdown exports with AI-generated summaries
 
-git clone https://github.com/blueman82/ai-counsel.git
 ## Quick Start
 
 Get up and running in minutes:
@@ -75,26 +74,6 @@ Get up and running in minutes:
 1. **Install** – follow the commands in [Installation](#installation) to clone the repo, create a virtualenv, and install requirements.
 2. **Configure** – set up your MCP client using the `.mcp.json` example in [Configure in Claude Code](#configure-in-claude-code).
 3. **Run** – start the server with `python server.py` and trigger the `deliberate` tool using the examples in [Usage](#usage).
-
-# 2. Add to Claude Code MCP config
-# Create .mcp.json in project root:
-cat > .mcp.json << 'EOF'
-{
-  "mcpServers": {
-    "ai-counsel": {
-      "type": "stdio",
-      "command": ".venv/bin/python",
-      "args": ["server.py"],
-      "env": {}
-    }
-  }
-}
-EOF
-
-# 3. Use the deliberate tool!
-# In Claude Code, simply ask:
-# "Use the deliberate tool to answer: Should we use microservices or monolith?"
-```
 
 **Try a Deliberation:**
 
