@@ -3,6 +3,7 @@ import logging
 import json
 import re
 from abc import ABC, abstractmethod
+from pathlib import Path
 from typing import Dict, List
 from models.tool_schema import ToolRequest, ToolResult
 
@@ -136,6 +137,82 @@ class ToolExecutor:
             logger.error(f"Tool execution failed: {e}", exc_info=True)
             return ToolResult(
                 tool_name=request.name,
+                success=False,
+                output=None,
+                error=f"{type(e).__name__}: {str(e)}"
+            )
+
+
+class ReadFileTool(BaseTool):
+    """Tool for reading file contents during deliberation."""
+
+    MAX_FILE_SIZE = 1024 * 1024  # 1MB limit
+
+    @property
+    def name(self) -> str:
+        return "read_file"
+
+    async def execute(self, arguments: dict) -> ToolResult:
+        """
+        Read file contents.
+
+        Args:
+            arguments: Must contain 'path' key with file path
+
+        Returns:
+            ToolResult with file contents or error
+        """
+        path_str = arguments.get("path")
+        if not path_str:
+            return ToolResult(
+                tool_name=self.name,
+                success=False,
+                output=None,
+                error="Missing required argument: 'path'"
+            )
+
+        try:
+            path = Path(path_str).resolve()
+
+            # Check file exists
+            if not path.exists():
+                return ToolResult(
+                    tool_name=self.name,
+                    success=False,
+                    output=None,
+                    error=f"File not found: {path}"
+                )
+
+            # Check file size
+            size = path.stat().st_size
+            if size > self.MAX_FILE_SIZE:
+                return ToolResult(
+                    tool_name=self.name,
+                    success=False,
+                    output=None,
+                    error=f"File too large: {size} bytes (max: {self.MAX_FILE_SIZE})"
+                )
+
+            # Read file
+            content = path.read_text(encoding="utf-8")
+
+            return ToolResult(
+                tool_name=self.name,
+                success=True,
+                output=content,
+                error=None
+            )
+
+        except UnicodeDecodeError as e:
+            return ToolResult(
+                tool_name=self.name,
+                success=False,
+                output=None,
+                error=f"Cannot read binary file: {e}"
+            )
+        except Exception as e:
+            return ToolResult(
+                tool_name=self.name,
                 success=False,
                 output=None,
                 error=f"{type(e).__name__}: {str(e)}"

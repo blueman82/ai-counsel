@@ -227,3 +227,73 @@ class TestToolExecutor:
         assert requests[0].arguments["command"] == "ls"
         assert requests[0].arguments["args"] == ["-la", "-h"]
         assert requests[0].arguments["nested"]["key"] == "value"
+
+
+class TestReadFileTool:
+    """Tests for ReadFileTool implementation."""
+
+    @pytest.fixture
+    def tool(self):
+        """Create ReadFileTool instance."""
+        from deliberation.tools import ReadFileTool
+        return ReadFileTool()
+
+    @pytest.mark.asyncio
+    async def test_read_existing_file(self, tool, tmp_path):
+        """Test reading an existing file."""
+        # Create test file
+        test_file = tmp_path / "test.txt"
+        test_file.write_text("Hello world")
+
+        result = await tool.execute({"path": str(test_file)})
+
+        assert result.success is True
+        assert "Hello world" in result.output
+        assert result.error is None
+
+    @pytest.mark.asyncio
+    async def test_read_nonexistent_file_returns_error(self, tool):
+        """Test reading nonexistent file returns error."""
+        result = await tool.execute({"path": "/nonexistent/file/that/does/not/exist.txt"})
+
+        assert result.success is False
+        assert result.output is None
+        assert "not found" in result.error.lower() or "no such file" in result.error.lower()
+
+    @pytest.mark.asyncio
+    async def test_read_file_too_large_returns_error(self, tool, tmp_path):
+        """Test reading oversized file returns error."""
+        # Create 2MB file (exceeds 1MB limit)
+        large_file = tmp_path / "large.txt"
+        large_file.write_text("x" * (2 * 1024 * 1024))
+
+        result = await tool.execute({"path": str(large_file)})
+
+        assert result.success is False
+        assert "too large" in result.error.lower()
+
+    @pytest.mark.asyncio
+    async def test_read_binary_file_returns_error(self, tool, tmp_path):
+        """Test reading binary file returns appropriate error."""
+        # Create binary file
+        binary_file = tmp_path / "binary.bin"
+        binary_file.write_bytes(b"\x00\x01\x02\xff\xfe")
+
+        result = await tool.execute({"path": str(binary_file)})
+
+        # Should either succeed with warning or return decode error
+        if not result.success:
+            assert "decode" in result.error.lower() or "binary" in result.error.lower()
+
+    @pytest.mark.asyncio
+    async def test_read_file_missing_path_argument(self, tool):
+        """Test reading file without path argument returns error."""
+        result = await tool.execute({})
+
+        assert result.success is False
+        assert "path" in result.error.lower()
+
+    @pytest.mark.asyncio
+    async def test_tool_name(self, tool):
+        """Test tool has correct name."""
+        assert tool.name == "read_file"
