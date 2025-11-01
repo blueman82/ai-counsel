@@ -165,6 +165,21 @@ Launch the application. You'll see the main interface with tabs:
 2. You should see your downloaded model listed
 3. Green checkmark = ready to use
 
+### Model Selection for Deliberations
+
+For reliable AI Counsel deliberations, choose models based on parameter count:
+
+| Model Size | Deliberation Quality | Examples | Recommendation |
+|------------|---------------------|----------|----------------|
+| **7B-8B+** | ✅ Excellent | Llama-3-8B, Mistral-7B, Qwen-2.5-7B | **Recommended** |
+| **3B-7B** | ⚠️ Variable | Phi-3-mini, Llama-3.2-3B | Use with caution |
+| **<3B** | ❌ Poor | Llama-3.2-1B, TinyLlama | Testing only |
+
+**Why size matters:**
+- Deliberations require structured JSON output (votes with confidence and rationale)
+- Small models (<3B) often echo prompts, produce invalid JSON, or skip vote formatting
+- 7B-8B models reliably follow complex instructions and produce valid votes
+
 ---
 
 ## Starting the Server

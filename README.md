@@ -59,6 +59,7 @@ mcp__ai-counsel__deliberate({
 - 🗳️ **Structured Voting**: Models cast votes with confidence levels and rationale
 - 🧮 **Semantic Grouping**: Similar vote options automatically merged (0.70+ similarity)
 - 🎛️ **Model-Controlled Stopping**: Models decide when to stop deliberating
+- 🔬 **Evidence-Based Deliberation**: Models can read files, search code, list files, and run commands to ground decisions in reality
 - 💰 **Local Model Support**: Zero API costs with Ollama, LM Studio, llamacpp
 - 🔐 **Data Privacy**: Keep all data on-premises with self-hosted models
 - 🧠 **Context Injection**: Automatically finds similar past debates and injects context for faster convergence
@@ -74,6 +75,50 @@ Get up and running in minutes:
 1. **Install** – follow the commands in [Installation](#installation) to clone the repo, create a virtualenv, and install requirements.
 2. **Configure** – set up your MCP client using the `.mcp.json` example in [Configure in Claude Code](#configure-in-claude-code).
 3. **Run** – start the server with `python server.py` and trigger the `deliberate` tool using the examples in [Usage](#usage).
+
+# 2. Add to Claude Code MCP config
+# Create .mcp.json in project root:
+cat > .mcp.json << 'EOF'
+{
+  "mcpServers": {
+    "ai-counsel": {
+      "type": "stdio",
+      "command": ".venv/bin/python",
+      "args": ["server.py"],
+      "env": {}
+    }
+  }
+}
+EOF
+
+# 3. Use the deliberate tool!
+# In Claude Code, simply ask:
+# "Use the deliberate tool to answer: Should we use microservices or monolith?"
+```
+
+**Try a Deliberation:**
+
+```javascript
+// Mix local + cloud models, zero API costs for local models
+mcp__ai-counsel__deliberate({
+  question: "Should we add unit tests to new features?",
+  participants: [
+    {cli: "ollama", model: "llama2"},           // Local
+    {cli: "lmstudio", model: "mistral"},        // Local
+    {cli: "claude", model: "sonnet"}            // Cloud
+  ],
+  mode: "quick"
+})
+```
+
+> **⚠️ Model Size Matters for Deliberations**
+>
+> **Recommended**: Use 7B-8B+ parameter models (Llama-3-8B, Mistral-7B, Qwen-2.5-7B) for reliable structured output and vote formatting.
+>
+> **Not Recommended**: Models under 3B parameters (e.g., Llama-3.2-1B) may struggle with complex instructions and produce invalid votes.
+
+**Available Models**: `claude` (sonnet, opus, haiku), `codex` (gpt-5-codex), `droid`, `gemini`, HTTP adapters (ollama, lmstudio, openrouter).
+See [CLI Model Reference](docs/CLI_MODEL_REFERENCE.md) for complete details.
 
 For model choices and picker workflow, see [Model Registry & Picker](docs/model-registry-and-picker.md).
 
@@ -148,6 +193,49 @@ Run Ollama, LM Studio, or OpenRouter locally for zero API costs and complete dat
 Add new CLI tools or HTTP adapters to fit your infrastructure. Simple 3-5 step process with examples and testing patterns.
 
 → **[Developer Guide](docs/adding-adapters.md)** - Step-by-step tutorials, real-world examples
+
+## Evidence-Based Deliberation
+
+Ground design decisions in reality by querying actual code, files, and data:
+
+```json
+{
+  "question": "Should we migrate from SQLite to PostgreSQL?",
+  "participants": [
+    {"cli": "claude", "model": "sonnet"},
+    {"cli": "codex", "model": "gpt-4"}
+  ],
+  "rounds": 3
+}
+```
+
+**During deliberation, models can:**
+- 📄 Read files: `TOOL_REQUEST: {"name": "read_file", "arguments": {"path": "config.yaml"}}`
+- 🔍 Search code: `TOOL_REQUEST: {"name": "search_code", "arguments": {"pattern": "database.*connect"}}`
+- 📋 List files: `TOOL_REQUEST: {"name": "list_files", "arguments": {"pattern": "*.sql"}}`
+- ⚙️ Run commands: `TOOL_REQUEST: {"name": "run_command", "arguments": {"command": "git", "args": ["log", "--oneline"]}}`
+
+**Example workflow:**
+1. Model A proposes PostgreSQL based on assumptions
+2. Model B requests: `read_file` to check current config
+3. Tool returns: `database: sqlite, max_connections: 10`
+4. Model B searches: `search_code` for database queries
+5. Tool returns: 50+ queries with complex JOINs
+6. Models converge: "PostgreSQL needed for query complexity and scale"
+7. Decision backed by evidence, not opinion
+
+**Benefits:**
+- Decisions rooted in current state, not assumptions
+- Applies to code reviews, architecture choices, testing strategy
+- Full audit trail of evidence in transcripts
+
+**Supported Tools:**
+- `read_file` - Read file contents (max 1MB)
+- `search_code` - Search regex patterns (ripgrep or Python fallback)
+- `list_files` - List files matching glob patterns
+- `run_command` - Execute safe read-only commands (ls, git, grep, etc.)
+
+See [full documentation](CLAUDE.md#adding-a-new-tool) for adding custom tools.
 
 ## Decision Graph Memory
 
@@ -295,6 +383,7 @@ ai-counsel/
 ### Core Concepts
 - **[Convergence Detection](docs/convergence-detection.md)** - Auto-stop, thresholds, backends
 - **[Structured Voting](docs/structured-voting.md)** - Vote structure, consensus types, vote grouping
+- **[Evidence-Based Deliberation](README.md#evidence-based-deliberation)** - Ground decisions in reality with read_file, search_code, list_files, run_command
 - **[Decision Graph Memory](docs/decision-graph/quickstart.md)** - Learning from past decisions
 
 ### Setup & Configuration

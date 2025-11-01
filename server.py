@@ -1,4 +1,18 @@
-"""AI Counsel MCP Server."""
+"""AI Counsel MCP Server.
+
+This MCP server exposes 2 primary tools via the Model Context Protocol:
+1. deliberate - Multi-round AI model deliberation
+2. query_decisions - Query the decision graph memory (when enabled)
+
+Additionally, during deliberation, AI models can invoke 4 internal tools via
+TOOL_REQUEST markers (not directly exposed via MCP):
+- read_file: Read file contents
+- search_code: Search codebase with regex
+- list_files: List files matching glob pattern
+- run_command: Execute read-only commands
+
+The internal tools are executed by the DeliberationEngine, not the MCP client.
+"""
 import asyncio
 import json
 import logging
@@ -543,7 +557,97 @@ async def handle_query_decisions(arguments: dict) -> list[TextContent]:
         find_contradictions = arguments.get("find_contradictions", False)
         decision_id = arguments.get("decision_id")
         limit = arguments.get("limit", 5)
-        # Note: format argument is currently unused
+        format_type = arguments.get("format", "summary")
+
+        # Validate mutual exclusivity
+        provided_params = sum([
+            bool(query_text),
+            bool(find_contradictions),
+            bool(decision_id)
+        ])
+
+        if provided_params == 0:
+            return [TextContent(
+                type="text",
+                text=json.dumps({
+                    "error": "Must provide one of: query_text, find_contradictions, or decision_id",
+                    "status": "failed"
+                }, indent=2)
+            )]
+
+        if provided_params > 1:
+            return [TextContent(
+                type="text",
+                text=json.dumps({
+                    "error": "Only one of query_text, find_contradictions, or decision_id can be provided",
+                    "status": "failed",
+                    "provided": {
+                        "query_text": bool(query_text),
+                        "find_contradictions": bool(find_contradictions),
+                        "decision_id": bool(decision_id)
+                    }
+                }, indent=2)
+            )]
+
+        # Helper function to format decision results based on format type
+        def format_decision(decision, score=None):
+            """Format a decision based on the requested format type."""
+            if format_type == "detailed":
+                # Detailed format includes all available fields
+                formatted = {
+                    "id": decision.id,
+                    "question": decision.question,
+                    "consensus": decision.consensus,
+                    "participants": decision.participants,
+                    "timestamp": decision.timestamp,
+                }
+                if score is not None:
+                    formatted["score"] = score
+                # Include stances if available
+                if hasattr(decision, "stances") and decision.stances:
+                    formatted["stances"] = [
+                        {
+                            "participant": s.participant,
+                            "position": s.position,
+                            "confidence": getattr(s, "confidence", None),
+                            "rationale": getattr(s, "rationale", None),
+                        }
+                        for s in decision.stances
+                    ]
+                return formatted
+            elif format_type == "json":
+                # JSON format returns full object representation
+                formatted = {
+                    "id": decision.id,
+                    "question": decision.question,
+                    "consensus": decision.consensus,
+                    "participants": decision.participants,
+                    "timestamp": decision.timestamp,
+                }
+                if score is not None:
+                    formatted["score"] = score
+                if hasattr(decision, "stances") and decision.stances:
+                    formatted["stances"] = [
+                        {
+                            "participant": s.participant,
+                            "position": s.position,
+                            "confidence": getattr(s, "confidence", None),
+                            "rationale": getattr(s, "rationale", None),
+                        }
+                        for s in decision.stances
+                    ]
+                return formatted
+            else:
+                # Summary format (default) - minimal fields
+                formatted = {
+                    "id": decision.id,
+                    "question": decision.question,
+                    "consensus": decision.consensus,
+                    "participants": decision.participants,
+                }
+                if score is not None:
+                    formatted["score"] = score
+                return formatted
 
         result = None
 
@@ -554,13 +658,7 @@ async def handle_query_decisions(arguments: dict) -> list[TextContent]:
                 "type": "similar_decisions",
                 "count": len(results),
                 "results": [
-                    {
-                        "id": r.decision.id,
-                        "question": r.decision.question,
-                        "consensus": r.decision.consensus,
-                        "score": r.score,
-                        "participants": r.decision.participants,
-                    }
+                    format_decision(r.decision, r.score)
                     for r in results
                 ],
             }
@@ -568,41 +666,67 @@ async def handle_query_decisions(arguments: dict) -> list[TextContent]:
         elif find_contradictions:
             # Find contradictions
             contradictions = await engine.find_contradictions()
-            result = {
-                "type": "contradictions",
-                "count": len(contradictions),
-                "results": [
-                    {
-                        "decision_id_1": c.decision_id_1,
-                        "decision_id_2": c.decision_id_2,
-                        "question_1": c.question_1,
-                        "question_2": c.question_2,
-                        "severity": c.severity,
-                        "description": c.description,
-                    }
-                    for c in contradictions
-                ],
-            }
+            # Format contradictions based on format type
+            if format_type == "detailed":
+                result = {
+                    "type": "contradictions",
+                    "count": len(contradictions),
+                    "results": [
+                        {
+                            "decision_id_1": c.decision_id_1,
+                            "decision_id_2": c.decision_id_2,
+                            "question_1": c.question_1,
+                            "question_2": c.question_2,
+                            "severity": c.severity,
+                            "description": c.description,
+                            "similarity_score": getattr(c, "similarity_score", None),
+                        }
+                        for c in contradictions
+                    ],
+                }
+            else:
+                result = {
+                    "type": "contradictions",
+                    "count": len(contradictions),
+                    "results": [
+                        {
+                            "decision_id_1": c.decision_id_1,
+                            "decision_id_2": c.decision_id_2,
+                            "question_1": c.question_1,
+                            "question_2": c.question_2,
+                            "severity": c.severity,
+                            "description": c.description,
+                        }
+                        for c in contradictions
+                    ],
+                }
 
         elif decision_id:
             # Trace evolution
             timeline = await engine.trace_evolution(decision_id, include_related=True)
-            result = {
-                "type": "evolution",
-                "decision_id": timeline.decision_id,
-                "question": timeline.question,
-                "consensus": timeline.consensus,
-                "status": timeline.status,
-                "participants": timeline.participants,
-                "rounds": len(timeline.rounds),
-                "related_decisions": timeline.related_decisions[:3],
-            }
-
-        if not result:
-            result = {
-                "error": "No query parameters provided",
-                "status": "failed",
-            }
+            if format_type == "detailed":
+                result = {
+                    "type": "evolution",
+                    "decision_id": timeline.decision_id,
+                    "question": timeline.question,
+                    "consensus": timeline.consensus,
+                    "status": timeline.status,
+                    "participants": timeline.participants,
+                    "timestamp": getattr(timeline, "timestamp", None),
+                    "rounds": len(timeline.rounds),
+                    "related_decisions": timeline.related_decisions[:3],
+                }
+            else:
+                result = {
+                    "type": "evolution",
+                    "decision_id": timeline.decision_id,
+                    "question": timeline.question,
+                    "consensus": timeline.consensus,
+                    "status": timeline.status,
+                    "participants": timeline.participants,
+                    "rounds": len(timeline.rounds),
+                    "related_decisions": timeline.related_decisions[:3],
+                }
 
         return [TextContent(type="text", text=json.dumps(result, indent=2))]
 
