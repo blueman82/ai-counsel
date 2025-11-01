@@ -113,6 +113,24 @@ async def list_tools() -> list[Tool]:
                 "responses and can adjust their reasoning. Supports both CLI tools "
                 "(claude, codex, droid, gemini, llamacpp) and HTTP services (ollama, lmstudio, openrouter). "
                 "Use for critical decisions, architecture choices, or complex technical debates.\n\n"
+
+                "## Evidence-Based Deliberation\n\n"
+                "Models can query actual code, files, and data during deliberation to ground "
+                "decisions in reality. Use TOOL_REQUEST markers to invoke tools:\n\n"
+                "TOOL_REQUEST: {\"name\": \"read_file\", \"arguments\": {\"path\": \"/path/to/file.py\"}}\n\n"
+                "Supported tools:\n"
+                "- read_file: Read file contents (max 1MB)\n"
+                "- search_code: Search for regex patterns in codebase\n"
+                "- list_files: List files matching glob pattern\n"
+                "- run_command: Execute safe read-only commands (ls, git, grep, etc.)\n\n"
+                "Tool results are visible to all models in subsequent rounds.\n\n"
+
+                "## Example Usage\n\n"
+                "Question: 'Should we use PostgreSQL or SQLite?'\n"
+                "Model A requests: TOOL_REQUEST: {\"name\": \"search_code\", \"arguments\": {\"pattern\": \"database\", \"path\": \".\"}}\n"
+                "Tool returns: Current DB usage, query patterns, data volume\n"
+                "Models deliberate based on actual evidence, not assumptions.\n\n"
+
                 "Example participants:\n"
                 '  [{"cli": "claude", "model": "sonnet"}, '
                 '{"cli": "llamacpp", "model": "/path/to/llama-2-7b.Q4_K_M.gguf"}]\n\n'

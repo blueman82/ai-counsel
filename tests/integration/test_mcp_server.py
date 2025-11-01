@@ -59,3 +59,40 @@ async def test_deliberate_tool_execution():
     # }
     # Expected: Returns DeliberationResult with status='complete'
     pass
+
+
+@pytest.mark.integration
+class TestMCPToolSchema:
+    """Tests for MCP tool schema documentation."""
+
+    @pytest.mark.asyncio
+    async def test_deliberate_tool_description_includes_tool_usage(self):
+        """Test deliberate tool description documents tool invocation."""
+        from server import list_tools
+
+        tools = await list_tools()
+        deliberate_tool = next(t for t in tools if t.name == "deliberate")
+
+        description = deliberate_tool.description
+
+        # Check for tool documentation
+        assert "TOOL_REQUEST" in description
+        assert "read_file" in description
+        assert "search_code" in description
+        assert "evidence" in description.lower() or "query" in description.lower()
+
+    @pytest.mark.asyncio
+    async def test_tool_list_includes_supported_tools(self):
+        """Test tool description lists all supported tools."""
+        from server import list_tools
+
+        tools = await list_tools()
+        deliberate_tool = next(t for t in tools if t.name == "deliberate")
+
+        description = deliberate_tool.description
+
+        # All Phase 1 tools should be mentioned
+        assert "read_file" in description
+        assert "search_code" in description
+        assert "list_files" in description
+        assert "run_command" in description
