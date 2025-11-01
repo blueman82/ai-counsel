@@ -12,16 +12,21 @@ class TestParticipant:
     def test_valid_participant(self):
         """Test creating a valid participant."""
         p = Participant(
-            cli="claude", model="claude-3-5-sonnet-20241022", stance="neutral"
+            cli="claude", model="claude-3-5-sonnet-20241022"
         )
         assert p.cli == "claude"
         assert p.model == "claude-3-5-sonnet-20241022"
-        assert p.stance == "neutral"
 
-    def test_participant_defaults_to_neutral_stance(self):
-        """Test that stance defaults to neutral."""
+    def test_participant_creation(self):
+        """Test participant creation."""
         p = Participant(cli="codex", model="gpt-4")
-        assert p.stance == "neutral"
+        assert p.cli == "codex"
+        assert p.model == "gpt-4"
+
+    def test_participant_allows_missing_model(self):
+        """Participants can defer to defaults when model omitted."""
+        p = Participant(cli="claude")
+        assert p.model is None
 
     def test_invalid_cli_raises_error(self):
         """Test that invalid CLI tool raises validation error."""
@@ -29,42 +34,35 @@ class TestParticipant:
             Participant(cli="invalid-cli", model="gpt-4")
         assert "cli" in str(exc_info.value)
 
-    def test_invalid_stance_raises_error(self):
-        """Test that invalid stance raises validation error."""
-        with pytest.raises(ValidationError) as exc_info:
-            Participant(cli="codex", model="gpt-4", stance="maybe")
-        assert "stance" in str(exc_info.value)
+
 
     def test_ollama_participant(self):
         """Test creating an Ollama participant."""
-        p = Participant(cli="ollama", model="llama2", stance="neutral")
+        p = Participant(cli="ollama", model="llama2")
         assert p.cli == "ollama"
         assert p.model == "llama2"
 
     def test_lmstudio_participant(self):
         """Test creating an LM Studio participant."""
-        p = Participant(cli="lmstudio", model="local-model", stance="for")
+        p = Participant(cli="lmstudio", model="local-model")
         assert p.cli == "lmstudio"
         assert p.model == "local-model"
-        assert p.stance == "for"
 
     def test_llamacpp_participant(self):
         """Test creating a llama.cpp participant."""
         p = Participant(
-            cli="llamacpp", model="/path/to/llama-2-7b.Q4_K_M.gguf", stance="neutral"
+            cli="llamacpp", model="/path/to/llama-2-7b.Q4_K_M.gguf"
         )
         assert p.cli == "llamacpp"
         assert p.model == "/path/to/llama-2-7b.Q4_K_M.gguf"
-        assert p.stance == "neutral"
 
     def test_openrouter_participant(self):
         """Test creating an OpenRouter participant."""
         p = Participant(
-            cli="openrouter", model="anthropic/claude-3.5-sonnet", stance="against"
+            cli="openrouter", model="anthropic/claude-3.5-sonnet"
         )
         assert p.cli == "openrouter"
         assert p.model == "anthropic/claude-3.5-sonnet"
-        assert p.stance == "against"
 
 
 class TestDeliberateRequest:
@@ -84,15 +82,27 @@ class TestDeliberateRequest:
         assert req.rounds == 2  # Default
         assert req.mode == "quick"  # Default
 
+    def test_request_allows_missing_model(self):
+        """Missing model values are permitted and default later."""
+        req = DeliberateRequest(
+            question="Is Rust suitable for this service?",
+            participants=[
+                Participant(cli="claude"),
+                Participant(cli="codex"),
+            ],
+        )
+        assert req.participants[0].model is None
+        assert req.participants[1].model is None
+
     def test_valid_request_full(self):
         """Test valid request with all fields."""
         req = DeliberateRequest(
             question="Should we refactor?",
             participants=[
                 Participant(
-                    cli="claude", model="claude-3-5-sonnet-20241022", stance="for"
+                    cli="claude", model="claude-3-5-sonnet-20241022"
                 ),
-                Participant(cli="codex", model="gpt-4", stance="against"),
+                Participant(cli="codex", model="gpt-4"),
             ],
             rounds=3,
             mode="conference",
@@ -145,7 +155,6 @@ class TestRoundResponse:
         resp = RoundResponse(
             round=1,
             participant="claude-3-5-sonnet@claude-code",
-            stance="neutral",
             response="I think we should consider...",
             timestamp="2025-10-12T15:30:00Z",
         )

@@ -1,5 +1,6 @@
 """Unit tests for transcript management."""
 from pathlib import Path
+import shutil
 
 import pytest
 
@@ -26,14 +27,12 @@ def sample_result():
             RoundResponse(
                 round=1,
                 participant="claude-3-5-sonnet@claude-code",
-                stance="neutral",
                 response="I think TypeScript offers...",
                 timestamp="2025-10-12T15:30:00Z",
             ),
             RoundResponse(
                 round=1,
                 participant="gpt-4@codex",
-                stance="for",
                 response="TypeScript is excellent because...",
                 timestamp="2025-10-12T15:30:05Z",
             ),
@@ -81,3 +80,16 @@ class TestTranscriptManager:
         assert file1 != file2
         assert Path(file1).exists()
         assert Path(file2).exists()
+
+    def test_save_recreates_missing_directory(self, sample_result, tmp_path):
+        """Transcript saving should recreate output directory if it was removed."""
+        output_dir = tmp_path / "transcripts"
+        manager = TranscriptManager(output_dir=str(output_dir))
+
+        # Remove directory after initialization to simulate external deletion
+        shutil.rmtree(output_dir)
+
+        filepath = manager.save(sample_result, "Recover Missing Dir")
+
+        assert Path(filepath).exists()
+        assert output_dir.exists()

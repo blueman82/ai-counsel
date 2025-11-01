@@ -91,6 +91,22 @@ class DefaultsConfig(BaseModel):
     timeout_per_round: int
 
 
+class ModelDefinition(BaseModel):
+    """Single model entry in the registry."""
+
+    id: str = Field(..., description="Model identifier used by the adapter")
+    label: Optional[str] = Field(
+        None, description="Human-friendly label for the model"
+    )
+    tier: Optional[str] = Field(None, description="Cost/quality tier hint")
+    default: bool = Field(
+        False, description="Whether this model should be used as the default"
+    )
+    note: Optional[str] = Field(
+        None, description="Optional additional guidance about the model"
+    )
+
+
 class StorageConfig(BaseModel):
     """Storage configuration."""
 
@@ -272,6 +288,10 @@ class Config(BaseModel):
     cli_tools: Optional[dict[str, CLIToolConfig]] = None
 
     defaults: DefaultsConfig
+    model_registry: Optional[dict[str, list[ModelDefinition]]] = Field(
+        default=None,
+        description="Allowlisted models per adapter to surface in MCP clients",
+    )
     storage: StorageConfig
     deliberation: DeliberationConfig
     decision_graph: Optional[DecisionGraphConfig] = None

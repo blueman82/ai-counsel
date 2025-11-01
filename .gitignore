@@ -13,8 +13,18 @@ venv/
 transcripts/*.md
 transcripts/*.json
 !transcripts/.gitkeep
+# Demo transcripts (tracked for README examples)
+!transcripts/20251030_153509_Should_we_use_REST_or_GraphQL_for_our_new_API_Con.md
+!transcripts/20251030_153834_Should_we_prioritize_code_quality_or_delivery_spee.md
 .env
 config.local.yaml
+
+# Demo/test files (not tracked)
+demo.cast
+demo_script.sh
+ai_counsel_demo.cast
+record_demo.sh
+run_deliberation.py
 
 # Auto-added by Claude Code auto-commit hook
 logs/
@@ -52,6 +62,7 @@ docs/
 # Exception: Track reference documentation
 !/docs/CLI_MODEL_REFERENCE.md
 !/docs/CACHE_INTEGRATION_REFERENCE.md
+!/docs/model-registry-and-picker.md
 # Exception: Track HTTP adapter documentation (valuable for users)
 !/docs/http-adapters/
 !/docs/http-adapters/*.md
@@ -80,3 +91,4 @@ CHANGELOG.md
 project-progress.yml
 PHASE-1.5-HANDOVER.md
 phase-1-5-deliberations.md
+IMPLEMENTATION_GUIDE.md

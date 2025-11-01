@@ -8,6 +8,40 @@ True deliberative consensus MCP server where AI models debate and refine positio
 ![MCP](https://img.shields.io/badge/MCP-Server-green.svg)
 ![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)
 
+## 🎬 See It In Action
+
+**Cloud Models Debate** (Claude Sonnet, GPT-5 Codex, Gemini):
+```javascript
+mcp__ai-counsel__deliberate({
+  question: "Should we use REST or GraphQL for our new API?",
+  participants: [
+    {cli: "claude", model: "claude-sonnet-4-5-20250929"},
+    {cli: "codex", model: "gpt-5-codex"},
+    {cli: "gemini", model: "gemini-2.5-pro"}
+  ],
+  mode: "conference",
+  rounds: 3
+})
+```
+**Result**: Converged on hybrid architecture (0.82-0.95 confidence) • [View full transcript](transcripts/20251030_153509_Should_we_use_REST_or_GraphQL_for_our_new_API_Con.md)
+
+**Local Models Debate** (100% private, zero API costs):
+```javascript
+mcp__ai-counsel__deliberate({
+  question: "Should we prioritize code quality or delivery speed?",
+  participants: [
+    {cli: "ollama", model: "llama3.1:8b"},
+    {cli: "ollama", model: "mistral:7b"},
+    {cli: "ollama", model: "deepseek-r1:8b"}
+  ],
+  mode: "conference",
+  rounds: 2
+})
+```
+**Result**: 2 models switched positions after Round 1 debate • [View full transcript](transcripts/20251030_153834_Should_we_prioritize_code_quality_or_delivery_spee.md)
+
+---
+
 ## What Makes This Different
 
 **AI Counsel enables TRUE deliberative consensus** where models see each other's responses and refine positions across multiple rounds:
@@ -33,17 +67,14 @@ True deliberative consensus MCP server where AI models debate and refine positio
 - 🛡️ **Fault Tolerant**: Individual adapter failures don't halt deliberation
 - 📝 **Full Transcripts**: Markdown exports with AI-generated summaries
 
+git clone https://github.com/blueman82/ai-counsel.git
 ## Quick Start
 
-**Install & Run** (5 minutes):
+Get up and running in minutes:
 
-```bash
-# 1. Clone & setup
-git clone https://github.com/blueman82/ai-counsel.git
-cd ai-counsel
-python3 -m venv .venv
-source .venv/bin/activate  # macOS/Linux; Windows: .venv\Scripts\activate
-pip install -r requirements.txt
+1. **Install** – follow the commands in [Installation](#installation) to clone the repo, create a virtualenv, and install requirements.
+2. **Configure** – set up your MCP client using the `.mcp.json` example in [Configure in Claude Code](#configure-in-claude-code).
+3. **Run** – start the server with `python server.py` and trigger the `deliberate` tool using the examples in [Usage](#usage).
 
 # 2. Add to Claude Code MCP config
 # Create .mcp.json in project root:
@@ -88,6 +119,8 @@ mcp__ai-counsel__deliberate({
 
 **Available Models**: `claude` (sonnet, opus, haiku), `codex` (gpt-5-codex), `droid`, `gemini`, HTTP adapters (ollama, lmstudio, openrouter).
 See [CLI Model Reference](docs/CLI_MODEL_REFERENCE.md) for complete details.
+
+For model choices and picker workflow, see [Model Registry & Picker](docs/model-registry-and-picker.md).
 
 ## Installation
 
@@ -264,6 +297,12 @@ python server.py
 
 After configuration, restart Claude Code.
 
+### Model Selection & Session Defaults
+
+- Discover the allowlisted models for each adapter by running the MCP tool `list_models`.
+- Set per-session defaults with `set_session_models`; leave `model` blank in `deliberate` to use those defaults.
+- Full instructions and request examples live in [Model Registry & Picker](docs/model-registry-and-picker.md).
+
 ### Examples
 
 **Quick Mode:**
@@ -280,8 +319,8 @@ mcp__ai-counsel__deliberate({
 mcp__ai-counsel__deliberate({
   question: "JWT vs session-based auth?",
   participants: [
-    {cli: "claude", model: "sonnet", stance: "neutral"},
-    {cli: "codex", model: "gpt-5-codex", stance: "for"}
+    {cli: "claude", model: "sonnet"},
+    {cli: "codex", model: "gpt-5-codex"}
   ],
   rounds: 3,
   mode: "conference"
@@ -355,7 +394,7 @@ ai-counsel/
 ### Development
 - **[Adding Adapters](docs/adding-adapters.md)** - CLI and HTTP adapter development
 - **[CLAUDE.md](CLAUDE.md)** - Architecture, development workflow, gotchas
-- **[CLI Model Reference](docs/CLI_MODEL_REFERENCE.md)** - Model parameters per CLI
+- **[Model Registry & Picker](docs/model-registry-and-picker.md)** - Managing allowlisted models and MCP picker tools
 
 ### Reference
 - **[Troubleshooting](docs/troubleshooting/http-adapters.md)** - HTTP adapter issues

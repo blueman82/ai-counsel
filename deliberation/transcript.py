@@ -209,7 +209,7 @@ class TranscriptManager:
 
             lines.extend(
                 [
-                    f"**{response.participant}** ({response.stance})",
+                    f"**{response.participant}**",
                     "",
                     response.response,
                     "",
@@ -252,10 +252,23 @@ class TranscriptManager:
 
         filepath = self.output_dir / filename
 
+        # Ensure destination directory exists (handles cases where it was deleted after initialization)
+        try:
+            filepath.parent.mkdir(parents=True, exist_ok=True)
+        except Exception as exc:  # pragma: no cover - defensive path
+            raise RuntimeError(
+                f"Failed to create transcript directory '{filepath.parent}': {exc}"
+            ) from exc
+
         # Generate markdown with question at top
         markdown = f"# {question}\n\n" + self.generate_markdown(result)
 
         # Save
-        filepath.write_text(markdown, encoding="utf-8")
+        try:
+            filepath.write_text(markdown, encoding="utf-8")
+        except Exception as exc:  # pragma: no cover - defensive path
+            raise RuntimeError(
+                f"Failed to write transcript to '{filepath}': {exc}"
+            ) from exc
 
         return str(filepath)

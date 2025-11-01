@@ -57,14 +57,12 @@ def sample_result():
             RoundResponse(
                 round=1,
                 participant="participant1",
-                stance="neutral",
                 response="Response 1",
                 timestamp="2024-01-01T00:00:00Z",
             ),
             RoundResponse(
                 round=1,
                 participant="participant2",
-                stance="neutral",
                 response="Response 2",
                 timestamp="2024-01-01T00:00:01Z",
             ),

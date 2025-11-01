@@ -27,7 +27,7 @@ cli_tools:
     command: "droid"
     args: ["exec", "-m", "{model}", "{prompt}"]
     timeout: 180
-    # Valid models: "claude-sonnet-4-5-20250929", "claude-opus-4-1-20250805", "gpt-5-codex"
+    # ONLY VALID MODELS: "claude-sonnet-4-5-20250929", "gpt-5-codex", "Droid Core (GLM-4.6)"
     # Note: Requires FULL model IDs, not short aliases
     #
     # Adaptive Permission Strategy (Graceful Degradation):
@@ -119,6 +119,43 @@ defaults:
   rounds: 2
   max_rounds: 5
   timeout_per_round: 120
+
+model_registry:
+  claude:
+    - id: "claude-sonnet-4-5-20250929"
+      label: "Claude Sonnet 4.5"
+      tier: "balanced"
+      default: true
+    - id: "claude-haiku-4-5-20251001"
+      label: "Claude Haiku 4.5"
+      tier: "speed"
+    - id: "claude-opus-4-1-20250805"
+      label: "Claude Opus 4.1"
+      tier: "premium"
+  codex:
+    - id: "gpt-5-codex"
+      label: "GPT-5 Codex"
+      tier: "coding"
+      default: true
+    - id: "gpt-5"
+      label: "GPT-5"
+      tier: "general"
+  droid:
+    - id: "claude-sonnet-4-5-20250929"
+      label: "Claude Sonnet 4.5 (via Droid)"
+      tier: "balanced"
+      default: true
+    - id: "gpt-5-codex"
+      label: "GPT-5 Codex (via Droid)"
+      tier: "coding"
+    - id: "glm-4.6"
+      label: "Droid Core (GLM-4.6)"
+      tier: "open-source"
+  gemini:
+    - id: "gemini-2.5-pro"
+      label: "Gemini 2.5 Pro"
+      tier: "general"
+      default: true
 
 storage:
   transcripts_dir: "transcripts"

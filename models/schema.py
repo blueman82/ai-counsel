@@ -20,12 +20,12 @@ class Participant(BaseModel):
         ...,
         description="Adapter to use for this participant (CLI tools or HTTP services)",
     )
-    model: str = Field(
-        ...,
-        description="Model identifier (e.g., 'claude-3-5-sonnet-20241022', 'gpt-4')",
-    )
-    stance: Literal["neutral", "for", "against"] = Field(
-        default="neutral", description="Stance for this participant"
+    model: Optional[str] = Field(
+        default=None,
+        description=(
+            "Model identifier (e.g., 'claude-3-5-sonnet-20241022', 'gpt-4'). "
+            "If omitted, the server will use the session default or the recommended default for the adapter."
+        ),
     )
 
 
@@ -54,7 +54,6 @@ class RoundResponse(BaseModel):
 
     round: int = Field(..., description="Round number")
     participant: str = Field(..., description="Participant identifier")
-    stance: str = Field(..., description="Participant's stance")
     response: str = Field(..., description="The response text")
     timestamp: str = Field(..., description="ISO 8601 timestamp")
 

@@ -6,7 +6,7 @@ Context injection accelerates deliberations by showing AI models similar past de
 
 When you start a deliberation, the system searches for similar past decisions and injects them into Round 1 prompts. Context is tiered by relevance:
 
-- **Strong** (similarity ≥0.75): Full detail with participant stances, votes, and rationale (~500 tokens each)
+- **Strong** (similarity ≥0.75): Full detail with participant positions, votes, and rationale (~500 tokens each)
 - **Moderate** (0.60-0.74): Summary format with question and consensus (~200 tokens each)
 - **Brief** (<0.60): One-liner reference (~50 tokens each)
 
