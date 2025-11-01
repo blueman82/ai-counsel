@@ -182,3 +182,7 @@ class DeliberationResult(BaseModel):
         None,
         description="Summary of decision graph context used (None if not used)",
     )
+    tool_executions: Optional[list] = Field(
+        default_factory=list,
+        description="List of tool executions during deliberation (evidence-based deliberation)",
+    )
