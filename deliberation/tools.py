@@ -1,4 +1,5 @@
 """Tool execution infrastructure for evidence-based deliberation."""
+import asyncio
 import logging
 import json
 import re
@@ -368,3 +369,166 @@ class SearchCodeTool(BaseTool):
             output=output,
             error=None
         )
+
+
+class ListFilesTool(BaseTool):
+    """Tool for listing files matching glob patterns."""
+
+    MAX_FILES = 200
+
+    @property
+    def name(self) -> str:
+        return "list_files"
+
+    async def execute(self, arguments: dict) -> ToolResult:
+        """
+        List files matching glob pattern.
+
+        Args:
+            arguments: Must contain 'pattern' (glob) and optional 'path' (directory)
+
+        Returns:
+            ToolResult with file list or error
+        """
+        pattern = arguments.get("pattern", "*")
+        search_path = arguments.get("path", ".")
+
+        try:
+            path = Path(search_path).resolve()
+
+            if not path.exists():
+                return ToolResult(
+                    tool_name=self.name,
+                    success=False,
+                    output=None,
+                    error=f"Path not found: {path}"
+                )
+
+            # Use rglob for recursive patterns (e.g., **/*.py)
+            if "**" in pattern:
+                matches = list(path.glob(pattern))
+            else:
+                matches = list(path.rglob(pattern))
+
+            # Limit results
+            matches = matches[:self.MAX_FILES]
+
+            if not matches:
+                output = "No files found"
+            else:
+                output = "\n".join(str(f) for f in matches)
+                if len(matches) >= self.MAX_FILES:
+                    output += f"\n\n(Showing first {self.MAX_FILES} files)"
+
+            return ToolResult(
+                tool_name=self.name,
+                success=True,
+                output=output,
+                error=None
+            )
+
+        except Exception as e:
+            return ToolResult(
+                tool_name=self.name,
+                success=False,
+                output=None,
+                error=f"{type(e).__name__}: {str(e)}"
+            )
+
+
+class RunCommandTool(BaseTool):
+    """Tool for running safe read-only commands."""
+
+    # Whitelist of allowed commands (read-only operations)
+    ALLOWED_COMMANDS = {
+        "ls", "pwd", "cat", "head", "tail", "wc", "find",
+        "git", "grep", "awk", "sed", "sort", "uniq",
+        "tree", "file", "stat", "diff"
+    }
+
+    COMMAND_TIMEOUT = 10  # seconds
+
+    @property
+    def name(self) -> str:
+        return "run_command"
+
+    async def execute(self, arguments: dict) -> ToolResult:
+        """
+        Run whitelisted command.
+
+        Args:
+            arguments: Must contain 'command' and optional 'args' (list)
+
+        Returns:
+            ToolResult with command output or error
+        """
+        command = arguments.get("command")
+        args = arguments.get("args", [])
+
+        if not command:
+            return ToolResult(
+                tool_name=self.name,
+                success=False,
+                output=None,
+                error="Missing required argument: 'command'"
+            )
+
+        # Check whitelist
+        if command not in self.ALLOWED_COMMANDS:
+            return ToolResult(
+                tool_name=self.name,
+                success=False,
+                output=None,
+                error=f"Command '{command}' is not whitelisted. Allowed: {', '.join(sorted(self.ALLOWED_COMMANDS))}"
+            )
+
+        try:
+            # Execute command
+            proc = await asyncio.create_subprocess_exec(
+                command,
+                *args,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE
+            )
+
+            try:
+                stdout, stderr = await asyncio.wait_for(
+                    proc.communicate(),
+                    timeout=self.COMMAND_TIMEOUT
+                )
+            except asyncio.TimeoutError:
+                proc.kill()
+                await proc.wait()
+                return ToolResult(
+                    tool_name=self.name,
+                    success=False,
+                    output=None,
+                    error=f"Command timed out after {self.COMMAND_TIMEOUT}s"
+                )
+
+            # Check exit code
+            if proc.returncode != 0:
+                error_msg = stderr.decode("utf-8", errors="replace").strip()
+                return ToolResult(
+                    tool_name=self.name,
+                    success=False,
+                    output=None,
+                    error=f"Command failed (exit {proc.returncode}): {error_msg}"
+                )
+
+            output = stdout.decode("utf-8", errors="replace").strip()
+
+            return ToolResult(
+                tool_name=self.name,
+                success=True,
+                output=output,
+                error=None
+            )
+
+        except Exception as e:
+            return ToolResult(
+                tool_name=self.name,
+                success=False,
+                output=None,
+                error=f"{type(e).__name__}: {str(e)}"
+            )

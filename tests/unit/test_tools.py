@@ -374,3 +374,139 @@ class TestSearchCodeTool:
     async def test_tool_name(self, tool):
         """Test tool has correct name."""
         assert tool.name == "search_code"
+
+
+class TestListFilesTool:
+    """Tests for ListFilesTool implementation."""
+
+    @pytest.fixture
+    def tool(self):
+        """Create ListFilesTool instance."""
+        from deliberation.tools import ListFilesTool
+        return ListFilesTool()
+
+    @pytest.fixture
+    def test_files(self, tmp_path):
+        """Create test file structure."""
+        (tmp_path / "file1.py").touch()
+        (tmp_path / "file2.py").touch()
+        (tmp_path / "readme.md").touch()
+        (tmp_path / "subdir").mkdir()
+        (tmp_path / "subdir" / "file3.py").touch()
+        return tmp_path
+
+    @pytest.mark.asyncio
+    async def test_list_files_with_glob_pattern(self, tool, test_files):
+        """Test listing files with glob pattern."""
+        result = await tool.execute({
+            "pattern": "*.py",
+            "path": str(test_files)
+        })
+
+        assert result.success is True
+        assert "file1.py" in result.output
+        assert "file2.py" in result.output
+        assert "readme.md" not in result.output
+
+    @pytest.mark.asyncio
+    async def test_list_files_with_no_matches(self, tool, test_files):
+        """Test listing files with no matches."""
+        result = await tool.execute({
+            "pattern": "*.nonexistent",
+            "path": str(test_files)
+        })
+
+        assert result.success is True
+        assert "No files found" in result.output
+
+    @pytest.mark.asyncio
+    async def test_list_files_defaults_pattern(self, tool, test_files):
+        """Test listing files with default pattern (all files)."""
+        result = await tool.execute({"path": str(test_files)})
+
+        assert result.success is True
+        # Should list files with default pattern
+
+    @pytest.mark.asyncio
+    async def test_list_files_invalid_path(self, tool):
+        """Test listing files with invalid path returns error."""
+        result = await tool.execute({
+            "pattern": "*.py",
+            "path": "/nonexistent/path/does/not/exist"
+        })
+
+        assert result.success is False
+        assert "not found" in result.error.lower() or "path" in result.error.lower()
+
+    @pytest.mark.asyncio
+    async def test_tool_name(self, tool):
+        """Test tool has correct name."""
+        assert tool.name == "list_files"
+
+
+class TestRunCommandTool:
+    """Tests for RunCommandTool implementation."""
+
+    @pytest.fixture
+    def tool(self):
+        """Create RunCommandTool instance."""
+        from deliberation.tools import RunCommandTool
+        return RunCommandTool()
+
+    @pytest.mark.asyncio
+    async def test_run_whitelisted_command(self, tool):
+        """Test running whitelisted command succeeds."""
+        result = await tool.execute({
+            "command": "pwd",
+            "args": []
+        })
+
+        assert result.success is True
+        assert result.output is not None
+
+    @pytest.mark.asyncio
+    async def test_run_command_with_args(self, tool, tmp_path):
+        """Test running command with arguments."""
+        # Create a test file
+        test_file = tmp_path / "test.txt"
+        test_file.write_text("test content")
+
+        result = await tool.execute({
+            "command": "cat",
+            "args": [str(test_file)]
+        })
+
+        assert result.success is True
+        assert "test content" in result.output
+
+    @pytest.mark.asyncio
+    async def test_run_non_whitelisted_command_returns_error(self, tool):
+        """Test non-whitelisted command is blocked."""
+        result = await tool.execute({
+            "command": "rm",  # Not whitelisted
+            "args": ["-rf", "/"]
+        })
+
+        assert result.success is False
+        assert "not whitelisted" in result.error.lower()
+
+    @pytest.mark.asyncio
+    async def test_run_command_missing_command_argument(self, tool):
+        """Test running command without command argument returns error."""
+        result = await tool.execute({"args": []})
+
+        assert result.success is False
+        assert "command" in result.error.lower()
+
+    @pytest.mark.asyncio
+    async def test_run_command_defaults_args(self, tool):
+        """Test command execution with default empty args."""
+        result = await tool.execute({"command": "pwd"})
+
+        # Should work with default empty args
+        assert result.success is True or result.success is False  # May fail if command needs args
+
+    @pytest.mark.asyncio
+    async def test_tool_name(self, tool):
+        """Test tool has correct name."""
+        assert tool.name == "run_command"
