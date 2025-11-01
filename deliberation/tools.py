@@ -73,11 +73,8 @@ class ToolExecutor:
             List of ToolRequest objects (empty if none found)
         """
         requests = []
-        # Pattern to match TOOL_REQUEST: followed by JSON object
-        # Uses greedy matching to handle nested JSON structures
-        pattern = r"TOOL_REQUEST:\s*(\{.+?\}(?:\s*\})*))"
-        
-        # Alternative approach: find all occurrences line by line
+
+        # Find all occurrences of TOOL_REQUEST: marker
         for line in response_text.split('\n'):
             if 'TOOL_REQUEST:' in line:
                 try:
@@ -85,27 +82,16 @@ class ToolExecutor:
                     json_start = line.find('{')
                     if json_start == -1:
                         continue
-                    
-                    # Find matching closing brace for nested JSON
-                    json_part = line[json_start:]
-                    brace_count = 0
-                    end_idx = -1
-                    
-                    for i, char in enumerate(json_part):
-                        if char == '{':
-                            brace_count += 1
-                        elif char == '}':
-                            brace_count -= 1
-                            if brace_count == 0:
-                                end_idx = i + 1
-                                break
-                    
-                    if end_idx > 0:
-                        request_json = json_part[:end_idx]
-                        request_data = json.loads(request_json)
-                        request = ToolRequest(**request_data)
-                        requests.append(request)
-                except (json.JSONDecodeError, Exception) as e:
+
+                    # Use json.JSONDecoder.raw_decode() for robust JSON parsing
+                    # This properly handles nested structures and } characters in strings
+                    decoder = json.JSONDecoder()
+                    request_data, end_idx = decoder.raw_decode(line, idx=json_start)
+
+                    # Validate and create ToolRequest
+                    request = ToolRequest(**request_data)
+                    requests.append(request)
+                except (json.JSONDecodeError, ValueError, TypeError) as e:
                     logger.debug(f"Failed to parse tool request: {e}")
                     # Silently skip invalid requests
                     continue

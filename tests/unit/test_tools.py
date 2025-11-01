@@ -228,6 +228,54 @@ class TestToolExecutor:
         assert requests[0].arguments["args"] == ["-la", "-h"]
         assert requests[0].arguments["nested"]["key"] == "value"
 
+    def test_parse_tool_request_with_closing_brace_in_argument(self, executor):
+        """Test parsing tool request with } character in argument values.
+
+        This is a regression test for the fragile manual brace counting bug.
+        When arguments contain } characters (e.g., regex patterns, code snippets),
+        the manual brace counter breaks and stops parsing too early.
+
+        Example: {"pattern": "class Test }"}
+        Manual brace counting sees the } in "Test }" and thinks JSON is complete.
+        """
+        # Register search_code tool for this test
+        from deliberation.tools import SearchCodeTool
+        executor.register_tool(SearchCodeTool())
+
+        response_text = """
+        I need to search for class definitions that might have closing braces.
+        TOOL_REQUEST: {"name": "search_code", "arguments": {"pattern": "class Test }", "path": "."}}
+        This should parse correctly.
+        """
+
+        requests = executor.parse_tool_requests(response_text)
+
+        # Should successfully parse 1 request
+        assert len(requests) == 1, f"Expected 1 request, got {len(requests)}"
+        assert requests[0].name == "search_code"
+        assert requests[0].arguments["pattern"] == "class Test }", f"Pattern was: {requests[0].arguments.get('pattern')}"
+        assert requests[0].arguments["path"] == "."
+
+    def test_parse_multiple_tool_requests_with_braces_in_arguments(self, executor):
+        """Test parsing multiple requests when arguments contain } characters."""
+        from deliberation.tools import ReadFileTool, SearchCodeTool
+        executor.register_tool(ReadFileTool())
+        executor.register_tool(SearchCodeTool())
+
+        response_text = """
+        First, read a file:
+        TOOL_REQUEST: {"name": "read_file", "arguments": {"path": "/test.py"}}
+
+        Then search for patterns with braces:
+        TOOL_REQUEST: {"name": "search_code", "arguments": {"pattern": "def foo():", "path": "."}}
+        """
+
+        requests = executor.parse_tool_requests(response_text)
+        assert len(requests) == 2, f"Expected 2 requests, got {len(requests)}"
+        assert requests[0].name == "read_file"
+        assert requests[1].name == "search_code"
+        assert requests[1].arguments["pattern"] == "def foo():"
+
 
 class TestReadFileTool:
     """Tests for ReadFileTool implementation."""

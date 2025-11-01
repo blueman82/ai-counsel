@@ -126,6 +126,18 @@ class DeliberationConfig(BaseModel):
     early_stopping: EarlyStoppingConfig
     convergence_threshold: float
     enable_convergence_detection: bool
+    tool_context_max_rounds: int = Field(
+        default=2,
+        ge=1,
+        le=10,
+        description="Maximum number of recent rounds to include tool results from"
+    )
+    tool_output_max_chars: int = Field(
+        default=1000,
+        ge=100,
+        le=10000,
+        description="Maximum characters to include from tool outputs"
+    )
 
 
 class DecisionGraphConfig(BaseModel):
