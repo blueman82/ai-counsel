@@ -832,6 +832,7 @@ Provide substantive analysis from your perspective."""
             convergence_info=None,  # Will populate below if available
             voting_result=voting_result,  # Add voting results
             graph_context_summary=graph_context_summary,  # Add graph context summary
+            tool_executions=self.tool_execution_history,  # Add tool execution history
         )
 
         # Add convergence info if available

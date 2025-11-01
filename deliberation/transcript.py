@@ -31,6 +31,65 @@ class TranscriptManager:
             self.output_dir = output_path
         self.output_dir.mkdir(parents=True, exist_ok=True)
 
+    def _format_tool_executions_section(self, result: DeliberationResult) -> list[str]:
+        """
+        Format tool executions section for markdown transcript.
+
+        Args:
+            result: Deliberation result containing tool execution data
+
+        Returns:
+            List of markdown lines for tool executions section
+        """
+        if not result.tool_executions:
+            return []
+
+        lines = [
+            "---",
+            "",
+            "## Tool Executions",
+            "",
+        ]
+
+        for execution in result.tool_executions:
+            lines.extend([
+                f"### {execution.request.name} (Round {execution.round_number})",
+                "",
+                f"**Requested by:** {execution.requested_by}",
+                f"**Timestamp:** {execution.timestamp}",
+                "",
+                "**Arguments:**",
+                "```json",
+                str(execution.request.arguments),
+                "```",
+                "",
+            ])
+
+            if execution.result.success:
+                # Truncate long outputs
+                output = execution.result.output
+                if output and len(output) > 2000:
+                    output = output[:2000] + "\n... (truncated)"
+
+                lines.extend([
+                    f"**Status:** ✅ Success",
+                    "",
+                    "**Output:**",
+                    "```",
+                    output or "(empty)",
+                    "```",
+                    "",
+                ])
+            else:
+                lines.extend([
+                    f"**Status:** ❌ Failed",
+                    "",
+                    f"**Error:** {execution.result.error}",
+                    "",
+                ])
+
+        return lines
+
     def _format_voting_section(self, result: DeliberationResult) -> list[str]:
         """
         Format voting results section for markdown transcript.
@@ -170,6 +229,11 @@ class TranscriptManager:
         voting_lines = self._format_voting_section(result)
         if voting_lines:
             lines.extend(voting_lines)
+
+        # Add tool executions if available
+        tool_lines = self._format_tool_executions_section(result)
+        if tool_lines:
+            lines.extend(tool_lines)
 
         # Add decision graph context section if available
         if result.graph_context_summary:
