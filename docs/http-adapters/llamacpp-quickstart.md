@@ -171,12 +171,14 @@ llama.cpp uses GGUF format (optimized quantized models).
 
 ### Recommended Models for Beginners
 
-| Model | Size | Quality | Download Link |
-|-------|------|---------|---------------|
-| **Llama 3.2 1B Q4** | 800MB | Good | [Link](https://huggingface.co/bartowski/Llama-3.2-1B-Instruct-GGUF) |
-| **Llama 3 8B Q4** | 4.3GB | Excellent | [Link](https://huggingface.co/bartowski/Meta-Llama-3-8B-Instruct-GGUF) |
-| **Mistral 7B Q4** | 4.1GB | Excellent | [Link](https://huggingface.co/TheBloke/Mistral-7B-Instruct-v0.3-GGUF) |
-| **Qwen 2.5 7B Q4** | 4.4GB | Excellent | [Link](https://huggingface.co/Qwen/Qwen2.5-7B-Instruct-GGUF) |
+| Model | Size | Quality | Deliberations | Download Link |
+|-------|------|---------|---------------|---------------|
+| **Llama 3.2 1B Q4** | 800MB | Good | ⚠️ Testing only | [Link](https://huggingface.co/bartowski/Llama-3.2-1B-Instruct-GGUF) |
+| **Llama 3 8B Q4** | 4.3GB | Excellent | ✅ Recommended | [Link](https://huggingface.co/bartowski/Meta-Llama-3-8B-Instruct-GGUF) |
+| **Mistral 7B Q4** | 4.1GB | Excellent | ✅ Recommended | [Link](https://huggingface.co/TheBloke/Mistral-7B-Instruct-v0.3-GGUF) |
+| **Qwen 2.5 7B Q4** | 4.4GB | Excellent | ✅ Recommended | [Link](https://huggingface.co/Qwen/Qwen2.5-7B-Instruct-GGUF) |
+
+**For AI Counsel Deliberations:** Use 7B-8B+ models. Smaller models (<3B) struggle with structured output and vote formatting.
 
 ### Download Example (Command Line)
 

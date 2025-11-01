@@ -14,21 +14,44 @@ AI Counsel is an MCP (Model Context Protocol) server that enables true deliberat
 
 **MCP Server Layer** (`server.py`)
 - Entry point for MCP protocol communication via stdio
-- Exposes single `deliberate` tool to MCP clients
+- Exposes 2 MCP tools: `deliberate` and `query_decisions` (when decision graph enabled)
 - Handles JSON serialization and response truncation for token limits
 - Logs to `mcp_server.log` (not stdout/stderr to avoid stdio interference)
+- See "MCP Tool Architecture" section below for distinction between MCP-exposed and internal tools
 
 **Deliberation Engine** (`deliberation/engine.py`)
 - Orchestrates multi-round debates between models
 - Manages context building from previous responses
 - Coordinates convergence detection and early stopping
 - Initializes AI summarizer with fallback chain: Claude Sonnet → GPT-5 Codex → Droid → Gemini
+- Integrates tool execution system for evidence-based deliberation
+
+**Tool Execution System** (`deliberation/tools.py`, `models/tool_schema.py`)
+- Abstract base: `BaseTool` defines tool interface with `execute()` method and security controls
+- Concrete tools: `ReadFileTool`, `SearchCodeTool`, `ListFilesTool`, `RunCommandTool`
+- Orchestrator: `ToolExecutor` parses TOOL_REQUEST markers, validates requests, routes to tools
+- Schema: `ToolRequest`, `ToolResult`, `ToolExecutionRecord` for type-safe execution tracking
+- Security: `RunCommandTool` uses whitelist (ls, grep, find, cat, head, tail), `ReadFileTool` enforces 1MB size limit, all tools have timeout protection (10s default) and comprehensive error handling
+- Context injection: Tool results automatically visible to all participants in subsequent rounds
+- Transcript integration: Tool executions recorded in separate section with requests, results, timing
 
 **CLI Adapters** (`adapters/base.py`, `adapters/claude.py`, etc.)
 - Abstract base: `BaseCLIAdapter` handles subprocess execution, timeout, error handling
-- Concrete adapters: `ClaudeAdapter`, `CodexAdapter`, `DroidAdapter`, `GeminiAdapter`
+- Concrete adapters: `ClaudeAdapter`, `CodexAdapter`, `DroidAdapter`, `GeminiAdapter`, `LlamaCppAdapter`
 - Each adapter implements `parse_output()` for tool-specific response parsing
 - Factory pattern in `adapters/__init__.py` creates adapters from config
+- **LlamaCpp Auto-Discovery** (`adapters/llamacpp.py`):
+  - Resolves model names to file paths automatically (e.g., "llama-2-7b" → "llama-2-7b-chat.Q4_K_M.gguf")
+  - Default search paths: `~/.cache/llama.cpp/models`, `~/models`, `~/.ollama/models`, `~/.lmstudio/models`, etc.
+  - Environment variable: `LLAMA_CPP_MODEL_PATH` (colon-separated paths)
+  - Supports fuzzy matching, recursive search, and helpful error messages with available models
+  - Full paths and relative paths still work as before (backward compatible)
+- **Model Size Recommendations for Deliberations**:
+  - **Minimum: 7B-8B parameters** - Llama-3-8B, Mistral-7B, Qwen-2.5-7B provide reliable structured output
+  - **Not recommended: <3B parameters** - Models like Llama-3.2-1B struggle with vote formatting and often echo prompts
+  - **Why size matters**: Deliberations require valid JSON votes with specific formatting. Smaller models fail to follow complex instructions reliably.
+  - **Token limits**: Use 2048+ tokens for deliberations (increased from 512 default) to allow complete responses
+  - **Quality issues with small models**: Prompt echoing, incomplete JSON, missing VOTE markers, LaTeX wrappers that break parsing
 
 **HTTP Adapter Layer** (`adapters/base_http.py`, `adapters/ollama.py`, etc.)
 - Abstract base: `BaseHTTPAdapter` handles HTTP mechanics, retry logic, error handling
@@ -97,14 +120,45 @@ AI Counsel is an MCP (Model Context Protocol) server that enables true deliberat
 4. For each round:
    - `execute_round()` → prompts enhanced with voting instructions → adapters invoke CLIs
    - Responses collected and votes parsed from "VOTE: {json}" markers
+   - **Tool request parsing**: `ToolExecutor.parse_tool_requests()` extracts TOOL_REQUEST markers from responses
+   - **Tool execution**: Each tool request validated against schema, executed with timeout/error handling
+   - **Context injection**: Tool results appended to round context, visible to all participants in next round
+   - **Recording**: Tool executions tracked in `ToolExecutionRecord` for transcript
    - Check model-controlled early stopping: if ≥66% want to stop → break
 5. After round 2+: convergence detection compares current vs previous round
 6. If converged/impasse/early-stop: stop early; else continue to max rounds
 7. Aggregate voting results: determine winner, consensus status, final tally
 8. AI summarizer generates structured summary of debate
 9. Override convergence status with voting outcome if available (majority_decision > semantic refining)
-10. `TranscriptManager` saves markdown to `transcripts/`
+10. `TranscriptManager` saves markdown to `transcripts/` with "Tool Executions" section (if tools used)
 11. Result serialized and returned to MCP client
+
+### MCP Tool Architecture
+
+**MCP-Exposed Tools** (callable by MCP clients):
+- `deliberate`: Orchestrate multi-round AI deliberation
+- `query_decisions`: Search decision graph memory (when enabled in config)
+
+**Internal Tools** (callable by AI models during deliberation via TOOL_REQUEST):
+- `read_file`: Read file contents (max 1MB)
+- `search_code`: Search codebase with regex patterns
+- `list_files`: List files matching glob patterns
+- `run_command`: Execute safe read-only commands
+
+**Important**: The 4 internal tools are NOT directly exposed via MCP protocol.
+They are invoked by AI models during deliberation by including TOOL_REQUEST
+markers in their responses. The DeliberationEngine parses these markers and
+executes the tools, making results visible to all participants in subsequent rounds.
+
+**Example Tool Request**:
+```
+TOOL_REQUEST: {"name": "read_file", "arguments": {"path": "/path/to/file.py"}}
+```
+
+**Why Two Tool Types?**
+- MCP tools enable clients to start deliberations and query results
+- Internal tools enable AI models to gather evidence during deliberation
+- Separation keeps MCP interface clean while empowering models with research capabilities
 
 ## Development Commands
 
@@ -284,6 +338,272 @@ Claude CLI uses `--settings '{"disableAllHooks": true}'` to prevent user hooks f
    asyncio.run(test())
    ```
 
+## Adding a New Tool
+
+Tools enable AI models to gather evidence during deliberation by reading files, searching code, listing directories, or executing safe commands. Follow this guide to add a new tool to the evidence-based deliberation system.
+
+### 1. Create Tool Class in `deliberation/tools.py`
+
+Subclass `BaseTool` and implement the `execute()` method:
+
+```python
+from deliberation.tools import BaseTool
+from models.tool_schema import ToolResult
+import asyncio
+
+class MyNewTool(BaseTool):
+    """
+    Description of what this tool does.
+
+    Security considerations:
+    - Describe any security measures (whitelist, size limits, etc.)
+    - Explain what could go wrong and how you mitigate it
+    """
+
+    async def execute(self, **kwargs) -> ToolResult:
+        """
+        Execute the tool with provided arguments.
+
+        Args:
+            arg1: Description of argument 1
+            arg2: Description of argument 2
+
+        Returns:
+            ToolResult with output or error message
+        """
+        try:
+            # Validate arguments
+            required_arg = kwargs.get("required_arg")
+            if not required_arg:
+                return ToolResult(
+                    success=False,
+                    output="",
+                    error="Missing required argument: required_arg"
+                )
+
+            # Execute with timeout protection
+            result = await asyncio.wait_for(
+                self._do_work(required_arg),
+                timeout=self.timeout
+            )
+
+            return ToolResult(
+                success=True,
+                output=result,
+                error=None
+            )
+
+        except asyncio.TimeoutError:
+            return ToolResult(
+                success=False,
+                output="",
+                error=f"Tool execution timed out after {self.timeout}s"
+            )
+        except Exception as e:
+            return ToolResult(
+                success=False,
+                output="",
+                error=f"Tool execution failed: {str(e)}"
+            )
+
+    async def _do_work(self, arg):
+        """Helper method that does the actual work."""
+        # Implementation here
+        pass
+```
+
+**Key considerations**:
+- Always use `asyncio.wait_for()` for timeout protection
+- Return `ToolResult` with `success`, `output`, and `error` fields
+- Validate all inputs before execution
+- Handle errors gracefully with descriptive messages
+- Follow security best practices (whitelist commands, limit file sizes, etc.)
+
+### 2. Register Tool in `DeliberationEngine.__init__`
+
+In `deliberation/engine.py`, add your tool to the `ToolExecutor`:
+
+```python
+from deliberation.tools import MyNewTool
+
+# In DeliberationEngine.__init__():
+self.tool_executor = ToolExecutor(tools={
+    "read_file": ReadFileTool(),
+    "search_code": SearchCodeTool(),
+    "list_files": ListFilesTool(),
+    "run_command": RunCommandTool(),
+    "my_new_tool": MyNewTool(timeout=10),  # Add your tool here
+})
+```
+
+### 3. Update Tool Schema in `models/tool_schema.py`
+
+Add your tool's request/response schema:
+
+```python
+class MyNewToolRequest(BaseModel):
+    """Schema for my_new_tool requests."""
+    name: Literal["my_new_tool"]
+    arguments: Dict[str, Any]  # Or create a typed model for arguments
+
+# Update ToolRequest union type:
+ToolRequest = Union[
+    ReadFileRequest,
+    SearchCodeRequest,
+    ListFilesRequest,
+    RunCommandRequest,
+    MyNewToolRequest,  # Add your tool here
+]
+```
+
+### 4. Document Tool in MCP Tool Description
+
+Update `server.py` to document your tool for AI models:
+
+```python
+TOOL_USAGE_INSTRUCTIONS = """
+Available tools (use TOOL_REQUEST markers):
+
+1. read_file: Read file contents
+   TOOL_REQUEST: {"name": "read_file", "arguments": {"path": "/path/to/file"}}
+
+2. search_code: Search codebase with regex
+   TOOL_REQUEST: {"name": "search_code", "arguments": {"pattern": "regex", "path": "/search/path"}}
+
+3. list_files: List files matching glob pattern
+   TOOL_REQUEST: {"name": "list_files", "arguments": {"pattern": "**/*.py", "path": "/base/path"}}
+
+4. run_command: Execute safe read-only command
+   TOOL_REQUEST: {"name": "run_command", "arguments": {"command": "ls -la /path"}}
+
+5. my_new_tool: Description of what it does
+   TOOL_REQUEST: {"name": "my_new_tool", "arguments": {"arg1": "value1", "arg2": "value2"}}
+
+[Rest of instructions...]
+"""
+```
+
+### 5. Write Tests
+
+Create unit tests in `tests/unit/test_tools.py`:
+
+```python
+import pytest
+from deliberation.tools import MyNewTool
+from models.tool_schema import ToolResult
+
+@pytest.mark.asyncio
+async def test_my_new_tool_success():
+    """Test successful execution."""
+    tool = MyNewTool()
+    result = await tool.execute(required_arg="valid_value")
+
+    assert result.success is True
+    assert result.error is None
+    assert "expected output" in result.output
+
+@pytest.mark.asyncio
+async def test_my_new_tool_missing_arg():
+    """Test error handling for missing arguments."""
+    tool = MyNewTool()
+    result = await tool.execute()
+
+    assert result.success is False
+    assert "Missing required argument" in result.error
+
+@pytest.mark.asyncio
+async def test_my_new_tool_timeout():
+    """Test timeout protection."""
+    tool = MyNewTool(timeout=0.1)  # Very short timeout
+    result = await tool.execute(required_arg="slow_operation")
+
+    assert result.success is False
+    assert "timed out" in result.error
+```
+
+Create integration tests in `tests/integration/test_tool_context_injection.py`:
+
+```python
+@pytest.mark.asyncio
+async def test_my_new_tool_in_deliberation(mock_config):
+    """Test tool integration in actual deliberation."""
+    engine = DeliberationEngine(config=mock_config)
+
+    # Mock adapter responses with tool request
+    mock_responses = {
+        "participant1": "Let me check: TOOL_REQUEST: {\"name\": \"my_new_tool\", \"arguments\": {\"arg1\": \"value\"}}",
+        "participant2": "I agree with the findings.",
+    }
+
+    # Execute round
+    result = await engine.execute_round(
+        question="Test question",
+        round_num=1,
+        previous_responses=[]
+    )
+
+    # Verify tool was executed and results visible
+    assert len(result.tool_executions) > 0
+    assert result.tool_executions[0].tool_name == "my_new_tool"
+    assert result.tool_executions[0].result.success is True
+```
+
+### 6. Test End-to-End
+
+Test your tool in a real deliberation:
+
+```bash
+# Start the MCP server
+python server.py
+
+# In another terminal, use your MCP client to invoke deliberate
+# Include a question that would benefit from your new tool
+```
+
+### Security Checklist
+
+Before deploying a new tool, verify:
+- [ ] Input validation prevents injection attacks
+- [ ] Timeout protection prevents hanging
+- [ ] Error handling doesn't leak sensitive information
+- [ ] File/command access is appropriately restricted
+- [ ] Resource limits prevent DoS (file size, command output, etc.)
+- [ ] Tool fails safely (returns error, doesn't crash engine)
+
+### Common Patterns
+
+**File system access**:
+```python
+# Always validate paths
+if not os.path.exists(path):
+    return ToolResult(success=False, output="", error=f"Path not found: {path}")
+
+# Check file size before reading
+if os.path.getsize(path) > MAX_SIZE:
+    return ToolResult(success=False, output="", error=f"File too large (max {MAX_SIZE} bytes)")
+```
+
+**Command execution**:
+```python
+# Use whitelist, never trust input
+ALLOWED_COMMANDS = {"ls", "grep", "find", "cat", "head", "tail"}
+command_name = command.split()[0]
+if command_name not in ALLOWED_COMMANDS:
+    return ToolResult(success=False, output="", error=f"Command not allowed: {command_name}")
+```
+
+**Async operations**:
+```python
+# Always wrap in wait_for for timeout protection
+try:
+    result = await asyncio.wait_for(
+        slow_operation(),
+        timeout=self.timeout
+    )
+except asyncio.TimeoutError:
+    return ToolResult(success=False, output="", error="Operation timed out")
+```
+
 ## Key Design Principles
 
 - **DRY**: Common subprocess logic in `BaseCLIAdapter`, tool-specific parsing in subclasses
@@ -310,6 +630,8 @@ Claude CLI uses `--settings '{"disableAllHooks": true}'` to prevent user hooks f
 7. **Hook Interference**: Claude CLI hooks can break CLI invocations during deliberation. Always disable with `--settings` flag.
 
 8. **Prompt Length Limits**: Gemini adapter validates prompts ≤100k chars (prevents "invalid argument" API errors). `BaseCLIAdapter.invoke()` checks `validate_prompt_length()` if adapter implements it and raises `ValueError` with helpful message before making API call. Other adapters can implement similar validation.
+
+9. **Tool Execution Errors**: Tool failures are isolated - they don't halt deliberation. Models receive error messages in tool results and can adapt their reasoning. Always check `ToolResult.success` before using `output`.
 
 ## Testing Strategy
 
@@ -347,6 +669,9 @@ This server implements MCP protocol for Claude Code integration:
 - ✅ Model-controlled early stopping for adaptive round counts
 - ✅ AI-powered summary generation
 - ✅ Full audit trail with markdown transcripts
+- ✅ Evidence-based deliberation with secure tool execution (read files, search code, list files, run commands)
+- ✅ Tool result context injection for all participants
+- ✅ Comprehensive security: whitelisted commands, file size limits, timeout protection
 
 ---
 
@@ -523,3 +848,307 @@ contradictions = await engine.find_contradictions()
 stats = maintenance.get_graph_stats()  # Returns: node_count, edge_count, avg_similarity
 health = maintenance.health_check()     # Returns: {"status": "healthy", ...}
 ```
+
+---
+
+## Evidence-Based Deliberation Architecture
+
+### Overview
+
+Evidence-based deliberation enables AI models to gather concrete evidence during debates by executing tools (reading files, searching code, listing directories, running commands). This transforms deliberations from opinion-based exchanges into evidence-backed reasoning with shared context.
+
+**Key Innovation**: Tool results are visible to ALL participants in subsequent rounds, creating a shared knowledge base that grounds the debate in facts rather than assumptions.
+
+### Tool System Architecture
+
+**Tool Interface** (`deliberation/tools.py`)
+- Abstract base class: `BaseTool` with `execute(**kwargs) -> ToolResult` method
+- Timeout protection: All tools accept `timeout` parameter (default: 10s)
+- Error isolation: Tool failures return `ToolResult(success=False, error=...)` without crashing deliberation
+- Async execution: All tools use `asyncio.wait_for()` for non-blocking operation
+
+**Available Tools**:
+
+1. **ReadFileTool**: Read file contents with security limits
+   - Max file size: 1MB (prevents DoS)
+   - Path validation: Checks file exists before reading
+   - Error handling: Returns descriptive errors for missing/oversized files
+   - Example: `TOOL_REQUEST: {"name": "read_file", "arguments": {"path": "/path/to/file.py"}}`
+
+2. **SearchCodeTool**: Search codebase with regex patterns
+   - Uses `rg` (ripgrep) for fast searching (falls back to `grep` if unavailable)
+   - Configurable depth and context lines
+   - Output truncation: Limits results to prevent token overflow
+   - Example: `TOOL_REQUEST: {"name": "search_code", "arguments": {"pattern": "class.*Engine", "path": "/project"}}`
+
+3. **ListFilesTool**: List files matching glob patterns
+   - Uses Python's `glob` module for pattern matching
+   - Recursive search support (`**` patterns)
+   - Directory validation: Ensures base path exists
+   - Example: `TOOL_REQUEST: {"name": "list_files", "arguments": {"pattern": "**/*.py", "path": "/project"}}`
+
+4. **RunCommandTool**: Execute safe read-only commands
+   - **Whitelist**: Only allows `ls`, `grep`, `find`, `cat`, `head`, `tail`
+   - No write/delete operations permitted
+   - Shell escape protection: Uses subprocess with shell=False
+   - Output capture: Returns stdout, logs stderr
+   - Example: `TOOL_REQUEST: {"name": "run_command", "arguments": {"command": "ls -la /path"}}`
+
+**Tool Orchestration** (`deliberation/tools.py::ToolExecutor`)
+- Parses TOOL_REQUEST markers from model responses using regex
+- Validates requests against Pydantic schemas (`models/tool_schema.py`)
+- Routes to appropriate tool implementation
+- Collects results and formats for context injection
+- Records execution history with timestamps and metadata
+
+**Schema Validation** (`models/tool_schema.py`)
+- `ToolRequest`: Union type for all tool request schemas
+- `ToolResult`: Standard result format (success, output, error)
+- `ToolExecutionRecord`: Audit trail with participant, tool_name, request, result, timestamp
+- Type-safe execution prevents malformed requests
+
+### Integration with Deliberation Flow
+
+**Prompt Enhancement** (`deliberation/engine.py`)
+- Round 1 prompt includes tool usage instructions
+- Instructions list available tools with JSON examples
+- Guidelines: Request only when evidence needed, cite tool results in responses
+
+**Execution Flow**:
+1. Model includes TOOL_REQUEST marker in response
+2. `ToolExecutor.parse_tool_requests()` extracts requests via regex: `TOOL_REQUEST:\s*({.*?})`
+3. Validate each request against schema (fails fast on invalid JSON/schema)
+4. Execute tool with timeout protection
+5. Append result to `ToolExecutionRecord` list
+6. Format results as markdown section
+
+**Context Injection** (`deliberation/engine.py::execute_round()`):
+```python
+# After collecting responses and executing tools
+if tool_executions:
+    tool_context = "\n\n## Tool Results from Round {round_num}\n\n"
+    for exec in tool_executions:
+        tool_context += f"### {exec.participant} used {exec.tool_name}\n"
+        tool_context += f"Request: {exec.request}\n"
+        tool_context += f"Result: {exec.result.output if exec.result.success else exec.result.error}\n\n"
+
+    # Prepend to next round context
+    next_round_context = tool_context + previous_responses
+```
+
+**Transcript Integration** (`deliberation/transcript.py`)
+- Separate "## Tool Executions" section in markdown transcripts
+- Shows: participant, tool name, arguments, result (truncated if large), success status
+- Enables audit trail: Who requested what evidence? What did they find?
+
+### Security Model
+
+**Defense in Depth**:
+
+1. **Input Validation**
+   - Pydantic schema validation prevents malformed requests
+   - Path validation: No symlinks, no parent directory traversal (planned)
+   - Command whitelist: Only safe read-only commands
+
+2. **Resource Limits**
+   - File size: 1MB max (ReadFileTool)
+   - Timeout: 10s default, prevents hanging operations
+   - Output truncation: Prevents token/memory exhaustion
+
+3. **Isolation**
+   - Tool failures don't halt deliberation
+   - Errors returned as ToolResult, models can adapt
+   - No shell injection: Uses subprocess without shell
+
+4. **Audit Trail**
+   - All executions recorded with timestamps
+   - Transcripts show who requested what
+   - Enables post-deliberation security review
+
+**Known Limitations**:
+- No sandboxing: Tools run with MCP server's privileges
+- Path traversal: Not yet blocked (planned for future)
+- Rate limiting: Not implemented (could DoS with many requests)
+
+### Usage Patterns
+
+**Evidence Gathering**:
+```python
+# Model wants to read implementation before recommending changes
+response = """
+Let me check the current implementation:
+TOOL_REQUEST: {"name": "read_file", "arguments": {"path": "/project/engine.py"}}
+
+Based on the code, I recommend...
+"""
+```
+
+**Code Search**:
+```python
+# Model wants to find all usages of a function
+response = """
+I'll search for usages of the deprecated function:
+TOOL_REQUEST: {"name": "search_code", "arguments": {"pattern": "old_function\\(", "path": "/project"}}
+
+Found 12 usages that need updating...
+"""
+```
+
+**Multi-Tool Reasoning**:
+```python
+# Model uses multiple tools to build comprehensive answer
+response = """
+First, let me list the test files:
+TOOL_REQUEST: {"name": "list_files", "arguments": {"pattern": "test_*.py", "path": "/project/tests"}}
+
+Now let me check the main test file:
+TOOL_REQUEST: {"name": "read_file", "arguments": {"path": "/project/tests/test_engine.py"}}
+
+Based on this evidence, I recommend...
+"""
+```
+
+### Performance Characteristics
+
+| Operation | Latency | Notes |
+|-----------|---------|-------|
+| Parse tool requests | <1ms | Regex extraction from response text |
+| Validate request | <1ms | Pydantic schema validation |
+| Execute read_file | <10ms | Depends on file size (1MB max) |
+| Execute search_code | 50-200ms | Depends on codebase size, uses ripgrep |
+| Execute list_files | <20ms | Depends on directory size |
+| Execute run_command | 10-100ms | Depends on command complexity |
+| Context injection | <5ms | String formatting and prepending |
+
+**Optimization Tips**:
+- Use specific paths to reduce search/list scope
+- Request evidence only when necessary (not every round)
+- Combine related evidence requests in one response
+
+### Testing Strategy
+
+**Unit Tests** (`tests/unit/test_tools.py`):
+- Tool execution success/failure cases
+- Timeout protection
+- Error handling (missing files, invalid paths)
+- Security validation (command whitelist, file size limits)
+- Schema validation
+
+**Integration Tests** (`tests/integration/test_tool_context_injection.py`):
+- End-to-end tool execution in deliberations
+- Context injection verification (tool results visible to all models)
+- Multi-tool workflows
+- Transcript recording accuracy
+
+**Security Tests** (`tests/unit/test_tools.py`):
+- Command whitelist enforcement (blocked: `rm`, `curl`, `python`)
+- File size limit enforcement
+- Path validation (existing/non-existing files)
+- Error message safety (no sensitive data leakage)
+
+### Extension Points
+
+**Adding New Tools**: See "Adding a New Tool" section above for step-by-step guide
+
+**Custom Security Policies**:
+```python
+# Subclass BaseTool to add custom validation
+class RestrictedReadFileTool(ReadFileTool):
+    async def execute(self, **kwargs) -> ToolResult:
+        path = kwargs.get("path", "")
+
+        # Custom policy: only allow reading from /safe directory
+        if not path.startswith("/safe"):
+            return ToolResult(
+                success=False,
+                output="",
+                error="Access denied: Can only read from /safe directory"
+            )
+
+        return await super().execute(**kwargs)
+```
+
+**Tool Result Processing**:
+```python
+# Post-process tool results before context injection
+def sanitize_tool_output(result: ToolResult) -> ToolResult:
+    """Remove sensitive data from tool outputs."""
+    if result.success:
+        sanitized = result.output.replace("SECRET_KEY=", "SECRET_KEY=***")
+        return ToolResult(success=True, output=sanitized, error=None)
+    return result
+```
+
+### Common Patterns
+
+**Conditional Evidence Gathering**:
+```python
+# Models request evidence only when needed
+response = """
+I need to verify the claim about performance.
+TOOL_REQUEST: {"name": "search_code", "arguments": {"pattern": "TODO.*performance", "path": "/project"}}
+
+If evidence supports the claim, I'll vote for optimization.
+"""
+```
+
+**Evidence-Based Voting**:
+```python
+# Models cite tool results in their votes
+response = """
+TOOL_REQUEST: {"name": "read_file", "arguments": {"path": "/config.yaml"}}
+
+Based on the config showing max_connections=100, I vote for:
+VOTE: {"option": "increase_limit", "confidence": 0.9, "rationale": "Config shows current limit is 100, logs show hitting limit", "continue_debate": false}
+"""
+```
+
+**Collaborative Evidence Review**:
+```python
+# Round 1: Model A requests evidence
+model_a = "Let me check: TOOL_REQUEST: {...}"
+
+# Round 2: Model B sees tool result and builds on it
+model_b = "Thanks for checking that file. I notice line 42 has a TODO. Let me search for related issues: TOOL_REQUEST: {...}"
+
+# Round 3: Model C synthesizes both pieces of evidence
+model_c = "Combining the evidence from rounds 1-2, I conclude..."
+```
+
+### Migration Guide
+
+**Upgrading from Opinion-Based to Evidence-Based Deliberation**:
+
+1. **No breaking changes**: Tool system is opt-in, models can ignore it
+2. **Prompt updates**: Engine automatically adds tool instructions to Round 1
+3. **Schema changes**: None required, `DeliberationResult` already includes `tool_executions`
+4. **Transcript format**: Now includes "Tool Executions" section (backward compatible)
+
+**Best Practices**:
+- Start with simple questions to test tool usage
+- Monitor transcript "Tool Executions" section to see what models request
+- Adjust timeouts if tools frequently time out
+- Add custom tools for domain-specific evidence needs
+
+### Troubleshooting
+
+**Tool Requests Not Being Parsed**:
+- Check JSON syntax: Must be valid JSON on same line as `TOOL_REQUEST:`
+- Verify tool name: Must match registered tool exactly (`read_file`, not `readFile`)
+- Check arguments: Must match tool's expected schema
+
+**Tool Execution Failures**:
+- Read error message in `ToolResult.error` field
+- Common causes: File not found, path invalid, command not whitelisted
+- Check `mcp_server.log` for detailed error traces
+
+**Performance Issues**:
+- Reduce search scope: Use specific paths instead of searching entire codebase
+- Limit tool requests: Only request evidence when necessary
+- Check timeout settings: May need to increase for large files/codebases
+
+**Security Concerns**:
+- Review transcript "Tool Executions" section after each deliberation
+- Ensure command whitelist is enforced (test with `rm` command, should fail)
+- Monitor file size limits (test with >1MB file, should fail)
+- Check for path traversal attempts in logs

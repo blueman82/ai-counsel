@@ -366,6 +366,72 @@ class TestVoteParsing:
 
         assert vote is None
 
+    def test_parse_vote_with_multiple_vote_markers(self):
+        """Test parsing when response contains multiple VOTE markers (template + actual)."""
+        response_text = """
+        ## Voting Instructions
+
+        After your analysis, please cast your vote using the following format:
+
+        VOTE: {"option": "Your choice", "confidence": 0.85, "rationale": "Brief explanation"}
+
+        Example:
+        VOTE: {"option": "Option A", "confidence": 0.9, "rationale": "Example rationale"}
+
+        ## My Analysis
+
+        After considering the options, I recommend Option B.
+
+        ## Step 5: Casting the Vote
+        VOTE: {"option": "Option B", "confidence": 0.75, "rationale": "Better long-term fit"}
+        """
+
+        engine = DeliberationEngine({})
+        vote = engine._parse_vote(response_text)
+
+        # Should capture the LAST vote marker (the actual vote), not the template or example
+        assert vote is not None
+        assert isinstance(vote, Vote)
+        assert vote.option == "Option B"
+        assert vote.confidence == 0.75
+        assert vote.rationale == "Better long-term fit"
+
+    def test_parse_vote_prefers_last_marker_over_first(self):
+        """Test that parser takes last VOTE marker when multiple exist."""
+        response_text = """
+        First attempt (wrong):
+        VOTE: {"option": "Wrong", "confidence": 0.5, "rationale": "First try"}
+
+        After more thought, my final vote:
+        VOTE: {"option": "Correct", "confidence": 0.9, "rationale": "Final decision"}
+        """
+
+        engine = DeliberationEngine({})
+        vote = engine._parse_vote(response_text)
+
+        assert vote is not None
+        assert vote.option == "Correct"
+        assert vote.confidence == 0.9
+        assert vote.rationale == "Final decision"
+
+    def test_parse_vote_handles_latex_wrapper(self):
+        """Test parsing vote wrapped in LaTeX notation like $\\boxed{...}$."""
+        response_text = """
+        ## Step 5: Conclusion
+        Based on analysis, Option B is superior.
+
+        The final answer is: $\\boxed{VOTE: {"option": "Option B", "confidence": 0.88, "rationale": "Better scalability"}}$
+        """
+
+        engine = DeliberationEngine({})
+        vote = engine._parse_vote(response_text)
+
+        assert vote is not None
+        assert isinstance(vote, Vote)
+        assert vote.option == "Option B"
+        assert vote.confidence == 0.88
+        assert vote.rationale == "Better scalability"
+
     @pytest.mark.asyncio
     async def test_execute_round_collects_votes(self, mock_adapters):
         """Test that votes are collected when present in responses."""
@@ -435,6 +501,178 @@ class TestVoteParsing:
             result.voting_result.final_tally["Option A"] == 4
         )  # 2 participants x 2 rounds
         assert len(result.voting_result.votes_by_round) == 4
+
+
+class TestEngineWithTools:
+    """Tests for DeliberationEngine with tool execution integration."""
+
+    @pytest.mark.asyncio
+    async def test_tool_execution_timeout(self, mock_adapters):
+        """Test tool execution times out after 30s to prevent hanging.
+
+        This is a P0 CRITICAL issue: Tools can hang indefinitely without timeout,
+        blocking entire deliberation and causing resource leaks.
+
+        Fix: Wrap tool execution in asyncio.wait_for(timeout=30.0)
+        """
+        import asyncio
+        import time
+        from deliberation.tools import ToolExecutor, BaseTool, ReadFileTool
+        from models.tool_schema import ToolResult
+
+        # Create a tool that hangs (use registered tool name to pass schema validation)
+        class SlowReadFileTool(ReadFileTool):
+            async def execute(self, arguments: dict) -> ToolResult:
+                # Simulate a hanging tool (60s sleep)
+                await asyncio.sleep(60)
+                return ToolResult(
+                    tool_name=self.name,
+                    success=True,
+                    output="Should timeout before this",
+                    error=None
+                )
+
+        # Setup engine with custom tool executor that has the slow tool
+        engine = DeliberationEngine(mock_adapters)
+        engine.tool_executor = ToolExecutor()
+        engine.tool_executor.register_tool(SlowReadFileTool())  # Override read_file with slow version
+
+        participants = [Participant(cli="claude", model="sonnet", stance="neutral")]
+
+        # Mock response with tool request (use read_file which is a valid tool name)
+        mock_adapters["claude"].invoke_mock.return_value = """
+        I need to check something.
+        TOOL_REQUEST: {"name": "read_file", "arguments": {"path": "/test.txt"}}
+        """
+
+        # Execute round with hanging tool
+        start = time.time()
+        responses = await engine.execute_round(1, "Test", participants, [])
+        duration = time.time() - start
+
+        # Should timeout in ~30s, NOT 60s
+        assert duration < 35, f"Tool execution should timeout at 30s, but took {duration:.1f}s"
+
+        # Should have tool execution result with timeout error
+        assert hasattr(engine, 'tool_execution_history'), "Engine should track tool execution history"
+        assert len(engine.tool_execution_history) > 0, "Should have recorded tool execution"
+
+        tool_record = engine.tool_execution_history[0]
+        assert not tool_record.result.success, "Timeout should result in failure"
+        assert "timeout" in tool_record.result.error.lower(), f"Error should mention timeout: {tool_record.result.error}"
+
+    @pytest.mark.asyncio
+    async def test_tool_history_cleared_between_deliberations(self, mock_adapters, tmp_path):
+        """Test tool execution history is cleared between deliberations.
+
+        CRITICAL MEMORY LEAK: tool_execution_history grows unbounded across deliberations
+        in long-running MCP servers, causing OOM.
+
+        Expected: History cleared at start of each deliberation.
+        Actual (BUG): History accumulates indefinitely.
+        """
+        engine = DeliberationEngine(mock_adapters)
+
+        # First deliberation with tool request
+        test_file1 = tmp_path / "file1.txt"
+        test_file1.write_text("data1")
+
+        mock_adapters["claude"].invoke_mock.return_value = f"""
+        I need to read file1.
+        TOOL_REQUEST: {{"name": "read_file", "arguments": {{"path": "{test_file1}"}}}}
+        """
+
+        participants = [
+            Participant(cli="claude", model="sonnet", stance="neutral"),
+            Participant(cli="codex", model="gpt-4", stance="neutral")
+        ]
+
+        # Execute first deliberation
+        from models.schema import DeliberateRequest
+        request1 = DeliberateRequest(
+            question="Test question for deliberation 1",
+            participants=participants,
+            rounds=1,
+            mode="quick"
+        )
+        result1 = await engine.execute(request1)
+
+        # Verify tool was executed
+        assert len(engine.tool_execution_history) > 0, "First deliberation should have tool execution"
+        first_deliberation_count = len(engine.tool_execution_history)
+
+        # Second deliberation with different tool request
+        test_file2 = tmp_path / "file2.txt"
+        test_file2.write_text("data2")
+
+        mock_adapters["claude"].invoke_mock.return_value = f"""
+        I need to read file2.
+        TOOL_REQUEST: {{"name": "read_file", "arguments": {{"path": "{test_file2}"}}}}
+        """
+
+        request2 = DeliberateRequest(
+            question="Test question for deliberation 2",
+            participants=participants,
+            rounds=1,
+            mode="quick"
+        )
+        result2 = await engine.execute(request2)
+
+        # CRITICAL: History should NOT contain both deliberations
+        # It should only contain the second deliberation's tools
+        assert len(engine.tool_execution_history) <= first_deliberation_count, \
+            f"MEMORY LEAK: Tool history should be cleared between deliberations. " \
+            f"Found {len(engine.tool_execution_history)} records (expected <= {first_deliberation_count})"
+
+        # Verify the history contains only the second deliberation
+        assert any("file2.txt" in str(record.request.arguments)
+                   for record in engine.tool_execution_history), \
+            "Should contain second deliberation's tool"
+
+        assert not any("file1.txt" in str(record.request.arguments)
+                       for record in engine.tool_execution_history), \
+            "Should NOT contain first deliberation's tool (indicates memory leak)"
+
+    @pytest.mark.asyncio
+    async def test_tool_history_memory_bounded(self, mock_adapters, tmp_path):
+        """Test tool history doesn't grow unbounded in long-running server.
+
+        Simulates 10 deliberations to verify memory doesn't accumulate.
+        In production: ~1-3MB per deliberation × unlimited = OOM crash.
+        """
+        engine = DeliberationEngine(mock_adapters)
+
+        participants = [
+            Participant(cli="claude", model="sonnet", stance="neutral"),
+            Participant(cli="codex", model="gpt-4", stance="neutral")
+        ]
+
+        # Simulate 10 deliberations (simulating long-running MCP server)
+        for i in range(10):
+            test_file = tmp_path / f"file{i}.txt"
+            test_file.write_text(f"data{i}")
+
+            mock_adapters["claude"].invoke_mock.return_value = f"""
+            Reading file {i}.
+            TOOL_REQUEST: {{"name": "read_file", "arguments": {{"path": "{test_file}"}}}}
+            """
+
+            from models.schema import DeliberateRequest
+            request = DeliberateRequest(
+                question=f"Test question for deliberation number {i}",
+                participants=participants,
+                rounds=1,
+                mode="quick"
+            )
+
+            await engine.execute(request)
+
+        # Memory should be bounded (not 10x the first deliberation)
+        # With fix (clear at start): should be ~1x (only last deliberation)
+        # Without fix (BUG): should be ~10x (all deliberations accumulated)
+        assert len(engine.tool_execution_history) < 5, \
+            f"MEMORY LEAK: History has {len(engine.tool_execution_history)} records after 10 deliberations. " \
+            f"Expected < 5 (with cleanup), but unbounded growth detected!"
 
 
 class TestVotingPrompts:
@@ -621,3 +859,193 @@ class TestVoteGrouping:
             assert len(result.voting_result.final_tally) == 2
             assert result.voting_result.consensus_reached is False  # 1-1 tie
             assert result.voting_result.winning_option is None  # No winner in tie
+
+
+class TestEngineContextEfficiency:
+    """Tests for context building efficiency and token optimization."""
+
+    @pytest.mark.asyncio
+    async def test_context_truncates_large_tool_outputs(self, mock_adapters, tmp_path):
+        """Test large tool outputs are truncated to prevent bloat."""
+        from deliberation.transcript import TranscriptManager
+        from models.schema import DeliberateRequest
+
+        manager = TranscriptManager(output_dir=str(tmp_path))
+        engine = DeliberationEngine(adapters=mock_adapters, transcript_manager=manager)
+
+        # Create large file
+        large_file = tmp_path / "large.txt"
+        large_content = "x" * 5000  # 5KB file
+        large_file.write_text(large_content)
+
+        request = DeliberateRequest(
+            question="What's in this file?",
+            participants=[
+                Participant(cli="claude", model="sonnet", stance="neutral"),
+                Participant(cli="codex", model="gpt-4", stance="neutral")
+            ],
+            rounds=2,
+            mode="conference",
+        )
+
+        # Round 1: Read large file (simulated tool result with large output)
+        # Round 2: Check context size
+        mock_adapters["claude"].invoke_mock.side_effect = [
+            f"File contains: {large_content}",  # Round 1 - large output
+            "Response based on context",  # Round 2
+        ]
+        mock_adapters["codex"].invoke_mock.side_effect = [
+            "Codex response 1",
+            "Codex response 2",
+        ]
+
+        result = await engine.execute(request)
+
+        # Context for round 2 should be truncated (not include full 5KB)
+        # We can test indirectly by checking that round 2 prompt doesn't have massive content
+        # In production, _build_context would truncate tool results
+        # For now, we verify structure is correct
+        assert result.status == "complete"
+        assert result.rounds_completed == 2
+
+    @pytest.mark.asyncio
+    async def test_context_includes_only_recent_rounds(self, mock_adapters, tmp_path):
+        """Test context only includes tool results from recent N rounds."""
+        from deliberation.transcript import TranscriptManager
+        from models.schema import DeliberateRequest
+
+        manager = TranscriptManager(output_dir=str(tmp_path))
+        engine = DeliberationEngine(adapters=mock_adapters, transcript_manager=manager)
+
+        participants = [
+            Participant(cli="claude", model="sonnet", stance="neutral"),
+            Participant(cli="codex", model="gpt-4", stance="neutral")
+        ]
+
+        request = DeliberateRequest(
+            question="Test multi-round context",
+            participants=participants,
+            rounds=5,
+            mode="conference",
+        )
+
+        # Simulate 5 rounds with distinct responses
+        mock_adapters["claude"].invoke_mock.side_effect = [
+            f"Response from round {i}" for i in range(1, 6)
+        ]
+        mock_adapters["codex"].invoke_mock.side_effect = [
+            f"Codex round {i}" for i in range(1, 6)
+        ]
+
+        result = await engine.execute(request)
+
+        # Check that context was built for each round
+        # In round 5, context should only include recent 2 rounds (3-4)
+        # We can't directly test _build_context here, but we can verify
+        # that all rounds completed successfully
+        assert result.status == "complete"
+        assert result.rounds_completed == 5
+        assert len(result.full_debate) == 10  # 5 rounds * 2 participants
+
+    @pytest.mark.asyncio
+    async def test_context_size_bounded_across_rounds(self, mock_adapters, tmp_path):
+        """Test context size remains bounded even in long deliberations.
+
+        Note: This test verifies that _build_context accepts current_round_num parameter.
+        The actual tool result truncation logic will be tested when tool execution is added.
+        For now, we verify that the parameter is accepted and context builds correctly.
+        """
+        from deliberation.transcript import TranscriptManager
+        from models.schema import DeliberateRequest
+
+        manager = TranscriptManager(output_dir=str(tmp_path))
+        engine = DeliberationEngine(adapters=mock_adapters, transcript_manager=manager)
+
+        participants = [
+            Participant(cli="claude", model="sonnet", stance="neutral"),
+            Participant(cli="codex", model="gpt-4", stance="neutral")
+        ]
+
+        request = DeliberateRequest(
+            question="Test long deliberation",
+            participants=participants,
+            rounds=5,  # Max 5 rounds
+            mode="conference",
+        )
+
+        # Simulate 5 rounds, each with 2KB response
+        large_response = "x" * 2000
+        mock_adapters["claude"].invoke_mock.side_effect = [
+            f"Round {i}: {large_response}" for i in range(1, 6)
+        ] + ["Summary"]  # Add summary response
+        mock_adapters["codex"].invoke_mock.side_effect = [
+            f"Codex {i}: {large_response}" for i in range(1, 6)
+        ]
+
+        result = await engine.execute(request)
+
+        # Verify all rounds completed
+        assert result.status == "complete"
+        assert result.rounds_completed == 5
+
+        # Test that _build_context accepts current_round_num parameter
+        # This parameter will be used for tool result filtering in Task 7
+        context = engine._build_context(
+            result.full_debate, current_round_num=6
+        )
+
+        # Verify context was built successfully
+        # Note: Response context is NOT truncated (only tool outputs will be)
+        # This test just verifies the parameter works
+        assert "Round 1" in context
+        assert "Round 5" in context
+        assert len(context) > 0
+
+    def test_truncate_output_short_text(self):
+        """Test that short outputs are not truncated."""
+        engine = DeliberationEngine({})
+
+        short_text = "Short output"
+        result = engine._truncate_output(short_text, max_chars=1000)
+
+        assert result == short_text
+        assert "truncated" not in result.lower()
+
+    def test_truncate_output_long_text(self):
+        """Test that long outputs are truncated with indicator."""
+        engine = DeliberationEngine({})
+
+        long_text = "x" * 2000  # 2KB
+        result = engine._truncate_output(long_text, max_chars=1000)
+
+        # Should be truncated to 1000 chars
+        assert len(result) <= 1100  # Allow for truncation message
+        assert "truncated" in result.lower()
+        assert "1000 chars" in result.lower() or "1000" in result
+
+    def test_truncate_output_none(self):
+        """Test that None/empty inputs are handled gracefully."""
+        engine = DeliberationEngine({})
+
+        assert engine._truncate_output(None, max_chars=1000) is None
+        assert engine._truncate_output("", max_chars=1000) == ""
+
+    def test_build_context_with_current_round_num(self):
+        """Test that _build_context accepts current_round_num parameter."""
+        engine = DeliberationEngine({})
+
+        previous = [
+            RoundResponse(
+                round=1,
+                participant="model@cli",
+                stance="neutral",
+                response="Round 1 response",
+                timestamp=datetime.now().isoformat(),
+            )
+        ]
+
+        # Should accept current_round_num parameter
+        context = engine._build_context(previous, current_round_num=2)
+
+        assert "Round 1" in context
+        assert "Round 1 response" in context

@@ -1,4 +1,5 @@
 """Deliberation engine for orchestrating multi-model discussions."""
+import asyncio
 import json
 import logging
 import re
@@ -12,12 +13,14 @@ from adapters.base import BaseCLIAdapter
 from adapters.base_http import BaseHTTPAdapter
 from deliberation.convergence import ConvergenceDetector
 from models.schema import Participant, RoundResponse, Vote, VotingResult
+from models.tool_schema import ToolExecutionRecord
 
 logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from decision_graph.integration import DecisionGraphIntegration
     from deliberation.transcript import TranscriptManager
+    from deliberation.tools import ToolExecutor
     from models.schema import DeliberateRequest, DeliberationResult
 
 
@@ -122,6 +125,29 @@ class DeliberationEngine:
         else:
             logger.debug("No decision graph configuration provided")
 
+        # Initialize tool executor for evidence-based deliberation
+        self.tool_executor: Optional["ToolExecutor"] = None
+        self.tool_execution_history: List[ToolExecutionRecord] = []
+        try:
+            from deliberation.tools import (
+                ToolExecutor,
+                ReadFileTool,
+                SearchCodeTool,
+                ListFilesTool,
+                RunCommandTool,
+            )
+
+            self.tool_executor = ToolExecutor()
+            # Register all available tools
+            self.tool_executor.register_tool(ReadFileTool())
+            self.tool_executor.register_tool(SearchCodeTool())
+            self.tool_executor.register_tool(ListFilesTool())
+            self.tool_executor.register_tool(RunCommandTool())
+            logger.info("Tool executor initialized with 4 tools (read_file, search_code, list_files, run_command)")
+        except Exception as e:
+            logger.warning(f"Failed to initialize tool executor: {e}. Tool execution will be disabled.")
+            self.tool_executor = None
+
     async def execute_round(
         self,
         round_num: int,
@@ -158,9 +184,9 @@ class DeliberationEngine:
         # Enhance prompt with voting instructions
         enhanced_prompt = self._enhance_prompt_with_voting(enhanced_prompt_base)
 
-        # Build context from previous responses
+        # Build context from previous responses and tool results
         context = (
-            self._build_context(previous_responses) if previous_responses else None
+            self._build_context(previous_responses, current_round_num=round_num) if previous_responses else None
         )
 
         for participant in participants:
@@ -183,6 +209,46 @@ class DeliberationEngine:
                 )
                 response_text = f"[ERROR: {type(e).__name__}: {str(e)}]"
 
+            # Parse and execute tool requests if tool executor is available
+            if self.tool_executor:
+                tool_requests = self.tool_executor.parse_tool_requests(response_text)
+                if tool_requests:
+                    logger.info(f"Found {len(tool_requests)} tool request(s) from {participant.model}@{participant.cli}")
+
+                    for tool_request in tool_requests:
+                        try:
+                            # Execute tool with 30s timeout to prevent hanging
+                            tool_result = await asyncio.wait_for(
+                                self.tool_executor.execute_tool(tool_request),
+                                timeout=30.0
+                            )
+                        except asyncio.TimeoutError:
+                            # Tool execution timed out - create error result
+                            from models.tool_schema import ToolResult
+                            tool_result = ToolResult(
+                                tool_name=tool_request.name,
+                                success=False,
+                                output=None,
+                                error=f"Tool execution timeout after 30s"
+                            )
+                            logger.warning(f"Tool {tool_request.name} timeout after 30s")
+
+                        # Record tool execution for history and transparency
+                        execution_record = ToolExecutionRecord(
+                            round_number=round_num,
+                            requested_by=f"{participant.model}@{participant.cli}",
+                            request=tool_request,
+                            result=tool_result,
+                            timestamp=datetime.now().isoformat()
+                        )
+                        self.tool_execution_history.append(execution_record)
+
+                        # Log tool execution result
+                        if tool_result.success:
+                            logger.info(f"Tool {tool_request.name} executed successfully")
+                        else:
+                            logger.warning(f"Tool {tool_request.name} failed: {tool_result.error}")
+
             # Create response object
             response = RoundResponse(
                 round=round_num,
@@ -196,12 +262,33 @@ class DeliberationEngine:
 
         return responses
 
-    def _build_context(self, previous_responses: List[RoundResponse]) -> str:
+    def _truncate_output(self, output: Optional[str], max_chars: int = 1000) -> Optional[str]:
         """
-        Build context string from previous responses.
+        Truncate tool output to prevent context bloat.
+
+        Args:
+            output: The output text to truncate
+            max_chars: Maximum characters to include (default: 1000)
+
+        Returns:
+            Truncated output with indicator, or original if short enough
+        """
+        if not output or len(output) <= max_chars:
+            return output
+
+        truncated = output[:max_chars]
+        chars_truncated = len(output) - max_chars
+        lines_truncated = output.count('\n') - truncated.count('\n')
+
+        return f"{truncated}\n... [truncated {chars_truncated} chars, {lines_truncated} lines]"
+
+    def _build_context(self, previous_responses: List[RoundResponse], current_round_num: Optional[int] = None) -> str:
+        """
+        Build context string from previous responses and recent tool results.
 
         Args:
             previous_responses: List of responses from previous rounds
+            current_round_num: Current round number (for filtering tool results)
 
         Returns:
             Formatted context string
@@ -213,6 +300,44 @@ class DeliberationEngine:
                 f"Round {resp.round} - {resp.participant} ({resp.stance}): "
                 f"{resp.response}\n"
             )
+
+        # Add tool results from recent rounds
+        if self.tool_execution_history and current_round_num:
+            # Get config values with defaults
+            max_rounds = getattr(
+                getattr(self.config, 'deliberation', None),
+                'tool_context_max_rounds',
+                2
+            ) if self.config else 2
+
+            max_chars = getattr(
+                getattr(self.config, 'deliberation', None),
+                'tool_output_max_chars',
+                1000
+            ) if self.config else 1000
+
+            # Filter to recent N rounds
+            min_round = max(1, current_round_num - max_rounds)
+            recent_tools = [
+                record for record in self.tool_execution_history
+                if record.round_number >= min_round
+            ]
+
+            if recent_tools:
+                context_parts.append("\n## Recent Tool Results\n")
+
+                for record in recent_tools:
+                    context_parts.append(
+                        f"\n**Round {record.round_number} - {record.request.name}** "
+                        f"(requested by {record.requested_by})\n"
+                    )
+
+                    if record.result.success:
+                        # Truncate output to prevent bloat
+                        output = self._truncate_output(record.result.output, max_chars)
+                        context_parts.append(f"```\n{output}\n```\n")
+                    else:
+                        context_parts.append(f"**Error:** {record.result.error}\n")
 
         return "\n".join(context_parts)
 
@@ -229,13 +354,17 @@ class DeliberationEngine:
             Vote object if valid vote found, None otherwise
         """
         # Look for VOTE: marker followed by JSON
-        vote_pattern = r"VOTE:\s*(\{[^}]+\})"
-        match = re.search(vote_pattern, response_text)
+        # Use findall to get all matches, then take the last one (actual vote vs example/template)
+        # Pattern handles nested braces in JSON and LaTeX wrappers like $\boxed{...}$
+        # Non-greedy .+? ensures we match complete JSON objects without over-matching
+        vote_pattern = r"VOTE:\s*(\{.+?\})"
+        matches = re.findall(vote_pattern, response_text, re.DOTALL)
 
-        if not match:
+        if not matches:
             return None
 
-        vote_json = match.group(1)
+        # Take the last match - the actual vote should be at the end after any examples
+        vote_json = matches[-1]
 
         try:
             vote_data = json.loads(vote_json)
@@ -523,6 +652,10 @@ Provide substantive analysis from your perspective."""
             - All convergence data is included in result.convergence_info
         """
         from models.schema import DeliberationResult, Summary
+
+        # Clear tool execution history from previous deliberations to prevent memory leak
+        # In long-running MCP servers, this prevents unbounded growth across deliberations
+        self.tool_execution_history = []
 
         # Retrieve decision graph context if enabled
         graph_context = ""

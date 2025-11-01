@@ -47,17 +47,40 @@ cli_tools:
 
   llamacpp:
     command: "llama-cli"
-    args: ["-m", "{model}", "-p", "{prompt}", "-n", "512", "-c", "2048"]
+    args: ["-m", "{model}", "-p", "{prompt}", "-n", "2048", "-c", "4096"]
     timeout: 180
     # llama.cpp is a fast, lightweight LLM inference engine for running models locally
-    # Valid models: path to .gguf model file (e.g., "/path/to/llama-2-7b.Q4_K_M.gguf")
+    #
+    # AUTO-DISCOVERY:
+    # You can now use model names instead of full paths!
+    # Examples:
+    #   - "llama-3-8b" (finds Llama-3-8B-*.gguf) ✅ Recommended for deliberations
+    #   - "mistral-7b" (finds Mistral-7B-*.gguf) ✅ Recommended for deliberations
+    #   - "qwen-2.5-7b" (finds Qwen-2.5-7B-*.gguf) ✅ Recommended for deliberations
+    #   - "llama-3.2-1b" (finds Llama-3.2-1B-*.gguf) ⚠️ Too small, use for testing only
+    #   - "/full/path/to/model.gguf" (still works)
+    #
+    # Model Size Recommendations:
+    #   - Minimum 7B-8B parameters for reliable structured output
+    #   - Smaller models (<3B) struggle with vote formatting
+    #
+    # Search paths (in order):
+    #   1. $LLAMA_CPP_MODEL_PATH (colon-separated paths)
+    #   2. ~/.cache/llama.cpp/models
+    #   3. ~/models
+    #   4. ~/llama.cpp/models
+    #   5. /usr/local/share/llama.cpp/models
+    #   6. ~/.ollama/models
+    #   7. ~/.lmstudio/models
+    #
     # Common args:
     #   -m: model path (REQUIRED - use {model} placeholder)
     #   -p: prompt text (REQUIRED - use {prompt} placeholder)
-    #   -n: number of tokens to predict (default: 128, recommended: 512+)
-    #   -c: context size (default: 512, recommended: 2048-4096)
+    #   -n: number of tokens to predict (default: 128, recommended: 2048+ for deliberations)
+    #   -c: context size (default: 512, recommended: 4096+ for deliberations)
     #   -t: threads (default: auto, e.g., "-t", "8")
     #   --temp: temperature (e.g., "--temp", "0.7")
+    #
     # Download models from https://huggingface.co/models?library=gguf
     # Build llama.cpp: https://github.com/ggerganov/llama.cpp
 
