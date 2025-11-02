@@ -65,12 +65,18 @@ class DecisionGraphIntegration:
             config: Optional Config instance for budget-aware context injection
         """
         self.storage = storage
-        self.retriever = DecisionRetriever(storage)
+        self.config = config
+
+        # Extract decision_graph config from root config
+        dg_config = config.decision_graph if config else None
+
+        # Initialize retriever with decision_graph config
+        self.retriever = DecisionRetriever(storage, config=dg_config)
+
         self.worker: Optional[BackgroundWorker] = None
         self._worker_enabled = enable_background_worker
         self.maintenance = DecisionGraphMaintenance(storage)
         self._decision_count = 0
-        self.config = config
 
         # Initialize background worker if enabled
         if enable_background_worker:
@@ -79,11 +85,12 @@ class DecisionGraphIntegration:
                 max_queue_size=1000,
                 batch_size=100,
                 similarity_threshold=0.5,
+                config=dg_config,
             )
             # Note: Worker start is deferred - call ensure_worker_started() or
             # let it auto-start on first enqueue
 
-        logger.info("Initialized DecisionGraphIntegration")
+        logger.info("Initialized DecisionGraphIntegration with config-aware components")
 
     async def ensure_worker_started(self) -> None:
         """Ensure background worker is started.

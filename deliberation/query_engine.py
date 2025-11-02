@@ -7,12 +7,15 @@ and CLI commands to provide consistent functionality.
 
 import logging
 from dataclasses import dataclass, field
-from typing import List, Optional
+from typing import TYPE_CHECKING, List, Optional
 
 from decision_graph.retrieval import DecisionRetriever
 from decision_graph.schema import DecisionNode, ParticipantStance
 from decision_graph.similarity import QuestionSimilarityDetector
 from decision_graph.storage import DecisionGraphStorage
+
+if TYPE_CHECKING:
+    from models.config import DecisionGraphConfig
 
 logger = logging.getLogger(__name__)
 
@@ -75,33 +78,46 @@ class QueryEngine:
     Used by both MCP tools and CLI commands.
     """
 
-    def __init__(self, storage: Optional[DecisionGraphStorage] = None):
+    def __init__(
+        self,
+        storage: Optional[DecisionGraphStorage] = None,
+        config: Optional["DecisionGraphConfig"] = None,
+    ):
         """Initialize query engine.
 
         Args:
             storage: DecisionGraphStorage instance. If None, creates default.
+            config: Optional DecisionGraphConfig for threshold configuration.
         """
         self.storage = storage or DecisionGraphStorage()
-        self.retriever = DecisionRetriever(self.storage)
+        self.config = config
+        self.retriever = DecisionRetriever(self.storage, config=config)
         self.similarity_detector = QuestionSimilarityDetector()
-        logger.info("Initialized QueryEngine")
+
+        # Extract noise_floor from config or use default
+        self.default_threshold = config.noise_floor if config else 0.4
+
+        logger.info(f"Initialized QueryEngine with threshold={self.default_threshold}")
 
     async def search_similar(
         self,
         query: str,
         limit: int = 5,
-        threshold: float = 0.7,
+        threshold: Optional[float] = None,
     ) -> List[SimilarResult]:
         """Find similar past deliberations by semantic meaning.
 
         Args:
             query: Query question/text
             limit: Maximum results to return
-            threshold: Minimum similarity score (0.0-1.0)
+            threshold: Minimum similarity score (0.0-1.0). If None, uses config's noise_floor.
 
         Returns:
             List of SimilarResult objects sorted by score descending
         """
+        # Use config's noise_floor if no threshold provided
+        if threshold is None:
+            threshold = self.default_threshold
         try:
             # Don't use run_in_executor - SQLite connection is thread-bound
             results = self._search_similar_sync(query, limit, threshold)

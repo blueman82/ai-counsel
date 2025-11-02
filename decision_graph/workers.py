@@ -9,12 +9,15 @@ import asyncio
 import logging
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import List, Optional
+from typing import TYPE_CHECKING, List, Optional
 from uuid import uuid4
 
 from decision_graph.schema import DecisionSimilarity
 from decision_graph.similarity import QuestionSimilarityDetector
 from decision_graph.storage import DecisionGraphStorage
+
+if TYPE_CHECKING:
+    from models.config import DecisionGraphConfig
 
 logger = logging.getLogger(__name__)
 
@@ -64,6 +67,7 @@ class BackgroundWorker:
         max_queue_size: int = 1000,
         batch_size: int = 50,
         similarity_threshold: float = 0.5,
+        config: Optional["DecisionGraphConfig"] = None,
     ):
         """Initialize background worker.
 
@@ -72,11 +76,26 @@ class BackgroundWorker:
             max_queue_size: Maximum number of pending jobs (prevents memory bloat)
             batch_size: Number of recent decisions to compare against per job
             similarity_threshold: Minimum similarity score to store (0.0-1.0)
+            config: Optional DecisionGraphConfig to override defaults
         """
         self.storage = storage
-        self.max_queue_size = max_queue_size
-        self.batch_size = batch_size
-        self.similarity_threshold = similarity_threshold
+        self.config = config
+
+        # Use config values if provided, otherwise use constructor parameters
+        if config:
+            # Note: Config doesn't have max_queue_size, batch_size, or similarity_threshold yet
+            # These remain as constructor parameters for now
+            self.max_queue_size = max_queue_size
+            self.batch_size = batch_size
+            self.similarity_threshold = similarity_threshold
+            logger.info(
+                f"BackgroundWorker initialized with config-aware setup "
+                f"(using constructor params for now)"
+            )
+        else:
+            self.max_queue_size = max_queue_size
+            self.batch_size = batch_size
+            self.similarity_threshold = similarity_threshold
 
         # Priority queues
         self.high_priority_queue: asyncio.Queue[SimilarityJob] = asyncio.Queue(
