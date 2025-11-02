@@ -200,6 +200,66 @@ class DecisionGraphConfig(BaseModel):
         description="Number of recent decisions to query for scalability"
     )
 
+    # Cache configuration
+    query_cache_size: int = Field(
+        200,
+        ge=10,
+        le=10000,
+        description="LRU cache size for query results (L1 cache)"
+    )
+    embedding_cache_size: int = Field(
+        500,
+        ge=10,
+        le=10000,
+        description="LRU cache size for embeddings (L2 cache)"
+    )
+    query_ttl: int = Field(
+        300,
+        ge=60,
+        le=3600,
+        description="Time-to-live for cached query results in seconds (default: 5 minutes)"
+    )
+
+    # Adaptive K configuration
+    adaptive_k_small_threshold: int = Field(
+        100,
+        ge=10,
+        le=1000,
+        description="Database size threshold for small DB (returns small_k)"
+    )
+    adaptive_k_medium_threshold: int = Field(
+        1000,
+        ge=100,
+        le=10000,
+        description="Database size threshold for medium DB (returns medium_k)"
+    )
+    adaptive_k_small: int = Field(
+        5,
+        ge=1,
+        le=20,
+        description="Number of candidates to retrieve for small databases"
+    )
+    adaptive_k_medium: int = Field(
+        3,
+        ge=1,
+        le=20,
+        description="Number of candidates to retrieve for medium databases"
+    )
+    adaptive_k_large: int = Field(
+        2,
+        ge=1,
+        le=20,
+        description="Number of candidates to retrieve for large databases"
+    )
+
+    # Similarity filtering
+    noise_floor: float = Field(
+        0.40,
+        ge=0.0,
+        le=1.0,
+        description="Minimum similarity score to consider (filter out noise below this threshold)"
+    )
+
     @field_validator("tier_boundaries")
     @classmethod
     def validate_tier_boundaries(cls, v: dict[str, float]) -> dict[str, float]:

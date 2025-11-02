@@ -5,17 +5,17 @@ deliberations and formats them as enriched context for new deliberations.
 """
 
 import logging
-from typing import List, Optional, Tuple
+from typing import TYPE_CHECKING, List, Optional, Tuple
 
 from decision_graph.cache import SimilarityCache
 from decision_graph.schema import DecisionNode
 from decision_graph.similarity import QuestionSimilarityDetector
 from decision_graph.storage import DecisionGraphStorage
 
-logger = logging.getLogger(__name__)
+if TYPE_CHECKING:
+    from models.config import DecisionGraphConfig
 
-# Constants
-NOISE_FLOOR = 0.40  # Filter out results below this similarity score
+logger = logging.getLogger(__name__)
 
 
 class DecisionRetriever:
@@ -41,6 +41,7 @@ class DecisionRetriever:
         storage: DecisionGraphStorage,
         cache: Optional[SimilarityCache] = None,
         enable_cache: bool = True,
+        config: Optional["DecisionGraphConfig"] = None,
     ):
         """Initialize with storage backend and optional caching.
 
@@ -49,16 +50,41 @@ class DecisionRetriever:
             cache: Optional SimilarityCache instance. If None and enable_cache=True,
                    creates a default cache.
             enable_cache: Whether to enable caching (default: True)
+            config: Optional DecisionGraphConfig for configurable thresholds and cache sizes
         """
         self.storage = storage
         self.similarity_detector = QuestionSimilarityDetector()
+        self.config = config
+
+        # Extract config values with defaults
+        if config:
+            query_cache_size = config.query_cache_size
+            embedding_cache_size = config.embedding_cache_size
+            query_ttl = config.query_ttl
+            self.noise_floor = config.noise_floor
+            self.adaptive_k_small_threshold = config.adaptive_k_small_threshold
+            self.adaptive_k_medium_threshold = config.adaptive_k_medium_threshold
+            self.adaptive_k_small = config.adaptive_k_small
+            self.adaptive_k_medium = config.adaptive_k_medium
+            self.adaptive_k_large = config.adaptive_k_large
+        else:
+            # Defaults when no config provided
+            query_cache_size = 200
+            embedding_cache_size = 500
+            query_ttl = 300
+            self.noise_floor = 0.40
+            self.adaptive_k_small_threshold = 100
+            self.adaptive_k_medium_threshold = 1000
+            self.adaptive_k_small = 5
+            self.adaptive_k_medium = 3
+            self.adaptive_k_large = 2
 
         # Initialize cache
         if enable_cache:
             self.cache = cache or SimilarityCache(
-                query_cache_size=200,
-                embedding_cache_size=500,
-                query_ttl=300,  # 5 minutes
+                query_cache_size=query_cache_size,
+                embedding_cache_size=embedding_cache_size,
+                query_ttl=query_ttl,
             )
             logger.info(
                 f"Initialized DecisionRetriever with caching enabled "
@@ -70,6 +96,11 @@ class DecisionRetriever:
 
         logger.info(
             f"Using similarity backend: {self.similarity_detector.backend.__class__.__name__}"
+        )
+        logger.info(
+            f"Configured with noise_floor={self.noise_floor}, "
+            f"adaptive_k thresholds=[{self.adaptive_k_small_threshold}, {self.adaptive_k_medium_threshold}], "
+            f"k values=[{self.adaptive_k_small}, {self.adaptive_k_medium}, {self.adaptive_k_large}]"
         )
 
     def find_relevant_decisions(
@@ -96,7 +127,7 @@ class DecisionRetriever:
 
         Returns:
             List of (DecisionNode, score) tuples, sorted by similarity descending.
-            Includes all results above NOISE_FLOOR (0.40).
+            Includes all results above noise_floor (default: 0.40, configurable).
 
         Raises:
             ValueError: If threshold is not in range [0.0, 1.0] or max_results < 1
@@ -174,14 +205,14 @@ class DecisionRetriever:
 
         # 6. Find similar questions (use noise floor as initial threshold)
         similar = self.similarity_detector.find_similar(
-            query_question, candidates, threshold=NOISE_FLOOR
+            query_question, candidates, threshold=self.noise_floor
         )
 
         # 7. Explicitly filter by noise floor (defensive check)
-        filtered_similar = [match for match in similar if match["score"] >= NOISE_FLOOR]
+        filtered_similar = [match for match in similar if match["score"] >= self.noise_floor]
 
         if not filtered_similar:
-            logger.info(f"No similar decisions found above noise floor {NOISE_FLOOR}")
+            logger.info(f"No similar decisions found above noise floor {self.noise_floor}")
             # Cache empty result to avoid recomputation
             if self.cache:
                 self.cache.cache_result(query_question, cache_key_threshold, max_results, [])
@@ -218,7 +249,7 @@ class DecisionRetriever:
 
         logger.info(
             f"Found {len(results)} relevant decisions for query "
-            f"(adaptive_k={adaptive_k}, noise_floor={NOISE_FLOOR})"
+            f"(adaptive_k={adaptive_k}, noise_floor={self.noise_floor})"
         )
         return results
 
@@ -442,13 +473,13 @@ class DecisionRetriever:
         """Compute adaptive k (number of candidates) based on database size.
 
         As the database grows, we reduce k to prevent noise accumulation and
-        maintain precision. This implements automatic threshold tuning without
-        manual configuration.
+        maintain precision. This implements automatic threshold tuning based
+        on configuration.
 
-        Strategy:
-        - Small DB (<100 decisions): k=5 (exploration, maximize coverage)
-        - Medium DB (100-999 decisions): k=3 (balanced precision/recall)
-        - Large DB (≥1000 decisions): k=2 (precision, avoid noise)
+        Strategy (configurable via decision_graph config):
+        - Small DB (<adaptive_k_small_threshold): k=adaptive_k_small (default: <100 → 5)
+        - Medium DB (small to <adaptive_k_medium_threshold): k=adaptive_k_medium (default: 100-999 → 3)
+        - Large DB (≥adaptive_k_medium_threshold): k=adaptive_k_large (default: ≥1000 → 2)
 
         Args:
             db_size: Number of decisions in the database
@@ -458,16 +489,16 @@ class DecisionRetriever:
 
         Example:
             >>> retriever = DecisionRetriever(storage)
-            >>> k = retriever._compute_adaptive_k(50)   # Returns 5 (small DB)
-            >>> k = retriever._compute_adaptive_k(500)  # Returns 3 (medium DB)
-            >>> k = retriever._compute_adaptive_k(5000) # Returns 2 (large DB)
+            >>> k = retriever._compute_adaptive_k(50)   # Returns adaptive_k_small (default: 5)
+            >>> k = retriever._compute_adaptive_k(500)  # Returns adaptive_k_medium (default: 3)
+            >>> k = retriever._compute_adaptive_k(5000) # Returns adaptive_k_large (default: 2)
         """
-        if db_size < 100:
-            return 5  # Exploration phase
-        elif db_size < 1000:
-            return 3  # Balanced phase
+        if db_size < self.adaptive_k_small_threshold:
+            return self.adaptive_k_small  # Exploration phase
+        elif db_size < self.adaptive_k_medium_threshold:
+            return self.adaptive_k_medium  # Balanced phase
         else:
-            return 2  # Precision phase
+            return self.adaptive_k_large  # Precision phase
 
     def _format_strong_tier(self, decision: DecisionNode, score: float) -> str:
         """Format a strong similarity match with full details.
@@ -614,8 +645,6 @@ class DecisionRetriever:
             >>> print(result["formatted"])
             >>> print(f"Tokens used: {result['tokens_used']}/{1500}")
         """
-        NOISE_FLOOR = 0.40
-
         # Initialize metrics
         tier_distribution = {"strong": 0, "moderate": 0, "brief": 0}
         tokens_used = 0
@@ -641,9 +670,9 @@ class DecisionRetriever:
         # Process decisions in order of similarity
         for decision, score in scored_decisions:
             # Apply noise floor filter
-            if score < NOISE_FLOOR:
+            if score < self.noise_floor:
                 logger.debug(
-                    f"Skipping decision {decision.id} (score {score:.2f} below noise floor {NOISE_FLOOR})"
+                    f"Skipping decision {decision.id} (score {score:.2f} below noise floor {self.noise_floor})"
                 )
                 continue
 

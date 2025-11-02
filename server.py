@@ -551,7 +551,7 @@ async def handle_query_decisions(arguments: dict) -> list[TextContent]:
         if not db_path.is_absolute():
             db_path = PROJECT_DIR / db_path
         storage = DecisionGraphStorage(str(db_path))
-        engine = QueryEngine(storage)
+        engine = QueryEngine(storage, config=config.decision_graph)
 
         query_text = arguments.get("query_text")
         find_contradictions = arguments.get("find_contradictions", False)

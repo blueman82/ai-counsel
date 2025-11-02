@@ -221,6 +221,21 @@ decision_graph:
     moderate: 0.60 # Moderate matches get summary formatting (~200 tokens each)
   query_window: 1000 # Recent decisions to query (scalability limit)
 
+  # Cache configuration
+  query_cache_size: 200 # L1 cache size for query results
+  embedding_cache_size: 500 # L2 cache size for embeddings
+  query_ttl: 300 # Cache TTL in seconds (5 minutes)
+
+  # Adaptive K configuration (retrieval candidate selection)
+  adaptive_k_small_threshold: 100 # DB size threshold for small DB
+  adaptive_k_medium_threshold: 1000 # DB size threshold for medium DB
+  adaptive_k_small: 5 # Candidates for small DB (<100 decisions)
+  adaptive_k_medium: 3 # Candidates for medium DB (100-999 decisions)
+  adaptive_k_large: 2 # Candidates for large DB (≥1000 decisions)
+
+  # Similarity filtering
+  noise_floor: 0.40 # Filter out results below this similarity score
+
   # Keep for backward compatibility
   max_context_decisions: 3 # Maximum number of past decisions to inject as context
   compute_similarities: true # Compute edge similarities after storing deliberation
