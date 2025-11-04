@@ -91,14 +91,14 @@ AI Counsel is an MCP (Model Context Protocol) server that enables true deliberat
 
 ### Data Flow
 
-1. MCP client invokes `deliberate` tool → `server.py::call_tool()`
+1. MCP client invokes `deliberate` tool → `server.py::call_tool()` with `working_directory` set to client's current directory
 2. Request validated against `DeliberateRequest` schema
 3. `DeliberationEngine.execute()` orchestrates rounds
 4. For each round:
    - `execute_round()` → prompts enhanced with voting instructions → adapters invoke CLIs
    - Responses collected and votes parsed from "VOTE: {json}" markers
    - **Tool request parsing**: Extract TOOL_REQUEST markers from responses
-   - **Tool execution**: Validate, execute with timeout/error handling
+   - **Tool execution**: Change to `working_directory`, validate, execute with timeout/error handling, restore original directory
    - **Context injection**: Tool results visible to all participants in next round
    - **Recording**: Track in `ToolExecutionRecord` for transcript
    - Check early stopping: if ≥66% want to stop → break
@@ -113,7 +113,7 @@ AI Counsel is an MCP (Model Context Protocol) server that enables true deliberat
 ### MCP Tool Architecture
 
 **MCP-Exposed Tools** (callable by MCP clients):
-- `deliberate`: Orchestrate multi-round AI deliberation
+- `deliberate`: Orchestrate multi-round AI deliberation (requires `working_directory` parameter)
 - `query_decisions`: Search decision graph memory (when enabled)
 
 **Internal Tools** (callable by AI models via TOOL_REQUEST):
@@ -265,6 +265,7 @@ For detailed step-by-step guides on extending the system, see:
 7. **Hook Interference**: Claude CLI hooks can break CLI invocations during deliberation. Always disable with `--settings` flag.
 8. **Prompt Length Limits**: Gemini adapter validates prompts ≤100k chars (prevents "invalid argument" API errors). `BaseCLIAdapter.invoke()` checks `validate_prompt_length()` if adapter implements it and raises `ValueError` with helpful message before making API call. Other adapters can implement similar validation.
 9. **Tool Execution Errors**: Tool failures are isolated - they don't halt deliberation. Models receive error messages in tool results and can adapt their reasoning. Always check `ToolResult.success` before using `output`.
+10. **Working Directory Requirement**: The `deliberate` tool requires a `working_directory` parameter (client's current directory). Tools resolve relative paths from this directory. Without it, the request will fail validation. MCP clients should always pass their current working directory.
 
 ## Common Development Patterns
 

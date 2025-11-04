@@ -180,7 +180,7 @@ VOTE: {"option": "Approve", "confidence": 0.9, "rationale": "Code quality verifi
             ],
             rounds=2,
             mode="conference",
-        )
+            working_directory="/tmp",)
 
         # Execute
         result = await engine.execute(request)
@@ -226,7 +226,7 @@ VOTE: {"option": "Approve", "confidence": 0.9, "rationale": "Code quality verifi
             ],
             rounds=2,
             mode="conference",
-        )
+            working_directory="/tmp",)
 
         # Execute
         result = await engine.execute(request)
@@ -282,7 +282,7 @@ VOTE: {"option": "Approve", "confidence": 0.9, "rationale": "Code quality verifi
             ],
             rounds=2,
             mode="conference",
-        )
+            working_directory="/tmp",)
 
         # Execute
         result = await engine.execute(request)
@@ -345,7 +345,7 @@ VOTE: {"option": "Approve", "confidence": 0.95, "rationale": "Code review via re
             ],
             rounds=2,
             mode="conference",
-        )
+            working_directory="/tmp",)
 
         # Execute
         result = await engine.execute(request)
@@ -396,7 +396,7 @@ VOTE: {"option": "Approve", "confidence": 0.95, "rationale": "Code review via re
             ],
             rounds=2,
             mode="conference",
-        )
+            working_directory="/tmp",)
 
         # Execute
         result = await engine.execute(request)
@@ -456,7 +456,7 @@ VOTE: {"option": "Approve", "confidence": 0.95, "rationale": "Code review via re
             ],
             rounds=2,
             mode="conference",
-        )
+            working_directory="/tmp",)
 
         # Execute - should not raise exception even if tool times out
         result = await engine.execute(request)
@@ -509,7 +509,7 @@ Both should be parsed correctly.
             ],
             rounds=2,
             mode="conference",
-        )
+            working_directory="/tmp",)
 
         # Execute
         result = await engine.execute(request)
@@ -560,7 +560,7 @@ Both should be parsed correctly.
             ],
             rounds=3,
             mode="conference",
-        )
+            working_directory="/tmp",)
 
         # Execute
         result = await engine.execute(request)

@@ -41,8 +41,8 @@ class TestSimpleLocalModelBenchmark:
             question=question,
             participants=participants,
             rounds=2,
-            context="Startup with 5 developers, building SaaS platform"
-        )
+            context="Startup with 5 developers, building SaaS platform",
+                working_directory="/tmp",)
         
         print("🔄 Running deliberation with 2 Ollama models...")
         start_time = time.time()
@@ -106,8 +106,8 @@ class TestSimpleLocalModelBenchmark:
                 question=test_case["question"],
                 participants=participants,
                 rounds=1,
-                context=test_case["context"]
-            )
+                context=test_case["context"],
+                working_directory="/tmp",)
             
             start_time = time.time()
             result = await engine.execute(request)
@@ -180,8 +180,8 @@ class TestSimpleLocalModelBenchmark:
                 question=scenario["question"],
                 participants=participants,
                 rounds=1,
-                context=scenario["context"]
-            )
+                context=scenario["context"],
+                working_directory="/tmp",)
             
             start_time = time.time()
             result = await engine.execute(request)

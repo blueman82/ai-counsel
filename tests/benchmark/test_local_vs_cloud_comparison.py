@@ -95,8 +95,8 @@ class TestLocalVsCloudComparison:
                         question=scenario["question"],
                         participants=model_info["participants"],
                         rounds=1,
-                        context=scenario["context"]
-                    )
+                        context=scenario["context"],
+                working_directory="/tmp",)
                     
                     start_time = time.time()
                     result = await engine.execute(request)
@@ -234,8 +234,8 @@ class TestLocalVsCloudComparison:
                         question=scenario["question"],
                         participants=model_info["participants"],
                         rounds=2,  # Multi-round for better quality
-                        context=scenario["context"]
-                    )
+                        context=scenario["context"],
+                working_directory="/tmp",)
                     
                     result = await engine.execute(request)
                     quality_score = self._assess_response_quality(result, scenario)

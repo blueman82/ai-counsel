@@ -68,8 +68,8 @@ class TestLocalModelBenchmark:
                 question=question_data["question"],
                 participants=participants,
                 rounds=1,  # Single round for performance testing
-                context=question_data["context"]
-            )
+                context=question_data["context"],
+                working_directory="/tmp",)
             
             # Measure performance
             start_time = time.time()
@@ -131,8 +131,8 @@ class TestLocalModelBenchmark:
                 question=question_data["question"],
                 participants=participants,
                 rounds=1,
-                context=question_data["context"]
-            )
+                context=question_data["context"],
+                working_directory="/tmp",)
             
             start_time = time.time()
             result = await engine.execute(request)
@@ -187,8 +187,8 @@ class TestLocalModelBenchmark:
                 question=question_data["question"],
                 participants=participants,
                 rounds=2,  # Multi-round deliberation
-                context=question_data["context"]
-            )
+                context=question_data["context"],
+                working_directory="/tmp",)
             
             start_time = time.time()
             result = await engine.execute(request)
@@ -238,8 +238,8 @@ class TestLocalModelBenchmark:
             question="What are the key legal considerations for Open Source licensing?",
             participants=participants,
             rounds=1,
-            context="Software development context"
-        )
+            context="Software development context",
+                working_directory="/tmp",)
         
         # Run deliberation
         await engine.execute(request)
@@ -308,8 +308,8 @@ class TestLocalModelBenchmark:
                 question=f"[Concurrent Test {i}] {question_data['question']}",
                 participants=participants,
                 rounds=1,
-                context=f"Concurrent execution test {i}"
-            )
+                context=f"Concurrent execution test {i}",
+                working_directory="/tmp",)
             requests.append(request)
         
         # Execute concurrently

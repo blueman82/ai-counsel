@@ -135,8 +135,8 @@ class TestTechnicalDecisionsQuality:
                 question=test_case["question"],
                 participants=participants,
                 rounds=2,  # Multi-round for thorough analysis
-                context=test_case["context"]
-            )
+                context=test_case["context"],
+                working_directory="/tmp",)
             
             result = await engine.execute(request)
             
@@ -187,8 +187,8 @@ class TestTechnicalDecisionsQuality:
                     question=test_case["question"],
                     participants=participants,
                     rounds=1,
-                    context=context_variant
-                )
+                    context=context_variant,
+                working_directory="/tmp",)
                 
                 result = await engine.execute(request)
                 context_score = self._assess_context_relevance(result, test_case, context_variant)
@@ -224,8 +224,8 @@ class TestTechnicalDecisionsQuality:
                 question=test_case["question"],
                 participants=participants,
                 rounds=1,
-                context=test_case["context"]
-            )
+                context=test_case["context"],
+                working_directory="/tmp",)
             
             result = await engine.execute(request)
             practicality_score = self._assess_practicality(result, test_case)

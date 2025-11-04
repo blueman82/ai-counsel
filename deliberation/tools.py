@@ -98,12 +98,13 @@ class ToolExecutor:
 
         return requests
 
-    async def execute_tool(self, request: ToolRequest) -> ToolResult:
+    async def execute_tool(self, request: ToolRequest, working_directory: str | None = None) -> ToolResult:
         """
         Execute a tool request.
 
         Args:
             request: The tool request to execute
+            working_directory: Optional working directory to change to before executing tool
 
         Returns:
             ToolResult with execution outcome
@@ -118,6 +119,22 @@ class ToolExecutor:
                 error=f"Tool '{request.name}' is not registered"
             )
 
+        # Change to working directory if specified
+        original_dir = None
+        if working_directory:
+            import os
+            original_dir = os.getcwd()
+            try:
+                os.chdir(working_directory)
+                logger.debug(f"Changed working directory to: {working_directory}")
+            except Exception as e:
+                return ToolResult(
+                    tool_name=request.name,
+                    success=False,
+                    output=None,
+                    error=f"Failed to change to working directory '{working_directory}': {e}"
+                )
+
         try:
             result = await tool.execute(request.arguments)
             return result
@@ -129,6 +146,15 @@ class ToolExecutor:
                 output=None,
                 error=f"{type(e).__name__}: {str(e)}"
             )
+        finally:
+            # Restore original directory
+            if original_dir:
+                try:
+                    import os
+                    os.chdir(original_dir)
+                    logger.debug(f"Restored working directory to: {original_dir}")
+                except Exception as e:
+                    logger.error(f"Failed to restore working directory: {e}", exc_info=True)
 
 
 class ReadFileTool(BaseTool):

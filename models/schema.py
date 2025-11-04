@@ -47,6 +47,10 @@ class DeliberateRequest(BaseModel):
     context: Optional[str] = Field(
         default=None, description="Optional additional context"
     )
+    working_directory: str = Field(
+        ...,
+        description="Working directory for tool execution (tools resolve relative paths from here). Required for deliberations using evidence-based tools."
+    )
 
 
 class RoundResponse(BaseModel):

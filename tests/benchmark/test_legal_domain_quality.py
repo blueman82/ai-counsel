@@ -102,8 +102,8 @@ class TestLegalDomainQuality:
                 question=test_case["question"],
                 participants=participants,
                 rounds=2,  # Multi-round for thorough analysis
-                context=test_case["context"]
-            )
+                context=test_case["context"],
+                working_directory="/tmp",)
             
             result = await engine.execute(request)
             
@@ -148,8 +148,8 @@ class TestLegalDomainQuality:
                 question=test_case["question"],
                 participants=participants,
                 rounds=1,
-                context=test_case["context"]
-            )
+                context=test_case["context"],
+                working_directory="/tmp",)
             
             result = await engine.execute(request)
             ethical_score = self._assess_ethical_compliance(result, test_case)
@@ -209,8 +209,8 @@ class TestLegalDomainQuality:
                 question=scenario["question"],
                 participants=participants,
                 rounds=1,
-                context=scenario["context"]
-            )
+                context=scenario["context"],
+                working_directory="/tmp",)
             
             result = await engine.execute(request)
             comm_score = self._assess_communication_quality(result, scenario)

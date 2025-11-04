@@ -68,7 +68,7 @@ class TestMultiAdapterDeliberation:
             ],
             rounds=2,
             mode="conference",
-        )
+            working_directory="/tmp",)
 
         # Act
         result = await engine.execute(request)
@@ -124,7 +124,7 @@ class TestMultiAdapterDeliberation:
             ],
             rounds=1,
             mode="quick",
-        )
+            working_directory="/tmp",)
 
         # Act
         result = await engine.execute(request)
@@ -185,7 +185,7 @@ class TestMultiAdapterDeliberation:
             ],
             rounds=1,
             mode="quick",
-        )
+            working_directory="/tmp",)
 
         # Act
         result = await engine.execute(request)
@@ -238,7 +238,7 @@ class TestMultiAdapterDeliberation:
             ],
             rounds=3,
             mode="conference",
-        )
+            working_directory="/tmp",)
 
         # Act
         result = await engine.execute(request)
@@ -278,7 +278,7 @@ class TestMultiAdapterDeliberation:
             ],
             rounds=5,  # Request 5 rounds but should stop early
             mode="conference",
-        )
+            working_directory="/tmp",)
 
         # Act
         result = await engine.execute(request)

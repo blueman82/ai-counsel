@@ -155,6 +155,7 @@ class DeliberationEngine:
         participants: List[Participant],
         previous_responses: List[RoundResponse],
         graph_context: str = "",
+        working_directory: str | None = None,
     ) -> List[RoundResponse]:
         """
         Execute a single deliberation round.
@@ -165,6 +166,7 @@ class DeliberationEngine:
             participants: List of participants for this round
             previous_responses: Responses from previous rounds for context
             graph_context: Optional decision graph context from past deliberations
+            working_directory: Optional working directory for tool execution
 
         Returns:
             List of RoundResponse objects from this round
@@ -219,7 +221,7 @@ class DeliberationEngine:
                         try:
                             # Execute tool with 30s timeout to prevent hanging
                             tool_result = await asyncio.wait_for(
-                                self.tool_executor.execute_tool(tool_request),
+                                self.tool_executor.execute_tool(tool_request, working_directory=working_directory),
                                 timeout=30.0
                             )
                         except asyncio.TimeoutError:
@@ -690,6 +692,7 @@ Provide substantive analysis from your perspective."""
                 participants=request.participants,
                 previous_responses=all_responses,
                 graph_context=graph_context,
+                working_directory=request.working_directory,
             )
             all_responses.extend(round_responses)
 

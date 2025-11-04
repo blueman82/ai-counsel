@@ -1,0 +1,20 @@
+{
+  "version": "1.0.0",
+  "enabled": true,
+  "shadow_branch": "recallor-shadow",
+  "monitoring": {
+    "method": "fsevents",
+    "interval_seconds": 5,
+    "file_based_monitoring": {
+      "enabled": true,
+      "latency_target_ms": 50
+    }
+  },
+  "auto_commit": {
+    "enabled": true,
+    "batch_changes": true,
+    "commit_message_template": "Auto-commit from ShadowCommitMonitor"
+  },
+  "created_at": "2025-10-27T15:06:51Z",
+  "created_by": "ShadowCommitMonitor"
+}
