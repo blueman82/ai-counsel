@@ -90,7 +90,7 @@ class TestEngineConvergenceIntegration:
             ],
             rounds=3,
             mode="conference",
-        )
+            working_directory="/tmp",)
 
         # Round 1 responses
         round1_responses = [

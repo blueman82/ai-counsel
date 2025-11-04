@@ -66,7 +66,7 @@ class TestEarlyStopping:
             ],
             rounds=5,  # Request 5 rounds
             mode="conference",
-        )
+            working_directory="/tmp",)
 
         # Round 1: Models continue debating
         # Round 2: All models want to stop (continue_debate=False)
@@ -151,7 +151,7 @@ class TestEarlyStopping:
             ],
             rounds=3,  # Minimum 3 rounds
             mode="conference",
-        )
+            working_directory="/tmp",)
 
         # All models want to stop immediately, but should wait for min_rounds
         mock_adapters["claude"].invoke_mock.side_effect = [
@@ -225,7 +225,7 @@ class TestEarlyStopping:
             ],
             rounds=3,
             mode="conference",
-        )
+            working_directory="/tmp",)
 
         # Only 1/3 want to stop (below 66% threshold)
         mock_adapters["claude"].invoke_mock.side_effect = [
@@ -301,7 +301,7 @@ class TestEarlyStopping:
             ],
             rounds=3,
             mode="conference",
-        )
+            working_directory="/tmp",)
 
         # All models want to stop, but early stopping is disabled
         mock_adapters["claude"].invoke_mock.side_effect = [

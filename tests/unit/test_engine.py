@@ -189,7 +189,7 @@ class TestDeliberationEngineMultiRound:
             ],
             rounds=3,
             mode="conference",
-        )
+            working_directory="/tmp",)
 
         mock_adapters["claude"].invoke_mock.return_value = "Claude response"
         mock_adapters["codex"].invoke_mock.return_value = "Codex response"
@@ -218,7 +218,7 @@ class TestDeliberationEngineMultiRound:
             ],
             rounds=2,
             mode="conference",
-        )
+            working_directory="/tmp",)
 
         mock_adapters["claude"].invoke_mock.return_value = "Claude response"
         mock_adapters["codex"].invoke_mock.return_value = "Codex response"
@@ -247,8 +247,8 @@ class TestDeliberationEngineMultiRound:
                 Participant(cli="codex", model="gpt-4"),
             ],
             rounds=5,  # Request 5 rounds
-            mode="quick",  # But quick mode should override to 1
-        )
+            mode="quick",  # But quick mode should override to 1,
+            working_directory="/tmp",)
 
         mock_adapters["claude"].invoke_mock.return_value = "Claude response"
         mock_adapters["codex"].invoke_mock.return_value = "Codex response"
@@ -276,7 +276,7 @@ class TestDeliberationEngineMultiRound:
                 Participant(cli="codex", model="gpt-4"),
             ],
             rounds=1,
-        )
+            working_directory="/tmp",)
 
         mock_adapters["claude"] = mock_adapters["claude"]
         mock_adapters["claude"].invoke_mock.return_value = "Claude response"
@@ -475,7 +475,7 @@ class TestVoteParsing:
             ],
             rounds=2,
             mode="conference",
-        )
+            working_directory="/tmp",)
 
         # Both vote for Option A in round 1
         mock_adapters["claude"].invoke_mock.side_effect = [
@@ -589,8 +589,8 @@ class TestEngineWithTools:
             question="Test question for deliberation 1",
             participants=participants,
             rounds=1,
-            mode="quick"
-        )
+            mode="quick",
+            working_directory="/tmp",)
         result1 = await engine.execute(request1)
 
         # Verify tool was executed
@@ -610,8 +610,8 @@ class TestEngineWithTools:
             question="Test question for deliberation 2",
             participants=participants,
             rounds=1,
-            mode="quick"
-        )
+            mode="quick",
+            working_directory="/tmp",)
         result2 = await engine.execute(request2)
 
         # CRITICAL: History should NOT contain both deliberations
@@ -658,8 +658,8 @@ class TestEngineWithTools:
                 question=f"Test question for deliberation number {i}",
                 participants=participants,
                 rounds=1,
-                mode="quick"
-            )
+                mode="quick",
+            working_directory="/tmp",)
 
             await engine.execute(request)
 
@@ -775,7 +775,7 @@ class TestVoteGrouping:
                 ],
                 rounds=1,
                 mode="quick",
-            )
+            working_directory="/tmp",)
 
             # Simulate the actual votes from docker-compose deliberation:
             # Claude and Codex vote for Option A
@@ -838,7 +838,7 @@ class TestVoteGrouping:
                 ],
                 rounds=1,
                 mode="quick",
-            )
+            working_directory="/tmp",)
 
             # Two very different votes that shouldn't be merged
             mock_adapters[
@@ -882,7 +882,7 @@ class TestEngineContextEfficiency:
             ],
             rounds=2,
             mode="conference",
-        )
+            working_directory="/tmp",)
 
         # Round 1: Read large file (simulated tool result with large output)
         # Round 2: Check context size
@@ -923,7 +923,7 @@ class TestEngineContextEfficiency:
             participants=participants,
             rounds=5,
             mode="conference",
-        )
+            working_directory="/tmp",)
 
         # Simulate 5 rounds with distinct responses
         mock_adapters["claude"].invoke_mock.side_effect = [
@@ -967,7 +967,7 @@ class TestEngineContextEfficiency:
             participants=participants,
             rounds=5,  # Max 5 rounds
             mode="conference",
-        )
+            working_directory="/tmp",)
 
         # Simulate 5 rounds, each with 2KB response
         large_response = "x" * 2000

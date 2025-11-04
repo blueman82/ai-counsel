@@ -60,7 +60,7 @@ async def test_full_deliberation_workflow(tmp_path):
         ],
         rounds=2,
         mode="conference",
-    )
+            working_directory="/tmp",)
 
     # ACT: Execute deliberation
     result = await engine.execute(request)
@@ -149,7 +149,7 @@ async def test_quick_mode_single_round(tmp_path):
         ],
         rounds=3,  # Should be overridden by quick mode
         mode="quick",
-    )
+            working_directory="/tmp",)
 
     # ACT
     result = await engine.execute(request)
@@ -204,7 +204,7 @@ async def test_deliberation_with_context(tmp_path):
         rounds=1,
         mode="quick",
         context="Framework: FastAPI. Project: REST API with 100K requests/day. Team: 5 Python developers.",
-    )
+            working_directory="/tmp",)
 
     # ACT
     result = await engine.execute(request)

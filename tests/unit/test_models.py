@@ -76,7 +76,7 @@ class TestDeliberateRequest:
                 Participant(cli="claude", model="claude-3-5-sonnet-20241022"),
                 Participant(cli="codex", model="gpt-4"),
             ],
-        )
+            working_directory="/tmp",)
         assert req.question == "Should we use TypeScript?"
         assert len(req.participants) == 2
         assert req.rounds == 2  # Default
@@ -90,7 +90,7 @@ class TestDeliberateRequest:
                 Participant(cli="claude"),
                 Participant(cli="codex"),
             ],
-        )
+            working_directory="/tmp",)
         assert req.participants[0].model is None
         assert req.participants[1].model is None
 
@@ -107,7 +107,7 @@ class TestDeliberateRequest:
             rounds=3,
             mode="conference",
             context="Legacy codebase, 50K LOC",
-        )
+            working_directory="/tmp",)
         assert req.rounds == 3
         assert req.mode == "conference"
         assert req.context == "Legacy codebase, 50K LOC"
@@ -116,8 +116,8 @@ class TestDeliberateRequest:
         """Test that at least 2 participants are required."""
         with pytest.raises(ValidationError) as exc_info:
             DeliberateRequest(
-                question="Test?", participants=[Participant(cli="codex", model="gpt-4")]
-            )
+                question="Test?", participants=[Participant(cli="codex", model="gpt-4")],
+            working_directory="/tmp",)
         assert "participants" in str(exc_info.value)
 
     def test_rounds_must_be_positive(self):
@@ -130,7 +130,7 @@ class TestDeliberateRequest:
                     Participant(cli="codex", model="gpt-4"),
                 ],
                 rounds=0,
-            )
+            working_directory="/tmp",)
         assert "rounds" in str(exc_info.value)
 
     def test_rounds_capped_at_five(self):
@@ -143,7 +143,7 @@ class TestDeliberateRequest:
                     Participant(cli="codex", model="gpt-4"),
                 ],
                 rounds=10,
-            )
+            working_directory="/tmp",)
         assert "rounds" in str(exc_info.value)
 
 

@@ -276,8 +276,12 @@ async def list_tools() -> list[Tool]:
                     "type": "string",
                     "description": "Optional additional context (code snippets, requirements, etc.)",
                 },
+                "working_directory": {
+                    "type": "string",
+                    "description": "Working directory for tool execution (tools resolve relative paths from here). Should be the client's current working directory.",
+                },
             },
-            "required": ["question", "participants"],
+            "required": ["question", "participants", "working_directory"],
         },
     )
 
