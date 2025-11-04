@@ -395,6 +395,7 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
         logger.info(
             f"Request validated. Starting deliberation: {request.question[:50]}..."
         )
+        logger.info(f"Working directory: {request.working_directory}")
 
         # Apply session defaults and allowlist validation
         for participant in request.participants:
