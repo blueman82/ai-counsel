@@ -573,8 +573,34 @@ Your role: Answer this question directly with your full analysis and reasoning.
 Do NOT redirect or suggest alternatives. Engage fully in this debate.
 Provide substantive analysis from your perspective."""
 
+        # Add tool usage instructions if tool executor is available
+        tool_instructions = ""
+        if self.tool_executor:
+            tool_instructions = """
+
+## Evidence-Based Deliberation
+
+You have access to tools to gather concrete evidence. Use them actively:
+
+**Available Tools:**
+- `read_file`: Read file contents (use relative or absolute paths)
+- `search_code`: Search codebase with regex patterns
+- `list_files`: List files matching glob patterns
+- `run_command`: Execute safe read-only commands
+
+**How to use tools:**
+```
+TOOL_REQUEST: {"name": "read_file", "arguments": {"path": "src/file.py"}}
+```
+
+**IMPORTANT:**
+- If asked to review code or analyze files, USE THE TOOLS - don't assume files don't exist
+- Tools execute in the client's working directory, so relative paths work
+- Gather evidence first, then provide analysis based on actual data
+- Tool results are visible to all participants in subsequent rounds"""
+
         voting_instructions = self._build_voting_instructions()
-        return f"{deliberation_instructions}\n\n## Question\n{prompt}\n\n{voting_instructions}"
+        return f"{deliberation_instructions}{tool_instructions}\n\n## Question\n{prompt}\n\n{voting_instructions}"
 
     def _check_early_stopping(
         self, round_responses: List[RoundResponse], round_num: int, min_rounds: int
