@@ -126,7 +126,7 @@ class ToolExecutor:
             original_dir = os.getcwd()
             try:
                 os.chdir(working_directory)
-                logger.debug(f"Changed working directory to: {working_directory}")
+                logger.info(f"Tool execution: changed to working directory: {working_directory}")
             except Exception as e:
                 return ToolResult(
                     tool_name=request.name,
@@ -152,9 +152,8 @@ class ToolExecutor:
                 try:
                     import os
                     os.chdir(original_dir)
-                    logger.debug(f"Restored working directory to: {original_dir}")
                 except Exception as e:
-                    logger.error(f"Failed to restore working directory: {e}", exc_info=True)
+                    logger.error(f"Failed to restore working directory to {original_dir}: {e}", exc_info=True)
 
 
 class ReadFileTool(BaseTool):
