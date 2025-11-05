@@ -12,6 +12,8 @@ from pydantic import ValidationError
 from adapters.base import BaseCLIAdapter
 from adapters.base_http import BaseHTTPAdapter
 from deliberation.convergence import ConvergenceDetector
+from deliberation.file_tree import generate_file_tree
+from models.config import FileTreeConfig
 from models.schema import Participant, RoundResponse, Vote, VotingResult
 from models.tool_schema import ToolExecutionRecord
 
@@ -110,15 +112,30 @@ class DeliberationEngine:
         if config and hasattr(config, "decision_graph") and config.decision_graph:
             if config.decision_graph.enabled:
                 try:
-                    from decision_graph.integration import \
-                        DecisionGraphIntegration
+                    from decision_graph.integration import DecisionGraphIntegration
                     from decision_graph.storage import DecisionGraphStorage
 
-                    storage = DecisionGraphStorage(config.decision_graph.db_path)
-                    self.graph_integration = DecisionGraphIntegration(storage, config=config)
-                    logger.info("Decision graph memory enabled")
+                    # Resolve db_path to absolute path (matching server.py pattern)
+                    db_path = Path(config.decision_graph.db_path)
+                    if not db_path.is_absolute():
+                        # Resolve from server directory if available, else current directory
+                        base_dir = server_dir if server_dir else Path.cwd()
+                        db_path = base_dir / db_path
+
+                    storage = DecisionGraphStorage(str(db_path))
+                    self.graph_integration = DecisionGraphIntegration(
+                        storage, config=config
+                    )
+                    logger.info(f"Decision graph memory enabled (db: {db_path})")
                 except Exception as e:
-                    logger.warning(f"Failed to initialize decision graph: {e}")
+                    logger.warning(
+                        f"Failed to initialize decision graph: {e}",
+                        exc_info=True
+                    )
+                    logger.warning(
+                        "Continuing without decision graph memory. "
+                        "Check database path and permissions."
+                    )
                     self.graph_integration = None
             else:
                 logger.info("Decision graph memory disabled in config")
@@ -135,17 +152,29 @@ class DeliberationEngine:
                 SearchCodeTool,
                 ListFilesTool,
                 RunCommandTool,
+                GetFileTreeTool,
             )
 
             self.tool_executor = ToolExecutor()
-            # Register all available tools
-            self.tool_executor.register_tool(ReadFileTool())
-            self.tool_executor.register_tool(SearchCodeTool())
-            self.tool_executor.register_tool(ListFilesTool())
+            # Get security config from deliberation config
+            security_config = (
+                config.deliberation.tool_security if hasattr(config.deliberation, "tool_security") else None
+            )
+            # Register all available tools with security config
+            self.tool_executor.register_tool(ReadFileTool(security_config=security_config))
+            self.tool_executor.register_tool(SearchCodeTool(security_config=security_config))
+            self.tool_executor.register_tool(ListFilesTool(security_config=security_config))
             self.tool_executor.register_tool(RunCommandTool())
-            logger.info("Tool executor initialized with 4 tools (read_file, search_code, list_files, run_command)")
+            self.tool_executor.register_tool(GetFileTreeTool())
+            logger.info(
+                "Tool executor initialized with 5 tools (read_file, search_code, list_files, run_command, get_file_tree)"
+            )
+            if security_config and security_config.exclude_patterns:
+                logger.info(f"Tool security enabled with {len(security_config.exclude_patterns)} exclusion patterns")
         except Exception as e:
-            logger.warning(f"Failed to initialize tool executor: {e}. Tool execution will be disabled.")
+            logger.warning(
+                f"Failed to initialize tool executor: {e}. Tool execution will be disabled."
+            )
             self.tool_executor = None
 
     async def execute_round(
@@ -186,14 +215,72 @@ class DeliberationEngine:
         # Enhance prompt with voting instructions
         enhanced_prompt = self._enhance_prompt_with_voting(enhanced_prompt_base)
 
+        # Inject file tree for Round 1 if working_directory is provided
+        if round_num == 1 and working_directory:
+            # Read from config with defaults
+            file_tree_config = (
+                self.config.deliberation.file_tree
+                if self.config and hasattr(self.config, "deliberation")
+                else FileTreeConfig()
+            )
+
+            if not file_tree_config.enabled:
+                logger.info("File tree injection disabled in config")
+            else:
+                file_tree = generate_file_tree(
+                    working_directory,
+                    max_depth=file_tree_config.max_depth,
+                    max_files=file_tree_config.max_files,
+                )
+                if file_tree:  # Only inject if tree generation succeeded
+                    tree_context = f"""
+## Repository Structure
+
+The following files are available in the working directory:
+
+```
+{file_tree}
+```
+
+**Discovery Tools Available:**
+- `list_files`: List files matching glob patterns (e.g., "**/*.py")
+- `search_code`: Search for code patterns with regex
+- `read_file`: Read specific file contents
+
+**Workflow:** Use the structure above to identify relevant files, then use tools to explore them.
+"""
+                    enhanced_prompt = f"{tree_context}\n\n{enhanced_prompt}"
+                    # Approximate token count (1 token ≈ 4 chars for English text)
+                    approx_tokens = len(tree_context) // 4
+                    logger.info(
+                        f"Injected file tree into Round 1 prompt (~{approx_tokens} tokens, {len(tree_context)} chars)"
+                    )
+                else:
+                    logger.warning(
+                        f"Failed to generate file tree for working_directory: {working_directory}"
+                    )
+
         # Build context from previous responses and tool results
         context = (
-            self._build_context(previous_responses, current_round_num=round_num) if previous_responses else None
+            self._build_context(previous_responses, current_round_num=round_num)
+            if previous_responses
+            else None
         )
 
         for participant in participants:
             # Get the appropriate adapter
             adapter = self.adapters[participant.cli]
+
+            logger.info(
+                f"Round {round_num}: Invoking {participant.model}@{participant.cli} "
+                f"with prompt_length={len(enhanced_prompt)} chars, "
+                f"context_length={len(context) if context else 0} chars, "
+                f"working_directory={working_directory}"
+            )
+            logger.debug(
+                f"Enhanced prompt preview for {participant.model}@{participant.cli}: "
+                f"{enhanced_prompt[:300]}..."
+            )
 
             # Invoke the adapter with error handling
             try:
@@ -202,6 +289,15 @@ class DeliberationEngine:
                     model=participant.model,
                     context=context,
                     is_deliberation=True,  # Always True during deliberations
+                    working_directory=working_directory,
+                )
+                logger.info(
+                    f"Round {round_num}: Received response from {participant.model}@{participant.cli}, "
+                    f"response_length={len(response_text)} chars"
+                )
+                logger.debug(
+                    f"Response preview from {participant.model}@{participant.cli}: "
+                    f"{response_text[:300]}..."
                 )
             except Exception as e:
                 # Log error but continue with other participants
@@ -215,25 +311,32 @@ class DeliberationEngine:
             if self.tool_executor:
                 tool_requests = self.tool_executor.parse_tool_requests(response_text)
                 if tool_requests:
-                    logger.info(f"Found {len(tool_requests)} tool request(s) from {participant.model}@{participant.cli}")
+                    logger.info(
+                        f"Found {len(tool_requests)} tool request(s) from {participant.model}@{participant.cli}"
+                    )
 
                     for tool_request in tool_requests:
                         try:
                             # Execute tool with 30s timeout to prevent hanging
                             tool_result = await asyncio.wait_for(
-                                self.tool_executor.execute_tool(tool_request, working_directory=working_directory),
-                                timeout=30.0
+                                self.tool_executor.execute_tool(
+                                    tool_request, working_directory=working_directory
+                                ),
+                                timeout=30.0,
                             )
                         except asyncio.TimeoutError:
                             # Tool execution timed out - create error result
                             from models.tool_schema import ToolResult
+
                             tool_result = ToolResult(
                                 tool_name=tool_request.name,
                                 success=False,
                                 output=None,
-                                error=f"Tool execution timeout after 30s"
+                                error="Tool execution timeout after 30s",
                             )
-                            logger.warning(f"Tool {tool_request.name} timeout after 30s")
+                            logger.warning(
+                                f"Tool {tool_request.name} timeout after 30s"
+                            )
 
                         # Record tool execution for history and transparency
                         execution_record = ToolExecutionRecord(
@@ -241,15 +344,19 @@ class DeliberationEngine:
                             requested_by=f"{participant.model}@{participant.cli}",
                             request=tool_request,
                             result=tool_result,
-                            timestamp=datetime.now().isoformat()
+                            timestamp=datetime.now().isoformat(),
                         )
                         self.tool_execution_history.append(execution_record)
 
                         # Log tool execution result
                         if tool_result.success:
-                            logger.info(f"Tool {tool_request.name} executed successfully")
+                            logger.info(
+                                f"Tool {tool_request.name} executed successfully"
+                            )
                         else:
-                            logger.warning(f"Tool {tool_request.name} failed: {tool_result.error}")
+                            logger.warning(
+                                f"Tool {tool_request.name} failed: {tool_result.error}"
+                            )
 
             # Create response object
             response = RoundResponse(
@@ -263,7 +370,9 @@ class DeliberationEngine:
 
         return responses
 
-    def _truncate_output(self, output: Optional[str], max_chars: int = 1000) -> Optional[str]:
+    def _truncate_output(
+        self, output: Optional[str], max_chars: int = 1000
+    ) -> Optional[str]:
         """
         Truncate tool output to prevent context bloat.
 
@@ -279,11 +388,15 @@ class DeliberationEngine:
 
         truncated = output[:max_chars]
         chars_truncated = len(output) - max_chars
-        lines_truncated = output.count('\n') - truncated.count('\n')
+        lines_truncated = output.count("\n") - truncated.count("\n")
 
         return f"{truncated}\n... [truncated {chars_truncated} chars, {lines_truncated} lines]"
 
-    def _build_context(self, previous_responses: List[RoundResponse], current_round_num: Optional[int] = None) -> str:
+    def _build_context(
+        self,
+        previous_responses: List[RoundResponse],
+        current_round_num: Optional[int] = None,
+    ) -> str:
         """
         Build context string from previous responses and recent tool results.
 
@@ -298,29 +411,37 @@ class DeliberationEngine:
 
         for resp in previous_responses:
             context_parts.append(
-                f"Round {resp.round} - {resp.participant}: "
-                f"{resp.response}\n"
+                f"Round {resp.round} - {resp.participant}: " f"{resp.response}\n"
             )
 
         # Add tool results from recent rounds
         if self.tool_execution_history and current_round_num:
             # Get config values with defaults
-            max_rounds = getattr(
-                getattr(self.config, 'deliberation', None),
-                'tool_context_max_rounds',
-                2
-            ) if self.config else 2
+            max_rounds = (
+                getattr(
+                    getattr(self.config, "deliberation", None),
+                    "tool_context_max_rounds",
+                    2,
+                )
+                if self.config
+                else 2
+            )
 
-            max_chars = getattr(
-                getattr(self.config, 'deliberation', None),
-                'tool_output_max_chars',
-                1000
-            ) if self.config else 1000
+            max_chars = (
+                getattr(
+                    getattr(self.config, "deliberation", None),
+                    "tool_output_max_chars",
+                    1000,
+                )
+                if self.config
+                else 1000
+            )
 
             # Filter to recent N rounds
             min_round = max(1, current_round_num - max_rounds)
             recent_tools = [
-                record for record in self.tool_execution_history
+                record
+                for record in self.tool_execution_history
                 if record.round_number >= min_round
             ]
 
@@ -587,6 +708,7 @@ You have access to tools to gather concrete evidence. Use them actively:
 - `search_code`: Search codebase with regex patterns
 - `list_files`: List files matching glob patterns
 - `run_command`: Execute safe read-only commands
+- `get_file_tree`: Get file tree with custom depth/file limits
 
 **How to use tools:**
 ```
@@ -598,9 +720,14 @@ TOOL_REQUEST: {"name": "read_file", "arguments": {"path": "src/file.py"}}
 - Tools execute in the client's working directory, so relative paths work
 - Gather evidence first, then provide analysis based on actual data
 - Tool results are visible to all participants in subsequent rounds"""
+            logger.debug("Tool instructions INCLUDED in enhanced prompt")
+        else:
+            logger.debug("Tool instructions NOT included - tool executor not available")
 
         voting_instructions = self._build_voting_instructions()
-        return f"{deliberation_instructions}{tool_instructions}\n\n## Question\n{prompt}\n\n{voting_instructions}"
+        enhanced_prompt_final = f"{deliberation_instructions}{tool_instructions}\n\n## Question\n{prompt}\n\n{voting_instructions}"
+        logger.debug(f"Enhanced prompt total length: {len(enhanced_prompt_final)} chars")
+        return enhanced_prompt_final
 
     def _check_early_stopping(
         self, round_responses: List[RoundResponse], round_num: int, min_rounds: int
@@ -825,14 +952,19 @@ TOOL_REQUEST: {"name": "read_file", "arguments": {"path": "src/file.py"}}
                 lines = graph_context.split("\n")
                 # Count headers with similarity scores (new tiered formatter)
                 decisions = [
-                    line for line in lines
+                    line
+                    for line in lines
                     if ("### " in line and "similarity" in line.lower())
                     or line.startswith("### Past Deliberation")
                 ]
                 if decisions:
                     # Count by tier if using new formatter
                     strong = sum(1 for d in decisions if "strong" in d.lower())
-                    moderate = sum(1 for d in decisions if "moderate" in d.lower() or "related" in d.lower())
+                    moderate = sum(
+                        1
+                        for d in decisions
+                        if "moderate" in d.lower() or "related" in d.lower()
+                    )
                     brief = sum(1 for d in decisions if "brief" in d.lower())
 
                     if strong or moderate or brief:
@@ -915,7 +1047,20 @@ TOOL_REQUEST: {"name": "read_file", "arguments": {"path": "src/file.py"}}
                 final_similarity=final_convergence_info.min_similarity
                 if final_convergence_info
                 else 0.0,
-                status=cast(Literal["converged", "diverging", "refining", "impasse", "max_rounds", "unanimous_consensus", "majority_decision", "tie", "unknown"], convergence_status),
+                status=cast(
+                    Literal[
+                        "converged",
+                        "diverging",
+                        "refining",
+                        "impasse",
+                        "max_rounds",
+                        "unanimous_consensus",
+                        "majority_decision",
+                        "tie",
+                        "unknown",
+                    ],
+                    convergence_status,
+                ),
                 scores_by_round=[],  # Could track all rounds if needed
                 per_participant_similarity=final_convergence_info.per_participant_similarity
                 if final_convergence_info

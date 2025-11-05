@@ -1,7 +1,10 @@
 """Base CLI adapter with subprocess management."""
 import asyncio
+import logging
 from abc import ABC, abstractmethod
 from typing import Optional
+
+logger = logging.getLogger(__name__)
 
 
 class BaseCLIAdapter(ABC):
@@ -31,6 +34,7 @@ class BaseCLIAdapter(ABC):
         model: str,
         context: Optional[str] = None,
         is_deliberation: bool = True,
+        working_directory: Optional[str] = None,
     ) -> str:
         """
         Invoke the CLI tool with the given prompt and model.
@@ -40,6 +44,7 @@ class BaseCLIAdapter(ABC):
             model: Model identifier
             context: Optional additional context
             is_deliberation: Whether this is part of a deliberation (auto-adjusts -p flag for Claude)
+            working_directory: Optional working directory for subprocess execution (defaults to current directory)
 
         Returns:
             Parsed response from the model
@@ -65,15 +70,28 @@ class BaseCLIAdapter(ABC):
         # Adjust args based on context (for auto-detecting deliberation mode)
         args = self._adjust_args_for_context(is_deliberation)
 
-        # Format arguments
-        formatted_args = [arg.format(model=model, prompt=full_prompt) for arg in args]
+        # Determine working directory for subprocess
+        # Use provided working_directory if specified, otherwise use current directory
+        import os
+
+        cwd = working_directory if working_directory else os.getcwd()
+
+        # Format arguments with {model}, {prompt}, and {working_directory} placeholders
+        formatted_args = [
+            arg.format(model=model, prompt=full_prompt, working_directory=cwd)
+            for arg in args
+        ]
+
+        # Log the command being executed
+        logger.info(
+            f"Executing CLI adapter: command={self.command}, "
+            f"model={model}, cwd={cwd}, "
+            f"prompt_length={len(full_prompt)} chars"
+        )
+        logger.debug(f"Full command: {self.command} {' '.join(formatted_args[:3])}... (args truncated)")
 
         # Execute subprocess
         try:
-            # Set cwd to ensure local .claude settings are used if they exist
-            from pathlib import Path
-
-            cwd = Path(__file__).parent.parent.absolute()
 
             process = await asyncio.create_subprocess_exec(
                 self.command,
@@ -81,7 +99,7 @@ class BaseCLIAdapter(ABC):
                 stdin=asyncio.subprocess.DEVNULL,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
-                cwd=str(cwd),
+                cwd=cwd,
             )
 
             stdout, stderr = await asyncio.wait_for(
@@ -90,12 +108,26 @@ class BaseCLIAdapter(ABC):
 
             if process.returncode != 0:
                 error_msg = stderr.decode("utf-8", errors="replace")
+                logger.error(
+                    f"CLI process failed: command={self.command}, "
+                    f"model={model}, returncode={process.returncode}, "
+                    f"error={error_msg[:200]}"
+                )
                 raise RuntimeError(f"CLI process failed: {error_msg}")
 
             raw_output = stdout.decode("utf-8", errors="replace")
+            logger.info(
+                f"CLI adapter completed successfully: command={self.command}, "
+                f"model={model}, output_length={len(raw_output)} chars"
+            )
+            logger.debug(f"Raw output preview: {raw_output[:500]}...")
             return self.parse_output(raw_output)
 
         except asyncio.TimeoutError:
+            logger.error(
+                f"CLI invocation timed out: command={self.command}, "
+                f"model={model}, timeout={self.timeout}s"
+            )
             raise TimeoutError(f"CLI invocation timed out after {self.timeout}s")
 
     def _adjust_args_for_context(self, is_deliberation: bool) -> list[str]:

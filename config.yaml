@@ -47,12 +47,14 @@ cli_tools:
 
   gemini:
     command: "gemini"
-    args: ["--include-directories", "/tmp", "-m", "{model}", "-p", "{prompt}"]
+    args: ["--include-directories", "{working_directory}", "-m", "{model}", "-p", "{prompt}"]
     timeout: 180
     # Valid models: "gemini-2.5-pro" (default) or other Gemini identifiers
     #
-    # Security Configuration:
-    # - --include-directories /tmp: Allows access to temporary files for evidence-based deliberation
+    # Working Directory Configuration:
+    # - --include-directories {working_directory}: Dynamically allows access to the client's working directory
+    # - The {working_directory} placeholder is replaced at runtime with the actual directory path
+    # - This enables evidence-based deliberation tools to read files from the correct repository
     # Note: Without this flag, Gemini blocks access outside workspace with error:
     #       "File path must be within one of the workspace directories"
     # Known Issue: Setting includeDirectories in .gemini/settings.json is broken (GitHub issue #5512)
@@ -206,6 +208,26 @@ deliberation:
   # Legacy settings (keep these)
   convergence_threshold: 0.8
   enable_convergence_detection: true
+
+  # File tree injection for Round 1
+  file_tree:
+    enabled: true
+    max_depth: 3
+    max_files: 100
+
+  # Tool security settings (prevents context contamination)
+  tool_security:
+    exclude_patterns:
+      - "transcripts/"      # Exclude deliberation transcripts (prevents models from reading about other codebases)
+      - "transcripts/**"
+      - ".git/"            # Exclude version control
+      - ".git/**"
+      - "node_modules/"    # Exclude dependencies
+      - "node_modules/**"
+      - ".venv/"           # Exclude Python virtual environments
+      - "venv/"
+      - "__pycache__/"     # Exclude Python cache
+    max_file_size_bytes: 1048576  # 1MB limit for read_file
 
 # Decision Graph Memory
 decision_graph:
