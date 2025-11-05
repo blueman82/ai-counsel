@@ -245,13 +245,6 @@ Control tool behavior in `config.yaml`:
 | **Gemini** | Enforces workspace boundaries | **Required**: `--include-directories {working_directory}` flag |
 | **Ollama/LMStudio** | N/A - HTTP adapters | No file system access restrictions |
 
-**Gemini Setup** (required for file access):
-```yaml
-gemini:
-  args: ["--include-directories", "{working_directory}", "-m", "{model}", "-p", "{prompt}"]
-```
-The `{working_directory}` placeholder is replaced at runtime with your client's directory.
-
 **Learn More:**
 - [Complete Configuration Reference](CLAUDE.md#configuration-notes) - All config.yaml settings explained
 - [Working Directory Isolation](CLAUDE.md#core-components) - How adapters handle file paths
