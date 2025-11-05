@@ -235,16 +235,28 @@ Control tool behavior in `config.yaml`:
 - `max_depth`: Directory depth limit (default: 3)
 - `max_files`: Maximum files to include (default: 100)
 
-**Adapter-Specific Setup:**
+**Adapter-Specific Requirements:**
 
-> **📌 Gemini Users**: Gemini requires working directory access to read files. Ensure your `config.yaml` includes:
-> ```yaml
-> gemini:
->   args: ["--include-directories", "{working_directory}", "-m", "{model}", "-p", "{prompt}"]
-> ```
-> The `{working_directory}` placeholder is automatically replaced with your client's directory at runtime.
+| Adapter | Working Directory Behavior | Configuration |
+|---------|---------------------------|---------------|
+| **Claude** | Automatic isolation via subprocess cwd | No special config needed |
+| **Codex** | No true isolation - can access any file | Security consideration: models can read outside working_directory |
+| **Droid** | Automatic isolation via subprocess cwd | No special config needed |
+| **Gemini** | Enforces workspace boundaries | **Required**: `--include-directories {working_directory}` flag |
+| **Ollama/LMStudio** | N/A - HTTP adapters | No file system access restrictions |
 
-See [Configuration Reference](CLAUDE.md#configuration-notes) for complete settings.
+**Gemini Setup** (required for file access):
+```yaml
+gemini:
+  args: ["--include-directories", "{working_directory}", "-m", "{model}", "-p", "{prompt}"]
+```
+The `{working_directory}` placeholder is replaced at runtime with your client's directory.
+
+**Learn More:**
+- [Complete Configuration Reference](CLAUDE.md#configuration-notes) - All config.yaml settings explained
+- [Working Directory Isolation](CLAUDE.md#core-components) - How adapters handle file paths
+- [Tool Security Model](CLAUDE.md#evidence-based-deliberation) - Whitelists, limits, and exclusions
+- [Adding Custom Tools](docs/adding-tool.md) - Developer guide for extending the tool system
 
 ### Troubleshooting
 
