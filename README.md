@@ -239,9 +239,9 @@ Control tool behavior in `config.yaml`:
 
 | Adapter | Working Directory Behavior | Configuration |
 |---------|---------------------------|---------------|
-| **Claude** | Automatic isolation via subprocess cwd | No special config needed |
-| **Codex** | No true isolation - can access any file | Security consideration: models can read outside `working_directory` |
-| **Droid** | Automatic isolation via subprocess cwd | No special config needed |
+| **Claude** | Automatic isolation via subprocess `{working_directory}` | No special config needed |
+| **Codex** | No true isolation - can access any file | Security consideration: models can read outside `{working_directory}` |
+| **Droid** | Automatic isolation via subprocess `{working_directory}` | No special config needed |
 | **Gemini** | Enforces workspace boundaries | **Required**: `--include-directories {working_directory}` flag |
 | **Ollama/LMStudio** | N/A - HTTP adapters | No file system access restrictions |
 
