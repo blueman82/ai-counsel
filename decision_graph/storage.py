@@ -7,6 +7,7 @@ CRUD operations, and efficient querying with proper indexing.
 
 import json
 import logging
+import os
 import sqlite3
 from contextlib import contextmanager
 from datetime import datetime
@@ -34,11 +35,67 @@ class DecisionGraphStorage:
 
         Args:
             db_path: Path to SQLite database file. Use ":memory:" for in-memory database.
+
+        Raises:
+            RuntimeError: If database initialization or schema verification fails.
         """
         self.db_path = db_path
         self._conn: Optional[sqlite3.Connection] = None
-        self._initialize_db()
-        logger.info(f"Initialized DecisionGraphStorage at {db_path}")
+
+        # Ensure parent directory exists (unless using in-memory database)
+        if db_path != ":memory:":
+            from pathlib import Path
+            db_file = Path(db_path)
+            db_file.parent.mkdir(parents=True, exist_ok=True)
+            logger.debug(f"Ensured parent directory exists: {db_file.parent}")
+
+        try:
+            # Force connection creation before initializing schema
+            # This ensures the database file is created immediately
+            _ = self.conn
+            logger.debug(f"Database connection established: {db_path}")
+
+            # Initialize database schema
+            self._initialize_db()
+
+            # Verify schema was properly created
+            if not self._verify_schema():
+                raise RuntimeError(
+                    f"Database schema verification failed for {db_path}. "
+                    "Tables may not have been created properly."
+                )
+
+            logger.info(f"Initialized DecisionGraphStorage at {db_path}")
+
+        except Exception as e:
+            # Clean up corrupted 0-byte database file
+            if db_path != ":memory:" and os.path.exists(db_path):
+                file_size = os.path.getsize(db_path)
+                if file_size == 0:
+                    logger.warning(
+                        f"Removing corrupted 0-byte database file: {db_path}"
+                    )
+                    try:
+                        os.remove(db_path)
+                    except OSError as remove_err:
+                        logger.error(f"Failed to remove corrupted file: {remove_err}")
+
+            # Close connection if it was opened
+            if self._conn is not None:
+                try:
+                    self._conn.close()
+                except Exception:
+                    pass
+                self._conn = None
+
+            logger.error(
+                f"Failed to initialize DecisionGraphStorage at {db_path}: {e}",
+                exc_info=True
+            )
+            raise RuntimeError(
+                f"Database initialization failed: {e}. "
+                "Check logs and file permissions."
+            ) from e
 
     @property
     def conn(self) -> sqlite3.Connection:
@@ -156,6 +213,42 @@ class DecisionGraphStorage:
             )
 
             logger.debug("Database schema and indexes initialized successfully")
+
+    def _verify_schema(self) -> bool:
+        """Verify that the database schema was properly created.
+
+        Returns:
+            True if all required tables exist, False otherwise.
+        """
+        try:
+            cursor = self.conn.execute(
+                "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name"
+            )
+            tables = {row[0] for row in cursor.fetchall()}
+            required_tables = {'decision_nodes', 'participant_stances', 'decision_similarities'}
+
+            if not required_tables.issubset(tables):
+                missing = required_tables - tables
+                logger.error(f"Missing required tables: {missing}")
+                return False
+
+            # Verify the database file has actual content (not 0 bytes)
+            if self.db_path != ":memory:":
+                if os.path.exists(self.db_path):
+                    file_size = os.path.getsize(self.db_path)
+                    if file_size == 0:
+                        logger.error(f"Database file exists but is empty (0 bytes): {self.db_path}")
+                        return False
+                    logger.debug(f"Database file size: {file_size} bytes")
+                else:
+                    logger.error(f"Database file does not exist: {self.db_path}")
+                    return False
+
+            logger.debug("Database schema verification successful")
+            return True
+        except Exception as e:
+            logger.error(f"Schema verification failed: {e}", exc_info=True)
+            return False
 
     def save_decision_node(self, node: DecisionNode) -> str:
         """Save a decision node to the database.
