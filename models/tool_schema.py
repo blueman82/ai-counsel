@@ -8,10 +8,7 @@ class ToolRequest(BaseModel):
     """Model for a tool invocation request."""
 
     name: Literal[
-        "read_file",
-        "search_code",
-        "list_files",
-        "run_command"
+        "read_file", "search_code", "list_files", "run_command", "get_file_tree"
     ] = Field(..., description="Tool name to invoke")
 
     arguments: Dict[str, Any] = Field(
@@ -33,9 +30,11 @@ class ToolExecutionRecord(BaseModel):
 
     request: ToolRequest = Field(..., description="The original tool request")
     result: ToolResult = Field(..., description="The execution result")
-    round_number: int = Field(..., description="Deliberation round when tool was invoked")
+    round_number: int = Field(
+        ..., description="Deliberation round when tool was invoked"
+    )
     requested_by: str = Field(..., description="Participant ID who requested the tool")
     timestamp: str = Field(
         default_factory=lambda: datetime.now().isoformat(),
-        description="ISO 8601 timestamp of execution"
+        description="ISO 8601 timestamp of execution",
     )

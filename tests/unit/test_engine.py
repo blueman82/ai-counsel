@@ -5,6 +5,13 @@ from pathlib import Path
 import pytest
 
 from deliberation.engine import DeliberationEngine
+from deliberation.tools import (
+    ToolExecutor,
+    ReadFileTool,
+    SearchCodeTool,
+    ListFilesTool,
+    RunCommandTool,
+)
 from models.schema import Participant, RoundResponse, Vote
 
 
@@ -513,7 +520,6 @@ class TestEngineWithTools:
         """
         import asyncio
         import time
-        from deliberation.tools import ToolExecutor, BaseTool, ReadFileTool
         from models.tool_schema import ToolResult
 
         # Create a tool that hangs (use registered tool name to pass schema validation)
@@ -532,6 +538,7 @@ class TestEngineWithTools:
         engine = DeliberationEngine(mock_adapters)
         engine.tool_executor = ToolExecutor()
         engine.tool_executor.register_tool(SlowReadFileTool())  # Override read_file with slow version
+        engine.tool_execution_history = []
 
         participants = [Participant(cli="claude", model="sonnet", stance="neutral")]
 
@@ -568,6 +575,12 @@ class TestEngineWithTools:
         Actual (BUG): History accumulates indefinitely.
         """
         engine = DeliberationEngine(mock_adapters)
+        engine.tool_executor = ToolExecutor()
+        engine.tool_executor.register_tool(ReadFileTool())
+        engine.tool_executor.register_tool(SearchCodeTool())
+        engine.tool_executor.register_tool(ListFilesTool())
+        engine.tool_executor.register_tool(RunCommandTool())
+        engine.tool_execution_history = []
 
         # First deliberation with tool request
         test_file1 = tmp_path / "file1.txt"
@@ -637,6 +650,12 @@ class TestEngineWithTools:
         In production: ~1-3MB per deliberation × unlimited = OOM crash.
         """
         engine = DeliberationEngine(mock_adapters)
+        engine.tool_executor = ToolExecutor()
+        engine.tool_executor.register_tool(ReadFileTool())
+        engine.tool_executor.register_tool(SearchCodeTool())
+        engine.tool_executor.register_tool(ListFilesTool())
+        engine.tool_executor.register_tool(RunCommandTool())
+        engine.tool_execution_history = []
 
         participants = [
             Participant(cli="claude", model="sonnet", stance="neutral"),

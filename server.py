@@ -453,6 +453,28 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
         else:
             result_dict["full_debate_truncated"] = False
 
+        # Summarize tool_executions for MCP response (full detail is in transcript)
+        if result_dict.get("tool_executions"):
+            tool_summary = {
+                "total_tools_executed": len(result_dict["tool_executions"]),
+                "tools_by_round": {},
+                "tools_by_type": {},
+            }
+
+            for execution in result_dict["tool_executions"]:
+                # Count by round
+                round_num = execution.get("round_number", 0)
+                tool_summary["tools_by_round"][round_num] = tool_summary["tools_by_round"].get(round_num, 0) + 1
+
+                # Count by tool type
+                tool_name = execution.get("request", {}).get("name", "unknown")
+                tool_summary["tools_by_type"][tool_name] = tool_summary["tools_by_type"].get(tool_name, 0) + 1
+
+            # Replace massive tool_executions array with compact summary
+            result_dict["tool_executions"] = tool_summary
+            result_dict["tool_executions_note"] = "Tool execution details available in transcript file"
+            logger.info(f"Summarized {tool_summary['total_tools_executed']} tool executions for MCP response")
+
         # Serialize result
         result_json = json.dumps(result_dict, indent=2)
         logger.info(f"Result serialized, length: {len(result_json)} chars")

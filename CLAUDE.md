@@ -29,20 +29,33 @@ AI Counsel is an MCP (Model Context Protocol) server that enables true deliberat
 
 **Tool Execution System** (`deliberation/tools.py`, `models/tool_schema.py`)
 - Base: `BaseTool` with `execute()` method and security controls
-- Tools: `ReadFileTool` (1MB limit), `SearchCodeTool`, `ListFilesTool`, `RunCommandTool` (whitelist: ls, grep, find, cat, head, tail)
+- Tools: `ReadFileTool` (configurable size limit), `SearchCodeTool`, `ListFilesTool`, `RunCommandTool` (whitelist: ls, grep, find, cat, head, tail), `GetFileTreeTool` (ASCII output for clean JSON)
 - Orchestrator: `ToolExecutor` parses TOOL_REQUEST markers, validates, routes to tools
-- Security: Whitelisted commands, file size limits, timeout protection (10s default), comprehensive error handling
+- Security: Whitelisted commands, file size limits, timeout protection (10s default), path exclusion patterns (prevents context contamination)
+- Path Exclusions: Configurable patterns to block access to sensitive directories (e.g., `transcripts/`, `.git/`, `node_modules/`)
+- File Tree Rendering: Uses ASCII characters (`|--`) in tool responses for clean JSON serialization; Unicode box-drawing (`├──`) in Round 1 prompts for better readability
 - Context injection: Tool results visible to all participants in subsequent rounds
 
 **CLI Adapters** (`adapters/base.py`, `adapters/claude.py`, etc.)
 - Base: `BaseCLIAdapter` handles subprocess execution, timeout, error handling
 - Concrete: `ClaudeAdapter`, `CodexAdapter`, `DroidAdapter`, `GeminiAdapter`, `LlamaCppAdapter`
 - Factory pattern in `adapters/__init__.py` creates adapters from config
+- **Working Directory Isolation**: All adapters run subprocesses from `working_directory` parameter (client's current directory), preventing models from analyzing the wrong repository
 - **LlamaCpp Auto-Discovery**: Resolves model names to file paths automatically, searches default paths, supports fuzzy matching
 - **Model Size Recommendations**:
   - Minimum: 7B-8B parameters (Llama-3-8B, Mistral-7B, Qwen-2.5-7B)
   - Not recommended: <3B parameters (struggle with vote formatting, echo prompts)
   - Token limits: Use 2048+ tokens for complete responses
+
+**Working Directory Isolation** (`adapters/base.py`)
+- All CLI adapters run subprocesses from the `working_directory` passed by MCP clients
+- Prevents models from analyzing the AI Counsel codebase when deliberating about user projects
+- **Claude**: Default isolation via subprocess cwd - models only see files in working directory
+- **Gemini**: Workspace boundaries via `--include-directories` flag + subprocess cwd - strict isolation
+- **Codex**: **Known limitation** - can access any file regardless of working_directory (no true isolation)
+- **Droid**: Subprocess cwd provides basic isolation (no additional flags needed)
+- Flow: MCP client's cwd → `deliberate` tool's `working_directory` → adapter subprocess cwd → model sees correct repository
+- Important: Without `working_directory`, adapters default to current directory (usually the AI Counsel directory)
 
 **HTTP Adapter Layer** (`adapters/base_http.py`, `adapters/ollama.py`, etc.)
 - Base: `BaseHTTPAdapter` handles HTTP mechanics, retry logic, error handling
@@ -95,7 +108,8 @@ AI Counsel is an MCP (Model Context Protocol) server that enables true deliberat
 2. Request validated against `DeliberateRequest` schema
 3. `DeliberationEngine.execute()` orchestrates rounds
 4. For each round:
-   - `execute_round()` → prompts enhanced with voting instructions → adapters invoke CLIs
+   - `execute_round()` → prompts enhanced with voting instructions → adapters invoke CLIs with `working_directory`
+   - **Adapter isolation**: Subprocess runs from `working_directory` (client's cwd), models analyze correct repository
    - Responses collected and votes parsed from "VOTE: {json}" markers
    - **Tool request parsing**: Extract TOOL_REQUEST markers from responses
    - **Tool execution**: Change to `working_directory`, validate, execute with timeout/error handling, restore original directory
@@ -174,10 +188,11 @@ Enables AI models to gather concrete evidence during debates by executing tools.
 
 **Security**:
 - Input validation: Pydantic schema prevents malformed requests
-- Resource limits: 1MB files, 10s timeout, output truncation
+- Resource limits: Configurable file size (default 1MB), 10s timeout, output truncation
+- Path exclusions: Blocks access to configured patterns (`transcripts/`, `.git/`, `node_modules/`, etc.) to prevent context contamination
 - Isolation: Tool failures don't halt deliberation
 - Audit trail: All executions recorded with timestamps
-- Known limitations: No sandboxing, path traversal not blocked, no rate limiting
+- Known limitations: No sandboxing beyond path exclusions, no rate limiting
 
 **Performance**:
 - Parse: <1ms, Validate: <1ms
@@ -236,7 +251,9 @@ mypy .            # Type check (optional)
 Claude CLI: `--settings '{"disableAllHooks": true}'` prevents hooks from interfering. Critical for reliable execution.
 
 ### MCP Response Truncation
-`mcp.max_rounds_in_response: 3` limits rounds in MCP response (avoids token limits). Full transcript always saved to file.
+- `mcp.max_rounds_in_response: 3` limits rounds in MCP response (avoids token limits)
+- Tool executions are summarized (count by round/type) in MCP response, not full output
+- Full transcript with complete tool outputs always saved to file
 
 ## Extension Guides
 
@@ -253,6 +270,7 @@ For detailed step-by-step guides on extending the system, see:
 - **Simple**: Straightforward solutions over clever abstractions
 - **Type Safety**: Pydantic validation throughout
 - **Error Isolation**: Adapter failures don't halt entire deliberation
+- **NO TODOs**: Never commit TODO comments. All configuration must be in `config.yaml` with Pydantic schemas in `models/config.py`. Hardcoded values are technical debt that violate the project's configuration architecture
 
 ## Common Gotchas
 
@@ -266,6 +284,9 @@ For detailed step-by-step guides on extending the system, see:
 8. **Prompt Length Limits**: Gemini adapter validates prompts ≤100k chars (prevents "invalid argument" API errors). `BaseCLIAdapter.invoke()` checks `validate_prompt_length()` if adapter implements it and raises `ValueError` with helpful message before making API call. Other adapters can implement similar validation.
 9. **Tool Execution Errors**: Tool failures are isolated - they don't halt deliberation. Models receive error messages in tool results and can adapt their reasoning. Always check `ToolResult.success` before using `output`.
 10. **Working Directory Requirement**: The `deliberate` tool requires a `working_directory` parameter (client's current directory). Tools resolve relative paths from this directory. Without it, the request will fail validation. MCP clients should always pass their current working directory.
+11. **Database Directory Creation**: `DecisionGraphStorage` automatically creates parent directories for the database file if they don't exist. This prevents "readonly database" errors for first-time users. If you get SQLite errors, check file/directory permissions, not just existence.
+12. **Tool Path Exclusions**: Tools automatically exclude configured patterns (`transcripts/`, `.git/`, etc.) to prevent context contamination. When models read transcript files from previous deliberations about different codebases, they get confused and describe the wrong repository. File tree generation also excludes these directories.
+13. **NO TODOs - Configuration Pattern Violation**: Never commit TODO comments or hardcoded configuration values. This violates the project's configuration architecture where ALL settings live in `config.yaml` and are validated via Pydantic schemas in `models/config.py`. If you find yourself writing `# TODO: Make configurable`, STOP immediately and implement proper configuration first. Example violation: `max_depth=3 # TODO: Make configurable`. Correct approach: Add `FileTreeConfig` to `models/config.py`, add section to `config.yaml`, read from `self.config.deliberation.file_tree.max_depth`. This pattern applies to ALL configurable values across the entire codebase.
 
 ## Common Development Patterns
 
@@ -318,6 +339,35 @@ try:
     result = await asyncio.wait_for(slow_operation(), timeout=self.timeout)
 except asyncio.TimeoutError:
     return ToolResult(success=False, error="Operation timed out")
+```
+
+### Proper Configuration Pattern (NO TODOs)
+```python
+# WRONG - NEVER DO THIS
+def my_function(self):
+    max_depth = 3  # TODO: Make configurable
+    max_files = 100  # TODO: Make configurable
+
+# RIGHT - Configuration-First Approach
+# 1. Add to models/config.py
+class MyFeatureConfig(BaseModel):
+    max_depth: int = Field(default=3, ge=1, le=10)
+    max_files: int = Field(default=100, ge=10, le=1000)
+
+class DeliberationConfig(BaseModel):
+    my_feature: MyFeatureConfig = Field(default_factory=MyFeatureConfig)
+
+# 2. Add to config.yaml
+deliberation:
+  my_feature:
+    max_depth: 3
+    max_files: 100
+
+# 3. Use in code
+def my_function(self):
+    config = self.config.deliberation.my_feature
+    max_depth = config.max_depth
+    max_files = config.max_files
 ```
 
 ## Testing Strategy

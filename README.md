@@ -177,15 +177,17 @@ Add new CLI tools or HTTP adapters to fit your infrastructure. Simple 3-5 step p
 
 Ground design decisions in reality by querying actual code, files, and data:
 
-```json
-{
-  "question": "Should we migrate from SQLite to PostgreSQL?",
-  "participants": [
-    {"cli": "claude", "model": "sonnet"},
-    {"cli": "codex", "model": "gpt-4"}
+```javascript
+// MCP client example (e.g., Claude Code)
+mcp__ai_counsel__deliberate({
+  question: "Should we migrate from SQLite to PostgreSQL?",
+  participants: [
+    {cli: "claude", model: "sonnet"},
+    {cli: "codex", model: "gpt-4"}
   ],
-  "rounds": 3
-}
+  rounds: 3,
+  working_directory: process.cwd()  // Required - enables tools to access your files
+})
 ```
 
 **During deliberation, models can:**
@@ -214,7 +216,59 @@ Ground design decisions in reality by querying actual code, files, and data:
 - `list_files` - List files matching glob patterns
 - `run_command` - Execute safe read-only commands (ls, git, grep, etc.)
 
-See [full documentation](CLAUDE.md#adding-a-new-tool) for adding custom tools.
+### Configuration
+
+Control tool behavior in `config.yaml`:
+
+**Working Directory** (Required):
+- Set `working_directory` parameter when calling `deliberate` tool
+- Tools resolve relative paths from this directory
+- Example: `working_directory: process.cwd()` in JavaScript MCP clients
+
+**Tool Security** (`deliberation.tool_security`):
+- `exclude_patterns`: Block access to sensitive directories (default: `transcripts/`, `.git/`, `node_modules/`)
+- `max_file_size_bytes`: File size limit for `read_file` (default: 1MB)
+- `command_whitelist`: Safe commands for `run_command` (ls, grep, find, cat, head, tail)
+
+**File Tree** (`deliberation.file_tree`):
+- `enabled`: Inject repository structure into Round 1 prompts (default: true)
+- `max_depth`: Directory depth limit (default: 3)
+- `max_files`: Maximum files to include (default: 100)
+
+**Adapter-Specific Setup:**
+
+> **📌 Gemini Users**: Gemini requires working directory access to read files. Ensure your `config.yaml` includes:
+> ```yaml
+> gemini:
+>   args: ["--include-directories", "{working_directory}", "-m", "{model}", "-p", "{prompt}"]
+> ```
+> The `{working_directory}` placeholder is automatically replaced with your client's directory at runtime.
+
+See [Configuration Reference](CLAUDE.md#configuration-notes) for complete settings.
+
+### Troubleshooting
+
+**"File not found" errors:**
+- Ensure `working_directory` is set correctly in your MCP client call
+- Use discovery pattern: `list_files` → `read_file`
+- Check file paths are relative to working directory
+
+**"Access denied: Path matches exclusion pattern":**
+- Tools block `transcripts/`, `.git/`, `node_modules/` by default
+- Customize via `deliberation.tool_security.exclude_patterns` in config.yaml
+
+**Gemini "File path must be within workspace" errors:**
+- Verify Gemini's `--include-directories` flag uses `{working_directory}` placeholder
+- See adapter-specific setup above
+
+**Tool timeout errors:**
+- Increase `deliberation.tool_security.tool_timeout` for slow operations
+- Default: 10 seconds for file operations, 30 seconds for commands
+
+**Learn More:**
+- [Adding Custom Tools](docs/adding-tool.md) - Developer guide for extending tool system
+- [Architecture & Security](CLAUDE.md#evidence-based-deliberation) - How tools work under the hood
+- [Common Gotchas](CLAUDE.md#common-gotchas) - Advanced settings and known issues
 
 ## Decision Graph Memory
 

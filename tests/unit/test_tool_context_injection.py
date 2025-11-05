@@ -8,7 +8,13 @@ from datetime import datetime
 from pathlib import Path
 
 from deliberation.engine import DeliberationEngine
-from deliberation.tools import ToolExecutor
+from deliberation.tools import (
+    ToolExecutor,
+    ReadFileTool,
+    SearchCodeTool,
+    ListFilesTool,
+    RunCommandTool,
+)
 from models.schema import Participant, RoundResponse
 from models.tool_schema import ToolRequest, ToolResult, ToolExecutionRecord
 
@@ -20,6 +26,12 @@ class TestToolResultContextInjection:
     async def test_tool_results_injected_into_context(self, mock_adapters, tmp_path):
         """Test tool results are actually injected into subsequent round contexts."""
         engine = DeliberationEngine(mock_adapters)
+        engine.tool_executor = ToolExecutor()
+        engine.tool_executor.register_tool(ReadFileTool())
+        engine.tool_executor.register_tool(SearchCodeTool())
+        engine.tool_executor.register_tool(ListFilesTool())
+        engine.tool_executor.register_tool(RunCommandTool())
+        engine.tool_execution_history = []
 
         # Create test file
         test_file = tmp_path / "config.yaml"
@@ -57,6 +69,12 @@ TOOL_REQUEST: {{"name": "read_file", "arguments": {{"path": "{test_file}"}}}}
     async def test_tool_results_visible_to_all_participants_in_next_round(self, mock_adapters, tmp_path):
         """Test all participants see tool results in their prompts."""
         engine = DeliberationEngine(mock_adapters)
+        engine.tool_executor = ToolExecutor()
+        engine.tool_executor.register_tool(ReadFileTool())
+        engine.tool_executor.register_tool(SearchCodeTool())
+        engine.tool_executor.register_tool(ListFilesTool())
+        engine.tool_executor.register_tool(RunCommandTool())
+        engine.tool_execution_history = []
 
         test_file = tmp_path / "data.txt"
         test_file.write_text("important evidence")
@@ -125,6 +143,12 @@ TOOL_REQUEST: {{"name": "read_file", "arguments": {{"path": "{test_file}"}}}}
     async def test_truncation_actually_applied(self, mock_adapters, tmp_path):
         """Test that large tool outputs are actually truncated in context."""
         engine = DeliberationEngine(mock_adapters)
+        engine.tool_executor = ToolExecutor()
+        engine.tool_executor.register_tool(ReadFileTool())
+        engine.tool_executor.register_tool(SearchCodeTool())
+        engine.tool_executor.register_tool(ListFilesTool())
+        engine.tool_executor.register_tool(RunCommandTool())
+        engine.tool_execution_history = []
 
         # Create large file (5KB)
         large_file = tmp_path / "large.txt"
@@ -158,6 +182,12 @@ TOOL_REQUEST: {{"name": "read_file", "arguments": {{"path": "{large_file}"}}}}
     async def test_round_filtering_actually_applied(self, mock_adapters, tmp_path):
         """Test that old tool results are actually filtered out."""
         engine = DeliberationEngine(mock_adapters)
+        engine.tool_executor = ToolExecutor()
+        engine.tool_executor.register_tool(ReadFileTool())
+        engine.tool_executor.register_tool(SearchCodeTool())
+        engine.tool_executor.register_tool(ListFilesTool())
+        engine.tool_executor.register_tool(RunCommandTool())
+        engine.tool_execution_history = []
 
         participants = [Participant(cli="claude", model="sonnet", stance="neutral")]
 
@@ -195,6 +225,12 @@ TOOL_REQUEST: {{"name": "read_file", "arguments": {{"path": "{test_file}"}}}}
     async def test_tool_errors_shown_in_context(self, mock_adapters):
         """Test that tool errors are shown in context (not just success)."""
         engine = DeliberationEngine(mock_adapters)
+        engine.tool_executor = ToolExecutor()
+        engine.tool_executor.register_tool(ReadFileTool())
+        engine.tool_executor.register_tool(SearchCodeTool())
+        engine.tool_executor.register_tool(ListFilesTool())
+        engine.tool_executor.register_tool(RunCommandTool())
+        engine.tool_execution_history = []
 
         participants = [Participant(cli="claude", model="sonnet", stance="neutral")]
 
@@ -260,6 +296,11 @@ TOOL_REQUEST: {"name": "read_file", "arguments": {"path": "/nonexistent/file.txt
     def test_build_context_with_no_current_round_num(self):
         """Test that context building works when current_round_num is None."""
         engine = DeliberationEngine({})
+        engine.tool_executor = ToolExecutor()
+        engine.tool_executor.register_tool(ReadFileTool())
+        engine.tool_executor.register_tool(SearchCodeTool())
+        engine.tool_executor.register_tool(ListFilesTool())
+        engine.tool_executor.register_tool(RunCommandTool())
 
         # Add fake tool execution history
         if not hasattr(engine, 'tool_execution_history'):
