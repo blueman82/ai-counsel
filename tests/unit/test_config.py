@@ -912,3 +912,161 @@ class TestDecisionGraphBudgetAwareConfig:
         # Verify deprecated field is still present (backward compatibility)
         assert hasattr(config.decision_graph, 'similarity_threshold'), \
             "similarity_threshold should still exist for backward compatibility"
+
+
+class TestFileTreeConfig:
+    """Tests for FileTreeConfig validation."""
+
+    def test_file_tree_config_defaults(self):
+        """Test FileTreeConfig default values."""
+        from models.config import FileTreeConfig
+
+        config = FileTreeConfig()
+        assert config.max_depth == 3
+        assert config.max_files == 100
+        assert config.enabled is True
+
+    def test_file_tree_config_custom_values(self):
+        """Test FileTreeConfig with custom values."""
+        from models.config import FileTreeConfig
+
+        config = FileTreeConfig(max_depth=5, max_files=50, enabled=False)
+        assert config.max_depth == 5
+        assert config.max_files == 50
+        assert config.enabled is False
+
+    def test_file_tree_config_max_depth_validation(self):
+        """Test FileTreeConfig validates max_depth range (1-10)."""
+        from models.config import FileTreeConfig
+
+        # Valid values
+        FileTreeConfig(max_depth=1)  # Minimum
+        FileTreeConfig(max_depth=5)  # Middle
+        FileTreeConfig(max_depth=10)  # Maximum
+
+        # Invalid: below minimum
+        with pytest.raises(ValidationError) as exc_info:
+            FileTreeConfig(max_depth=0)
+        assert "max_depth" in str(exc_info.value).lower()
+
+        # Invalid: above maximum
+        with pytest.raises(ValidationError) as exc_info:
+            FileTreeConfig(max_depth=11)
+        assert "max_depth" in str(exc_info.value).lower()
+
+        # Invalid: negative value
+        with pytest.raises(ValidationError) as exc_info:
+            FileTreeConfig(max_depth=-1)
+        assert "max_depth" in str(exc_info.value).lower()
+
+    def test_file_tree_config_max_files_validation(self):
+        """Test FileTreeConfig validates max_files range (10-1000)."""
+        from models.config import FileTreeConfig
+
+        # Valid values
+        FileTreeConfig(max_files=10)  # Minimum
+        FileTreeConfig(max_files=100)  # Middle
+        FileTreeConfig(max_files=1000)  # Maximum
+
+        # Invalid: below minimum
+        with pytest.raises(ValidationError) as exc_info:
+            FileTreeConfig(max_files=5)
+        assert "max_files" in str(exc_info.value).lower()
+
+        # Invalid: above maximum
+        with pytest.raises(ValidationError) as exc_info:
+            FileTreeConfig(max_files=1001)
+        assert "max_files" in str(exc_info.value).lower()
+
+        # Invalid: negative value
+        with pytest.raises(ValidationError) as exc_info:
+            FileTreeConfig(max_files=-10)
+        assert "max_files" in str(exc_info.value).lower()
+
+    def test_file_tree_config_enabled_field(self):
+        """Test FileTreeConfig enabled field accepts booleans."""
+        from models.config import FileTreeConfig
+
+        # Valid boolean values
+        config_true = FileTreeConfig(enabled=True)
+        assert config_true.enabled is True
+
+        config_false = FileTreeConfig(enabled=False)
+        assert config_false.enabled is False
+
+    def test_deliberation_config_has_file_tree(self):
+        """Test DeliberationConfig includes file_tree field."""
+        from models.config import DeliberationConfig, FileTreeConfig, ConvergenceDetectionConfig, EarlyStoppingConfig
+
+        config = DeliberationConfig(
+            convergence_detection=ConvergenceDetectionConfig(
+                enabled=True,
+                semantic_similarity_threshold=0.85,
+                divergence_threshold=0.40,
+                min_rounds_before_check=1,
+                consecutive_stable_rounds=2,
+                stance_stability_threshold=0.80,
+                response_length_drop_threshold=0.40,
+            ),
+            early_stopping=EarlyStoppingConfig(
+                enabled=True,
+                threshold=0.66,
+                respect_min_rounds=True,
+            ),
+            convergence_threshold=0.8,
+            enable_convergence_detection=True,
+        )
+
+        # Should have file_tree field with defaults
+        assert hasattr(config, 'file_tree')
+        assert isinstance(config.file_tree, FileTreeConfig)
+        assert config.file_tree.max_depth == 3
+        assert config.file_tree.max_files == 100
+        assert config.file_tree.enabled is True
+
+    def test_deliberation_config_custom_file_tree(self):
+        """Test DeliberationConfig with custom file_tree values."""
+        from models.config import DeliberationConfig, FileTreeConfig, ConvergenceDetectionConfig, EarlyStoppingConfig
+
+        custom_file_tree = FileTreeConfig(max_depth=5, max_files=200, enabled=False)
+
+        config = DeliberationConfig(
+            convergence_detection=ConvergenceDetectionConfig(
+                enabled=True,
+                semantic_similarity_threshold=0.85,
+                divergence_threshold=0.40,
+                min_rounds_before_check=1,
+                consecutive_stable_rounds=2,
+                stance_stability_threshold=0.80,
+                response_length_drop_threshold=0.40,
+            ),
+            early_stopping=EarlyStoppingConfig(
+                enabled=True,
+                threshold=0.66,
+                respect_min_rounds=True,
+            ),
+            convergence_threshold=0.8,
+            enable_convergence_detection=True,
+            file_tree=custom_file_tree,
+        )
+
+        # Should have custom values
+        assert config.file_tree.max_depth == 5
+        assert config.file_tree.max_files == 200
+        assert config.file_tree.enabled is False
+
+    def test_config_yaml_loads_file_tree(self):
+        """Test config.yaml loads file_tree section successfully."""
+        # Load actual config.yaml from project root
+        config = load_config()
+
+        # Verify deliberation section exists
+        assert config.deliberation is not None
+
+        # Verify file_tree field exists
+        assert hasattr(config.deliberation, 'file_tree')
+
+        # Verify expected values from config.yaml
+        assert config.deliberation.file_tree.enabled is True
+        assert config.deliberation.file_tree.max_depth == 3
+        assert config.deliberation.file_tree.max_files == 100

@@ -3,7 +3,7 @@ import os
 import re
 import warnings
 from pathlib import Path
-from typing import Annotated, Literal, Optional, Union
+from typing import Annotated, List, Literal, Optional, Union
 
 import yaml
 from dotenv import load_dotenv
@@ -135,6 +135,52 @@ class EarlyStoppingConfig(BaseModel):
     respect_min_rounds: bool  # Whether to respect defaults.rounds before stopping
 
 
+class FileTreeConfig(BaseModel):
+    """Configuration for file tree generation in Round 1 prompts."""
+
+    max_depth: int = Field(
+        default=3,
+        ge=1,
+        le=10,
+        description="Maximum directory depth to scan"
+    )
+    max_files: int = Field(
+        default=100,
+        ge=10,
+        le=1000,
+        description="Maximum number of files to include"
+    )
+    enabled: bool = Field(
+        default=True,
+        description="Enable auto-injection of file tree in Round 1"
+    )
+
+
+class ToolSecurityConfig(BaseModel):
+    """Security configuration for evidence-based deliberation tools."""
+
+    exclude_patterns: List[str] = Field(
+        default=[
+            "transcripts/",
+            "transcripts/**",
+            ".git/",
+            ".git/**",
+            "node_modules/",
+            "node_modules/**",
+            ".venv/",
+            "venv/",
+            "__pycache__/",
+        ],
+        description="Patterns to exclude from tool access (prevents context contamination)"
+    )
+    max_file_size_bytes: int = Field(
+        default=1_048_576,  # 1MB
+        ge=1024,
+        le=10_485_760,  # 10MB
+        description="Maximum file size for read_file tool"
+    )
+
+
 class DeliberationConfig(BaseModel):
     """Deliberation engine configuration."""
 
@@ -153,6 +199,14 @@ class DeliberationConfig(BaseModel):
         ge=100,
         le=10000,
         description="Maximum characters to include from tool outputs"
+    )
+    file_tree: FileTreeConfig = Field(
+        default_factory=FileTreeConfig,
+        description="File tree injection settings"
+    )
+    tool_security: ToolSecurityConfig = Field(
+        default_factory=ToolSecurityConfig,
+        description="Security settings for deliberation tools"
     )
 
 

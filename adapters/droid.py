@@ -41,6 +41,7 @@ class DroidAdapter(BaseCLIAdapter):
         model: str,
         context: Optional[str] = None,
         is_deliberation: bool = True,
+        working_directory: Optional[str] = None,
     ) -> str:
         """
         Invoke droid with graceful permission degradation.
@@ -54,6 +55,7 @@ class DroidAdapter(BaseCLIAdapter):
             model: Model identifier
             context: Optional additional context
             is_deliberation: Whether this is part of a deliberation
+            working_directory: Optional working directory for subprocess execution
 
         Returns:
             Parsed response from the model
@@ -74,6 +76,7 @@ class DroidAdapter(BaseCLIAdapter):
                     context=context,
                     is_deliberation=is_deliberation,
                     permission_level=perm_level,
+                    working_directory=working_directory,
                 )
 
                 # Log success if we needed to escalate
@@ -114,6 +117,7 @@ class DroidAdapter(BaseCLIAdapter):
         context: Optional[str],
         is_deliberation: bool,
         permission_level: str,
+        working_directory: Optional[str] = None,
     ) -> str:
         """
         Execute droid with specified permission level.
@@ -124,6 +128,7 @@ class DroidAdapter(BaseCLIAdapter):
             context: Optional context
             is_deliberation: Whether this is deliberation
             permission_level: Permission level to use (low, medium, high)
+            working_directory: Optional working directory for subprocess execution
 
         Returns:
             Parsed response from droid
@@ -161,9 +166,11 @@ class DroidAdapter(BaseCLIAdapter):
 
         # Execute subprocess
         try:
-            from pathlib import Path
+            # Determine working directory for subprocess
+            # Use provided working_directory if specified, otherwise use current directory
+            import os
 
-            cwd = Path(__file__).parent.parent.absolute()
+            cwd = working_directory if working_directory else os.getcwd()
 
             process = await asyncio.create_subprocess_exec(
                 self.command,
@@ -171,7 +178,7 @@ class DroidAdapter(BaseCLIAdapter):
                 stdin=asyncio.subprocess.DEVNULL,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
-                cwd=str(cwd),
+                cwd=cwd,
             )
 
             stdout, stderr = await asyncio.wait_for(

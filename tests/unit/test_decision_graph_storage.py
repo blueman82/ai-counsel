@@ -61,6 +61,39 @@ class TestDecisionGraphStorageInitialization:
         assert storage.db_path == str(db_file)
         storage.close()
 
+    def test_storage_creates_parent_directory_if_missing(self, tmp_path):
+        """Test that storage automatically creates parent directories for the database file.
+
+        This test ensures that first-time users don't get "readonly database" errors
+        when the parent directory doesn't exist. Regression test for GitHub issue
+        where deleted database files couldn't be recreated.
+        """
+        # Create a nested path where intermediate directories don't exist
+        db_file = tmp_path / "data" / "subdir" / "test.db"
+        parent_dir = db_file.parent
+
+        # Verify parent directory doesn't exist yet
+        assert not parent_dir.exists()
+
+        # Initialize storage - should create parent directories
+        storage = DecisionGraphStorage(db_path=str(db_file))
+
+        # Verify parent directory was created
+        assert parent_dir.exists()
+        assert parent_dir.is_dir()
+
+        # Verify database file was created and is functional
+        assert db_file.exists()
+        assert db_file.is_file()
+
+        # Verify we can actually write to the database
+        cursor = storage.conn.cursor()
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
+        tables = cursor.fetchall()
+        assert len(tables) > 0  # Should have created tables
+
+        storage.close()
+
     def test_storage_creates_tables_on_init(self, storage):
         """Test that tables are created during initialization."""
         cursor = storage.conn.cursor()

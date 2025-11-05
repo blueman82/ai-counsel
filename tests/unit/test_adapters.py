@@ -580,3 +580,102 @@ class TestAdapterFactory:
         )
         adapter = create_adapter("claude", cli_config)
         assert isinstance(adapter, ClaudeAdapter)
+
+
+class TestWorkingDirectoryIsolation:
+    """Tests for working_directory isolation in CLI adapters."""
+
+    @pytest.mark.asyncio
+    @patch("adapters.base.asyncio.create_subprocess_exec")
+    async def test_invoke_uses_working_directory_as_cwd(self, mock_subprocess):
+        """Test that invoke() uses working_directory as subprocess cwd."""
+        # Mock subprocess
+        mock_process = Mock()
+        mock_process.communicate = AsyncMock(
+            return_value=(b"Response from working directory", b"")
+        )
+        mock_process.returncode = 0
+        mock_subprocess.return_value = mock_process
+
+        adapter = ClaudeAdapter(
+            args=[
+                "-p",
+                "--model",
+                "{model}",
+                "--settings",
+                '{{"disableAllHooks": true}}',
+                "{prompt}",
+            ]
+        )
+
+        # Invoke with working_directory parameter
+        working_dir = "/tmp/test-repo"
+        result = await adapter.invoke(
+            prompt="What is 2+2?",
+            model="claude-3-5-sonnet-20241022",
+            working_directory=working_dir
+        )
+
+        assert result == "Response from working directory"
+
+        # Verify subprocess was called with correct cwd
+        mock_subprocess.assert_called_once()
+        call_kwargs = mock_subprocess.call_args[1]
+        assert call_kwargs["cwd"] == working_dir
+
+    @pytest.mark.asyncio
+    @patch("adapters.base.asyncio.create_subprocess_exec")
+    async def test_invoke_without_working_directory_uses_current_dir(self, mock_subprocess):
+        """Test that invoke() without working_directory uses current directory."""
+        # Mock subprocess
+        mock_process = Mock()
+        mock_process.communicate = AsyncMock(
+            return_value=(b"Response from current dir", b"")
+        )
+        mock_process.returncode = 0
+        mock_subprocess.return_value = mock_process
+
+        adapter = CodexAdapter(args=["exec", "--model", "{model}", "{prompt}"])
+
+        # Invoke without working_directory parameter
+        result = await adapter.invoke(
+            prompt="What is 2+2?",
+            model="gpt-4"
+        )
+
+        assert result == "Response from current dir"
+
+        # Verify subprocess was called with current directory as cwd
+        mock_subprocess.assert_called_once()
+        call_kwargs = mock_subprocess.call_args[1]
+        # Should use current directory (getcwd equivalent)
+        import os
+        assert call_kwargs["cwd"] == os.getcwd()
+
+    @pytest.mark.asyncio
+    @patch("adapters.base.asyncio.create_subprocess_exec")
+    async def test_gemini_adapter_uses_working_directory(self, mock_subprocess):
+        """Test that GeminiAdapter uses working_directory."""
+        # Mock subprocess
+        mock_process = Mock()
+        mock_process.communicate = AsyncMock(
+            return_value=(b"Gemini response from working dir", b"")
+        )
+        mock_process.returncode = 0
+        mock_subprocess.return_value = mock_process
+
+        adapter = GeminiAdapter(args=["-m", "{model}", "-p", "{prompt}"])
+
+        working_dir = "/tmp/gemini-test"
+        result = await adapter.invoke(
+            prompt="Analyze this code",
+            model="gemini-2.5-pro",
+            working_directory=working_dir
+        )
+
+        assert result == "Gemini response from working dir"
+
+        # Verify subprocess was called with correct cwd
+        mock_subprocess.assert_called_once()
+        call_kwargs = mock_subprocess.call_args[1]
+        assert call_kwargs["cwd"] == working_dir
