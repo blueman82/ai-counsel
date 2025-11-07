@@ -1,11 +1,14 @@
 """Model registry utilities derived from configuration."""
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 from typing import Dict, Iterable, Optional
 import builtins
 
 from models.config import Config, ModelDefinition
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -114,6 +117,14 @@ class ModelRegistry:
                 return entry.id
 
         # Fallback to first enabled model
+        # Check if we're skipping a disabled default (for operational visibility)
+        all_defaults = [e for e in entries if e.default]
+        if all_defaults and not all_defaults[0].enabled:
+            logger.debug(
+                f"Marked default '{all_defaults[0].id}' for adapter '{cli}' is disabled. "
+                f"Falling back to first enabled model: '{enabled_entries[0].id}'"
+            )
+        
         return enabled_entries[0].id
 
     def is_allowed(self, cli: str, model_id: str) -> bool:
