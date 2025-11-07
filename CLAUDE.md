@@ -234,6 +234,14 @@ mypy .            # Type check (optional)
 - Reasoning models (Claude Sonnet 4.5, GPT-5-Codex): 180-300s recommended
 - Configure per-CLI in `config.yaml::adapters::<name>::timeout`
 
+### Model Registry Enabled Field
+- Each `ModelDefinition` has an `enabled: bool` field (default: `true`)
+- Controls whether models are active and available for deliberations
+- Filtering applied automatically in `ModelRegistry.list()`, `list_for_adapter()`, `allowed_ids()`, and `get_default()`
+- Disabled models (`enabled: false`) are hidden from MCP clients but definition retained in config
+- Use cases: cost control, testing, staged rollout, performance tuning, compliance restrictions
+- Pattern: Toggle models on/off without deleting configuration, preserving IDs and metadata
+
 ### Convergence Detection
 - Enabled by default: `deliberation.convergence_detection.enabled: true`
 - Threshold: 0.85 (85% similarity = converged)
@@ -289,6 +297,30 @@ For detailed step-by-step guides on extending the system, see:
 13. **NO TODOs - Configuration Pattern Violation**: Never commit TODO comments or hardcoded configuration values. This violates the project's configuration architecture where ALL settings live in `config.yaml` and are validated via Pydantic schemas in `models/config.py`. If you find yourself writing `# TODO: Make configurable`, STOP immediately and implement proper configuration first. Example violation: `max_depth=3 # TODO: Make configurable`. Correct approach: Add `FileTreeConfig` to `models/config.py`, add section to `config.yaml`, read from `self.config.deliberation.file_tree.max_depth`. This pattern applies to ALL configurable values across the entire codebase.
 
 ## Common Development Patterns
+
+### Working with Model Registry Enabled Field
+```python
+# Filter enabled models for an adapter
+from models.model_registry import ModelRegistry
+
+registry = ModelRegistry(config)
+
+# Get only enabled models (default behavior)
+enabled_models = registry.list_for_adapter("claude")
+# Returns: [RegistryEntry(enabled=True), ...]
+
+# Check if model is allowed (respects enabled field)
+is_allowed = registry.is_allowed("claude", "claude-sonnet-4-5-20250929")
+# Returns: True only if model exists AND enabled=true
+
+# Get default model (skips disabled models)
+default_model_id = registry.get_default("claude")
+# Returns: First enabled model marked as default, or first enabled model
+
+# Get all models including disabled (for admin interfaces)
+all_models = registry.get_all_models("claude")
+# Returns: [RegistryEntry(enabled=True/False), ...]
+```
 
 ### Accessing Decision Graph
 ```python

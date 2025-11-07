@@ -19,7 +19,16 @@ cli_tools:
 
   codex:
     command: "codex"
-    args: ["exec", "--skip-git-repo-check", "--sandbox", "workspace-write", "--model", "{model}", "{prompt}"]
+    args:
+      [
+        "exec",
+        "--skip-git-repo-check",
+        "--sandbox",
+        "workspace-write",
+        "--model",
+        "{model}",
+        "{prompt}",
+      ]
     timeout: 180
     # Valid models: "gpt-5-codex", "o3", or other OpenAI model identifiers
     #
@@ -47,7 +56,15 @@ cli_tools:
 
   gemini:
     command: "gemini"
-    args: ["--include-directories", "{working_directory}", "-m", "{model}", "-p", "{prompt}"]
+    args:
+      [
+        "--include-directories",
+        "{working_directory}",
+        "-m",
+        "{model}",
+        "-p",
+        "{prompt}",
+      ]
     timeout: 180
     # Valid models: "gemini-2.5-pro" (default) or other Gemini identifiers
     #
@@ -141,36 +158,49 @@ model_registry:
       label: "Claude Sonnet 4.5"
       tier: "balanced"
       default: true
+      enabled: true
     - id: "claude-haiku-4-5-20251001"
       label: "Claude Haiku 4.5"
       tier: "speed"
+      enabled: true
     - id: "claude-opus-4-1-20250805"
       label: "Claude Opus 4.1"
       tier: "premium"
+      enabled: disable
   codex:
     - id: "gpt-5-codex"
       label: "GPT-5 Codex"
       tier: "coding"
       default: true
+      enabled: true
     - id: "gpt-5"
       label: "GPT-5"
       tier: "general"
+      enabled: true
   droid:
     - id: "claude-sonnet-4-5-20250929"
       label: "Claude Sonnet 4.5 (via Droid)"
       tier: "balanced"
       default: true
+      enabled: true
     - id: "gpt-5-codex"
       label: "GPT-5 Codex (via Droid)"
       tier: "coding"
+      enabled: true
     - id: "glm-4.6"
       label: "Droid Core (GLM-4.6)"
       tier: "open-source"
+      enabled: true
+    - id: "claude-haiku-4-5-20251001"
+      label: "Claude Haiku 4.5"
+      tier: "speed"
+      enabled: true
   gemini:
     - id: "gemini-2.5-pro"
       label: "Gemini 2.5 Pro"
       tier: "general"
       default: true
+      enabled: true
 
 storage:
   transcripts_dir: "transcripts"
@@ -218,16 +248,16 @@ deliberation:
   # Tool security settings (prevents context contamination)
   tool_security:
     exclude_patterns:
-      - "transcripts/"      # Exclude deliberation transcripts (prevents models from reading about other codebases)
+      - "transcripts/" # Exclude deliberation transcripts (prevents models from reading about other codebases)
       - "transcripts/**"
-      - ".git/"            # Exclude version control
+      - ".git/" # Exclude version control
       - ".git/**"
-      - "node_modules/"    # Exclude dependencies
+      - "node_modules/" # Exclude dependencies
       - "node_modules/**"
-      - ".venv/"           # Exclude Python virtual environments
+      - ".venv/" # Exclude Python virtual environments
       - "venv/"
-      - "__pycache__/"     # Exclude Python cache
-    max_file_size_bytes: 1048576  # 1MB limit for read_file
+      - "__pycache__/" # Exclude Python cache
+    max_file_size_bytes: 1048576 # 1MB limit for read_file
 
 # Decision Graph Memory
 decision_graph:

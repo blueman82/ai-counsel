@@ -151,6 +151,37 @@ defaults:
 
 **Note:** Use `type: cli` for CLI tools and `type: http` for HTTP adapters (Ollama, LM Studio, OpenRouter).
 
+### Model Registry Configuration
+
+Control which models are available for selection in the model registry. Each model can be enabled or disabled without removing its definition:
+
+```yaml
+model_registry:
+  claude:
+    - id: "claude-sonnet-4-5-20250929"
+      label: "Claude Sonnet 4.5"
+      tier: "balanced"
+      default: true
+      enabled: true  # Model is active and available
+    - id: "claude-opus-4-20250514"
+      label: "Claude Opus 4"
+      tier: "premium"
+      enabled: false  # Temporarily disabled (cost control, testing, etc.)
+```
+
+**Enabled Field Behavior:**
+- `enabled: true` (default) - Model appears in `list_models` and can be selected for deliberations
+- `enabled: false` - Model is hidden from selection but definition retained for easy re-enabling
+- Disabled models cannot be used even if explicitly specified in `deliberate` calls
+- Default model selection skips disabled models automatically
+
+**Use Cases:**
+- **Cost Control**: Disable expensive models temporarily without losing configuration
+- **Testing**: Enable/disable specific models during integration tests
+- **Staged Rollout**: Configure new models as disabled, enable when ready
+- **Performance Tuning**: Disable slow models during rapid iteration
+- **Compliance**: Temporarily restrict models pending approval
+
 ## Core Features Deep Dive
 
 ### Convergence Detection & Auto-Stop
