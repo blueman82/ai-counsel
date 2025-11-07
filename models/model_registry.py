@@ -13,7 +13,16 @@ logger = logging.getLogger(__name__)
 
 @dataclass(frozen=True)
 class RegistryEntry:
-    """Normalized model definition entry."""
+    """Normalized model definition entry.
+    
+    Attributes:
+        id: Unique model identifier used by adapter
+        label: Human-friendly display name for UI dropdowns
+        tier: Optional tier classification (speed, premium, coding, etc.)
+        note: Optional descriptive text shown in model picker tooltips
+        default: Whether marked as recommended default for this adapter
+        enabled: Whether model is active and available for use
+    """
 
     id: str
     label: str

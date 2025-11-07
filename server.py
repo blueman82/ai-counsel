@@ -413,6 +413,15 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
                     f"Using default model '{default_model}' for adapter '{cli}'."
                 )
             elif not model_registry.is_allowed(cli, provided_model):
+                # Check if model exists but is disabled (for operational visibility)
+                all_models = model_registry.get_all_models(cli)
+                all_ids = {e.id for e in all_models}
+                
+                if provided_model in all_ids:
+                    logger.warning(
+                        f"User requested disabled model '{provided_model}' for adapter '{cli}'"
+                    )
+                
                 allowed = sorted(model_registry.allowed_ids(cli))
                 if allowed:
                     raise ValueError(
@@ -455,20 +464,22 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
 
         # Summarize tool_executions for MCP response (full detail is in transcript)
         if result_dict.get("tool_executions"):
+            tools_by_round: dict[int, int] = {}
+            tools_by_type: dict[str, int] = {}
             tool_summary = {
                 "total_tools_executed": len(result_dict["tool_executions"]),
-                "tools_by_round": {},
-                "tools_by_type": {},
+                "tools_by_round": tools_by_round,
+                "tools_by_type": tools_by_type,
             }
 
             for execution in result_dict["tool_executions"]:
                 # Count by round
                 round_num = execution.get("round_number", 0)
-                tool_summary["tools_by_round"][round_num] = tool_summary["tools_by_round"].get(round_num, 0) + 1
+                tools_by_round[round_num] = tools_by_round.get(round_num, 0) + 1
 
                 # Count by tool type
                 tool_name = execution.get("request", {}).get("name", "unknown")
-                tool_summary["tools_by_type"][tool_name] = tool_summary["tools_by_type"].get(tool_name, 0) + 1
+                tools_by_type[tool_name] = tools_by_type.get(tool_name, 0) + 1
 
             # Replace massive tool_executions array with compact summary
             result_dict["tool_executions"] = tool_summary
@@ -553,6 +564,15 @@ async def handle_set_session_models(arguments: dict) -> list[TextContent]:
             continue
 
         if not model_registry.is_allowed(cli, value):
+            # Check if model exists but is disabled (for operational visibility)
+            all_models = model_registry.get_all_models(cli)
+            all_ids = {e.id for e in all_models}
+            
+            if value in all_ids:
+                logger.warning(
+                    f"User attempted to set disabled model '{value}' as session default for adapter '{cli}'"
+                )
+            
             allowed = sorted(model_registry.allowed_ids(cli))
             raise ValueError(
                 f"Model '{value}' is not allowlisted for adapter '{cli}'. "
