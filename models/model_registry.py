@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import Dict, Iterable, Optional
+import builtins
 
 from models.config import Config, ModelDefinition
 
@@ -63,27 +64,28 @@ class ModelRegistry:
 
         return self._entries.keys()
 
-    def list(self) -> Dict[str, list[dict[str, str]]]:
+    def list(self) -> Dict[str, list[dict[str, str | bool]]]:
         """Return a serializable map of enabled model options by adapter."""
 
-        result: Dict[str, list[dict[str, str]]] = {}
+        result: Dict[str, list[dict[str, str | bool]]] = {}
         for cli, entries in self._entries.items():
             enabled_entries = [e for e in entries if e.enabled]
             result[cli] = [self._entry_to_dict(entry) for entry in enabled_entries]
         return result
 
-    def list_for_adapter(self, cli: str) -> list[RegistryEntry]:
+    def list_for_adapter(self, cli: str) -> builtins.list[RegistryEntry]:
         """Return enabled entries for the given adapter (empty if none configured)."""
 
-        return [entry for entry in self._entries.get(cli, []) if entry.enabled]
+        entries = self._entries.get(cli, [])
+        return [entry for entry in entries if entry.enabled]
 
-    def get_all_models(self, cli: str) -> list[RegistryEntry]:
+    def get_all_models(self, cli: str) -> builtins.list[RegistryEntry]:
         """Return all entries for the given adapter, including disabled ones.
 
         Useful for administrative interfaces and debugging.
         """
 
-        return list(self._entries.get(cli, []))
+        return builtins.list(self._entries.get(cli, []))
 
     def allowed_ids(self, cli: str) -> set[str]:
         """Return the set of allowed (enabled) model IDs for an adapter."""
@@ -127,7 +129,7 @@ class ModelRegistry:
     @staticmethod
     def _entry_to_dict(
         entry: RegistryEntry, include_enabled: bool = False
-    ) -> dict[str, str]:
+    ) -> dict[str, str | bool]:
         """Serialize an entry for MCP responses.
 
         Args:
@@ -135,7 +137,7 @@ class ModelRegistry:
             include_enabled: Whether to include the enabled status (useful for admin interfaces)
         """
 
-        payload = {
+        payload: dict[str, str | bool] = {
             "id": entry.id,
             "label": entry.label,
         }

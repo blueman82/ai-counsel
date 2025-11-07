@@ -166,7 +166,7 @@ model_registry:
     - id: "claude-opus-4-1-20250805"
       label: "Claude Opus 4.1"
       tier: "premium"
-      enabled: disable
+      enabled: false
   codex:
     - id: "gpt-5-codex"
       label: "GPT-5 Codex"
