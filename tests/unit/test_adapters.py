@@ -377,6 +377,95 @@ class TestDroidAdapter:
         assert not result.startswith(" ")
         assert not result.endswith(" ")
 
+    @pytest.mark.asyncio
+    @patch("adapters.base.asyncio.create_subprocess_exec")
+    async def test_droid_caches_skip_permissions_success(self, mock_subprocess):
+        """Test that DroidAdapter caches successful skip-permissions method."""
+        # Round 1: Mock --auto low/medium/high to fail, --skip-permissions-unsafe to succeed
+        call_count = 0
+
+        def subprocess_side_effect(*args, **kwargs):
+            nonlocal call_count
+            call_count += 1
+            mock_process = Mock()
+
+            # Check if this invocation uses --skip-permissions-unsafe
+            if "--skip-permissions-unsafe" in args:
+                # Success with skip-permissions
+                mock_process.communicate = AsyncMock(
+                    return_value=(b"Response with skip-permissions", b"")
+                )
+                mock_process.returncode = 0
+            else:
+                # Fail for --auto attempts (permission denied)
+                mock_process.communicate = AsyncMock(
+                    return_value=(b"", b"Error: insufficient permission to proceed")
+                )
+                mock_process.returncode = 1
+
+            return mock_process
+
+        mock_subprocess.side_effect = subprocess_side_effect
+
+        adapter = DroidAdapter(args=["exec", "-m", "{model}", "{prompt}"])
+
+        # Round 1: Should try --auto low/medium/high, then fallback to --skip-permissions-unsafe
+        result1 = await adapter.invoke(prompt="Round 1 prompt", model="factory-1")
+        assert result1 == "Response with skip-permissions"
+
+        # Should have tried 4 methods: auto low, auto medium, auto high, skip-permissions
+        assert call_count == 4
+
+        # Round 2: Should directly use skip-permissions (cache hit), no --auto attempts
+        call_count = 0  # Reset counter
+        result2 = await adapter.invoke(prompt="Round 2 prompt", model="factory-1")
+        assert result2 == "Response with skip-permissions"
+
+        # Should only try 1 method: skip-permissions (cached)
+        assert call_count == 1
+
+        # Verify the cached invocation used --skip-permissions-unsafe
+        final_call_args = mock_subprocess.call_args[0]
+        assert "--skip-permissions-unsafe" in final_call_args
+
+    @pytest.mark.asyncio
+    @patch("adapters.base.asyncio.create_subprocess_exec")
+    async def test_droid_does_not_cache_auto_success(self, mock_subprocess):
+        """Test that DroidAdapter does not cache when --auto succeeds normally."""
+        call_count = 0
+
+        def subprocess_side_effect(*args, **kwargs):
+            nonlocal call_count
+            call_count += 1
+            mock_process = Mock()
+
+            # All invocations succeed (simulate --auto low working)
+            mock_process.communicate = AsyncMock(
+                return_value=(b"Response with auto low", b"")
+            )
+            mock_process.returncode = 0
+            return mock_process
+
+        mock_subprocess.side_effect = subprocess_side_effect
+
+        adapter = DroidAdapter(args=["exec", "-m", "{model}", "{prompt}"])
+
+        # Round 1: Should try --auto low and succeed immediately
+        result1 = await adapter.invoke(prompt="Round 1 prompt", model="factory-1")
+        assert result1 == "Response with auto low"
+        assert call_count == 1  # Only tried --auto low
+
+        # Round 2: Should try --auto low again (no cache)
+        call_count = 0  # Reset counter
+        result2 = await adapter.invoke(prompt="Round 2 prompt", model="factory-1")
+        assert result2 == "Response with auto low"
+        assert call_count == 1  # Tried --auto low again
+
+        # Verify both rounds used --auto (not --skip-permissions-unsafe)
+        first_call_args = mock_subprocess.call_args[0]
+        assert "--auto" in first_call_args
+        assert "--skip-permissions-unsafe" not in first_call_args
+
 
 class TestAdapterFactory:
     """Tests for create_adapter factory function."""
@@ -613,7 +702,7 @@ class TestWorkingDirectoryIsolation:
         result = await adapter.invoke(
             prompt="What is 2+2?",
             model="claude-3-5-sonnet-20241022",
-            working_directory=working_dir
+            working_directory=working_dir,
         )
 
         assert result == "Response from working directory"
@@ -625,7 +714,9 @@ class TestWorkingDirectoryIsolation:
 
     @pytest.mark.asyncio
     @patch("adapters.base.asyncio.create_subprocess_exec")
-    async def test_invoke_without_working_directory_uses_current_dir(self, mock_subprocess):
+    async def test_invoke_without_working_directory_uses_current_dir(
+        self, mock_subprocess
+    ):
         """Test that invoke() without working_directory uses current directory."""
         # Mock subprocess
         mock_process = Mock()
@@ -638,10 +729,7 @@ class TestWorkingDirectoryIsolation:
         adapter = CodexAdapter(args=["exec", "--model", "{model}", "{prompt}"])
 
         # Invoke without working_directory parameter
-        result = await adapter.invoke(
-            prompt="What is 2+2?",
-            model="gpt-4"
-        )
+        result = await adapter.invoke(prompt="What is 2+2?", model="gpt-4")
 
         assert result == "Response from current dir"
 
@@ -650,6 +738,7 @@ class TestWorkingDirectoryIsolation:
         call_kwargs = mock_subprocess.call_args[1]
         # Should use current directory (getcwd equivalent)
         import os
+
         assert call_kwargs["cwd"] == os.getcwd()
 
     @pytest.mark.asyncio
@@ -670,7 +759,7 @@ class TestWorkingDirectoryIsolation:
         result = await adapter.invoke(
             prompt="Analyze this code",
             model="gemini-2.5-pro",
-            working_directory=working_dir
+            working_directory=working_dir,
         )
 
         assert result == "Gemini response from working dir"

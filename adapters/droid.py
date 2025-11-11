@@ -1,7 +1,7 @@
 """Droid CLI adapter."""
 import asyncio
 import logging
-from typing import Optional
+from typing import Literal, Optional
 
 from adapters.base import BaseCLIAdapter
 
@@ -34,6 +34,7 @@ class DroidAdapter(BaseCLIAdapter):
         if args is None:
             raise ValueError("args must be provided from config.yaml")
         super().__init__(command=command, args=args, timeout=timeout)
+        self._successful_method: Optional[Literal["skip-permissions"]] = None
 
     async def invoke(
         self,
@@ -64,6 +65,19 @@ class DroidAdapter(BaseCLIAdapter):
             RuntimeError: If all permission levels fail
             TimeoutError: If execution exceeds timeout
         """
+        # If we already know skip-permissions works, use it directly
+        if self._successful_method == "skip-permissions":
+            logger.info(
+                "Using cached successful method: --skip-permissions-unsafe "
+                "(skipping --auto attempts)"
+            )
+            return await self._invoke_with_skip_permissions(
+                prompt=prompt,
+                model=model,
+                context=context,
+                working_directory=working_directory,
+            )
+
         # Try with each permission level
         last_error = None
 
@@ -110,10 +124,13 @@ class DroidAdapter(BaseCLIAdapter):
         )
 
         # Check if error indicates config override issue (spec mode locked)
-        if last_error and "insufficient permission to proceed" in str(last_error).lower():
+        if (
+            last_error
+            and "insufficient permission to proceed" in str(last_error).lower()
+        ):
             logger.warning(
-                f"Droid appears to be locked in spec mode (config overriding --auto flags). "
-                f"Attempting fallback to --skip-permissions-unsafe as last resort."
+                "Droid appears to be locked in spec mode (config overriding --auto flags). "
+                "Attempting fallback to --skip-permissions-unsafe as last resort."
             )
 
             try:
@@ -127,8 +144,9 @@ class DroidAdapter(BaseCLIAdapter):
 
                 logger.info(
                     f"--skip-permissions-unsafe fallback succeeded for {model}. "
-                    f"Note: This bypasses ALL permission checks."
+                    f"Caching for future rounds."
                 )
+                self._successful_method = "skip-permissions"
                 return result
 
             except Exception as skip_error:
@@ -149,7 +167,9 @@ class DroidAdapter(BaseCLIAdapter):
                     f"Fallback --skip-permissions-unsafe error: {skip_error}"
                 )
         else:
-            raise RuntimeError(f"Droid CLI failed with all permission levels: {last_error}")
+            raise RuntimeError(
+                f"Droid CLI failed with all permission levels: {last_error}"
+            )
 
     async def _invoke_with_permission(
         self,
@@ -320,6 +340,7 @@ class DroidAdapter(BaseCLIAdapter):
         # Execute subprocess
         try:
             import os
+
             cwd = working_directory if working_directory else os.getcwd()
 
             process = await asyncio.create_subprocess_exec(
