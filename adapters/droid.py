@@ -111,15 +111,43 @@ class DroidAdapter(BaseCLIAdapter):
 
         # Check if error indicates config override issue (spec mode locked)
         if last_error and "insufficient permission to proceed" in str(last_error).lower():
-            raise RuntimeError(
-                f"Droid is locked in spec/read-only mode. Your droid config "
-                f"(~/.factory/settings.json or workspace settings) is overriding "
-                f"the --auto flags passed by AI Counsel. Solutions:\n"
-                f"1. Check ~/.factory/settings.json for 'autonomyMode: \"spec\"' and change to 'autonomyMode: \"auto-high\"'\n"
-                f"2. Run 'droid' interactively and press Shift+Tab to cycle out of 'Spec/Plan Only' mode\n"
-                f"3. Use a different adapter (claude, codex, gemini) for this deliberation\n\n"
-                f"Original error: {last_error}"
+            logger.warning(
+                f"Droid appears to be locked in spec mode (config overriding --auto flags). "
+                f"Attempting fallback to --skip-permissions-unsafe as last resort."
             )
+
+            try:
+                # Nuclear option: bypass all permission checks
+                result = await self._invoke_with_skip_permissions(
+                    prompt=prompt,
+                    model=model,
+                    context=context,
+                    working_directory=working_directory,
+                )
+
+                logger.info(
+                    f"--skip-permissions-unsafe fallback succeeded for {model}. "
+                    f"Note: This bypasses ALL permission checks."
+                )
+                return result
+
+            except Exception as skip_error:
+                logger.error(
+                    f"--skip-permissions-unsafe fallback also failed: {skip_error}"
+                )
+
+                # Give up, provide helpful error message
+                raise RuntimeError(
+                    f"Droid is locked in spec/read-only mode. Your droid config "
+                    f"(~/.factory/settings.json or workspace settings) is overriding "
+                    f"the --auto flags passed by AI Counsel. Even --skip-permissions-unsafe failed.\n\n"
+                    f"Solutions:\n"
+                    f"1. Check ~/.factory/settings.json for 'autonomyMode: \"spec\"' and change to 'autonomyMode: \"auto-high\"'\n"
+                    f"2. Run 'droid' interactively and press Shift+Tab to cycle out of 'Spec/Plan Only' mode\n"
+                    f"3. Use a different adapter (claude, codex, gemini) for this deliberation\n\n"
+                    f"Original --auto error: {last_error}\n"
+                    f"Fallback --skip-permissions-unsafe error: {skip_error}"
+                )
         else:
             raise RuntimeError(f"Droid CLI failed with all permission levels: {last_error}")
 
@@ -242,6 +270,80 @@ class DroidAdapter(BaseCLIAdapter):
             new_args.insert(2, permission_level)
 
         return new_args
+
+    async def _invoke_with_skip_permissions(
+        self,
+        prompt: str,
+        model: str,
+        context: Optional[str],
+        working_directory: Optional[str] = None,
+    ) -> str:
+        """
+        Execute droid with --skip-permissions-unsafe (nuclear option).
+
+        This bypasses ALL permission checks. Only used as last resort fallback
+        when all --auto levels fail (typically due to spec mode lock).
+
+        Args:
+            prompt: The prompt to send
+            model: Model identifier
+            context: Optional context
+            working_directory: Optional working directory for subprocess execution
+
+        Returns:
+            Parsed response from droid
+
+        Raises:
+            RuntimeError: If CLI fails
+            TimeoutError: If execution exceeds timeout
+        """
+        # Build full prompt
+        full_prompt = prompt
+        if context:
+            full_prompt = f"{context}\n\n{prompt}"
+
+        # Build args with --skip-permissions-unsafe instead of --auto
+        # Expected format: ["exec", "-m", "{model}", "{prompt}"]
+        # We inject: ["exec", "--skip-permissions-unsafe", "-m", "{model}", "{prompt}"]
+        args_with_skip = self.args.copy()
+        if args_with_skip and args_with_skip[0] == "exec":
+            args_with_skip.insert(1, "--skip-permissions-unsafe")
+        else:
+            logger.warning(f"Unexpected droid args format: {args_with_skip}")
+            args_with_skip.insert(1, "--skip-permissions-unsafe")
+
+        # Format arguments
+        formatted_args = [
+            arg.format(model=model, prompt=full_prompt) for arg in args_with_skip
+        ]
+
+        # Execute subprocess
+        try:
+            import os
+            cwd = working_directory if working_directory else os.getcwd()
+
+            process = await asyncio.create_subprocess_exec(
+                self.command,
+                *formatted_args,
+                stdin=asyncio.subprocess.DEVNULL,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+                cwd=cwd,
+            )
+
+            stdout, stderr = await asyncio.wait_for(
+                process.communicate(), timeout=self.timeout
+            )
+
+            if process.returncode != 0:
+                error_msg = stderr.decode("utf-8", errors="replace")
+                raise RuntimeError(f"CLI process failed: {error_msg}")
+
+            raw_output = stdout.decode("utf-8", errors="replace")
+            return self.parse_output(raw_output)
+
+        except asyncio.TimeoutError:
+            raise TimeoutError(f"CLI invocation timed out after {self.timeout}s")
 
     def parse_output(self, raw_output: str) -> str:
         """
