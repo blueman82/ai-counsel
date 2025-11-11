@@ -391,7 +391,35 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
     try:
         # Validate and parse request
         logger.info("Validating request parameters...")
-        request = DeliberateRequest(**arguments)
+        try:
+            request = DeliberateRequest(**arguments)
+        except Exception as validation_error:
+            # Check if validation failed due to model label vs ID confusion
+            if "participants" in arguments:
+                for participant in arguments.get("participants", []):
+                    cli_name = participant.get("cli")
+                    model_provided = participant.get("model")
+
+                    if cli_name and model_provided:
+                        # Check if user passed a label instead of ID
+                        all_models = model_registry.get_all_models(cli_name)
+                        matching_label = next(
+                            (entry for entry in all_models if entry.label == model_provided),
+                            None
+                        )
+
+                        if matching_label:
+                            # User passed label, suggest ID
+                            raise ValueError(
+                                f"Invalid model identifier '{model_provided}' for adapter '{cli_name}'. "
+                                f"You provided the model label instead of the model ID. "
+                                f"Use model ID: '{matching_label.id}' (not label: '{matching_label.label}'). "
+                                f"To see all valid model IDs, use the 'list_models' tool."
+                            ) from validation_error
+
+            # Re-raise original validation error if not label confusion
+            raise
+
         logger.info(
             f"Request validated. Starting deliberation: {request.question[:50]}..."
         )

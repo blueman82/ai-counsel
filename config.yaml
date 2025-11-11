@@ -42,8 +42,8 @@ cli_tools:
     command: "droid"
     args: ["exec", "-m", "{model}", "{prompt}"]
     timeout: 180
-    # ONLY VALID MODELS: "claude-sonnet-4-5-20250929", "gpt-5-codex", "Droid Core (GLM-4.6)"
-    # Note: Requires FULL model IDs, not short aliases
+    # VALID MODEL IDS: "claude-sonnet-4-5-20250929", "gpt-5-codex", "glm-4.6"
+    # Note: Use model IDs (not labels). See model_registry.droid section below for full list
     #
     # Adaptive Permission Strategy (Graceful Degradation):
     # The Droid adapter automatically handles permission levels without manual configuration.
@@ -172,7 +172,7 @@ model_registry:
       label: "GPT-5 Codex"
       tier: "coding"
       default: true
-      enabled: true
+      enabled: false
     - id: "gpt-5"
       label: "GPT-5"
       tier: "general"
