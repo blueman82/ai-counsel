@@ -108,7 +108,20 @@ class DroidAdapter(BaseCLIAdapter):
             f"Droid failed with all permission levels {self.PERMISSION_LEVELS}. "
             f"Last error: {last_error}"
         )
-        raise RuntimeError(f"Droid CLI failed with all permission levels: {last_error}")
+
+        # Check if error indicates config override issue (spec mode locked)
+        if last_error and "insufficient permission to proceed" in str(last_error).lower():
+            raise RuntimeError(
+                f"Droid is locked in spec/read-only mode. Your droid config "
+                f"(~/.factory/settings.json or workspace settings) is overriding "
+                f"the --auto flags passed by AI Counsel. Solutions:\n"
+                f"1. Check ~/.factory/settings.json for 'autonomyMode: \"spec\"' and change to 'autonomyMode: \"auto-high\"'\n"
+                f"2. Run 'droid' interactively and press Shift+Tab to cycle out of 'Spec/Plan Only' mode\n"
+                f"3. Use a different adapter (claude, codex, gemini) for this deliberation\n\n"
+                f"Original error: {last_error}"
+            )
+        else:
+            raise RuntimeError(f"Droid CLI failed with all permission levels: {last_error}")
 
     async def _invoke_with_permission(
         self,
