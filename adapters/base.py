@@ -1,6 +1,7 @@
 """Base CLI adapter with subprocess management."""
 import asyncio
 import logging
+import re
 from abc import ABC, abstractmethod
 from typing import Optional
 
@@ -15,7 +16,19 @@ class BaseCLIAdapter(ABC):
     Subclasses must implement parse_output() for tool-specific parsing.
     """
 
-    def __init__(self, command: str, args: list[str], timeout: int = 60):
+    # Transient error patterns that warrant retry
+    TRANSIENT_ERROR_PATTERNS = [
+        r"503.*overload",
+        r"503.*over capacity",
+        r"503.*too many requests",
+        r"429.*rate limit",
+        r"temporarily unavailable",
+        r"service unavailable",
+        r"connection.*reset",
+        r"connection.*refused",
+    ]
+
+    def __init__(self, command: str, args: list[str], timeout: int = 60, max_retries: int = 2):
         """
         Initialize CLI adapter.
 
@@ -23,10 +36,12 @@ class BaseCLIAdapter(ABC):
             command: CLI command to execute
             args: List of argument templates (may contain {model}, {prompt} placeholders)
             timeout: Timeout in seconds (default: 60)
+            max_retries: Maximum retry attempts for transient errors (default: 2)
         """
         self.command = command
         self.args = args
         self.timeout = timeout
+        self.max_retries = max_retries
 
     async def invoke(
         self,
@@ -90,45 +105,82 @@ class BaseCLIAdapter(ABC):
         )
         logger.debug(f"Full command: {self.command} {' '.join(formatted_args[:3])}... (args truncated)")
 
-        # Execute subprocess
-        try:
-
-            process = await asyncio.create_subprocess_exec(
-                self.command,
-                *formatted_args,
-                stdin=asyncio.subprocess.DEVNULL,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
-                cwd=cwd,
-            )
-
-            stdout, stderr = await asyncio.wait_for(
-                process.communicate(), timeout=self.timeout
-            )
-
-            if process.returncode != 0:
-                error_msg = stderr.decode("utf-8", errors="replace")
-                logger.error(
-                    f"CLI process failed: command={self.command}, "
-                    f"model={model}, returncode={process.returncode}, "
-                    f"error={error_msg[:200]}"
+        # Execute with retry logic for transient errors
+        last_error = None
+        for attempt in range(self.max_retries + 1):
+            try:
+                process = await asyncio.create_subprocess_exec(
+                    self.command,
+                    *formatted_args,
+                    stdin=asyncio.subprocess.DEVNULL,
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.PIPE,
+                    cwd=cwd,
                 )
-                raise RuntimeError(f"CLI process failed: {error_msg}")
 
-            raw_output = stdout.decode("utf-8", errors="replace")
-            logger.info(
-                f"CLI adapter completed successfully: command={self.command}, "
-                f"model={model}, output_length={len(raw_output)} chars"
-            )
-            logger.debug(f"Raw output preview: {raw_output[:500]}...")
-            return self.parse_output(raw_output)
+                stdout, stderr = await asyncio.wait_for(
+                    process.communicate(), timeout=self.timeout
+                )
 
-        except asyncio.TimeoutError:
-            logger.error(
-                f"CLI invocation timed out: command={self.command}, "
-                f"model={model}, timeout={self.timeout}s"
-            )
-            raise TimeoutError(f"CLI invocation timed out after {self.timeout}s")
+                if process.returncode != 0:
+                    error_msg = stderr.decode("utf-8", errors="replace")
+
+                    # Check if this is a transient error
+                    is_transient = self._is_transient_error(error_msg)
+
+                    if is_transient and attempt < self.max_retries:
+                        wait_time = 2 ** attempt  # Exponential backoff: 1s, 2s, 4s
+                        logger.warning(
+                            f"Transient error detected (attempt {attempt + 1}/{self.max_retries + 1}): {error_msg[:100]}. "
+                            f"Retrying in {wait_time}s..."
+                        )
+                        await asyncio.sleep(wait_time)
+                        last_error = error_msg
+                        continue
+
+                    logger.error(
+                        f"CLI process failed: command={self.command}, "
+                        f"model={model}, returncode={process.returncode}, "
+                        f"error={error_msg[:200]}"
+                    )
+                    raise RuntimeError(f"CLI process failed: {error_msg}")
+
+                raw_output = stdout.decode("utf-8", errors="replace")
+                if attempt > 0:
+                    logger.info(
+                        f"CLI adapter succeeded on retry attempt {attempt + 1}: "
+                        f"command={self.command}, model={model}"
+                    )
+                logger.info(
+                    f"CLI adapter completed successfully: command={self.command}, "
+                    f"model={model}, output_length={len(raw_output)} chars"
+                )
+                logger.debug(f"Raw output preview: {raw_output[:500]}...")
+                return self.parse_output(raw_output)
+
+            except asyncio.TimeoutError:
+                logger.error(
+                    f"CLI invocation timed out: command={self.command}, "
+                    f"model={model}, timeout={self.timeout}s"
+                )
+                raise TimeoutError(f"CLI invocation timed out after {self.timeout}s")
+
+        # All retries exhausted
+        raise RuntimeError(f"CLI failed after {self.max_retries + 1} attempts. Last error: {last_error}")
+
+    def _is_transient_error(self, error_msg: str) -> bool:
+        """
+        Check if error message indicates a transient error worth retrying.
+
+        Args:
+            error_msg: Error message from stderr
+
+        Returns:
+            True if error is transient (503, 429, connection issues, etc.)
+        """
+        error_lower = error_msg.lower()
+        return any(re.search(pattern, error_lower, re.IGNORECASE)
+                   for pattern in self.TRANSIENT_ERROR_PATTERNS)
 
     def _adjust_args_for_context(self, is_deliberation: bool) -> list[str]:
         """
