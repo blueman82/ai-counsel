@@ -95,3 +95,6 @@ IMPLEMENTATION_GUIDE.md
 DROID_PERMISSION_RESEARCH.md
 ISSUES_FOUND.md
 REVIEW_SUMMARY.txt
+
+# Internal development documentation (not for public repo)
+docs/dev/
