@@ -349,6 +349,17 @@ async def list_tools() -> list[Tool]:
                             "maximum": 20,
                             "description": "Maximum number of results to return",
                         },
+                        "threshold": {
+                            "type": "number",
+                            "default": 0.6,
+                            "minimum": 0.0,
+                            "maximum": 1.0,
+                            "description": (
+                                "Minimum similarity score (0.0-1.0) for results. "
+                                "Lower values find more results but may be less relevant. "
+                                "Default: 0.6 (moderate similarity)"
+                            ),
+                        },
                         "format": {
                             "type": "string",
                             "enum": ["summary", "detailed", "json"],
@@ -632,6 +643,7 @@ async def handle_query_decisions(arguments: dict) -> list[TextContent]:
         find_contradictions = arguments.get("find_contradictions", False)
         decision_id = arguments.get("decision_id")
         limit = arguments.get("limit", 5)
+        threshold = arguments.get("threshold", 0.6)
         format_type = arguments.get("format", "summary")
 
         # Validate mutual exclusivity
@@ -728,15 +740,47 @@ async def handle_query_decisions(arguments: dict) -> list[TextContent]:
 
         if query_text:
             # Search similar decisions
-            results = await engine.search_similar(query_text, limit=limit)
-            result = {
-                "type": "similar_decisions",
-                "count": len(results),
-                "results": [
-                    format_decision(r.decision, r.score)
-                    for r in results
-                ],
-            }
+            results = await engine.search_similar(query_text, limit=limit, threshold=threshold)
+
+            # If empty, include diagnostics
+            if not results:
+                diagnostics = engine.get_search_diagnostics(
+                    query_text,
+                    limit=limit,
+                    threshold=threshold
+                )
+
+                result = {
+                    "type": "similar_decisions",
+                    "count": 0,
+                    "results": [],
+                    "diagnostics": {
+                        "total_decisions": diagnostics["total_decisions"],
+                        "best_match_score": diagnostics["best_match_score"],
+                        "near_misses": [
+                            {
+                                "question": d.question,
+                                "score": round(s, 3)
+                            }
+                            for d, s in diagnostics["near_misses"][:3]
+                        ],
+                        "suggested_threshold": diagnostics["suggested_threshold"],
+                        "message": (
+                            f"No results found above threshold {threshold}. "
+                            f"Best match scored {diagnostics['best_match_score']:.3f}. "
+                            f"Try threshold={diagnostics['suggested_threshold']:.2f} or use different keywords."
+                        )
+                    }
+                }
+            else:
+                result = {
+                    "type": "similar_decisions",
+                    "count": len(results),
+                    "results": [
+                        format_decision(r.decision, r.score)
+                        for r in results
+                    ],
+                }
 
         elif find_contradictions:
             # Find contradictions
