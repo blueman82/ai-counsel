@@ -242,6 +242,177 @@ class TestQueryEngineEvolution:
             await engine.trace_evolution("nonexistent-id")
 
 
+class TestQueryEngineDiagnostics:
+    """Test search diagnostics for empty/poor results."""
+
+    def test_diagnostics_for_empty_results(self, storage):
+        """Test diagnostics when no results above threshold."""
+        # Create decision that will score below threshold
+        decision = DecisionNode(
+            id="dec-1",
+            question="Should we use TypeScript?",
+            timestamp=datetime(2025, 10, 1, 10, 0, 0),
+            consensus="Yes",
+            winning_option="Yes",
+            convergence_status="converged",
+            participants=["opus@claude"],
+            transcript_path="/transcripts/dec1.md",
+        )
+        storage.save_decision_node(decision)
+
+        engine = QueryEngine(storage)
+
+        # Query unrelated topic with high threshold
+        diagnostics = engine.get_search_diagnostics(
+            "Python database optimization", limit=5, threshold=0.9
+        )
+
+        # Verify diagnostics structure
+        assert "total_decisions" in diagnostics
+        assert diagnostics["total_decisions"] == 1
+
+        assert "best_match_score" in diagnostics
+        assert diagnostics["best_match_score"] >= 0.0
+
+        assert "near_misses" in diagnostics
+        assert isinstance(diagnostics["near_misses"], list)
+
+        assert "suggested_threshold" in diagnostics
+        assert diagnostics["suggested_threshold"] < 0.9
+
+        assert "matched_above_threshold" in diagnostics
+        assert isinstance(diagnostics["matched_above_threshold"], list)
+
+    def test_diagnostics_shows_near_misses(self, storage):
+        """Test near-misses list includes decisions within 0.1 of threshold."""
+        # Create decisions with varying similarity to query
+        decisions = [
+            DecisionNode(
+                id="dec-close",
+                question="autonomous agent evolution implementation",
+                timestamp=datetime(2025, 10, 1, 10, 0, 0),
+                consensus="Should implement Phase 1",
+                winning_option="Yes",
+                convergence_status="converged",
+                participants=["opus@claude"],
+                transcript_path="/transcripts/close.md",
+            ),
+            DecisionNode(
+                id="dec-far",
+                question="Database optimization strategies",
+                timestamp=datetime(2025, 10, 2, 10, 0, 0),
+                consensus="Use indexes",
+                winning_option="Yes",
+                convergence_status="converged",
+                participants=["opus@claude"],
+                transcript_path="/transcripts/far.md",
+            ),
+        ]
+
+        for decision in decisions:
+            storage.save_decision_node(decision)
+
+        engine = QueryEngine(storage)
+
+        # Query should score ~0.65-0.70 with "dec-close", low with "dec-far"
+        diagnostics = engine.get_search_diagnostics(
+            "autonomous agent",
+            limit=5,
+            threshold=0.75,  # High threshold to force near-miss
+        )
+
+        # Near-misses should exist (if close enough to threshold)
+        assert "near_misses" in diagnostics
+        assert isinstance(diagnostics["near_misses"], list)
+
+        # Verify near-misses are within 0.1 of threshold (if any exist)
+        for decision, score in diagnostics["near_misses"]:
+            assert (
+                score >= 0.65
+            ), f"Near-miss score {score} should be >= threshold-0.1 (0.65)"
+            assert score < 0.75, f"Near-miss score {score} should be < threshold (0.75)"
+
+    def test_diagnostics_suggests_lower_threshold(self, storage):
+        """Test suggested_threshold is adaptive based on best match."""
+        # Create decision with known content
+        decision = DecisionNode(
+            id="dec-1",
+            question="Python testing best practices",
+            timestamp=datetime(2025, 10, 1, 10, 0, 0),
+            consensus="Use pytest",
+            winning_option="pytest",
+            convergence_status="converged",
+            participants=["opus@claude"],
+            transcript_path="/transcripts/dec1.md",
+        )
+        storage.save_decision_node(decision)
+
+        engine = QueryEngine(storage)
+
+        # Query with very high threshold
+        diagnostics = engine.get_search_diagnostics(
+            "Python testing", limit=5, threshold=0.95
+        )
+
+        # Suggested threshold should be lower than current threshold
+        assert diagnostics["suggested_threshold"] < 0.95
+
+        # Suggested threshold should be at least 0.3 (min value)
+        assert diagnostics["suggested_threshold"] >= 0.3
+
+        # Should be rounded to nearest 0.05
+        suggestion = diagnostics["suggested_threshold"]
+        assert (suggestion * 20) == int(
+            suggestion * 20
+        ), f"Suggested threshold {suggestion} should be rounded to nearest 0.05"
+
+    def test_diagnostics_with_results(self, storage):
+        """Test diagnostics when results exist above threshold."""
+        # Create decision that will match well
+        decision = DecisionNode(
+            id="dec-1",
+            question="Should we use TypeScript for the project?",
+            timestamp=datetime(2025, 10, 1, 10, 0, 0),
+            consensus="Yes, TypeScript is recommended",
+            winning_option="Yes",
+            convergence_status="converged",
+            participants=["opus@claude"],
+            transcript_path="/transcripts/dec1.md",
+        )
+        storage.save_decision_node(decision)
+
+        engine = QueryEngine(storage)
+
+        # Query with low threshold (should find result)
+        diagnostics = engine.get_search_diagnostics(
+            "TypeScript project", limit=5, threshold=0.3
+        )
+
+        # Should have matched results
+        assert diagnostics["matched_above_threshold"] is not None
+        assert isinstance(diagnostics["matched_above_threshold"], list)
+
+        # Best match score should be high
+        assert diagnostics["best_match_score"] > 0.3
+
+        # Total decisions should be 1
+        assert diagnostics["total_decisions"] == 1
+
+    def test_diagnostics_handles_empty_database(self, storage):
+        """Test diagnostics gracefully handles empty database."""
+        engine = QueryEngine(storage)
+
+        # Query empty database
+        diagnostics = engine.get_search_diagnostics("any query", limit=5, threshold=0.6)
+
+        # Should return safe defaults
+        assert diagnostics["total_decisions"] == 0
+        assert diagnostics["best_match_score"] == 0.0
+        assert diagnostics["matched_above_threshold"] == []
+        assert diagnostics["near_misses"] == []
+        assert diagnostics["suggested_threshold"] == 0.6
+
+
 class TestQueryEngineIntegration:
     """Integration tests for query engine."""
 

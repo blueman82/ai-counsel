@@ -65,8 +65,6 @@ class Timeline:
     related_decisions: List[dict] = field(default_factory=list)
 
 
-
-
 class QueryEngine:
     """Unified query interface for decision graph memory.
 
@@ -329,3 +327,102 @@ class QueryEngine:
             logger.error(f"Error finding related decisions: {e}")
             return []
 
+    def get_search_diagnostics(
+        self, query: str, limit: int = 5, threshold: float = 0.6
+    ) -> dict:
+        """Get diagnostic information about search results.
+
+        Provides helpful context when search returns empty or poor results.
+
+        Args:
+            query: Query text to search for
+            limit: Maximum results to include
+            threshold: Similarity threshold being used
+
+        Returns:
+            dict with:
+            - matched_above_threshold: List[SimilarResult] (results that passed)
+            - near_misses: List[tuple[DecisionNode, float]] (decisions within 0.1 of threshold)
+            - total_decisions: int (database size)
+            - best_match_score: float (highest score found, or 0.0)
+            - suggested_threshold: float (adaptive suggestion)
+        """
+        try:
+            # Get all decisions
+            decisions = self.storage.get_all_decisions()
+
+            if not decisions:
+                return {
+                    "matched_above_threshold": [],
+                    "near_misses": [],
+                    "total_decisions": 0,
+                    "best_match_score": 0.0,
+                    "suggested_threshold": threshold,
+                }
+
+            # Compute similarity for all decisions
+            scored_decisions = []
+            for decision in decisions:
+                score = self.similarity_detector.compute_similarity(
+                    query, decision.question
+                )
+                scored_decisions.append((decision, score))
+
+            # Sort by score descending
+            scored_decisions.sort(key=lambda x: x[1], reverse=True)
+
+            # Find best match (ensure non-negative)
+            best_match_score = (
+                max(0.0, scored_decisions[0][1]) if scored_decisions else 0.0
+            )
+
+            # Filter by threshold for matched results
+            matched = [
+                SimilarResult(decision=d, score=s)
+                for d, s in scored_decisions
+                if s >= threshold
+            ][:limit]
+
+            # Find near-misses (within 0.1 of threshold)
+            near_miss_lower_bound = max(0.0, threshold - 0.1)
+            near_misses = [
+                (d, s)
+                for d, s in scored_decisions
+                if near_miss_lower_bound <= s < threshold
+            ][
+                :3
+            ]  # Top 3 near-misses
+
+            # Suggest adaptive threshold
+            # If best match is below threshold, suggest rounding down to nearest 0.05
+            if best_match_score < threshold:
+                suggested = max(
+                    0.3, (int(best_match_score * 20) / 20)
+                )  # Round down to nearest 0.05
+            else:
+                suggested = threshold
+
+            logger.debug(
+                f"Diagnostics for query '{query[:50]}...': "
+                f"total={len(decisions)}, best={best_match_score:.3f}, "
+                f"matched={len(matched)}, near_misses={len(near_misses)}, "
+                f"suggested_threshold={suggested:.2f}"
+            )
+
+            return {
+                "matched_above_threshold": matched,
+                "near_misses": near_misses,
+                "total_decisions": len(decisions),
+                "best_match_score": best_match_score,
+                "suggested_threshold": suggested,
+            }
+
+        except Exception as e:
+            logger.error(f"Error in get_search_diagnostics: {e}", exc_info=True)
+            return {
+                "matched_above_threshold": [],
+                "near_misses": [],
+                "total_decisions": 0,
+                "best_match_score": 0.0,
+                "suggested_threshold": threshold,
+            }
