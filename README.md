@@ -399,11 +399,25 @@ mcp__ai-counsel__deliberate({
 **Search Past Decisions:**
 ```javascript
 mcp__ai-counsel__query_decisions({
-  query: "database choice",
-  operation: "search_similar",
+  query_text: "database choice",
+  threshold: 0.5,  // NEW! Adjust sensitivity (0.0-1.0, default 0.6)
   limit: 5
 })
 // Returns: Similar past deliberations with consensus and similarity scores
+
+// NEW! Empty results include helpful diagnostics:
+{
+  "type": "similar_decisions",
+  "count": 0,
+  "results": [],
+  "diagnostics": {
+    "total_decisions": 125,
+    "best_match_score": 0.45,
+    "near_misses": [{"question": "Database indexing...", "score": 0.45}],
+    "suggested_threshold": 0.45,
+    "message": "No results found above threshold 0.6. Best match scored 0.450. Try threshold=0.45..."
+  }
+}
 
 // Find contradictions
 mcp__ai-counsel__query_decisions({
