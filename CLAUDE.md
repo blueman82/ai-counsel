@@ -129,6 +129,8 @@ AI Counsel is an MCP (Model Context Protocol) server that enables true deliberat
 **MCP-Exposed Tools** (callable by MCP clients):
 - `deliberate`: Orchestrate multi-round AI deliberation (requires `working_directory` parameter)
 - `query_decisions`: Search decision graph memory (when enabled)
+  - Supports `threshold` parameter (0.0-1.0, default 0.6) for adjustable similarity
+  - Empty results include diagnostics: `best_match_score`, `near_misses`, `suggested_threshold`
 
 **Internal Tools** (callable by AI models via TOOL_REQUEST):
 - `read_file`: Read file contents (max 1MB)
