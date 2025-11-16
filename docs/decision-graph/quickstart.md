@@ -47,8 +47,14 @@ Use the `query_decisions` MCP tool:
 ```
 Use the mcp__ai-counsel__query_decisions tool with:
 - query_text: "API design"
+- threshold: 0.5  # NEW! Adjust sensitivity (0.0-1.0, default 0.6)
 - limit: 5
 ```
+
+**Threshold Guide**:
+- **0.3-0.5**: Exploratory (more results, less precision)
+- **0.5-0.7**: Balanced (recommended)
+- **0.7-0.9**: High precision (fewer but more relevant)
 
 **Expected**: Returns your stored decision with similarity score:
 
