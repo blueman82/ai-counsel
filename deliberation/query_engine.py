@@ -371,10 +371,8 @@ class QueryEngine:
             # Sort by score descending
             scored_decisions.sort(key=lambda x: x[1], reverse=True)
 
-            # Find best match (ensure non-negative)
-            best_match_score = (
-                max(0.0, scored_decisions[0][1]) if scored_decisions else 0.0
-            )
+            # Find best match
+            best_match_score = scored_decisions[0][1] if scored_decisions else 0.0
 
             # Filter by threshold for matched results
             matched = [

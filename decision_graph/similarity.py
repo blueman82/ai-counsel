@@ -118,7 +118,8 @@ class QuestionSimilarityDetector:
         # Compute similarity using backend
         try:
             similarity = self.backend.compute_similarity(question1, question2)
-            return float(similarity)
+            # Clamp to [0.0, 1.0] to handle floating-point precision edge cases
+            return float(max(0.0, min(1.0, similarity)))
         except Exception as e:
             logger.error(f"Error computing similarity: {e}", exc_info=True)
             return 0.0
