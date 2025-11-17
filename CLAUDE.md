@@ -24,7 +24,7 @@ AI Counsel is an MCP (Model Context Protocol) server that enables true deliberat
 - Orchestrates multi-round debates between models
 - Manages context building from previous responses
 - Coordinates convergence detection and early stopping
-- Initializes AI summarizer with fallback chain: Claude Sonnet → GPT-5 Codex → Droid → Gemini
+- Initializes AI summarizer with fallback chain: Claude Sonnet → GPT-5.1 Codex → Droid → Gemini
 - Integrates tool execution system for evidence-based deliberation
 
 **Tool Execution System** (`deliberation/tools.py`, `models/tool_schema.py`)
@@ -233,7 +233,7 @@ mypy .            # Type check (optional)
 
 ### Timeouts
 - Default: 60s per invocation
-- Reasoning models (Claude Sonnet 4.5, GPT-5-Codex): 180-300s recommended
+- Reasoning models (Claude Sonnet 4.5, GPT-5.1-Codex): 180-300s recommended
 - Configure per-CLI in `config.yaml::adapters::<name>::timeout`
 
 ### Model Registry Enabled Field

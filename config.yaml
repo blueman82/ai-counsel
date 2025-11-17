@@ -168,10 +168,14 @@ model_registry:
       tier: "premium"
       enabled: false
   codex:
+    - id: "gpt-5.1-codex"
+      label: "GPT-5.1 Codex"
+      tier: "coding"
+      default: true
+      enabled: true
     - id: "gpt-5-codex"
       label: "GPT-5 Codex"
       tier: "coding"
-      default: true
       enabled: false
     - id: "gpt-5"
       label: "GPT-5"

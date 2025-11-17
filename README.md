@@ -10,13 +10,13 @@ True deliberative consensus MCP server where AI models debate and refine positio
 
 ## 🎬 See It In Action
 
-**Cloud Models Debate** (Claude Sonnet, GPT-5 Codex, Gemini):
+**Cloud Models Debate** (Claude Sonnet, GPT-5.1 Codex, Gemini):
 ```javascript
 mcp__ai-counsel__deliberate({
   question: "Should we use REST or GraphQL for our new API?",
   participants: [
     {cli: "claude", model: "claude-sonnet-4-5-20250929"},
-    {cli: "codex", model: "gpt-5-codex"},
+    {cli: "codex", model: "gpt-5.1-codex"},
     {cli: "gemini", model: "gemini-2.5-pro"}
   ],
   mode: "conference",
@@ -96,7 +96,7 @@ mcp__ai-counsel__deliberate({
 >
 > **Not Recommended**: Models under 3B parameters (e.g., Llama-3.2-1B) may struggle with complex instructions and produce invalid votes.
 
-**Available Models**: `claude` (sonnet, opus, haiku), `codex` (gpt-5-codex), `droid`, `gemini`, HTTP adapters (ollama, lmstudio, openrouter).
+**Available Models**: `claude` (sonnet, opus, haiku), `codex` (gpt-5.1-codex), `droid`, `gemini`, HTTP adapters (ollama, lmstudio, openrouter).
 See [CLI Model Reference](docs/CLI_MODEL_REFERENCE.md) for complete details.
 
 For model choices and picker workflow, see [Model Registry & Picker](docs/model-registry-and-picker.md).
@@ -378,7 +378,7 @@ After configuration, restart Claude Code.
 ```javascript
 mcp__ai-counsel__deliberate({
   question: "Should we migrate to TypeScript?",
-  participants: [{cli: "claude", model: "sonnet"}, {cli: "codex", model: "gpt-5-codex"}],
+  participants: [{cli: "claude", model: "sonnet"}, {cli: "codex", model: "gpt-5.1-codex"}],
   mode: "quick"
 })
 ```
@@ -389,7 +389,7 @@ mcp__ai-counsel__deliberate({
   question: "JWT vs session-based auth?",
   participants: [
     {cli: "claude", model: "sonnet"},
-    {cli: "codex", model: "gpt-5-codex"}
+    {cli: "codex", model: "gpt-5.1-codex"}
   ],
   rounds: 3,
   mode: "conference"
