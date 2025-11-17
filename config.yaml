@@ -30,7 +30,7 @@ cli_tools:
         "{prompt}",
       ]
     timeout: 180
-    # Valid models: "gpt-5-codex", "o3", or other OpenAI model identifiers
+    # Valid models: "gpt-5.1-codex", "o3", or other OpenAI model identifiers
     #
     # Security Configuration:
     # - --skip-git-repo-check: Allows running outside git repositories
@@ -42,7 +42,7 @@ cli_tools:
     command: "droid"
     args: ["exec", "-m", "{model}", "{prompt}"]
     timeout: 180
-    # VALID MODEL IDS: "claude-sonnet-4-5-20250929", "gpt-5-codex", "glm-4.6"
+    # VALID MODEL IDS: "claude-sonnet-4-5-20250929", "gpt-5.1-codex", "glm-4.6"
     # Note: Use model IDs (not labels). See model_registry.droid section below for full list
     #
     # Adaptive Permission Strategy (Graceful Degradation):
@@ -187,10 +187,14 @@ model_registry:
       tier: "balanced"
       default: true
       enabled: true
+    - id: "gpt-5.1-codex"
+      label: "GPT-5.1 Codex (via Droid)"
+      tier: "coding"
+      enabled: true
     - id: "gpt-5-codex"
       label: "GPT-5 Codex (via Droid)"
       tier: "coding"
-      enabled: true
+      enabled: false
     - id: "glm-4.6"
       label: "Droid Core (GLM-4.6)"
       tier: "open-source"
