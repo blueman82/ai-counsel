@@ -199,17 +199,13 @@ model_registry:
       label: "Claude Sonnet 4.5 (via Droid)"
       tier: "balanced"
       enabled: true
-    - id: "gpt-5.1-codex-max"
-      label: "GPT-5.1 Codex Max (via Droid)"
-      tier: "flagship"
-      enabled: true
     - id: "gpt-5.1-codex"
       label: "GPT-5.1 Codex (via Droid)"
       tier: "coding"
       enabled: true
-    - id: "gpt-5.1-codex-mini"
-      label: "GPT-5.1 Codex Mini (via Droid)"
-      tier: "speed"
+    - id: "gpt-5.1"
+      label: "GPT-5.1 (via Droid)"
+      tier: "general"
       enabled: true
     - id: "glm-4.6"
       label: "Droid Core (GLM-4.6)"
