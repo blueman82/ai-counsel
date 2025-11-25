@@ -41,6 +41,7 @@ class LlamaCppAdapter(BaseCLIAdapter):
         args: list[str] | None = None,
         timeout: int = 120,
         search_paths: list[str] | None = None,
+        default_reasoning_effort: str | None = None,
     ):
         """
         Initialize llama.cpp adapter with auto-discovery.
@@ -50,13 +51,19 @@ class LlamaCppAdapter(BaseCLIAdapter):
             args: List of argument templates (from config.yaml)
             timeout: Timeout in seconds (default: 120, as local inference can be slow)
             search_paths: Custom search paths for models (uses DEFAULT_SEARCH_PATHS if None)
+            default_reasoning_effort: Ignored (llama.cpp doesn't support reasoning effort)
 
         Raises:
             ValueError: If args is not provided
         """
         if args is None:
             raise ValueError("args must be provided from config.yaml")
-        super().__init__(command=command, args=args, timeout=timeout)
+        super().__init__(
+            command=command,
+            args=args,
+            timeout=timeout,
+            default_reasoning_effort=default_reasoning_effort,
+        )
         self.search_paths = search_paths or self.DEFAULT_SEARCH_PATHS
 
     async def invoke(

@@ -12,7 +12,11 @@ class GeminiAdapter(BaseCLIAdapter):
     MAX_PROMPT_CHARS = 100000
 
     def __init__(
-        self, command: str = "gemini", args: list[str] | None = None, timeout: int = 60
+        self,
+        command: str = "gemini",
+        args: list[str] | None = None,
+        timeout: int = 60,
+        default_reasoning_effort: str | None = None,
     ):
         """
         Initialize Gemini adapter.
@@ -21,13 +25,19 @@ class GeminiAdapter(BaseCLIAdapter):
             command: Command to execute (default: "gemini")
             args: List of argument templates (from config.yaml)
             timeout: Timeout in seconds (default: 60)
+            default_reasoning_effort: Ignored (Gemini doesn't support reasoning effort)
 
         Note:
             The gemini CLI uses `gemini -p "prompt"` or `gemini -m model -p "prompt"` syntax.
         """
         if args is None:
             raise ValueError("args must be provided from config.yaml")
-        super().__init__(command=command, args=args, timeout=timeout)
+        super().__init__(
+            command=command,
+            args=args,
+            timeout=timeout,
+            default_reasoning_effort=default_reasoning_effort,
+        )
 
     def validate_prompt_length(self, prompt: str) -> bool:
         """

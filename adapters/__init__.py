@@ -51,7 +51,10 @@ def create_adapter(
     if isinstance(config, CLIToolConfig):
         if name in cli_adapters:
             return cli_adapters[name](
-                command=config.command, args=config.args, timeout=config.timeout
+                command=config.command,
+                args=config.args,
+                timeout=config.timeout,
+                default_reasoning_effort=getattr(config, "default_reasoning_effort", None),
             )
         else:
             raise ValueError(
@@ -68,7 +71,10 @@ def create_adapter(
             )
 
         return cli_adapters[name](
-            command=config.command, args=config.args, timeout=config.timeout
+            command=config.command,
+            args=config.args,
+            timeout=config.timeout,
+            default_reasoning_effort=config.default_reasoning_effort,
         )
 
     elif isinstance(config, HTTPAdapterConfig):

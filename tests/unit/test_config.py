@@ -72,6 +72,83 @@ class TestCLIAdapterConfig:
         with pytest.raises(ValidationError):
             CLIAdapterConfig(type="cli", args=["--model", "{model}"], timeout=60)
 
+    def test_cli_adapter_default_reasoning_effort_defaults_to_none(self):
+        """Test that default_reasoning_effort defaults to None."""
+        from models.config import CLIAdapterConfig
+
+        config = CLIAdapterConfig(
+            type="cli",
+            command="codex",
+            args=["exec", "--model", "{model}", "{prompt}"],
+            timeout=60,
+        )
+        assert config.default_reasoning_effort is None
+
+    def test_cli_adapter_default_reasoning_effort_accepts_string(self):
+        """Test that default_reasoning_effort accepts string values."""
+        from models.config import CLIAdapterConfig
+
+        # Codex values
+        config1 = CLIAdapterConfig(
+            type="cli",
+            command="codex",
+            args=["exec", "--model", "{model}", "{prompt}"],
+            timeout=60,
+            default_reasoning_effort="medium",
+        )
+        assert config1.default_reasoning_effort == "medium"
+
+        config2 = CLIAdapterConfig(
+            type="cli",
+            command="codex",
+            args=["exec", "--model", "{model}", "{prompt}"],
+            timeout=60,
+            default_reasoning_effort="high",
+        )
+        assert config2.default_reasoning_effort == "high"
+
+        # Droid values
+        config3 = CLIAdapterConfig(
+            type="cli",
+            command="droid",
+            args=["exec", "-m", "{model}", "{prompt}"],
+            timeout=60,
+            default_reasoning_effort="low",
+        )
+        assert config3.default_reasoning_effort == "low"
+
+    def test_cli_adapter_default_reasoning_effort_serializes(self):
+        """Test that default_reasoning_effort serializes correctly."""
+        from models.config import CLIAdapterConfig
+
+        config = CLIAdapterConfig(
+            type="cli",
+            command="codex",
+            args=["exec", "--model", "{model}", "{prompt}"],
+            timeout=60,
+            default_reasoning_effort="high",
+        )
+        data = config.model_dump()
+
+        assert "default_reasoning_effort" in data
+        assert data["default_reasoning_effort"] == "high"
+
+    def test_config_yaml_has_reasoning_effort_placeholder(self):
+        """Test config.yaml has {reasoning_effort} placeholder in codex and droid args."""
+        config = load_config()
+
+        # codex should have {reasoning_effort} placeholder in args
+        assert "codex" in config.cli_tools
+        codex_config = config.cli_tools["codex"]
+        assert any("{reasoning_effort}" in str(arg) for arg in codex_config.args), \
+            "codex args should contain {reasoning_effort} placeholder"
+
+        # droid should have {reasoning_effort} placeholder in args
+        assert "droid" in config.cli_tools
+        droid_config = config.cli_tools["droid"]
+        assert any("{reasoning_effort}" in str(arg) for arg in droid_config.args), \
+            "droid args should contain {reasoning_effort} placeholder"
+
 
 class TestHTTPAdapterConfig:
     """Tests for HTTP adapter configuration."""

@@ -99,6 +99,19 @@ mcp__ai-counsel__deliberate({
 **Available Models**: `claude` (opus 4.5, sonnet, haiku), `codex` (gpt-5.1-codex), `droid`, `gemini`, HTTP adapters (ollama, lmstudio, openrouter).
 See [CLI Model Reference](docs/CLI_MODEL_REFERENCE.md) for complete details.
 
+> **🧠 Reasoning Effort Control**
+>
+> Control reasoning depth per-participant for codex and droid adapters:
+> ```javascript
+> participants: [
+>   {cli: "codex", model: "gpt-5.1-codex", reasoning_effort: "high"},    // Deep reasoning
+>   {cli: "droid", model: "gpt-5.1-codex", reasoning_effort: "low"}      // Fast response
+> ]
+> ```
+> - **Codex**: `none`, `minimal`, `low`, `medium`, `high`, `xhigh`
+> - **Droid**: `off`, `low`, `medium`, `high`
+> - Config defaults set in `config.yaml`, per-participant overrides at runtime
+
 For model choices and picker workflow, see [Model Registry & Picker](docs/model-registry-and-picker.md).
 
 ## Installation

@@ -301,6 +301,158 @@ class TestDeliberationEngineMultiRound:
         assert "Should we use TypeScript?" in content
 
 
+class TestEngineReasoningEffort:
+    """Tests for reasoning_effort passing from Participant to adapter in engine."""
+
+    @pytest.mark.asyncio
+    async def test_reasoning_effort_passed_to_adapter(self, mock_adapters):
+        """Test reasoning_effort from Participant is passed to adapter.invoke()."""
+        mock_adapters["codex"] = mock_adapters["codex"]
+        engine = DeliberationEngine(mock_adapters)
+
+        participants = [
+            Participant(cli="codex", model="gpt-4", reasoning_effort="high")
+        ]
+
+        mock_adapters["codex"].invoke_mock.return_value = "Codex response"
+
+        await engine.execute_round(
+            round_num=1,
+            prompt="Test prompt",
+            participants=participants,
+            previous_responses=[],
+        )
+
+        # Verify invoke was called with reasoning_effort
+        mock_adapters["codex"].invoke_mock.assert_called_once()
+        call_kwargs = mock_adapters["codex"].invoke_mock.call_args[1]
+        assert call_kwargs.get("reasoning_effort") == "high"
+
+    @pytest.mark.asyncio
+    async def test_reasoning_effort_none_passed_when_not_set(self, mock_adapters):
+        """Test None reasoning_effort is passed when not set on Participant."""
+        mock_adapters["codex"] = mock_adapters["codex"]
+        engine = DeliberationEngine(mock_adapters)
+
+        participants = [
+            Participant(cli="codex", model="gpt-4")  # No reasoning_effort
+        ]
+
+        mock_adapters["codex"].invoke_mock.return_value = "Codex response"
+
+        await engine.execute_round(
+            round_num=1,
+            prompt="Test prompt",
+            participants=participants,
+            previous_responses=[],
+        )
+
+        # Verify invoke was called with reasoning_effort=None
+        mock_adapters["codex"].invoke_mock.assert_called_once()
+        call_kwargs = mock_adapters["codex"].invoke_mock.call_args[1]
+        assert call_kwargs.get("reasoning_effort") is None
+
+    @pytest.mark.asyncio
+    async def test_different_participants_different_reasoning_efforts(self, mock_adapters):
+        """Test each participant's reasoning_effort is passed to their respective adapter."""
+        mock_adapters["codex"] = mock_adapters["codex"]
+        engine = DeliberationEngine(mock_adapters)
+
+        # Create mock for both adapters with tracking
+        codex_calls = []
+        claude_calls = []
+
+        async def codex_invoke(*args, **kwargs):
+            codex_calls.append(kwargs)
+            return "Codex response"
+
+        async def claude_invoke(*args, **kwargs):
+            claude_calls.append(kwargs)
+            return "Claude response"
+
+        mock_adapters["codex"].invoke_mock.side_effect = codex_invoke
+        mock_adapters["claude"].invoke_mock.side_effect = claude_invoke
+
+        participants = [
+            Participant(cli="codex", model="gpt-4", reasoning_effort="high"),
+            Participant(cli="claude", model="sonnet", reasoning_effort=None),
+        ]
+
+        await engine.execute_round(
+            round_num=1,
+            prompt="Test prompt",
+            participants=participants,
+            previous_responses=[],
+        )
+
+        # Verify each adapter received correct reasoning_effort
+        assert len(codex_calls) == 1
+        assert codex_calls[0].get("reasoning_effort") == "high"
+
+        assert len(claude_calls) == 1
+        assert claude_calls[0].get("reasoning_effort") is None
+
+    @pytest.mark.asyncio
+    async def test_reasoning_effort_in_full_deliberation(self, mock_adapters, tmp_path):
+        """Test reasoning_effort is passed correctly during full deliberation execute()."""
+        from deliberation.transcript import TranscriptManager
+        from models.schema import DeliberateRequest
+
+        manager = TranscriptManager(output_dir=str(tmp_path))
+        engine = DeliberationEngine(adapters=mock_adapters, transcript_manager=manager)
+
+        request = DeliberateRequest(
+            question="Test question with reasoning effort",
+            participants=[
+                Participant(cli="codex", model="gpt-4", reasoning_effort="xhigh"),
+                Participant(cli="claude", model="sonnet"),
+            ],
+            rounds=2,
+            mode="conference",
+            working_directory="/tmp",
+        )
+
+        mock_adapters["codex"].invoke_mock.return_value = "Codex response"
+        mock_adapters["claude"].invoke_mock.return_value = "Claude response"
+
+        result = await engine.execute(request)
+
+        assert result.status == "complete"
+        assert result.rounds_completed == 2
+
+        # Verify codex was called with reasoning_effort="xhigh" in each round
+        codex_calls = mock_adapters["codex"].invoke_mock.call_args_list
+        for call in codex_calls:
+            call_kwargs = call[1]
+            assert call_kwargs.get("reasoning_effort") == "xhigh"
+
+    @pytest.mark.asyncio
+    async def test_reasoning_effort_logged(self, mock_adapters, caplog):
+        """Test reasoning_effort is included in log messages."""
+        import logging
+
+        mock_adapters["codex"] = mock_adapters["codex"]
+        engine = DeliberationEngine(mock_adapters)
+
+        participants = [
+            Participant(cli="codex", model="gpt-4", reasoning_effort="high")
+        ]
+
+        mock_adapters["codex"].invoke_mock.return_value = "Codex response"
+
+        with caplog.at_level(logging.INFO):
+            await engine.execute_round(
+                round_num=1,
+                prompt="Test prompt",
+                participants=participants,
+                previous_responses=[],
+            )
+
+        # Verify reasoning_effort appears in log output
+        log_text = caplog.text
+        assert "reasoning_effort=high" in log_text
+
+
 class TestVoteParsing:
     """Tests for vote parsing from model responses."""
 

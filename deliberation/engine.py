@@ -271,11 +271,12 @@ The following files are available in the working directory:
             # Get the appropriate adapter
             adapter = self.adapters[participant.cli]
 
+            reasoning_info = f", reasoning_effort={participant.reasoning_effort}" if participant.reasoning_effort else ""
             logger.info(
                 f"Round {round_num}: Invoking {participant.model}@{participant.cli} "
                 f"with prompt_length={len(enhanced_prompt)} chars, "
                 f"context_length={len(context) if context else 0} chars, "
-                f"working_directory={working_directory}"
+                f"working_directory={working_directory}{reasoning_info}"
             )
             logger.debug(
                 f"Enhanced prompt preview for {participant.model}@{participant.cli}: "
@@ -290,6 +291,7 @@ The following files are available in the working directory:
                     context=context,
                     is_deliberation=True,  # Always True during deliberations
                     working_directory=working_directory,
+                    reasoning_effort=participant.reasoning_effort,
                 )
                 logger.info(
                     f"Round {round_num}: Received response from {participant.model}@{participant.cli}, "

@@ -65,6 +65,63 @@ class TestParticipant:
         assert p.model == "anthropic/claude-3.5-sonnet"
 
 
+class TestParticipantReasoningEffort:
+    """Tests for Participant.reasoning_effort field."""
+
+    def test_reasoning_effort_default_none(self):
+        """Test reasoning_effort defaults to None."""
+        p = Participant(cli="codex", model="gpt-4")
+        assert p.reasoning_effort is None
+
+    def test_reasoning_effort_accepts_valid_string(self):
+        """Test reasoning_effort accepts valid string values."""
+        # Test Codex values
+        p1 = Participant(cli="codex", model="gpt-4", reasoning_effort="low")
+        assert p1.reasoning_effort == "low"
+
+        p2 = Participant(cli="codex", model="gpt-4", reasoning_effort="medium")
+        assert p2.reasoning_effort == "medium"
+
+        p3 = Participant(cli="codex", model="gpt-4", reasoning_effort="high")
+        assert p3.reasoning_effort == "high"
+
+        p4 = Participant(cli="codex", model="gpt-4", reasoning_effort="xhigh")
+        assert p4.reasoning_effort == "xhigh"
+
+        # Test Droid values
+        p5 = Participant(cli="droid", model="factory-1", reasoning_effort="off")
+        assert p5.reasoning_effort == "off"
+
+        p6 = Participant(cli="droid", model="factory-1", reasoning_effort="high")
+        assert p6.reasoning_effort == "high"
+
+    def test_reasoning_effort_serializes_correctly(self):
+        """Test reasoning_effort serializes to dict correctly."""
+        p = Participant(cli="codex", model="gpt-4", reasoning_effort="high")
+        data = p.model_dump()
+
+        assert "reasoning_effort" in data
+        assert data["reasoning_effort"] == "high"
+
+    def test_reasoning_effort_none_serializes_correctly(self):
+        """Test None reasoning_effort serializes correctly."""
+        p = Participant(cli="codex", model="gpt-4")
+        data = p.model_dump()
+
+        assert "reasoning_effort" in data
+        assert data["reasoning_effort"] is None
+
+    def test_reasoning_effort_from_dict(self):
+        """Test creating Participant from dict with reasoning_effort."""
+        data = {
+            "cli": "codex",
+            "model": "gpt-4",
+            "reasoning_effort": "medium"
+        }
+        p = Participant(**data)
+        assert p.reasoning_effort == "medium"
+
+
 class TestDeliberateRequest:
     """Tests for DeliberateRequest model."""
 

@@ -46,6 +46,15 @@ AI Counsel is an MCP (Model Context Protocol) server that enables true deliberat
   - Minimum: 7B-8B parameters (Llama-3-8B, Mistral-7B, Qwen-2.5-7B)
   - Not recommended: <3B parameters (struggle with vote formatting, echo prompts)
   - Token limits: Use 2048+ tokens for complete responses
+- **Reasoning Effort** (config-based defaults with per-participant override):
+  - Controls reasoning depth per model via `{reasoning_effort}` placeholder in CLI args
+  - Codex: `none`, `minimal`, `low`, `medium`, `high`, `xhigh` (via `-c model_reasoning_effort="{reasoning_effort}"`)
+  - Droid: `off`, `low`, `medium`, `high` (via `-r {reasoning_effort}` flag)
+  - Other adapters: N/A (reasoning_effort ignored)
+  - **Priority chain**: Per-participant → Config `default_reasoning_effort` → Empty string
+  - **Placeholder mechanism**: `{reasoning_effort}` in args is substituted at runtime
+  - Config default: Set `default_reasoning_effort` field on adapter in `config.yaml`
+  - Runtime override: Pass `reasoning_effort` on `Participant` object
 
 **Working Directory Isolation** (`adapters/base.py`)
 - All CLI adapters run subprocesses from the `working_directory` passed by MCP clients
@@ -257,6 +266,34 @@ mypy .            # Type check (optional)
 - Respects min rounds: `respect_min_rounds: true`
 - Example: 3 models, 2 say `continue_debate: false` → stops (2/3 = 66%)
 
+### Reasoning Effort Defaults
+Configure per-adapter reasoning effort defaults in `config.yaml`:
+```yaml
+cli_tools:
+  codex:
+    command: "codex"
+    args: ["exec", "--model", "{model}", "-c", 'model_reasoning_effort="{reasoning_effort}"', "{prompt}"]
+    timeout: 180
+    default_reasoning_effort: "medium"  # Config default
+
+  droid:
+    command: "droid"
+    args: ["exec", "-m", "{model}", "-r", "{reasoning_effort}", "{prompt}"]
+    timeout: 180
+    default_reasoning_effort: "medium"  # Config default
+```
+
+**Priority Chain** (highest to lowest):
+1. **Per-participant**: `Participant(cli="codex", reasoning_effort="high")` → uses "high"
+2. **Config default**: `default_reasoning_effort: "medium"` → uses "medium"
+3. **Empty string**: No default, no per-participant → `{reasoning_effort}` becomes `""`
+
+**Placeholder Mechanism**:
+- `{reasoning_effort}` placeholder in args substituted at runtime
+- Codex: `-c model_reasoning_effort=""` (empty = default reasoning)
+- Droid: `-r ""` (empty = adapter handles gracefully)
+- Validation: Invalid values raise `ValueError` before subprocess call
+
 ### Hook Management
 Claude CLI: `--settings '{"disableAllHooks": true}'` prevents hooks from interfering. Critical for reliable execution.
 
@@ -373,6 +410,34 @@ try:
     result = await asyncio.wait_for(slow_operation(), timeout=self.timeout)
 except asyncio.TimeoutError:
     return ToolResult(success=False, error="Operation timed out")
+```
+
+### Per-Participant Reasoning Effort
+```python
+from models.schema import Participant, DeliberateRequest
+
+# Override reasoning effort per-participant (config.yaml sets default)
+request = DeliberateRequest(
+    question="Complex architecture question",
+    participants=[
+        Participant(cli="codex", model="gpt-5.1-codex", reasoning_effort="high"),  # Overrides config default
+        Participant(cli="droid", model="claude-opus-4-5-20251101", reasoning_effort="medium"),
+        Participant(cli="claude", model="claude-sonnet-4-5-20250929"),  # No reasoning_effort (N/A)
+        Participant(cli="codex", model="gpt-5.1-codex-mini"),  # Uses config default_reasoning_effort
+    ],
+    rounds=2,
+    working_directory="/path/to/project",
+)
+
+# Adapter support matrix:
+# - codex: none, minimal, low, medium, high, xhigh (injected as -c model_reasoning_effort="...")
+# - droid: off, low, medium, high (injected as -r flag)
+# - claude/gemini/llamacpp: N/A (reasoning_effort ignored)
+
+# Priority chain (Per-participant > Config default > Empty string):
+# 1. Participant(reasoning_effort="high") → uses "high"
+# 2. No per-participant + config default_reasoning_effort="medium" → uses "medium"
+# 3. No per-participant + no config default → empty string
 ```
 
 ### Proper Configuration Pattern (NO TODOs)
