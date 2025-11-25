@@ -27,10 +27,18 @@ cli_tools:
         "workspace-write",
         "--model",
         "{model}",
+        "-c",
+        'model_reasoning_effort="high"',
         "{prompt}",
       ]
     timeout: 180
-    # Valid models: "gpt-5.1-codex", or other OpenAI model identifiers
+    # Valid models: "gpt-5.1-codex-max", "gpt-5.1-codex", "gpt-5.1-codex-mini"
+    #
+    # Reasoning Effort Levels:
+    # - low: Fast responses with lighter reasoning
+    # - medium: Balances speed and reasoning depth (default)
+    # - high: Maximizes reasoning depth for complex problems
+    # - extra-high: Maximum depth (warning: consumes rate limits quickly)
     #
     # Security Configuration:
     # - --skip-git-repo-check: Allows running outside git repositories
@@ -40,10 +48,17 @@ cli_tools:
 
   droid:
     command: "droid"
-    args: ["exec", "-m", "{model}", "{prompt}"]
+    args: ["exec", "-m", "{model}", "-r", "high", "{prompt}"]
     timeout: 180
-    # VALID MODEL IDS: "claude-opus-4-5-20251101", "claude-sonnet-4-5-20250929", "gpt-5.1-codex", "glm-4.6"
+    # VALID MODEL IDS: "claude-opus-4-5-20251101", "claude-sonnet-4-5-20250929", "gpt-5.1-codex", "gpt-5.1", "glm-4.6"
     # Note: Use model IDs (not labels). See model_registry.droid section below for full list
+    #
+    # Reasoning Effort Levels (-r flag):
+    # - off/none: No extended reasoning (default for Claude models)
+    # - low: Light reasoning
+    # - medium: Balanced reasoning (default for GPT-5.1-Codex)
+    # - high: Deep reasoning for complex problems
+    # Note: GLM-4.6 does not support reasoning effort
     #
     # Adaptive Permission Strategy (Graceful Degradation):
     # The Droid adapter automatically handles permission levels without manual configuration.
