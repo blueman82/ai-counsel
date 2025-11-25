@@ -233,7 +233,7 @@ mypy .            # Type check (optional)
 
 ### Timeouts
 - Default: 60s per invocation
-- Reasoning models (Claude Sonnet 4.5, GPT-5.1-Codex): 180-300s recommended
+- Reasoning models (Claude Opus 4.5, Claude Sonnet 4.5, GPT-5.1-Codex): 180-300s recommended
 - Configure per-CLI in `config.yaml::adapters::<name>::timeout`
 
 ### Model Registry Enabled Field
@@ -287,7 +287,7 @@ For detailed step-by-step guides on extending the system, see:
 1. **Stdio Contamination**: Server uses stdio for MCP protocol. All logging MUST go to file or stderr, never stdout.
 2. **Timeout Tuning**: Reasoning models can take 60-120+ seconds. Undersized timeouts cause spurious failures.
 3. **Convergence Backend**: Optional backends (TF-IDF, SentenceTransformer) improve quality but add dependencies. Zero-dep Jaccard backend always available.
-4. **Model ID Format**: Some CLIs (droid) require full model IDs like `claude-sonnet-4-5-20250929`, not aliases like `sonnet`.
+4. **Model ID Format**: Some CLIs (droid) require full model IDs like `claude-opus-4-5-20251101` or `claude-sonnet-4-5-20250929`, not aliases like `opus` or `sonnet`.
 5. **Context Building**: Previous responses passed as context to subsequent rounds. Large debates = large context. Monitor token usage.
 6. **Async Execution**: Engine uses `asyncio` for subprocess management. All adapter invocations are async.
 7. **Hook Interference**: Claude CLI hooks can break CLI invocations during deliberation. Always disable with `--settings` flag.

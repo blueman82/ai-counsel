@@ -14,7 +14,7 @@ cli_tools:
         "{prompt}",
       ]
     timeout: 300
-    # Valid models: "sonnet", "opus", "haiku" or full names like "claude-sonnet-4-5-20250929"
+    # Valid models: "sonnet", "opus", "haiku" or full names like "claude-opus-4-5-20251101", "claude-sonnet-4-5-20250929"
     # Note: -p flag is auto-removed during deliberations for full engagement
 
   codex:
@@ -42,7 +42,7 @@ cli_tools:
     command: "droid"
     args: ["exec", "-m", "{model}", "{prompt}"]
     timeout: 180
-    # VALID MODEL IDS: "claude-sonnet-4-5-20250929", "gpt-5.1-codex", "glm-4.6"
+    # VALID MODEL IDS: "claude-opus-4-5-20251101", "claude-sonnet-4-5-20250929", "gpt-5.1-codex", "glm-4.6"
     # Note: Use model IDs (not labels). See model_registry.droid section below for full list
     #
     # Adaptive Permission Strategy (Graceful Degradation):
@@ -154,6 +154,10 @@ defaults:
 
 model_registry:
   claude:
+    - id: "claude-opus-4-5-20251101"
+      label: "Claude Opus 4.5"
+      tier: "premium"
+      enabled: true
     - id: "claude-sonnet-4-5-20250929"
       label: "Claude Sonnet 4.5"
       tier: "balanced"
@@ -182,6 +186,10 @@ model_registry:
       tier: "general"
       enabled: true
   droid:
+    - id: "claude-opus-4-5-20251101"
+      label: "Claude Opus 4.5 (via Droid)"
+      tier: "premium"
+      enabled: true
     - id: "claude-sonnet-4-5-20250929"
       label: "Claude Sonnet 4.5 (via Droid)"
       tier: "balanced"
