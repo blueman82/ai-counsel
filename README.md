@@ -96,7 +96,7 @@ mcp__ai-counsel__deliberate({
 >
 > **Not Recommended**: Models under 3B parameters (e.g., Llama-3.2-1B) may struggle with complex instructions and produce invalid votes.
 
-**Available Models**: `claude` (sonnet, opus, haiku), `codex` (gpt-5.1-codex), `droid`, `gemini`, HTTP adapters (ollama, lmstudio, openrouter).
+**Available Models**: `claude` (opus 4.5, sonnet, haiku), `codex` (gpt-5.1-codex), `droid`, `gemini`, HTTP adapters (ollama, lmstudio, openrouter).
 See [CLI Model Reference](docs/CLI_MODEL_REFERENCE.md) for complete details.
 
 For model choices and picker workflow, see [Model Registry & Picker](docs/model-registry-and-picker.md).
