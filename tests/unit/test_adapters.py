@@ -467,6 +467,297 @@ class TestDroidAdapter:
         assert "--skip-permissions-unsafe" not in first_call_args
 
 
+class TestCodexReasoningEffort:
+    """Tests for CodexAdapter reasoning_effort injection."""
+
+    def test_valid_reasoning_efforts(self):
+        """Test CodexAdapter accepts all valid reasoning effort values."""
+        adapter = CodexAdapter(args=["exec", "--model", "{model}", "{prompt}"])
+
+        # Valid Codex reasoning efforts
+        assert "low" in adapter.VALID_REASONING_EFFORTS
+        assert "medium" in adapter.VALID_REASONING_EFFORTS
+        assert "high" in adapter.VALID_REASONING_EFFORTS
+        assert "xhigh" in adapter.VALID_REASONING_EFFORTS
+
+    @pytest.mark.asyncio
+    @patch("adapters.base.asyncio.create_subprocess_exec")
+    async def test_reasoning_effort_substituted_into_placeholder(self, mock_subprocess):
+        """Test reasoning_effort is substituted into {reasoning_effort} placeholder."""
+        mock_process = Mock()
+        mock_process.communicate = AsyncMock(return_value=(b"Response", b""))
+        mock_process.returncode = 0
+        mock_subprocess.return_value = mock_process
+
+        # Use config-style args with placeholder
+        adapter = CodexAdapter(args=[
+            "exec", "--model", "{model}",
+            "-c", 'model_reasoning_effort="{reasoning_effort}"',
+            "{prompt}"
+        ])
+        await adapter.invoke(
+            prompt="Test prompt",
+            model="gpt-4",
+            reasoning_effort="high"
+        )
+
+        # Verify placeholder was substituted
+        mock_subprocess.assert_called_once()
+        call_args = mock_subprocess.call_args[0]
+        assert "-c" in call_args
+        # Find the index of -c and check next arg
+        c_index = list(call_args).index("-c")
+        config_value = call_args[c_index + 1]
+        assert 'model_reasoning_effort="high"' in config_value
+
+    @pytest.mark.asyncio
+    @patch("adapters.base.asyncio.create_subprocess_exec")
+    async def test_invalid_reasoning_effort_raises_valueerror(self, mock_subprocess):
+        """Test invalid reasoning_effort raises ValueError before subprocess call."""
+        adapter = CodexAdapter(args=["exec", "--model", "{model}", "{prompt}"])
+
+        with pytest.raises(ValueError) as exc_info:
+            await adapter.invoke(
+                prompt="Test prompt",
+                model="gpt-4",
+                reasoning_effort="invalid-level"
+            )
+
+        assert "invalid reasoning_effort" in str(exc_info.value).lower()
+        assert "invalid-level" in str(exc_info.value)
+        # Subprocess should NOT have been called
+        mock_subprocess.assert_not_called()
+
+    @pytest.mark.asyncio
+    @patch("adapters.base.asyncio.create_subprocess_exec")
+    async def test_default_reasoning_effort_used_when_none(self, mock_subprocess):
+        """Test default_reasoning_effort is used when reasoning_effort=None."""
+        mock_process = Mock()
+        mock_process.communicate = AsyncMock(return_value=(b"Response", b""))
+        mock_process.returncode = 0
+        mock_subprocess.return_value = mock_process
+
+        adapter = CodexAdapter(
+            args=["exec", "--model", "{model}", "-c", 'model_reasoning_effort="{reasoning_effort}"', "{prompt}"],
+            default_reasoning_effort="medium"
+        )
+        await adapter.invoke(
+            prompt="Test prompt",
+            model="gpt-4",
+            reasoning_effort=None  # Should use default
+        )
+
+        # Verify default was substituted
+        mock_subprocess.assert_called_once()
+        call_args = mock_subprocess.call_args[0]
+        args_str = " ".join(str(arg) for arg in call_args)
+        assert 'model_reasoning_effort="medium"' in args_str
+
+    @pytest.mark.asyncio
+    @patch("adapters.base.asyncio.create_subprocess_exec")
+    async def test_reasoning_effort_overrides_default(self, mock_subprocess):
+        """Test runtime reasoning_effort overrides default_reasoning_effort."""
+        mock_process = Mock()
+        mock_process.communicate = AsyncMock(return_value=(b"Response", b""))
+        mock_process.returncode = 0
+        mock_subprocess.return_value = mock_process
+
+        # Has default of "low", but we pass "high" at runtime
+        adapter = CodexAdapter(
+            args=["exec", "-c", 'model_reasoning_effort="{reasoning_effort}"', "--model", "{model}", "{prompt}"],
+            default_reasoning_effort="low"
+        )
+
+        await adapter.invoke(
+            prompt="Test prompt",
+            model="gpt-4",
+            reasoning_effort="high"  # Override default
+        )
+
+        mock_subprocess.assert_called_once()
+        call_args = mock_subprocess.call_args[0]
+        args_str = " ".join(str(arg) for arg in call_args)
+
+        # Should have "high", not "low"
+        assert '"high"' in args_str
+        # Count occurrences - should only have one model_reasoning_effort
+        assert args_str.count("model_reasoning_effort") == 1
+
+    @pytest.mark.asyncio
+    @patch("adapters.base.asyncio.create_subprocess_exec")
+    async def test_empty_reasoning_effort_when_no_default(self, mock_subprocess):
+        """Test empty string when no default and no runtime reasoning_effort."""
+        mock_process = Mock()
+        mock_process.communicate = AsyncMock(return_value=(b"Response", b""))
+        mock_process.returncode = 0
+        mock_subprocess.return_value = mock_process
+
+        # No default reasoning effort
+        adapter = CodexAdapter(
+            args=["exec", "-c", 'model_reasoning_effort="{reasoning_effort}"', "--model", "{model}", "{prompt}"]
+        )
+
+        await adapter.invoke(
+            prompt="Test prompt",
+            model="gpt-4",
+            reasoning_effort=None
+        )
+
+        mock_subprocess.assert_called_once()
+        call_args = mock_subprocess.call_args[0]
+        args_str = " ".join(str(arg) for arg in call_args)
+
+        # Should have empty string substituted
+        assert 'model_reasoning_effort=""' in args_str
+
+
+class TestDroidReasoningEffort:
+    """Tests for DroidAdapter reasoning_effort injection."""
+
+    def test_valid_reasoning_efforts(self):
+        """Test DroidAdapter accepts all valid reasoning effort values."""
+        adapter = DroidAdapter(args=["exec", "-m", "{model}", "{prompt}"])
+
+        # Valid Droid reasoning efforts
+        assert "off" in adapter.VALID_REASONING_EFFORTS
+        assert "low" in adapter.VALID_REASONING_EFFORTS
+        assert "medium" in adapter.VALID_REASONING_EFFORTS
+        assert "high" in adapter.VALID_REASONING_EFFORTS
+
+    @pytest.mark.asyncio
+    @patch("adapters.droid.asyncio.create_subprocess_exec")
+    async def test_reasoning_effort_injected_as_r_flag(self, mock_subprocess):
+        """Test reasoning_effort is substituted into {reasoning_effort} placeholder."""
+        mock_process = Mock()
+        mock_process.communicate = AsyncMock(return_value=(b"Response", b""))
+        mock_process.returncode = 0
+        mock_subprocess.return_value = mock_process
+
+        # Use config.yaml format with {reasoning_effort} placeholder
+        adapter = DroidAdapter(args=["exec", "-m", "{model}", "-r", "{reasoning_effort}", "{prompt}"])
+        await adapter.invoke(
+            prompt="Test prompt",
+            model="factory-1",
+            reasoning_effort="high"
+        )
+
+        mock_subprocess.assert_called_once()
+        call_args = mock_subprocess.call_args[0]
+        assert "-r" in call_args
+        r_index = list(call_args).index("-r")
+        assert call_args[r_index + 1] == "high"
+
+    @pytest.mark.asyncio
+    @patch("adapters.droid.asyncio.create_subprocess_exec")
+    async def test_invalid_reasoning_effort_raises_valueerror(self, mock_subprocess):
+        """Test invalid reasoning_effort raises ValueError before subprocess call."""
+        adapter = DroidAdapter(args=["exec", "-m", "{model}", "{prompt}"])
+
+        with pytest.raises(ValueError) as exc_info:
+            await adapter.invoke(
+                prompt="Test prompt",
+                model="factory-1",
+                reasoning_effort="xhigh"  # Invalid for Droid (valid for Codex)
+            )
+
+        assert "invalid reasoning_effort" in str(exc_info.value).lower()
+        assert "xhigh" in str(exc_info.value)
+        mock_subprocess.assert_not_called()
+
+    @pytest.mark.asyncio
+    @patch("adapters.droid.asyncio.create_subprocess_exec")
+    async def test_reasoning_effort_off_injected(self, mock_subprocess):
+        """Test 'off' reasoning_effort is correctly substituted."""
+        mock_process = Mock()
+        mock_process.communicate = AsyncMock(return_value=(b"Response", b""))
+        mock_process.returncode = 0
+        mock_subprocess.return_value = mock_process
+
+        # Use config.yaml format with {reasoning_effort} placeholder
+        adapter = DroidAdapter(args=["exec", "-m", "{model}", "-r", "{reasoning_effort}", "{prompt}"])
+        await adapter.invoke(
+            prompt="Test prompt",
+            model="factory-1",
+            reasoning_effort="off"
+        )
+
+        mock_subprocess.assert_called_once()
+        call_args = mock_subprocess.call_args[0]
+        assert "-r" in call_args
+        r_index = list(call_args).index("-r")
+        assert call_args[r_index + 1] == "off"
+
+    @pytest.mark.asyncio
+    @patch("adapters.droid.asyncio.create_subprocess_exec")
+    async def test_reasoning_effort_with_permission_degradation(self, mock_subprocess):
+        """Test reasoning_effort works correctly with permission degradation."""
+        call_count = 0
+
+        def subprocess_side_effect(*args, **kwargs):
+            nonlocal call_count
+            call_count += 1
+            mock_process = Mock()
+
+            # First call (--auto low) fails with permission error
+            if call_count == 1:
+                mock_process.communicate = AsyncMock(
+                    return_value=(b"", b"Error: insufficient permission to proceed")
+                )
+                mock_process.returncode = 1
+            else:
+                # Second call (--auto medium) succeeds
+                mock_process.communicate = AsyncMock(
+                    return_value=(b"Response with reasoning", b"")
+                )
+                mock_process.returncode = 0
+
+            return mock_process
+
+        mock_subprocess.side_effect = subprocess_side_effect
+
+        # Use config.yaml format with {reasoning_effort} placeholder
+        adapter = DroidAdapter(args=["exec", "-m", "{model}", "-r", "{reasoning_effort}", "{prompt}"])
+        result = await adapter.invoke(
+            prompt="Test prompt",
+            model="factory-1",
+            reasoning_effort="medium"
+        )
+
+        assert result == "Response with reasoning"
+        assert call_count == 2  # Tried twice (low failed, medium succeeded)
+
+        # Verify -r flag was substituted correctly in both calls
+        for call in mock_subprocess.call_args_list:
+            call_args = call[0]
+            assert "-r" in call_args
+            r_index = list(call_args).index("-r")
+            assert call_args[r_index + 1] == "medium"
+
+    @pytest.mark.asyncio
+    @patch("adapters.droid.asyncio.create_subprocess_exec")
+    async def test_none_reasoning_effort_uses_empty_string(self, mock_subprocess):
+        """Test None reasoning_effort substitutes empty string into placeholder."""
+        mock_process = Mock()
+        mock_process.communicate = AsyncMock(return_value=(b"Response", b""))
+        mock_process.returncode = 0
+        mock_subprocess.return_value = mock_process
+
+        # Use config.yaml format with {reasoning_effort} placeholder
+        adapter = DroidAdapter(args=["exec", "-m", "{model}", "-r", "{reasoning_effort}", "{prompt}"])
+        await adapter.invoke(
+            prompt="Test prompt",
+            model="factory-1",
+            reasoning_effort=None
+        )
+
+        mock_subprocess.assert_called_once()
+        call_args = mock_subprocess.call_args[0]
+        # -r flag IS present (from config), value is empty string
+        assert "-r" in call_args
+        r_index = list(call_args).index("-r")
+        assert call_args[r_index + 1] == ""  # Empty string when no reasoning_effort
+
+
 class TestAdapterFactory:
     """Tests for create_adapter factory function."""
 
@@ -481,6 +772,47 @@ class TestAdapterFactory:
         assert isinstance(adapter, ClaudeAdapter)
         assert adapter.command == "claude"
         assert adapter.timeout == 90
+
+    def test_factory_passes_default_reasoning_effort_from_cli_adapter_config(self):
+        """Test factory passes default_reasoning_effort from CLIAdapterConfig to adapter."""
+        config = CLIAdapterConfig(
+            type="cli",
+            command="codex",
+            args=["exec", "--model", "{model}", "-c", 'model_reasoning_effort="{reasoning_effort}"', "{prompt}"],
+            timeout=120,
+            default_reasoning_effort="high",
+        )
+        adapter = create_adapter("codex", config)
+
+        assert isinstance(adapter, CodexAdapter)
+        assert adapter.default_reasoning_effort == "high"
+
+    def test_factory_passes_none_reasoning_effort_when_not_specified(self):
+        """Test factory passes None when default_reasoning_effort not in config."""
+        config = CLIAdapterConfig(
+            type="cli",
+            command="codex",
+            args=["exec", "--model", "{model}", "{prompt}"],
+            timeout=120,
+        )
+        adapter = create_adapter("codex", config)
+
+        assert isinstance(adapter, CodexAdapter)
+        assert adapter.default_reasoning_effort is None
+
+    def test_factory_passes_default_reasoning_effort_to_droid(self):
+        """Test factory passes default_reasoning_effort to DroidAdapter."""
+        config = CLIAdapterConfig(
+            type="cli",
+            command="droid",
+            args=["exec", "-m", "{model}", "-r", "{reasoning_effort}", "{prompt}"],
+            timeout=180,
+            default_reasoning_effort="medium",
+        )
+        adapter = create_adapter("droid", config)
+
+        assert isinstance(adapter, DroidAdapter)
+        assert adapter.default_reasoning_effort == "medium"
 
     def test_create_codex_adapter(self):
         """Test creating CodexAdapter via factory."""
@@ -669,6 +1001,230 @@ class TestAdapterFactory:
         )
         adapter = create_adapter("claude", cli_config)
         assert isinstance(adapter, ClaudeAdapter)
+
+
+class TestConfigBasedReasoningDefaults:
+    """Tests for config-based reasoning effort defaults and priority (runtime > config > empty)."""
+
+    @pytest.mark.asyncio
+    @patch("adapters.base.asyncio.create_subprocess_exec")
+    async def test_runtime_reasoning_effort_overrides_config_default(self, mock_subprocess):
+        """Test runtime reasoning_effort takes priority over config default."""
+        mock_process = Mock()
+        mock_process.communicate = AsyncMock(return_value=(b"Response", b""))
+        mock_process.returncode = 0
+        mock_subprocess.return_value = mock_process
+
+        # Create adapter with config default of "low"
+        adapter = CodexAdapter(
+            args=["exec", "-c", 'model_reasoning_effort="{reasoning_effort}"', "--model", "{model}", "{prompt}"],
+            default_reasoning_effort="low",
+        )
+
+        # Call with runtime reasoning_effort="high" (should override config default)
+        await adapter.invoke(
+            prompt="Test prompt",
+            model="gpt-4",
+            reasoning_effort="high",
+        )
+
+        mock_subprocess.assert_called_once()
+        call_args = mock_subprocess.call_args[0]
+        args_str = " ".join(str(arg) for arg in call_args)
+
+        # Should have "high" from runtime, NOT "low" from config
+        assert 'model_reasoning_effort="high"' in args_str
+        assert 'model_reasoning_effort="low"' not in args_str
+
+    @pytest.mark.asyncio
+    @patch("adapters.base.asyncio.create_subprocess_exec")
+    async def test_config_default_used_when_runtime_is_none(self, mock_subprocess):
+        """Test config default is used when reasoning_effort=None at runtime."""
+        mock_process = Mock()
+        mock_process.communicate = AsyncMock(return_value=(b"Response", b""))
+        mock_process.returncode = 0
+        mock_subprocess.return_value = mock_process
+
+        # Create adapter with config default
+        adapter = CodexAdapter(
+            args=["exec", "-c", 'model_reasoning_effort="{reasoning_effort}"', "--model", "{model}", "{prompt}"],
+            default_reasoning_effort="medium",
+        )
+
+        # Call without specifying reasoning_effort (should use config default)
+        await adapter.invoke(
+            prompt="Test prompt",
+            model="gpt-4",
+            reasoning_effort=None,
+        )
+
+        mock_subprocess.assert_called_once()
+        call_args = mock_subprocess.call_args[0]
+        args_str = " ".join(str(arg) for arg in call_args)
+
+        # Should have "medium" from config default
+        assert 'model_reasoning_effort="medium"' in args_str
+
+    @pytest.mark.asyncio
+    @patch("adapters.base.asyncio.create_subprocess_exec")
+    async def test_empty_string_when_no_default_and_no_runtime(self, mock_subprocess):
+        """Test empty string is used when no config default and no runtime value."""
+        mock_process = Mock()
+        mock_process.communicate = AsyncMock(return_value=(b"Response", b""))
+        mock_process.returncode = 0
+        mock_subprocess.return_value = mock_process
+
+        # Create adapter WITHOUT config default
+        adapter = CodexAdapter(
+            args=["exec", "-c", 'model_reasoning_effort="{reasoning_effort}"', "--model", "{model}", "{prompt}"],
+            # No default_reasoning_effort
+        )
+
+        # Call without specifying reasoning_effort
+        await adapter.invoke(
+            prompt="Test prompt",
+            model="gpt-4",
+            reasoning_effort=None,
+        )
+
+        mock_subprocess.assert_called_once()
+        call_args = mock_subprocess.call_args[0]
+        args_str = " ".join(str(arg) for arg in call_args)
+
+        # Should have empty string
+        assert 'model_reasoning_effort=""' in args_str
+
+    @pytest.mark.asyncio
+    @patch("adapters.droid.asyncio.create_subprocess_exec")
+    async def test_droid_runtime_overrides_config_default(self, mock_subprocess):
+        """Test Droid runtime reasoning_effort overrides config default."""
+        mock_process = Mock()
+        mock_process.communicate = AsyncMock(return_value=(b"Response", b""))
+        mock_process.returncode = 0
+        mock_subprocess.return_value = mock_process
+
+        # Create adapter with config default of "low"
+        adapter = DroidAdapter(
+            args=["exec", "-m", "{model}", "-r", "{reasoning_effort}", "{prompt}"],
+            default_reasoning_effort="low",
+        )
+
+        # Call with runtime reasoning_effort="high"
+        await adapter.invoke(
+            prompt="Test prompt",
+            model="factory-1",
+            reasoning_effort="high",
+        )
+
+        mock_subprocess.assert_called_once()
+        call_args = mock_subprocess.call_args[0]
+
+        # Find -r flag and check value
+        assert "-r" in call_args
+        r_index = list(call_args).index("-r")
+        assert call_args[r_index + 1] == "high"
+
+    @pytest.mark.asyncio
+    @patch("adapters.droid.asyncio.create_subprocess_exec")
+    async def test_droid_config_default_used_when_runtime_none(self, mock_subprocess):
+        """Test Droid uses config default when runtime reasoning_effort=None."""
+        mock_process = Mock()
+        mock_process.communicate = AsyncMock(return_value=(b"Response", b""))
+        mock_process.returncode = 0
+        mock_subprocess.return_value = mock_process
+
+        # Create adapter with config default
+        adapter = DroidAdapter(
+            args=["exec", "-m", "{model}", "-r", "{reasoning_effort}", "{prompt}"],
+            default_reasoning_effort="medium",
+        )
+
+        # Call without specifying reasoning_effort
+        await adapter.invoke(
+            prompt="Test prompt",
+            model="factory-1",
+            reasoning_effort=None,
+        )
+
+        mock_subprocess.assert_called_once()
+        call_args = mock_subprocess.call_args[0]
+
+        # Find -r flag and check value
+        assert "-r" in call_args
+        r_index = list(call_args).index("-r")
+        assert call_args[r_index + 1] == "medium"
+
+    def test_codex_invalid_reasoning_effort_validation(self):
+        """Test CodexAdapter validates reasoning_effort values."""
+        adapter = CodexAdapter(
+            args=["exec", "--model", "{model}", "{prompt}"],
+            default_reasoning_effort="medium",
+        )
+
+        # Valid values should be accepted
+        assert "low" in adapter.VALID_REASONING_EFFORTS
+        assert "medium" in adapter.VALID_REASONING_EFFORTS
+        assert "high" in adapter.VALID_REASONING_EFFORTS
+        assert "xhigh" in adapter.VALID_REASONING_EFFORTS
+
+        # Invalid values should not be in the set
+        assert "off" not in adapter.VALID_REASONING_EFFORTS  # off is only valid for droid
+        assert "invalid" not in adapter.VALID_REASONING_EFFORTS
+
+    def test_droid_invalid_reasoning_effort_validation(self):
+        """Test DroidAdapter validates reasoning_effort values."""
+        adapter = DroidAdapter(
+            args=["exec", "-m", "{model}", "{prompt}"],
+            default_reasoning_effort="medium",
+        )
+
+        # Valid values should be accepted
+        assert "off" in adapter.VALID_REASONING_EFFORTS
+        assert "low" in adapter.VALID_REASONING_EFFORTS
+        assert "medium" in adapter.VALID_REASONING_EFFORTS
+        assert "high" in adapter.VALID_REASONING_EFFORTS
+
+        # Invalid values should not be in the set
+        assert "xhigh" not in adapter.VALID_REASONING_EFFORTS  # xhigh is only valid for codex
+        assert "invalid" not in adapter.VALID_REASONING_EFFORTS
+
+    @pytest.mark.asyncio
+    @patch("adapters.base.asyncio.create_subprocess_exec")
+    async def test_codex_invalid_runtime_reasoning_effort_raises(self, mock_subprocess):
+        """Test CodexAdapter raises ValueError for invalid runtime reasoning_effort."""
+        adapter = CodexAdapter(
+            args=["exec", "--model", "{model}", "{prompt}"],
+            default_reasoning_effort="medium",
+        )
+
+        with pytest.raises(ValueError) as exc_info:
+            await adapter.invoke(
+                prompt="Test",
+                model="gpt-4",
+                reasoning_effort="invalid-level",
+            )
+
+        assert "invalid reasoning_effort" in str(exc_info.value).lower()
+        mock_subprocess.assert_not_called()
+
+    @pytest.mark.asyncio
+    @patch("adapters.droid.asyncio.create_subprocess_exec")
+    async def test_droid_invalid_runtime_reasoning_effort_raises(self, mock_subprocess):
+        """Test DroidAdapter raises ValueError for invalid runtime reasoning_effort."""
+        adapter = DroidAdapter(
+            args=["exec", "-m", "{model}", "{prompt}"],
+            default_reasoning_effort="medium",
+        )
+
+        with pytest.raises(ValueError) as exc_info:
+            await adapter.invoke(
+                prompt="Test",
+                model="factory-1",
+                reasoning_effort="xhigh",  # Invalid for droid (valid for codex)
+            )
+
+        assert "invalid reasoning_effort" in str(exc_info.value).lower()
+        mock_subprocess.assert_not_called()
 
 
 class TestWorkingDirectoryIsolation:

@@ -1,4 +1,5 @@
 """Droid CLI adapter."""
+
 import asyncio
 import logging
 from typing import Literal, Optional
@@ -14,8 +15,15 @@ class DroidAdapter(BaseCLIAdapter):
     # Permission levels to try in order (graceful degradation)
     PERMISSION_LEVELS = ["low", "medium", "high"]
 
+    # Valid reasoning effort levels for droid -r flag
+    VALID_REASONING_EFFORTS = {"off", "low", "medium", "high"}
+
     def __init__(
-        self, command: str = "droid", args: list[str] | None = None, timeout: int = 60
+        self,
+        command: str = "droid",
+        args: list[str] | None = None,
+        timeout: int = 60,
+        default_reasoning_effort: Optional[str] = None,
     ):
         """
         Initialize Droid adapter.
@@ -24,6 +32,8 @@ class DroidAdapter(BaseCLIAdapter):
             command: Command to execute (default: "droid")
             args: List of argument templates (from config.yaml)
             timeout: Timeout in seconds (default: 60)
+            default_reasoning_effort: Default reasoning effort level (off/low/medium/high).
+                Can be overridden per-participant at invocation time.
 
         Note:
             The droid CLI uses `droid exec "prompt"` syntax for non-interactive mode.
@@ -33,7 +43,12 @@ class DroidAdapter(BaseCLIAdapter):
         """
         if args is None:
             raise ValueError("args must be provided from config.yaml")
-        super().__init__(command=command, args=args, timeout=timeout)
+        super().__init__(
+            command=command,
+            args=args,
+            timeout=timeout,
+            default_reasoning_effort=default_reasoning_effort,
+        )
         self._successful_method: Optional[Literal["skip-permissions"]] = None
 
     async def invoke(
@@ -43,6 +58,7 @@ class DroidAdapter(BaseCLIAdapter):
         context: Optional[str] = None,
         is_deliberation: bool = True,
         working_directory: Optional[str] = None,
+        reasoning_effort: Optional[str] = None,
     ) -> str:
         """
         Invoke droid with graceful permission degradation.
@@ -57,14 +73,27 @@ class DroidAdapter(BaseCLIAdapter):
             context: Optional additional context
             is_deliberation: Whether this is part of a deliberation
             working_directory: Optional working directory for subprocess execution
+            reasoning_effort: Optional reasoning effort level (off, low, medium, high).
+                Maps to droid -r flag.
 
         Returns:
             Parsed response from the model
 
         Raises:
+            ValueError: If reasoning_effort is invalid
             RuntimeError: If all permission levels fail
             TimeoutError: If execution exceeds timeout
         """
+        # Validate reasoning_effort before permission degradation loop (fail fast)
+        if reasoning_effort and reasoning_effort not in self.VALID_REASONING_EFFORTS:
+            raise ValueError(
+                f"Invalid reasoning_effort '{reasoning_effort}'. "
+                f"Valid values: {sorted(self.VALID_REASONING_EFFORTS)}"
+            )
+
+        # Compute effective reasoning effort once: runtime > config > empty string
+        effective_reasoning_effort = reasoning_effort or self.default_reasoning_effort or ""
+
         # If we already know skip-permissions works, use it directly
         if self._successful_method == "skip-permissions":
             logger.info(
@@ -76,6 +105,7 @@ class DroidAdapter(BaseCLIAdapter):
                 model=model,
                 context=context,
                 working_directory=working_directory,
+                reasoning_effort=effective_reasoning_effort,
             )
 
         # Try with each permission level
@@ -91,6 +121,7 @@ class DroidAdapter(BaseCLIAdapter):
                     is_deliberation=is_deliberation,
                     permission_level=perm_level,
                     working_directory=working_directory,
+                    reasoning_effort=effective_reasoning_effort,
                 )
 
                 # Log success if we needed to escalate
@@ -140,6 +171,7 @@ class DroidAdapter(BaseCLIAdapter):
                     model=model,
                     context=context,
                     working_directory=working_directory,
+                    reasoning_effort=effective_reasoning_effort,
                 )
 
                 logger.info(
@@ -179,6 +211,7 @@ class DroidAdapter(BaseCLIAdapter):
         is_deliberation: bool,
         permission_level: str,
         working_directory: Optional[str] = None,
+        reasoning_effort: str = "",
     ) -> str:
         """
         Execute droid with specified permission level.
@@ -190,6 +223,7 @@ class DroidAdapter(BaseCLIAdapter):
             is_deliberation: Whether this is deliberation
             permission_level: Permission level to use (low, medium, high)
             working_directory: Optional working directory for subprocess execution
+            reasoning_effort: Reasoning effort level (substituted into {reasoning_effort} placeholder)
 
         Returns:
             Parsed response from droid
@@ -216,13 +250,14 @@ class DroidAdapter(BaseCLIAdapter):
         args = self._adjust_args_for_context(is_deliberation)
 
         # Inject permission level into args
-        # Expected format: ["exec", "--model", "{model}", "{prompt}"]
-        # We inject: ["exec", "--auto", permission_level, "--model", "{model}", "{prompt}"]
+        # Expected format: ["exec", "-m", "{model}", "-r", "{reasoning_effort}", "{prompt}"]
+        # We inject: ["exec", "--auto", permission_level, "-m", "{model}", "-r", "{reasoning_effort}", "{prompt}"]
         args_with_permission = self._inject_permission_level(args, permission_level)
 
-        # Format arguments
+        # Format arguments with placeholders
         formatted_args = [
-            arg.format(model=model, prompt=full_prompt) for arg in args_with_permission
+            arg.format(model=model, prompt=full_prompt, reasoning_effort=reasoning_effort)
+            for arg in args_with_permission
         ]
 
         # Execute subprocess
@@ -297,6 +332,7 @@ class DroidAdapter(BaseCLIAdapter):
         model: str,
         context: Optional[str],
         working_directory: Optional[str] = None,
+        reasoning_effort: str = "",
     ) -> str:
         """
         Execute droid with --skip-permissions-unsafe (nuclear option).
@@ -309,6 +345,7 @@ class DroidAdapter(BaseCLIAdapter):
             model: Model identifier
             context: Optional context
             working_directory: Optional working directory for subprocess execution
+            reasoning_effort: Reasoning effort level (substituted into {reasoning_effort} placeholder)
 
         Returns:
             Parsed response from droid
@@ -323,8 +360,8 @@ class DroidAdapter(BaseCLIAdapter):
             full_prompt = f"{context}\n\n{prompt}"
 
         # Build args with --skip-permissions-unsafe instead of --auto
-        # Expected format: ["exec", "-m", "{model}", "{prompt}"]
-        # We inject: ["exec", "--skip-permissions-unsafe", "-m", "{model}", "{prompt}"]
+        # Expected format: ["exec", "-m", "{model}", "-r", "{reasoning_effort}", "{prompt}"]
+        # We inject: ["exec", "--skip-permissions-unsafe", "-m", "{model}", "-r", "{reasoning_effort}", "{prompt}"]
         args_with_skip = self.args.copy()
         if args_with_skip and args_with_skip[0] == "exec":
             args_with_skip.insert(1, "--skip-permissions-unsafe")
@@ -332,9 +369,10 @@ class DroidAdapter(BaseCLIAdapter):
             logger.warning(f"Unexpected droid args format: {args_with_skip}")
             args_with_skip.insert(1, "--skip-permissions-unsafe")
 
-        # Format arguments
+        # Format arguments with placeholders
         formatted_args = [
-            arg.format(model=model, prompt=full_prompt) for arg in args_with_skip
+            arg.format(model=model, prompt=full_prompt, reasoning_effort=reasoning_effort)
+            for arg in args_with_skip
         ]
 
         # Execute subprocess

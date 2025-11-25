@@ -27,6 +27,15 @@ class Participant(BaseModel):
             "If omitted, the server will use the session default or the recommended default for the adapter."
         ),
     )
+    reasoning_effort: Optional[str] = Field(
+        default=None,
+        description=(
+            "Reasoning effort level for models that support it. "
+            "Codex supports: 'low', 'medium', 'high', 'extra-high'. "
+            "Droid supports: 'off', 'low', 'medium', 'high'. "
+            "If omitted, uses the adapter's configured default."
+        ),
+    )
 
 
 class DeliberateRequest(BaseModel):

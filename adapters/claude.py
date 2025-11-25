@@ -6,7 +6,11 @@ class ClaudeAdapter(BaseCLIAdapter):
     """Adapter for claude CLI tool."""
 
     def __init__(
-        self, command: str = "claude", args: list[str] | None = None, timeout: int = 60
+        self,
+        command: str = "claude",
+        args: list[str] | None = None,
+        timeout: int = 60,
+        default_reasoning_effort: str | None = None,
     ):
         """
         Initialize Claude adapter.
@@ -15,10 +19,16 @@ class ClaudeAdapter(BaseCLIAdapter):
             command: Command to execute (default: "claude")
             args: List of argument templates (from config.yaml)
             timeout: Timeout in seconds (default: 60)
+            default_reasoning_effort: Ignored (Claude doesn't support reasoning effort)
         """
         if args is None:
             raise ValueError("args must be provided from config.yaml")
-        super().__init__(command=command, args=args, timeout=timeout)
+        super().__init__(
+            command=command,
+            args=args,
+            timeout=timeout,
+            default_reasoning_effort=default_reasoning_effort,
+        )
 
     def _adjust_args_for_context(self, is_deliberation: bool) -> list[str]:
         """

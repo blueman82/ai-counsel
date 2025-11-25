@@ -28,7 +28,14 @@ class BaseCLIAdapter(ABC):
         r"connection.*refused",
     ]
 
-    def __init__(self, command: str, args: list[str], timeout: int = 60, max_retries: int = 2):
+    def __init__(
+        self,
+        command: str,
+        args: list[str],
+        timeout: int = 60,
+        max_retries: int = 2,
+        default_reasoning_effort: Optional[str] = None,
+    ):
         """
         Initialize CLI adapter.
 
@@ -37,11 +44,15 @@ class BaseCLIAdapter(ABC):
             args: List of argument templates (may contain {model}, {prompt} placeholders)
             timeout: Timeout in seconds (default: 60)
             max_retries: Maximum retry attempts for transient errors (default: 2)
+            default_reasoning_effort: Default reasoning effort level for this adapter.
+                Only applicable to codex (low/medium/high/extra-high) and droid (off/low/medium/high).
+                Ignored by other adapters. Can be overridden per-participant.
         """
         self.command = command
         self.args = args
         self.timeout = timeout
         self.max_retries = max_retries
+        self.default_reasoning_effort = default_reasoning_effort
 
     async def invoke(
         self,
@@ -50,6 +61,7 @@ class BaseCLIAdapter(ABC):
         context: Optional[str] = None,
         is_deliberation: bool = True,
         working_directory: Optional[str] = None,
+        reasoning_effort: Optional[str] = None,
     ) -> str:
         """
         Invoke the CLI tool with the given prompt and model.
@@ -60,6 +72,9 @@ class BaseCLIAdapter(ABC):
             context: Optional additional context
             is_deliberation: Whether this is part of a deliberation (auto-adjusts -p flag for Claude)
             working_directory: Optional working directory for subprocess execution (defaults to current directory)
+            reasoning_effort: Optional reasoning effort level for models that support it.
+                Subclasses may use this to pass adapter-specific flags (e.g., Codex --reasoning).
+                Base implementation ignores this parameter.
 
         Returns:
             Parsed response from the model
@@ -91,9 +106,17 @@ class BaseCLIAdapter(ABC):
 
         cwd = working_directory if working_directory else os.getcwd()
 
-        # Format arguments with {model}, {prompt}, and {working_directory} placeholders
+        # Determine effective reasoning effort: runtime > config > empty string
+        effective_reasoning_effort = reasoning_effort or self.default_reasoning_effort or ""
+
+        # Format arguments with {model}, {prompt}, {working_directory}, and {reasoning_effort} placeholders
         formatted_args = [
-            arg.format(model=model, prompt=full_prompt, working_directory=cwd)
+            arg.format(
+                model=model,
+                prompt=full_prompt,
+                working_directory=cwd,
+                reasoning_effort=effective_reasoning_effort,
+            )
             for arg in args
         ]
 
@@ -101,6 +124,7 @@ class BaseCLIAdapter(ABC):
         logger.info(
             f"Executing CLI adapter: command={self.command}, "
             f"model={model}, cwd={cwd}, "
+            f"reasoning_effort={effective_reasoning_effort or '(none)'}, "
             f"prompt_length={len(full_prompt)} chars"
         )
         logger.debug(f"Full command: {self.command} {' '.join(formatted_args[:3])}... (args truncated)")

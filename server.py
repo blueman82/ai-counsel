@@ -113,6 +113,22 @@ CLI_TITLES = {
 }
 
 
+REASONING_EFFORT_SCHEMA: dict[str, dict] = {
+    "codex": {
+        "type": ["string", "null"],
+        "enum": ["none", "minimal", "low", "medium", "high", "xhigh", None],
+        "description": "Reasoning effort level. Higher = more thorough but slower.",
+        "default": None,
+    },
+    "droid": {
+        "type": ["string", "null"],
+        "enum": ["off", "low", "medium", "high", None],
+        "description": "Reasoning effort level. 'off' disables extended thinking.",
+        "default": None,
+    },
+}
+
+
 def _build_participant_variants() -> list[dict]:
     """Construct JSON schema variants for participants per adapter."""
 
@@ -167,17 +183,23 @@ def _build_participant_variants() -> list[dict]:
                 "description": "Model identifier (free-form for this adapter)",
             }
 
+        properties: dict[str, dict] = {
+            "cli": {
+                "type": "string",
+                "const": cli,
+                "title": CLI_TITLES.get(cli, cli.title()),
+                "description": "Adapter to use (CLI tools or HTTP services)",
+            },
+            "model": model_schema,
+        }
+
+        # Add reasoning_effort for adapters that support it
+        if cli in REASONING_EFFORT_SCHEMA:
+            properties["reasoning_effort"] = REASONING_EFFORT_SCHEMA[cli]
+
         variant = {
             "type": "object",
-            "properties": {
-                "cli": {
-                    "type": "string",
-                    "const": cli,
-                    "title": CLI_TITLES.get(cli, cli.title()),
-                    "description": "Adapter to use (CLI tools or HTTP services)",
-                },
-                "model": model_schema,
-            },
+            "properties": properties,
             "required": ["cli"],
             "additionalProperties": False,
         }

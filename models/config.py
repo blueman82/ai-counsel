@@ -17,6 +17,14 @@ class CLIAdapterConfig(BaseModel):
     command: str
     args: list[str]
     timeout: int = 60
+    default_reasoning_effort: Optional[str] = Field(
+        default=None,
+        description=(
+            "Default reasoning effort level for this adapter. "
+            "Only applicable to codex (low/medium/high/extra-high) and droid (off/low/medium/high). "
+            "Ignored by other adapters. Can be overridden per-participant."
+        ),
+    )
 
 
 class HTTPAdapterConfig(BaseModel):
@@ -80,6 +88,7 @@ class CLIToolConfig(BaseModel):
     command: str
     args: list[str]
     timeout: int
+    default_reasoning_effort: Optional[str] = None
 
 
 class DefaultsConfig(BaseModel):
