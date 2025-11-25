@@ -157,11 +157,11 @@ model_registry:
     - id: "claude-opus-4-5-20251101"
       label: "Claude Opus 4.5"
       tier: "premium"
+      default: true
       enabled: true
     - id: "claude-sonnet-4-5-20250929"
       label: "Claude Sonnet 4.5"
       tier: "balanced"
-      default: true
       enabled: true
     - id: "claude-haiku-4-5-20251001"
       label: "Claude Haiku 4.5"
@@ -189,11 +189,11 @@ model_registry:
     - id: "claude-opus-4-5-20251101"
       label: "Claude Opus 4.5 (via Droid)"
       tier: "premium"
+      default: true
       enabled: true
     - id: "claude-sonnet-4-5-20250929"
       label: "Claude Sonnet 4.5 (via Droid)"
       tier: "balanced"
-      default: true
       enabled: true
     - id: "gpt-5.1-codex"
       label: "GPT-5.1 Codex (via Droid)"
