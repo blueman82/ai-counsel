@@ -210,8 +210,8 @@ model_registry:
       label: "GPT-5.1 Codex Mini"
       tier: "speed"
       enabled: true
-    - id: "gpt-5"
-      label: "GPT-5"
+    - id: "gpt-5.1"
+      label: "GPT-5.1"
       tier: "general"
       enabled: true
   droid:
