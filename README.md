@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="assets/ai-counsel.png" alt="AI Counsel Logo" width="400">
+</p>
+
 # AI Counsel
 
 True deliberative consensus MCP server where AI models debate and refine positions across multiple rounds.
