@@ -83,8 +83,6 @@ cli_tools:
     command: "gemini"
     args:
       [
-        "--include-directories",
-        "{working_directory}",
         "-m",
         "{model}",
         "-p",
@@ -94,13 +92,9 @@ cli_tools:
     # Valid models: "gemini-2.5-pro" (default) or other Gemini identifiers
     #
     # Working Directory Configuration:
-    # - --include-directories {working_directory}: Dynamically allows access to the client's working directory
-    # - The {working_directory} placeholder is replaced at runtime with the actual directory path
-    # - This enables evidence-based deliberation tools to read files from the correct repository
-    # Note: Without this flag, Gemini blocks access outside workspace with error:
-    #       "File path must be within one of the workspace directories"
-    # Known Issue: Setting includeDirectories in .gemini/settings.json is broken (GitHub issue #5512)
-    #              Must use command-line flag until fixed
+    # - Subprocess runs from {working_directory} (set via cwd)
+    # - Gemini CLI removed --include-directories flag in recent update
+    # Note: If file access issues occur, check Gemini's workspace settings
 
   llamacpp:
     command: "llama-cli"
