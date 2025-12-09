@@ -31,7 +31,7 @@ cli_tools:
         'model_reasoning_effort="{reasoning_effort}"',
         "{prompt}",
       ]
-    timeout: 180
+    timeout: 300
     default_reasoning_effort: "medium"
     # Valid models: "gpt-5.1-codex-max", "gpt-5.1-codex", "gpt-5.1-codex-mini"
     #
@@ -54,7 +54,7 @@ cli_tools:
   droid:
     command: "droid"
     args: ["exec", "-m", "{model}", "-r", "{reasoning_effort}", "{prompt}"]
-    timeout: 180
+    timeout: 300
     default_reasoning_effort: "medium"
     # VALID MODEL IDS: "claude-opus-4-5-20251101", "claude-sonnet-4-5-20250929", "gpt-5.1-codex", "gpt-5.1", "glm-4.6"
     # Note: Use model IDs (not labels). See model_registry.droid section below for full list
@@ -88,7 +88,7 @@ cli_tools:
         "-p",
         "{prompt}",
       ]
-    timeout: 180
+    timeout: 300
     # Valid models: "gemini-2.5-pro" (default) or other Gemini identifiers
     #
     # Working Directory Configuration:
@@ -99,7 +99,7 @@ cli_tools:
   llamacpp:
     command: "llama-cli"
     args: ["-m", "{model}", "-p", "{prompt}", "-n", "2048", "-c", "4096"]
-    timeout: 180
+    timeout: 300
     # llama.cpp is a fast, lightweight LLM inference engine for running models locally
     #
     # AUTO-DISCOVERY:
@@ -140,7 +140,7 @@ adapters:
   ollama:
     type: http
     base_url: "http://localhost:11434"
-    timeout: 120
+    timeout: 300
     max_retries: 3
     # Valid models: llama2, mistral, codellama, qwen, etc.
     # Run 'ollama list' to see available models
@@ -149,7 +149,7 @@ adapters:
   lmstudio:
     type: http
     base_url: "http://localhost:1234"
-    timeout: 120
+    timeout: 300
     max_retries: 3
     # Valid models: any model loaded in LM Studio
     # LM Studio provides OpenAI-compatible API
@@ -159,7 +159,7 @@ adapters:
     type: http
     base_url: "https://openrouter.ai/api/v1"
     api_key: "${OPENROUTER_API_KEY}" # Environment variable from .env file
-    timeout: 90
+    timeout: 300
     max_retries: 3
     # Valid models: anthropic/claude-3.5-sonnet, openai/gpt-4, meta-llama/llama-3.1-8b-instruct, etc.
     # See https://openrouter.ai/docs for full model list
