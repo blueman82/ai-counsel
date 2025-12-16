@@ -869,14 +869,50 @@ TOOL_REQUEST: {"name": "read_file", "arguments": {"path": "src/file.py"}}
             round_start = datetime.now()
             progress_logger.info(f"📍 ROUND {round_num}/{rounds_to_execute} START")
 
-            round_responses = await self.execute_round(
-                round_num=round_num,
-                prompt=request.question,
-                participants=request.participants,
-                previous_responses=all_responses,
-                graph_context=graph_context,
-                working_directory=request.working_directory,
-            )
+            try:
+                # Execute round with timeout protection (5 min per round max)
+                round_timeout = self.config.defaults.timeout_per_round if self.config and hasattr(self.config, 'defaults') and hasattr(self.config.defaults, 'timeout_per_round') else 300
+                round_responses = await asyncio.wait_for(
+                    self.execute_round(
+                        round_num=round_num,
+                        prompt=request.question,
+                        participants=request.participants,
+                        previous_responses=all_responses,
+                        graph_context=graph_context,
+                        working_directory=request.working_directory,
+                    ),
+                    timeout=round_timeout
+                )
+            except asyncio.TimeoutError:
+                progress_logger.error(f"   ⏱️ ROUND {round_num} TIMED OUT after {round_timeout}s")
+                issues_encountered.append(f"Round {round_num}: Timed out after {round_timeout}s")
+                # Create error responses for all participants
+                round_responses = [
+                    RoundResponse(
+                        round=round_num,
+                        cli=p.cli,
+                        model=p.model,
+                        response=f"[ERROR: Round timed out after {round_timeout}s]",
+                    )
+                    for p in request.participants
+                ]
+            except asyncio.CancelledError:
+                progress_logger.warning(f"   ⚠️ ROUND {round_num} CANCELLED - request interrupted")
+                issues_encountered.append(f"Round {round_num}: Cancelled by client")
+                raise  # Re-raise to propagate cancellation
+            except Exception as e:
+                progress_logger.error(f"   💥 ROUND {round_num} FAILED: {type(e).__name__}: {str(e)[:100]}")
+                issues_encountered.append(f"Round {round_num}: {type(e).__name__}: {str(e)[:50]}")
+                # Create error responses for all participants
+                round_responses = [
+                    RoundResponse(
+                        round=round_num,
+                        cli=p.cli,
+                        model=p.model,
+                        response=f"[ERROR: {type(e).__name__}: {str(e)[:200]}]",
+                    )
+                    for p in request.participants
+                ]
             all_responses.extend(round_responses)
 
             # Log round completion with model results
