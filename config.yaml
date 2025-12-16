@@ -240,6 +240,40 @@ model_registry:
       tier: "general"
       default: true
       enabled: true
+  openrouter:
+    - id: "anthropic/claude-sonnet-4"
+      label: "Claude Sonnet 4 (OpenRouter)"
+      tier: "premium"
+      default: true
+      enabled: true
+    - id: "anthropic/claude-3.5-sonnet"
+      label: "Claude 3.5 Sonnet (OpenRouter)"
+      tier: "balanced"
+      enabled: true
+    - id: "openai/gpt-4o"
+      label: "GPT-4o (OpenRouter)"
+      tier: "balanced"
+      enabled: true
+    - id: "openai/gpt-4o-mini"
+      label: "GPT-4o Mini (OpenRouter)"
+      tier: "speed"
+      enabled: true
+    - id: "google/gemini-2.0-flash-001"
+      label: "Gemini 2.0 Flash (OpenRouter)"
+      tier: "speed"
+      enabled: true
+    - id: "meta-llama/llama-3.3-70b-instruct"
+      label: "Llama 3.3 70B (OpenRouter)"
+      tier: "general"
+      enabled: true
+    - id: "deepseek/deepseek-r1"
+      label: "DeepSeek R1 (OpenRouter)"
+      tier: "reasoning"
+      enabled: true
+    - id: "qwen/qwen-2.5-72b-instruct"
+      label: "Qwen 2.5 72B (OpenRouter)"
+      tier: "general"
+      enabled: true
 
 storage:
   transcripts_dir: "transcripts"

@@ -438,10 +438,22 @@ def load_config(path: str = "config.yaml") -> Config:
         FileNotFoundError: If config file doesn't exist
         ValidationError: If config is invalid
     """
-    # Load environment variables from .env file (if it exists)
-    load_dotenv()
-
     config_path = Path(path)
+
+    # Load environment variables from .env file in same directory as config
+    # This ensures the .env file is found regardless of the current working directory
+    config_dir = config_path.parent if config_path.parent.exists() else Path(__file__).parent.parent
+    env_path = config_dir / ".env"
+    if env_path.exists():
+        load_dotenv(env_path)
+    else:
+        # Fallback: try loading from ai-counsel project root
+        project_root = Path(__file__).parent.parent
+        env_path = project_root / ".env"
+        if env_path.exists():
+            load_dotenv(env_path)
+        else:
+            load_dotenv()  # Original behavior as last resort
     if not config_path.exists():
         raise FileNotFoundError(f"Config file not found: {path}")
 
