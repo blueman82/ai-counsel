@@ -19,6 +19,18 @@ from models.tool_schema import ToolExecutionRecord
 
 logger = logging.getLogger(__name__)
 
+# Configure progress logger for deliberation tracking
+progress_logger = logging.getLogger("ai_counsel.progress")
+if not progress_logger.handlers:
+    project_dir = Path(__file__).parent.parent
+    progress_file = project_dir / "deliberation_progress.log"
+    progress_handler = logging.FileHandler(progress_file, mode="a")
+    progress_handler.setFormatter(logging.Formatter(
+        "%(asctime)s | %(levelname)s | %(message)s"
+    ))
+    progress_logger.addHandler(progress_handler)
+    progress_logger.setLevel(logging.DEBUG)
+
 if TYPE_CHECKING:
     from decision_graph.integration import DecisionGraphIntegration
     from deliberation.transcript import TranscriptManager
@@ -813,6 +825,19 @@ TOOL_REQUEST: {"name": "read_file", "arguments": {"path": "src/file.py"}}
         # In long-running MCP servers, this prevents unbounded growth across deliberations
         self.tool_execution_history = []
 
+        # Track issues encountered during deliberation
+        issues_encountered: List[str] = []
+        deliberation_start = datetime.now()
+
+        # Log deliberation start with all participating models
+        model_list = [f"{p.model}@{p.cli}" for p in request.participants]
+        progress_logger.info("=" * 70)
+        progress_logger.info(f"🎯 DELIBERATION START | Mode: {request.mode} | Rounds: {request.rounds}")
+        progress_logger.info(f"   Question: {request.question[:100]}{'...' if len(request.question) > 100 else ''}")
+        progress_logger.info(f"   Models ({len(request.participants)}): {', '.join(model_list)}")
+        progress_logger.info(f"   Working Dir: {request.working_directory}")
+        progress_logger.info("-" * 70)
+
         # Retrieve decision graph context if enabled
         graph_context = ""
         if self.graph_integration:
@@ -841,6 +866,9 @@ TOOL_REQUEST: {"name": "read_file", "arguments": {"path": "src/file.py"}}
         model_controlled_stop = False
 
         for round_num in range(1, rounds_to_execute + 1):
+            round_start = datetime.now()
+            progress_logger.info(f"📍 ROUND {round_num}/{rounds_to_execute} START")
+
             round_responses = await self.execute_round(
                 round_num=round_num,
                 prompt=request.question,
@@ -850,6 +878,19 @@ TOOL_REQUEST: {"name": "read_file", "arguments": {"path": "src/file.py"}}
                 working_directory=request.working_directory,
             )
             all_responses.extend(round_responses)
+
+            # Log round completion with model results
+            round_elapsed = (datetime.now() - round_start).total_seconds()
+            successful = [r for r in round_responses if not r.response.startswith("[ERROR")]
+            failed = [r for r in round_responses if r.response.startswith("[ERROR")]
+
+            progress_logger.info(f"📍 ROUND {round_num} COMPLETE | Time: {round_elapsed:.1f}s | Success: {len(successful)}/{len(round_responses)}")
+            for r in round_responses:
+                if r.response.startswith("[ERROR"):
+                    progress_logger.error(f"   ❌ {r.model}@{r.cli}: {r.response[:100]}")
+                    issues_encountered.append(f"Round {round_num}: {r.model}@{r.cli} - {r.response[:50]}")
+                else:
+                    progress_logger.info(f"   ✅ {r.model}@{r.cli}: {len(r.response)} chars")
 
             # Check for model-controlled early stopping
             # Use config minimum rounds, not request rounds, for respect_min_rounds
@@ -1083,5 +1124,23 @@ TOOL_REQUEST: {"name": "read_file", "arguments": {"path": "src/file.py"}}
                 logger.info(f"Stored deliberation in decision graph: {decision_id}")
             except Exception as e:
                 logger.warning(f"Error storing deliberation in graph: {e}")
+
+        # Log deliberation completion summary
+        total_elapsed = (datetime.now() - deliberation_start).total_seconds()
+        progress_logger.info("-" * 70)
+        progress_logger.info(f"🏁 DELIBERATION COMPLETE | Time: {total_elapsed:.1f}s | Rounds: {actual_rounds_completed}/{rounds_to_execute}")
+        progress_logger.info(f"   Status: {result.status}")
+        if result.convergence_info:
+            progress_logger.info(f"   Convergence: {result.convergence_info.status} (similarity: {result.convergence_info.final_similarity:.2f})")
+        if result.voting_result and result.voting_result.winning_option:
+            progress_logger.info(f"   Winner: {result.voting_result.winning_option}")
+        if issues_encountered:
+            progress_logger.warning(f"   Issues ({len(issues_encountered)}):")
+            for issue in issues_encountered:
+                progress_logger.warning(f"      - {issue}")
+        else:
+            progress_logger.info("   Issues: None")
+        progress_logger.info(f"   Transcript: {result.transcript_path}")
+        progress_logger.info("=" * 70)
 
         return result
