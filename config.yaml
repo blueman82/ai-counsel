@@ -276,12 +276,29 @@ model_registry:
       enabled: true
     # ===== FREE MODELS (Zero Cost) =====
     - id: "meta-llama/llama-3.3-70b-instruct:free"
-      label: "Llama 3.3 70B FREE"
+      label: "Llama 3.3 70B FREE (slow)"
       tier: "free"
-      enabled: true
+      enabled: false  # Disabled - too slow (70B params)
     - id: "mistralai/mistral-small-3.1-24b-instruct:free"
-      label: "Mistral Small 3.1 24B FREE"
-      tier: "free"
+      label: "Mistral Small 24B FREE"
+      tier: "free-fast"
+      enabled: true
+    - id: "google/gemma-3-27b-it:free"
+      label: "Gemma 3 27B FREE"
+      tier: "free-fast"
+      enabled: true
+    - id: "meta-llama/llama-4-scout:free"
+      label: "Llama 4 Scout FREE (17B active)"
+      tier: "free-fast"
+      enabled: true
+    - id: "qwen/qwen3-32b:free"
+      label: "Qwen 3 32B FREE"
+      tier: "free-fast"
+      enabled: true
+    # ===== ULTRA-FAST CHEAP MODELS =====
+    - id: "google/gemini-2.0-flash-001"
+      label: "Gemini 2.0 Flash"
+      tier: "speed"
       enabled: true
     - id: "google/gemini-2.5-flash-preview-05-20"
       label: "Gemini 2.5 Flash Preview"
