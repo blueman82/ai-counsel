@@ -279,8 +279,10 @@ The following files are available in the working directory:
             else None
         )
 
-        for participant in participants:
-            # Get the appropriate adapter
+        # ========== PARALLEL MODEL INVOCATION ==========
+        # Run all participant adapters concurrently for ~3x speedup
+        async def invoke_participant(participant: Participant) -> tuple[Participant, str]:
+            """Invoke a single participant's adapter and return the response."""
             adapter = self.adapters[participant.cli]
 
             reasoning_info = f", reasoning_effort={participant.reasoning_effort}" if participant.reasoning_effort else ""
@@ -290,18 +292,13 @@ The following files are available in the working directory:
                 f"context_length={len(context) if context else 0} chars, "
                 f"working_directory={working_directory}{reasoning_info}"
             )
-            logger.debug(
-                f"Enhanced prompt preview for {participant.model}@{participant.cli}: "
-                f"{enhanced_prompt[:300]}..."
-            )
 
-            # Invoke the adapter with error handling
             try:
                 response_text = await adapter.invoke(
                     prompt=enhanced_prompt,
                     model=participant.model,
                     context=context,
-                    is_deliberation=True,  # Always True during deliberations
+                    is_deliberation=True,
                     working_directory=working_directory,
                     reasoning_effort=participant.reasoning_effort,
                 )
@@ -309,19 +306,35 @@ The following files are available in the working directory:
                     f"Round {round_num}: Received response from {participant.model}@{participant.cli}, "
                     f"response_length={len(response_text)} chars"
                 )
-                logger.debug(
-                    f"Response preview from {participant.model}@{participant.cli}: "
-                    f"{response_text[:300]}..."
-                )
+                return (participant, response_text)
             except Exception as e:
-                # Log error but continue with other participants
                 logger.error(
                     f"Adapter {participant.cli} failed for model {participant.model}: {e}",
                     exc_info=True,
                 )
-                response_text = f"[ERROR: {type(e).__name__}: {str(e)}]"
+                return (participant, f"[ERROR: {type(e).__name__}: {str(e)}]")
 
-            # Parse and execute tool requests if tool executor is available
+        # Run all participants in PARALLEL using asyncio.gather
+        logger.info(f"Round {round_num}: Invoking {len(participants)} participants in PARALLEL")
+        parallel_results = await asyncio.gather(
+            *[invoke_participant(p) for p in participants],
+            return_exceptions=True
+        )
+
+        # Process results and handle any exceptions from gather
+        participant_responses: list[tuple[Participant, str]] = []
+        for i, result in enumerate(parallel_results):
+            if isinstance(result, Exception):
+                # Handle unexpected exceptions from gather itself
+                participant = participants[i]
+                logger.error(f"Unexpected error for {participant.model}@{participant.cli}: {result}")
+                participant_responses.append((participant, f"[ERROR: {type(result).__name__}: {str(result)}]"))
+            else:
+                participant_responses.append(result)
+
+        # ========== SEQUENTIAL TOOL EXECUTION ==========
+        # Process tool requests sequentially (tools may have dependencies)
+        for participant, response_text in participant_responses:
             if self.tool_executor:
                 tool_requests = self.tool_executor.parse_tool_requests(response_text)
                 if tool_requests:
