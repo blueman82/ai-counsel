@@ -313,10 +313,12 @@ deliberation:
   enable_convergence_detection: true
 
   # File tree injection for Round 1
+  # Reduced from max_depth=3, max_files=100 to prevent "input too long" errors
+  # on models with smaller context windows (e.g., Claude via OpenRouter/Bedrock)
   file_tree:
     enabled: true
-    max_depth: 3
-    max_files: 100
+    max_depth: 2
+    max_files: 50
 
   # Tool security settings (prevents context contamination)
   tool_security:
@@ -341,7 +343,8 @@ decision_graph:
   similarity_threshold: 0.6 # Minimum similarity score for context injection (0.0-1.0)
 
   # NEW: Budget-aware context injection parameters
-  context_token_budget: 1500 # Max tokens for context injection (prevents token bloat)
+  # Reduced from 1500 to prevent "input too long" errors on smaller context models
+  context_token_budget: 1000 # Max tokens for context injection (prevents token bloat)
   tier_boundaries:
     strong: 0.75 # Strong matches get full formatting (~500 tokens each)
     moderate: 0.60 # Moderate matches get summary formatting (~200 tokens each)
