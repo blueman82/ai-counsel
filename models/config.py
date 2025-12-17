@@ -184,6 +184,31 @@ class ToolSecurityConfig(BaseModel):
     )
 
 
+class VoteRetryConfig(BaseModel):
+    """Configuration for vote extraction retry behavior.
+
+    When a model's response doesn't contain a VOTE section, the engine
+    can retry with an explicit voting prompt to improve vote success rate.
+    """
+
+    enabled: bool = Field(
+        default=True,
+        description="Enable automatic retry when VOTE section is missing",
+    )
+    max_retries: int = Field(
+        default=1,
+        ge=0,
+        le=3,
+        description="Maximum number of retry attempts per participant",
+    )
+    min_response_length: int = Field(
+        default=100,
+        ge=0,
+        le=1000,
+        description="Minimum response length to attempt retry (too short = likely error)",
+    )
+
+
 class DeliberationConfig(BaseModel):
     """Deliberation engine configuration."""
 
@@ -209,6 +234,10 @@ class DeliberationConfig(BaseModel):
     tool_security: ToolSecurityConfig = Field(
         default_factory=ToolSecurityConfig,
         description="Security settings for deliberation tools",
+    )
+    vote_retry: VoteRetryConfig = Field(
+        default_factory=VoteRetryConfig,
+        description="Vote extraction retry settings",
     )
 
 
