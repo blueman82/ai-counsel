@@ -13,7 +13,8 @@ from adapters.base import BaseCLIAdapter
 from adapters.base_http import BaseHTTPAdapter
 from deliberation.convergence import ConvergenceDetector
 from deliberation.file_tree import generate_file_tree
-from models.config import FileTreeConfig
+from deliberation.metrics import get_quality_tracker
+from models.config import FileTreeConfig, VoteRetryConfig
 from models.schema import Participant, RoundResponse, Vote, VotingResult
 from models.tool_schema import ToolExecutionRecord
 
@@ -168,10 +169,10 @@ class DeliberationEngine:
             )
 
             self.tool_executor = ToolExecutor()
-            # Get security config from deliberation config
-            security_config = (
-                config.deliberation.tool_security if hasattr(config.deliberation, "tool_security") else None
-            )
+            # Get security config from deliberation config (handle None config gracefully)
+            security_config = None
+            if config and hasattr(config, "deliberation") and hasattr(config.deliberation, "tool_security"):
+                security_config = config.deliberation.tool_security
             # Register all available tools with security config
             self.tool_executor.register_tool(ReadFileTool(security_config=security_config))
             self.tool_executor.register_tool(SearchCodeTool(security_config=security_config))
@@ -306,6 +307,53 @@ The following files are available in the working directory:
                     f"Round {round_num}: Received response from {participant.model}@{participant.cli}, "
                     f"response_length={len(response_text)} chars"
                 )
+
+                # Check if response needs vote retry
+                retry_config = self._get_vote_retry_config()
+                if retry_config.enabled and self._needs_vote_retry(response_text):
+                    for retry_attempt in range(retry_config.max_retries):
+                        logger.info(
+                            f"Round {round_num}: Retrying vote for {participant.model}@{participant.cli} "
+                            f"(attempt {retry_attempt + 1}/{retry_config.max_retries})"
+                        )
+
+                        try:
+                            retry_prompt = self._build_vote_retry_prompt(response_text)
+                            retry_response = await adapter.invoke(
+                                prompt=retry_prompt,
+                                model=participant.model,
+                                context=None,  # No context needed for vote retry
+                                is_deliberation=True,
+                                working_directory=working_directory,
+                                reasoning_effort=participant.reasoning_effort,
+                            )
+
+                            logger.info(
+                                f"Round {round_num}: Retry response from {participant.model}@{participant.cli}, "
+                                f"response_length={len(retry_response)} chars"
+                            )
+
+                            # Append retry response to original for vote extraction
+                            # This preserves the full analysis while adding the explicit vote
+                            response_text = f"{response_text}\n\n---\n\n[Vote Retry Response]\n{retry_response}"
+
+                            # Check if retry was successful (has VOTE marker now)
+                            if not self._needs_vote_retry(retry_response):
+                                logger.info(
+                                    f"Round {round_num}: Vote retry successful for {participant.model}@{participant.cli}"
+                                )
+                                break
+                            else:
+                                logger.warning(
+                                    f"Round {round_num}: Vote retry {retry_attempt + 1} still missing VOTE marker"
+                                )
+                        except Exception as retry_error:
+                            logger.warning(
+                                f"Round {round_num}: Vote retry failed for {participant.model}@{participant.cli}: {retry_error}"
+                            )
+                            # Continue with original response if retry fails
+                            break
+
                 return (participant, response_text)
             except Exception as e:
                 logger.error(
@@ -490,7 +538,7 @@ The following files are available in the working directory:
 
         return "\n".join(context_parts)
 
-    def _parse_vote(self, response_text: str) -> Optional[Vote]:
+    def _parse_vote(self, response_text: str, participant_id: str = "") -> tuple[Optional[Vote], str]:
         """
         Parse vote from response text if present.
 
@@ -498,9 +546,12 @@ The following files are available in the working directory:
 
         Args:
             response_text: The response text to parse
+            participant_id: Identifier for the participant (for logging)
 
         Returns:
-            Vote object if valid vote found, None otherwise
+            Tuple of (Vote object if valid, failure reason if not)
+            - (Vote, "") if successful
+            - (None, "reason") if failed
         """
         # Look for VOTE: marker followed by JSON
         # Use findall to get all matches, then take the last one (actual vote vs example/template)
@@ -510,7 +561,15 @@ The following files are available in the working directory:
         matches = re.findall(vote_pattern, response_text, re.DOTALL)
 
         if not matches:
-            return None
+            # Check if response looks truncated (no VOTE section but response ends abruptly)
+            if len(response_text) < 500:
+                reason = "response_too_short"
+            elif "TOOL_REQUEST" in response_text and "VOTE" not in response_text:
+                reason = "tool_focus_no_vote"
+            else:
+                reason = "no_vote_marker"
+            logger.debug(f"No vote found in response from {participant_id}: {reason}")
+            return (None, reason)
 
         # Take the last match - the actual vote should be at the end after any examples
         vote_json = matches[-1]
@@ -519,13 +578,124 @@ The following files are available in the working directory:
             vote_data = json.loads(vote_json)
             # Validate using Pydantic model
             vote = Vote(**vote_data)
-            return vote
-        except (json.JSONDecodeError, ValidationError, TypeError) as e:
-            logger.debug(f"Failed to parse vote from response: {e}")
-            return None
+            return (vote, "")
+        except json.JSONDecodeError as e:
+            logger.debug(f"Failed to parse vote JSON from {participant_id}: {e}")
+            return (None, "invalid_json")
+        except ValidationError as e:
+            logger.debug(f"Vote validation failed from {participant_id}: {e}")
+            return (None, "validation_error")
+        except TypeError as e:
+            logger.debug(f"Vote type error from {participant_id}: {e}")
+            return (None, "type_error")
+
+    def _create_abstain_vote(self, participant_id: str, reason: str) -> Vote:
+        """
+        Create an abstain vote for a participant who didn't provide a valid vote.
+
+        Args:
+            participant_id: Identifier for the participant
+            reason: Reason for abstaining
+
+        Returns:
+            Vote object with abstain status
+        """
+        reason_messages = {
+            "response_too_short": "Response was too short to include a vote",
+            "tool_focus_no_vote": "Focused on tool requests without providing a vote",
+            "no_vote_marker": "Did not include a VOTE section in response",
+            "invalid_json": "Vote JSON was malformed",
+            "validation_error": "Vote data failed validation",
+            "type_error": "Vote data had incorrect types",
+        }
+
+        rationale = reason_messages.get(reason, f"Failed to vote: {reason}")
+
+        return Vote(
+            option="ABSTAIN",
+            confidence=0.0,
+            rationale=f"[Auto-generated] {rationale}",
+            continue_debate=True,  # Abstaining models should let debate continue
+        )
+
+    def _get_vote_retry_config(self) -> VoteRetryConfig:
+        """Get vote retry configuration with defaults."""
+        if (
+            self.config
+            and hasattr(self.config, "deliberation")
+            and hasattr(self.config.deliberation, "vote_retry")
+        ):
+            return self.config.deliberation.vote_retry
+        return VoteRetryConfig()
+
+    def _needs_vote_retry(self, response_text: str) -> bool:
+        """
+        Check if a response needs a vote retry.
+
+        A response needs retry if:
+        1. It's long enough to be substantive (not an error)
+        2. It doesn't contain a VOTE marker
+
+        Args:
+            response_text: The model's response text
+
+        Returns:
+            True if retry should be attempted
+        """
+        config = self._get_vote_retry_config()
+
+        # Don't retry if disabled
+        if not config.enabled:
+            return False
+
+        # Don't retry error responses
+        if response_text.startswith("[ERROR"):
+            return False
+
+        # Don't retry short responses (likely errors or empty)
+        if len(response_text) < config.min_response_length:
+            return False
+
+        # Check for VOTE marker (case-insensitive to catch variations)
+        response_upper = response_text.upper()
+        if "VOTE:" in response_upper or "VOTE :" in response_upper:
+            return False
+
+        logger.info(
+            f"Response needs vote retry: {len(response_text)} chars, no VOTE marker found"
+        )
+        return True
+
+    def _build_vote_retry_prompt(self, original_response: str) -> str:
+        """
+        Build an explicit prompt asking for a vote.
+
+        Args:
+            original_response: The model's original response
+
+        Returns:
+            Prompt asking for explicit vote
+        """
+        return f"""Your previous response provided good analysis but did not include a formal vote.
+
+## Your Previous Analysis
+{original_response[:2000]}{"..." if len(original_response) > 2000 else ""}
+
+## Please Cast Your Vote
+
+Based on your analysis above, please now provide your formal vote using exactly this format:
+
+VOTE: {{"option": "Your choice", "confidence": 0.85, "rationale": "Brief explanation"}}
+
+Where:
+- option: Your chosen option based on your analysis
+- confidence: Your confidence level from 0.0 to 1.0
+- rationale: Brief explanation (1-2 sentences)
+
+Reply with ONLY the VOTE line. Do not repeat your analysis."""
 
     def _aggregate_votes(
-        self, responses: List[RoundResponse]
+        self, responses: List[RoundResponse], include_abstains: bool = True
     ) -> Optional["VotingResult"]:
         """
         Aggregate votes from all responses into a VotingResult.
@@ -534,20 +704,52 @@ The following files are available in the working directory:
         semantically similar vote options together, enabling consensus detection
         even when models use different wording for the same choice.
 
+        Creates ABSTAIN votes for participants who failed to provide valid votes,
+        ensuring all participants are accounted for in the tally.
+
         Args:
             responses: List of all RoundResponse objects from deliberation
+            include_abstains: Whether to include abstain votes for failed votes
 
         Returns:
-            VotingResult if any votes found, None otherwise
+            VotingResult if any votes found (including abstains), None otherwise
         """
         from models.schema import RoundVote, VotingResult
 
         votes_by_round = []
         raw_tally: dict[str, int] = {}  # Track raw string votes
         all_options = []  # Track unique options for similarity matching
+        quality_tracker = get_quality_tracker()
 
         for response in responses:
-            vote = self._parse_vote(response.response)
+            vote, failure_reason = self._parse_vote(response.response, response.participant)
+
+            # Track metrics for this response
+            is_abstain = False
+            if vote:
+                # Successful vote
+                quality_tracker.record_response(
+                    model_id=response.participant,
+                    response_length=len(response.response),
+                    vote_success=True,
+                    is_abstain=False,
+                )
+            else:
+                # Failed to parse vote - create abstain if enabled
+                if include_abstains:
+                    vote = self._create_abstain_vote(response.participant, failure_reason)
+                    is_abstain = True
+                    logger.info(
+                        f"Created ABSTAIN vote for {response.participant} (reason: {failure_reason})"
+                    )
+
+                quality_tracker.record_response(
+                    model_id=response.participant,
+                    response_length=len(response.response),
+                    vote_success=False,
+                    is_abstain=is_abstain,
+                )
+
             if vote:
                 # Create RoundVote
                 round_vote = RoundVote(
@@ -563,7 +765,7 @@ The following files are available in the working directory:
                 if vote.option not in all_options:
                     all_options.append(vote.option)
 
-        # If no votes found, return None
+        # If no votes found (even with abstains disabled), return None
         if not votes_by_round:
             return None
 
@@ -785,7 +987,7 @@ TOOL_REQUEST: {"name": "read_file", "arguments": {"path": "src/file.py"}}
         # Parse votes from responses
         votes = []
         for response in round_responses:
-            vote = self._parse_vote(response.response)
+            vote, _ = self._parse_vote(response.response, response.participant)
             if vote:
                 votes.append(vote)
 
@@ -936,10 +1138,10 @@ TOOL_REQUEST: {"name": "read_file", "arguments": {"path": "src/file.py"}}
             progress_logger.info(f"📍 ROUND {round_num} COMPLETE | Time: {round_elapsed:.1f}s | Success: {len(successful)}/{len(round_responses)}")
             for r in round_responses:
                 if r.response.startswith("[ERROR"):
-                    progress_logger.error(f"   ❌ {r.model}@{r.cli}: {r.response[:100]}")
-                    issues_encountered.append(f"Round {round_num}: {r.model}@{r.cli} - {r.response[:50]}")
+                    progress_logger.error(f"   ❌ {r.participant}: {r.response[:100]}")
+                    issues_encountered.append(f"Round {round_num}: {r.participant} - {r.response[:50]}")
                 else:
-                    progress_logger.info(f"   ✅ {r.model}@{r.cli}: {len(r.response)} chars")
+                    progress_logger.info(f"   ✅ {r.participant}: {len(r.response)} chars")
 
             # Check for model-controlled early stopping
             # Use config minimum rounds, not request rounds, for respect_min_rounds

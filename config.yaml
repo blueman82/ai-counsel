@@ -364,6 +364,12 @@ deliberation:
       - "__pycache__/" # Exclude Python cache
     max_file_size_bytes: 1048576 # 1MB limit for read_file
 
+  # Vote retry settings (automatic retry when VOTE section missing)
+  vote_retry:
+    enabled: true # Enable automatic retry for missing votes
+    max_retries: 1 # Retry once per participant
+    min_response_length: 100 # Only retry if response is at least 100 chars
+
 # Decision Graph Memory
 decision_graph:
   enabled: true # Feature toggle (opt-in)
