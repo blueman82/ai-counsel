@@ -175,9 +175,8 @@ class BaseHTTPAdapter(ABC):
         body_str = json.dumps(body, default=str)
 
         # Enhanced progress logging
-        progress_logger.info(f"🚀 HTTP REQUEST START | Model: {model} | URL: {full_url}")
+        progress_logger.info(f"[START] HTTP REQUEST | Model: {model} | URL: {full_url}")
         progress_logger.debug(f"   API Key present: {bool(self.api_key)}")
-        progress_logger.debug(f"   API Key preview: {self.api_key[:20] if self.api_key else 'None'}...")
         progress_logger.debug(f"   Prompt length: {len(full_prompt)} chars")
         progress_logger.debug(f"   Body size: {len(body_str)} bytes")
         progress_logger.debug(f"   Headers: {list(headers.keys())}")
@@ -191,18 +190,18 @@ class BaseHTTPAdapter(ABC):
                 url=full_url, headers=headers, body=body
             )
             elapsed = (datetime.now() - start_time).total_seconds()
-            progress_logger.info(f"✅ HTTP REQUEST SUCCESS | Model: {model} | Time: {elapsed:.2f}s")
+            progress_logger.info(f"[SUCCESS] HTTP REQUEST | Model: {model} | Time: {elapsed:.2f}s")
             progress_logger.debug(f"   Response keys: {list(response_json.keys()) if isinstance(response_json, dict) else 'N/A'}")
             return self.parse_response(response_json)
 
         except asyncio.TimeoutError:
             elapsed = (datetime.now() - start_time).total_seconds()
-            progress_logger.error(f"⏱️ HTTP REQUEST TIMEOUT | Model: {model} | Time: {elapsed:.2f}s")
+            progress_logger.error(f"[TIMEOUT] HTTP REQUEST | Model: {model} | Time: {elapsed:.2f}s")
             raise TimeoutError(f"HTTP request timed out after {self.timeout}s")
 
         except Exception as e:
             elapsed = (datetime.now() - start_time).total_seconds()
-            progress_logger.error(f"❌ HTTP REQUEST FAILED | Model: {model} | Time: {elapsed:.2f}s | Error: {type(e).__name__}: {str(e)[:200]}")
+            progress_logger.error(f"[ERROR] HTTP REQUEST FAILED | Model: {model} | Time: {elapsed:.2f}s | Error: {type(e).__name__}: {str(e)[:200]}")
             raise
 
     async def _execute_request_with_retry(
@@ -240,20 +239,20 @@ class BaseHTTPAdapter(ABC):
         )
         async def _make_request():
             async with httpx.AsyncClient(timeout=self.timeout) as client:
-                progress_logger.debug(f"   📡 Making POST request to {url}")
+                progress_logger.debug(f"   [POST] Making request to {url}")
                 response = await client.post(url, headers=headers, json=body)
-                progress_logger.debug(f"   📥 Response status: {response.status_code}")
+                progress_logger.debug(f"   [RESPONSE] Status: {response.status_code}")
 
                 # Log error response body for 4xx errors (helps debugging)
                 if 400 <= response.status_code < 500:
                     try:
                         error_body = response.json()
                         progress_logger.error(
-                            f"   ❌ HTTP {response.status_code} error: {json.dumps(error_body, indent=2)}"
+                            f"   [HTTP_ERROR] {response.status_code}: {json.dumps(error_body, indent=2)}"
                         )
                     except Exception:
                         progress_logger.error(
-                            f"   ❌ HTTP {response.status_code} error body: {response.text[:500]}"
+                            f"   [HTTP_ERROR] {response.status_code} body: {response.text[:500]}"
                         )
 
                 response.raise_for_status()  # Raise for 4xx/5xx
