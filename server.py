@@ -116,7 +116,7 @@ CLI_TITLES = {
 REASONING_EFFORT_SCHEMA: dict[str, dict] = {
     "codex": {
         "type": ["string", "null"],
-        "enum": ["none", "minimal", "low", "medium", "high", "xhigh", None],
+        "enum": ["none", "minimal", "low", "medium", "high", None],
         "description": "Reasoning effort level. Higher = more thorough but slower.",
         "default": None,
     },

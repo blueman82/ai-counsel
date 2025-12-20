@@ -478,7 +478,7 @@ class TestCodexReasoningEffort:
         assert "low" in adapter.VALID_REASONING_EFFORTS
         assert "medium" in adapter.VALID_REASONING_EFFORTS
         assert "high" in adapter.VALID_REASONING_EFFORTS
-        assert "xhigh" in adapter.VALID_REASONING_EFFORTS
+        assert "xhigh" not in adapter.VALID_REASONING_EFFORTS
 
     @pytest.mark.asyncio
     @patch("adapters.base.asyncio.create_subprocess_exec")
@@ -657,7 +657,7 @@ class TestDroidReasoningEffort:
             await adapter.invoke(
                 prompt="Test prompt",
                 model="factory-1",
-                reasoning_effort="xhigh"  # Invalid for Droid (valid for Codex)
+                reasoning_effort="xhigh"  # Invalid reasoning effort
             )
 
         assert "invalid reasoning_effort" in str(exc_info.value).lower()
@@ -1165,7 +1165,7 @@ class TestConfigBasedReasoningDefaults:
         assert "low" in adapter.VALID_REASONING_EFFORTS
         assert "medium" in adapter.VALID_REASONING_EFFORTS
         assert "high" in adapter.VALID_REASONING_EFFORTS
-        assert "xhigh" in adapter.VALID_REASONING_EFFORTS
+        assert "xhigh" not in adapter.VALID_REASONING_EFFORTS
 
         # Invalid values should not be in the set
         assert "off" not in adapter.VALID_REASONING_EFFORTS  # off is only valid for droid
@@ -1185,7 +1185,7 @@ class TestConfigBasedReasoningDefaults:
         assert "high" in adapter.VALID_REASONING_EFFORTS
 
         # Invalid values should not be in the set
-        assert "xhigh" not in adapter.VALID_REASONING_EFFORTS  # xhigh is only valid for codex
+        assert "xhigh" not in adapter.VALID_REASONING_EFFORTS
         assert "invalid" not in adapter.VALID_REASONING_EFFORTS
 
     @pytest.mark.asyncio
@@ -1201,7 +1201,7 @@ class TestConfigBasedReasoningDefaults:
             await adapter.invoke(
                 prompt="Test",
                 model="gpt-4",
-                reasoning_effort="invalid-level",
+                reasoning_effort="xhigh",
             )
 
         assert "invalid reasoning_effort" in str(exc_info.value).lower()
@@ -1220,7 +1220,7 @@ class TestConfigBasedReasoningDefaults:
             await adapter.invoke(
                 prompt="Test",
                 model="factory-1",
-                reasoning_effort="xhigh",  # Invalid for droid (valid for codex)
+                reasoning_effort="xhigh",  # Invalid for droid
             )
 
         assert "invalid reasoning_effort" in str(exc_info.value).lower()

@@ -31,7 +31,7 @@ class Participant(BaseModel):
         default=None,
         description=(
             "Reasoning effort level for models that support it. "
-            "Codex supports: 'low', 'medium', 'high', 'extra-high'. "
+            "Codex supports: 'low', 'medium', 'high'. "
             "Droid supports: 'off', 'low', 'medium', 'high'. "
             "If omitted, uses the adapter's configured default."
         ),
