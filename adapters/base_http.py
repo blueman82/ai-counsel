@@ -121,6 +121,8 @@ class BaseHTTPAdapter(ABC):
         model: str,
         context: Optional[str] = None,
         is_deliberation: bool = True,
+        working_directory: Optional[str] = None,
+        reasoning_effort: Optional[str] = None,
     ) -> str:
         """
         Invoke the HTTP API with the given prompt and model.
@@ -131,6 +133,8 @@ class BaseHTTPAdapter(ABC):
             context: Optional additional context to prepend to prompt
             is_deliberation: Whether this is part of a deliberation (unused for HTTP,
                            kept for API compatibility with BaseCLIAdapter)
+            working_directory: Unused for HTTP adapters (kept for API compatibility)
+            reasoning_effort: Unused for HTTP adapters (kept for API compatibility)
 
         Returns:
             Parsed response from the model
