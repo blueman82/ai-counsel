@@ -296,10 +296,6 @@ model_registry:
       tier: "free-fast"
       enabled: true
     # ===== ULTRA-FAST CHEAP MODELS =====
-    - id: "google/gemini-2.0-flash-001"
-      label: "Gemini 2.0 Flash"
-      tier: "speed"
-      enabled: true
     - id: "google/gemini-2.5-flash-preview-05-20"
       label: "Gemini 2.5 Flash Preview"
       tier: "speed"
