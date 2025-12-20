@@ -420,7 +420,7 @@ from models.schema import Participant, DeliberateRequest
 request = DeliberateRequest(
     question="Complex architecture question",
     participants=[
-        Participant(cli="codex", model="gpt-5.1-codex", reasoning_effort="high"),  # Overrides config default
+        Participant(cli="codex", model="gpt-5.2-codex", reasoning_effort="high"),  # Overrides config default
         Participant(cli="droid", model="claude-opus-4-5-20251101", reasoning_effort="medium"),
         Participant(cli="claude", model="claude-sonnet-4-5-20250929"),  # No reasoning_effort (N/A)
         Participant(cli="codex", model="gpt-5.1-codex-mini"),  # Uses config default_reasoning_effort
@@ -430,7 +430,7 @@ request = DeliberateRequest(
 )
 
 # Adapter support matrix:
-# - codex: none, minimal, low, medium, high, xhigh (injected as -c model_reasoning_effort="...")
+# - codex: none, minimal, low, medium, high (injected as -c model_reasoning_effort="...")
 # - droid: off, low, medium, high (injected as -r flag)
 # - claude/gemini/llamacpp: N/A (reasoning_effort ignored)
 

@@ -33,7 +33,7 @@ cli_tools:
       ]
     timeout: 300
     default_reasoning_effort: "medium"
-    # Valid models: "gpt-5.1-codex-max", "gpt-5.1-codex", "gpt-5.1-codex-mini"
+  # Valid models: "gpt-5.2-codex", "gpt-5.1-codex-max", "gpt-5.1-codex-mini", "gpt-5.2"
     #
     # Reasoning Effort Levels:
     # - low: Fast responses with lighter reasoning
@@ -191,21 +191,21 @@ model_registry:
       tier: "premium"
       enabled: false
   codex:
-    - id: "gpt-5.1-codex-max"
-      label: "GPT-5.1 Codex Max"
+    - id: "gpt-5.2-codex"
+      label: "GPT-5.2 Codex"
       tier: "flagship"
       default: true
       enabled: true
-    - id: "gpt-5.1-codex"
-      label: "GPT-5.1 Codex"
-      tier: "coding"
+    - id: "gpt-5.1-codex-max"
+      label: "GPT-5.1 Codex Max"
+      tier: "flagship"
       enabled: true
     - id: "gpt-5.1-codex-mini"
       label: "GPT-5.1 Codex Mini"
       tier: "speed"
       enabled: true
-    - id: "gpt-5.1"
-      label: "GPT-5.1"
+    - id: "gpt-5.2"
+      label: "GPT-5.2"
       tier: "general"
       enabled: true
   droid:
@@ -218,12 +218,12 @@ model_registry:
       label: "Claude Sonnet 4.5 (via Droid)"
       tier: "balanced"
       enabled: true
-    - id: "gpt-5.1-codex"
-      label: "GPT-5.1 Codex (via Droid)"
+    - id: "gpt-5.2-codex"
+      label: "GPT-5.2 Codex (via Droid)"
       tier: "coding"
       enabled: true
-    - id: "gpt-5.1"
-      label: "GPT-5.1 (via Droid)"
+    - id: "gpt-5.2"
+      label: "GPT-5.2 (via Droid)"
       tier: "general"
       enabled: true
     - id: "glm-4.6"

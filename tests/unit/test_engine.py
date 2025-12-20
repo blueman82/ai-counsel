@@ -404,7 +404,7 @@ class TestEngineReasoningEffort:
         request = DeliberateRequest(
             question="Test question with reasoning effort",
             participants=[
-                Participant(cli="codex", model="gpt-4", reasoning_effort="xhigh"),
+                Participant(cli="codex", model="gpt-4", reasoning_effort="high"),
                 Participant(cli="claude", model="sonnet"),
             ],
             rounds=2,
@@ -420,11 +420,11 @@ class TestEngineReasoningEffort:
         assert result.status == "complete"
         assert result.rounds_completed == 2
 
-        # Verify codex was called with reasoning_effort="xhigh" in each round
+        # Verify codex was called with reasoning_effort="high" in each round
         codex_calls = mock_adapters["codex"].invoke_mock.call_args_list
         for call in codex_calls:
             call_kwargs = call[1]
-            assert call_kwargs.get("reasoning_effort") == "xhigh"
+            assert call_kwargs.get("reasoning_effort") == "high"
 
     @pytest.mark.asyncio
     async def test_reasoning_effort_logged(self, mock_adapters, caplog):
