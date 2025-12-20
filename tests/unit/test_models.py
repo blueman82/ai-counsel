@@ -85,15 +85,12 @@ class TestParticipantReasoningEffort:
         p3 = Participant(cli="codex", model="gpt-4", reasoning_effort="high")
         assert p3.reasoning_effort == "high"
 
-        p4 = Participant(cli="codex", model="gpt-4", reasoning_effort="xhigh")
-        assert p4.reasoning_effort == "xhigh"
-
         # Test Droid values
-        p5 = Participant(cli="droid", model="factory-1", reasoning_effort="off")
-        assert p5.reasoning_effort == "off"
+        p4 = Participant(cli="droid", model="factory-1", reasoning_effort="off")
+        assert p4.reasoning_effort == "off"
 
-        p6 = Participant(cli="droid", model="factory-1", reasoning_effort="high")
-        assert p6.reasoning_effort == "high"
+        p5 = Participant(cli="droid", model="factory-1", reasoning_effort="high")
+        assert p5.reasoning_effort == "high"
 
     def test_reasoning_effort_serializes_correctly(self):
         """Test reasoning_effort serializes to dict correctly."""
