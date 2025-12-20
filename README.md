@@ -4,6 +4,9 @@
 
 # AI Counsel
 
+[![Run in Smithery](https://smithery.ai/badge/skills/blueman82)](https://smithery.ai/skills?ns=blueman82&utm_source=github&utm_medium=badge)
+
+
 True deliberative consensus MCP server where AI models debate and refine positions across multiple rounds.
 
 ![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
