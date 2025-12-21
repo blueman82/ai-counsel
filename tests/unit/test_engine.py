@@ -465,22 +465,25 @@ class TestVoteParsing:
         """
 
         engine = DeliberationEngine({})
-        vote = engine._parse_vote(response_text)
+        vote, failure_reason = engine._parse_vote(response_text)
 
         assert vote is not None
         assert isinstance(vote, Vote)
         assert vote.option == "Option A"
         assert vote.confidence == 0.85
         assert vote.rationale == "Lower risk and better fit"
+        assert failure_reason == ""
 
     def test_parse_vote_from_response_no_vote(self):
-        """Test parsing when no vote marker present."""
-        response_text = "This is just a regular response without a vote"
+        """Test parsing when no vote marker present but response is long enough."""
+        # Response must be >= 500 chars to get "no_vote_marker" instead of "response_too_short"
+        response_text = "This is just a regular response without a vote. " * 15  # ~750 chars
 
         engine = DeliberationEngine({})
-        vote = engine._parse_vote(response_text)
+        vote, failure_reason = engine._parse_vote(response_text)
 
         assert vote is None
+        assert failure_reason == "no_vote_marker"
 
     def test_parse_vote_from_response_invalid_json(self):
         """Test parsing when vote JSON is malformed."""
@@ -491,9 +494,10 @@ class TestVoteParsing:
         """
 
         engine = DeliberationEngine({})
-        vote = engine._parse_vote(response_text)
+        vote, failure_reason = engine._parse_vote(response_text)
 
         assert vote is None
+        assert failure_reason == "invalid_json"
 
     def test_parse_vote_from_response_missing_fields(self):
         """Test parsing when vote JSON missing required fields."""
@@ -504,9 +508,10 @@ class TestVoteParsing:
         """
 
         engine = DeliberationEngine({})
-        vote = engine._parse_vote(response_text)
+        vote, failure_reason = engine._parse_vote(response_text)
 
         assert vote is None
+        assert failure_reason == "validation_error"
 
     def test_parse_vote_confidence_out_of_range(self):
         """Test parsing when confidence is out of valid range."""
@@ -517,9 +522,10 @@ class TestVoteParsing:
         """
 
         engine = DeliberationEngine({})
-        vote = engine._parse_vote(response_text)
+        vote, failure_reason = engine._parse_vote(response_text)
 
         assert vote is None
+        assert failure_reason == "validation_error"
 
     def test_parse_vote_with_multiple_vote_markers(self):
         """Test parsing when response contains multiple VOTE markers (template + actual)."""
@@ -542,7 +548,7 @@ class TestVoteParsing:
         """
 
         engine = DeliberationEngine({})
-        vote = engine._parse_vote(response_text)
+        vote, failure_reason = engine._parse_vote(response_text)
 
         # Should capture the LAST vote marker (the actual vote), not the template or example
         assert vote is not None
@@ -550,6 +556,7 @@ class TestVoteParsing:
         assert vote.option == "Option B"
         assert vote.confidence == 0.75
         assert vote.rationale == "Better long-term fit"
+        assert failure_reason == ""
 
     def test_parse_vote_prefers_last_marker_over_first(self):
         """Test that parser takes last VOTE marker when multiple exist."""
@@ -562,12 +569,13 @@ class TestVoteParsing:
         """
 
         engine = DeliberationEngine({})
-        vote = engine._parse_vote(response_text)
+        vote, failure_reason = engine._parse_vote(response_text)
 
         assert vote is not None
         assert vote.option == "Correct"
         assert vote.confidence == 0.9
         assert vote.rationale == "Final decision"
+        assert failure_reason == ""
 
     def test_parse_vote_handles_latex_wrapper(self):
         """Test parsing vote wrapped in LaTeX notation like $\\boxed{...}$."""
@@ -579,13 +587,14 @@ class TestVoteParsing:
         """
 
         engine = DeliberationEngine({})
-        vote = engine._parse_vote(response_text)
+        vote, failure_reason = engine._parse_vote(response_text)
 
         assert vote is not None
         assert isinstance(vote, Vote)
         assert vote.option == "Option B"
         assert vote.confidence == 0.88
         assert vote.rationale == "Better scalability"
+        assert failure_reason == ""
 
     @pytest.mark.asyncio
     async def test_execute_round_collects_votes(self, mock_adapters):
@@ -658,6 +667,187 @@ class TestVoteParsing:
         assert len(result.voting_result.votes_by_round) == 4
 
 
+class TestVoteAbstainFallback:
+    """Tests for vote abstain fallback functionality."""
+
+    def test_parse_vote_failure_reason_response_too_short(self):
+        """Test that short responses get 'response_too_short' failure reason."""
+        # Response < 500 chars without vote
+        response_text = "Short response without vote"  # ~25 chars
+
+        engine = DeliberationEngine({})
+        vote, failure_reason = engine._parse_vote(response_text)
+
+        assert vote is None
+        assert failure_reason == "response_too_short"
+
+    def test_parse_vote_failure_reason_tool_focus_no_vote(self):
+        """Test that tool-focused responses without votes get correct failure reason."""
+        # Response has TOOL_REQUEST but no VOTE marker
+        response_text = """
+        I need to examine the codebase first.
+
+        TOOL_REQUEST: {"name": "read_file", "arguments": {"path": "/src/main.py"}}
+
+        Let me analyze this file before making a decision.
+        """ + " " * 500  # Pad to be >= 500 chars
+
+        engine = DeliberationEngine({})
+        vote, failure_reason = engine._parse_vote(response_text)
+
+        assert vote is None
+        assert failure_reason == "tool_focus_no_vote"
+
+    def test_parse_vote_failure_reason_no_vote_marker(self):
+        """Test that long responses without vote marker get 'no_vote_marker'."""
+        # Long response (>= 500 chars) without VOTE marker
+        response_text = "This is a detailed analysis. " * 30  # ~900 chars
+
+        engine = DeliberationEngine({})
+        vote, failure_reason = engine._parse_vote(response_text)
+
+        assert vote is None
+        assert failure_reason == "no_vote_marker"
+
+    def test_create_abstain_vote_response_too_short(self):
+        """Test abstain vote creation for response_too_short reason."""
+        engine = DeliberationEngine({})
+
+        vote = engine._create_abstain_vote("claude@test", "response_too_short")
+
+        assert vote.option == "ABSTAIN"
+        assert vote.confidence == 0.0
+        assert "Response was too short" in vote.rationale
+        assert "[Auto-generated]" in vote.rationale
+        assert vote.continue_debate is True
+
+    def test_create_abstain_vote_tool_focus_no_vote(self):
+        """Test abstain vote creation for tool_focus_no_vote reason."""
+        engine = DeliberationEngine({})
+
+        vote = engine._create_abstain_vote("codex@test", "tool_focus_no_vote")
+
+        assert vote.option == "ABSTAIN"
+        assert vote.confidence == 0.0
+        assert "Focused on tool requests" in vote.rationale
+        assert vote.continue_debate is True
+
+    def test_create_abstain_vote_no_vote_marker(self):
+        """Test abstain vote creation for no_vote_marker reason."""
+        engine = DeliberationEngine({})
+
+        vote = engine._create_abstain_vote("gemini@test", "no_vote_marker")
+
+        assert vote.option == "ABSTAIN"
+        assert vote.confidence == 0.0
+        assert "Did not include a VOTE section" in vote.rationale
+        assert vote.continue_debate is True
+
+    def test_create_abstain_vote_invalid_json(self):
+        """Test abstain vote creation for invalid_json reason."""
+        engine = DeliberationEngine({})
+
+        vote = engine._create_abstain_vote("droid@test", "invalid_json")
+
+        assert vote.option == "ABSTAIN"
+        assert vote.confidence == 0.0
+        assert "Vote JSON was malformed" in vote.rationale
+        assert vote.continue_debate is True
+
+    def test_create_abstain_vote_validation_error(self):
+        """Test abstain vote creation for validation_error reason."""
+        engine = DeliberationEngine({})
+
+        vote = engine._create_abstain_vote("test@model", "validation_error")
+
+        assert vote.option == "ABSTAIN"
+        assert vote.confidence == 0.0
+        assert "Vote data failed validation" in vote.rationale
+        assert vote.continue_debate is True
+
+    def test_create_abstain_vote_type_error(self):
+        """Test abstain vote creation for type_error reason."""
+        engine = DeliberationEngine({})
+
+        vote = engine._create_abstain_vote("test@model", "type_error")
+
+        assert vote.option == "ABSTAIN"
+        assert vote.confidence == 0.0
+        assert "Vote data had incorrect types" in vote.rationale
+        assert vote.continue_debate is True
+
+    def test_create_abstain_vote_unknown_reason(self):
+        """Test abstain vote creation for unknown/custom reason."""
+        engine = DeliberationEngine({})
+
+        vote = engine._create_abstain_vote("test@model", "some_custom_reason")
+
+        assert vote.option == "ABSTAIN"
+        assert vote.confidence == 0.0
+        assert "Failed to vote: some_custom_reason" in vote.rationale
+        assert vote.continue_debate is True
+
+    def test_aggregate_votes_creates_abstains_for_failed_votes(self):
+        """Test that _aggregate_votes creates abstain votes for failed responses."""
+        engine = DeliberationEngine({})
+
+        # Create responses - one with valid vote, one without
+        responses = [
+            RoundResponse(
+                round=1,
+                participant="claude@test",
+                response='Analysis here.\n\nVOTE: {"option": "Option A", "confidence": 0.9, "rationale": "Best choice"}',
+                timestamp="2025-01-01T00:00:00",
+            ),
+            RoundResponse(
+                round=1,
+                participant="codex@test",
+                response="Short response without vote",  # Will fail with response_too_short
+                timestamp="2025-01-01T00:00:01",
+            ),
+        ]
+
+        result = engine._aggregate_votes(responses, include_abstains=True)
+
+        assert result is not None
+        # Should have 2 votes - one real, one abstain
+        assert len(result.votes_by_round) == 2
+
+        # Find the abstain vote
+        abstain_votes = [v for v in result.votes_by_round if v.vote.option == "ABSTAIN"]
+        assert len(abstain_votes) == 1
+        assert abstain_votes[0].participant == "codex@test"
+        assert "[Auto-generated]" in abstain_votes[0].vote.rationale
+
+    def test_aggregate_votes_excludes_abstains_when_disabled(self):
+        """Test that _aggregate_votes excludes abstains when include_abstains=False."""
+        engine = DeliberationEngine({})
+
+        # Create responses - one with valid vote, one without
+        responses = [
+            RoundResponse(
+                round=1,
+                participant="claude@test",
+                response='Analysis here.\n\nVOTE: {"option": "Option A", "confidence": 0.9, "rationale": "Best choice"}',
+                timestamp="2025-01-01T00:00:00",
+            ),
+            RoundResponse(
+                round=1,
+                participant="codex@test",
+                response="Short response without vote",  # Will fail
+                timestamp="2025-01-01T00:00:01",
+            ),
+        ]
+
+        result = engine._aggregate_votes(responses, include_abstains=False)
+
+        assert result is not None
+        # Should only have 1 vote (the real one)
+        assert len(result.votes_by_round) == 1
+        assert result.votes_by_round[0].participant == "claude@test"
+        assert result.votes_by_round[0].vote.option == "Option A"
+
+
 class TestEngineWithTools:
     """Tests for DeliberationEngine with tool execution integration."""
 
@@ -695,9 +885,11 @@ class TestEngineWithTools:
         participants = [Participant(cli="claude", model="sonnet", stance="neutral")]
 
         # Mock response with tool request (use read_file which is a valid tool name)
+        # Include VOTE marker to avoid triggering vote retry logic
         mock_adapters["claude"].invoke_mock.return_value = """
         I need to check something.
         TOOL_REQUEST: {"name": "read_file", "arguments": {"path": "/test.txt"}}
+        VOTE: {"option": "Check file", "confidence": 0.8, "rationale": "Need to verify content"}
         """
 
         # Execute round with hanging tool
@@ -727,20 +919,20 @@ class TestEngineWithTools:
         Actual (BUG): History accumulates indefinitely.
         """
         engine = DeliberationEngine(mock_adapters)
-        engine.tool_executor = ToolExecutor()
-        engine.tool_executor.register_tool(ReadFileTool())
-        engine.tool_executor.register_tool(SearchCodeTool())
-        engine.tool_executor.register_tool(ListFilesTool())
-        engine.tool_executor.register_tool(RunCommandTool())
+        # Note: Engine's __init__ already creates tool_executor with all tools registered
+        # We only need to clear the history for a clean test state
         engine.tool_execution_history = []
 
         # First deliberation with tool request
         test_file1 = tmp_path / "file1.txt"
         test_file1.write_text("data1")
+        # Use forward slashes for cross-platform JSON compatibility
+        test_file1_str = str(test_file1).replace("\\", "/")
 
         mock_adapters["claude"].invoke_mock.return_value = f"""
         I need to read file1.
-        TOOL_REQUEST: {{"name": "read_file", "arguments": {{"path": "{test_file1}"}}}}
+        TOOL_REQUEST: {{"name": "read_file", "arguments": {{"path": "{test_file1_str}"}}}}
+        VOTE: {{"option": "Read file1", "confidence": 0.8, "rationale": "Need to check content"}}
         """
 
         participants = [
@@ -765,10 +957,13 @@ class TestEngineWithTools:
         # Second deliberation with different tool request
         test_file2 = tmp_path / "file2.txt"
         test_file2.write_text("data2")
+        # Use forward slashes for cross-platform JSON compatibility
+        test_file2_str = str(test_file2).replace("\\", "/")
 
         mock_adapters["claude"].invoke_mock.return_value = f"""
         I need to read file2.
-        TOOL_REQUEST: {{"name": "read_file", "arguments": {{"path": "{test_file2}"}}}}
+        TOOL_REQUEST: {{"name": "read_file", "arguments": {{"path": "{test_file2_str}"}}}}
+        VOTE: {{"option": "Read file2", "confidence": 0.8, "rationale": "Need to check content"}}
         """
 
         request2 = DeliberateRequest(
@@ -802,11 +997,8 @@ class TestEngineWithTools:
         In production: ~1-3MB per deliberation × unlimited = OOM crash.
         """
         engine = DeliberationEngine(mock_adapters)
-        engine.tool_executor = ToolExecutor()
-        engine.tool_executor.register_tool(ReadFileTool())
-        engine.tool_executor.register_tool(SearchCodeTool())
-        engine.tool_executor.register_tool(ListFilesTool())
-        engine.tool_executor.register_tool(RunCommandTool())
+        # Note: Engine's __init__ already creates tool_executor with all tools registered
+        # We only need to clear the history for a clean test state
         engine.tool_execution_history = []
 
         participants = [
@@ -818,10 +1010,13 @@ class TestEngineWithTools:
         for i in range(10):
             test_file = tmp_path / f"file{i}.txt"
             test_file.write_text(f"data{i}")
+            # Use forward slashes for cross-platform JSON compatibility
+            test_file_str = str(test_file).replace("\\", "/")
 
             mock_adapters["claude"].invoke_mock.return_value = f"""
             Reading file {i}.
-            TOOL_REQUEST: {{"name": "read_file", "arguments": {{"path": "{test_file}"}}}}
+            TOOL_REQUEST: {{"name": "read_file", "arguments": {{"path": "{test_file_str}"}}}}
+            VOTE: {{"option": "Read file", "confidence": 0.8, "rationale": "Need content"}}
             """
 
             from models.schema import DeliberateRequest

@@ -1,8 +1,9 @@
 """AI Counsel MCP Server.
 
-This MCP server exposes 2 primary tools via the Model Context Protocol:
+This MCP server exposes 3 primary tools via the Model Context Protocol:
 1. deliberate - Multi-round AI model deliberation
 2. query_decisions - Query the decision graph memory (when enabled)
+3. get_quality_metrics - Track response quality metrics per model
 
 Additionally, during deliberation, AI models can invoke 4 internal tools via
 TOOL_REQUEST markers (not directly exposed via MCP):
@@ -27,6 +28,7 @@ from mcp.types import TextContent, Tool
 from adapters import create_adapter
 from decision_graph.storage import DecisionGraphStorage
 from deliberation.engine import DeliberationEngine
+from deliberation.metrics import get_quality_tracker
 from deliberation.query_engine import QueryEngine
 from models.config import AdapterConfig, CLIToolConfig, load_config
 from models.model_registry import ModelRegistry
@@ -393,6 +395,40 @@ async def list_tools() -> list[Tool]:
             )
         )
 
+    # Always include quality metrics tool
+    tools.append(
+        Tool(
+            name="get_quality_metrics",
+            description=(
+                "Get response quality metrics for AI models in deliberations. "
+                "Tracks per-model vote success rate, response lengths, truncation frequency, "
+                "and identifies problem models with quality issues."
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "include_problem_models": {
+                        "type": "boolean",
+                        "default": True,
+                        "description": "Include analysis of models with quality issues (low vote rate, high truncation)",
+                    },
+                    "min_responses": {
+                        "type": "integer",
+                        "default": 3,
+                        "minimum": 1,
+                        "maximum": 100,
+                        "description": "Minimum responses required to flag a model as problematic",
+                    },
+                    "reset_after": {
+                        "type": "boolean",
+                        "default": False,
+                        "description": "Reset metrics after returning (start fresh session)",
+                    },
+                },
+            },
+        )
+    )
+
     return tools
 
 
@@ -402,7 +438,7 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
     Handle tool calls from MCP client.
 
     Args:
-        name: Tool name ("deliberate", "list_models", "set_session_models", "query_decisions")
+        name: Tool name ("deliberate", "list_models", "set_session_models", "query_decisions", "get_quality_metrics")
         arguments: Tool arguments as dict
 
     Returns:
@@ -416,6 +452,8 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
         return await handle_set_session_models(arguments)
     if name == "query_decisions":
         return await handle_query_decisions(arguments)
+    if name == "get_quality_metrics":
+        return await handle_get_quality_metrics(arguments)
     elif name != "deliberate":
         error_msg = f"Unknown tool: {name}"
         logger.error(error_msg)
@@ -874,6 +912,42 @@ async def handle_query_decisions(arguments: dict) -> list[TextContent]:
     except Exception as e:
         logger.error(
             f"Error in query_decisions: {type(e).__name__}: {e}", exc_info=True
+        )
+        error_response = {
+            "error": str(e),
+            "error_type": type(e).__name__,
+            "status": "failed",
+        }
+        return [TextContent(type="text", text=json.dumps(error_response, indent=2))]
+
+
+async def handle_get_quality_metrics(arguments: dict) -> list[TextContent]:
+    """Handle get_quality_metrics tool call."""
+    try:
+        tracker = get_quality_tracker()
+        include_problem_models = arguments.get("include_problem_models", True)
+        min_responses = arguments.get("min_responses", 3)
+        reset_after = arguments.get("reset_after", False)
+
+        # Get the summary
+        summary = tracker.get_summary()
+
+        # Add problem models analysis if requested
+        if include_problem_models:
+            problem_models = tracker.get_problem_models(min_responses=min_responses)
+            summary["problem_models"] = problem_models
+            summary["problem_models_count"] = len(problem_models)
+
+        # Reset if requested (after collecting data)
+        if reset_after:
+            tracker.reset()
+            summary["metrics_reset"] = True
+
+        return [TextContent(type="text", text=json.dumps(summary, indent=2))]
+
+    except Exception as e:
+        logger.error(
+            f"Error in get_quality_metrics: {type(e).__name__}: {e}", exc_info=True
         )
         error_response = {
             "error": str(e),
