@@ -50,13 +50,24 @@ class DeliberationSummarizer:
         # Create summarization prompt
         prompt = self._create_summary_prompt(debate_text)
 
-        # Get AI summary - let exceptions propagate for fallback chain
-        summary_text = await self.adapter.invoke(
-            prompt=prompt, model=self.model, context=None
-        )
+        try:
+            # Get AI summary
+            summary_text = await self.adapter.invoke(
+                prompt=prompt, model=self.model, context=None
+            )
 
-        # Parse the summary
-        return self._parse_summary(summary_text)
+            # Parse the summary
+            return self._parse_summary(summary_text)
+
+        except Exception as e:
+            logger.error(f"Summary generation failed: {e}", exc_info=True)
+            # Return placeholder on error
+            return Summary(
+                consensus="[Summary generation failed]",
+                key_agreements=["Error occurred during summary generation"],
+                key_disagreements=[],
+                final_recommendation="Please review the full debate below.",
+            )
 
     def _format_debate(self, question: str, responses: List[RoundResponse]) -> str:
         """
