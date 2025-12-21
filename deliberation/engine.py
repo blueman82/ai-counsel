@@ -1190,28 +1190,29 @@ TOOL_REQUEST: {"name": "read_file", "arguments": {"path": "src/file.py"}}
         )
         actual_rounds_completed = round_num if is_early_stop else rounds_to_execute
 
-        # Generate AI-powered summary
-        if self.summarizer:
-            try:
-                logger.info("Generating AI-powered summary of deliberation...")
-                summary = await self.summarizer.generate_summary(
-                    question=request.question, responses=all_responses
-                )
-                logger.info("Summary generation completed successfully")
-            except Exception as e:
-                logger.error(f"Summary generation failed: {e}", exc_info=True)
-                # Fallback to placeholder on error
-                summary = Summary(
-                    consensus="[Summary generation failed]",
-                    key_agreements=["Error occurred during summary generation"],
-                    key_disagreements=[],
-                    final_recommendation="Please review the full debate below.",
-                )
-        else:
-            # No summarizer available, use placeholder
+        # Generate AI-powered summary with fallback chain
+        summary = None
+        if self.summarizer_chain:
+            from deliberation.summarizer import DeliberationSummarizer
+
+            for adapter, model_name, display_name in self.summarizer_chain:
+                try:
+                    logger.info(f"Attempting summary generation with {display_name}...")
+                    summarizer = DeliberationSummarizer(adapter, model_name)
+                    summary = await summarizer.generate_summary(
+                        question=request.question, responses=all_responses
+                    )
+                    logger.info(f"Summary generation completed successfully with {display_name}")
+                    break
+                except Exception as e:
+                    logger.warning(f"Summary generation failed with {display_name}: {e}")
+                    continue
+
+        if summary is None:
+            logger.info("All summarizers failed or none available, using placeholder")
             summary = Summary(
-                consensus="[Summary generation not available - Claude adapter required]",
-                key_agreements=["No summary available"],
+                consensus="[Summary generation not available]",
+                key_agreements=["No AI summary available"],
                 key_disagreements=[],
                 final_recommendation="Please review the full debate below.",
             )
