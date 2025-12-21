@@ -1,7 +1,10 @@
 """OpenRouter HTTP adapter."""
+import logging
 from typing import Tuple
 
 from adapters.base_http import BaseHTTPAdapter
+
+logger = logging.getLogger(__name__)
 
 
 class OpenRouterAdapter(BaseHTTPAdapter):
@@ -40,10 +43,13 @@ class OpenRouterAdapter(BaseHTTPAdapter):
         }
 
         # Convert prompt to OpenAI chat format
+        # max_tokens: 4096 ensures responses aren't truncated
+        # Some models default to very low token limits
         body = {
             "model": model,
             "messages": [{"role": "user", "content": prompt}],
             "stream": False,  # Use non-streaming for simplicity
+            "max_tokens": 4096,  # Prevent truncation - models need ~2000-4000 for votes
         }
 
         return (endpoint, headers, body)
@@ -87,6 +93,15 @@ class OpenRouterAdapter(BaseHTTPAdapter):
             raise IndexError("OpenRouter response has empty 'choices' array")
 
         choice = response_json["choices"][0]
+
+        # Log warning if response was truncated due to token limit
+        finish_reason = choice.get("finish_reason", "unknown")
+        if finish_reason == "length":
+            model = response_json.get("model", "unknown")
+            logger.warning(
+                f"OpenRouter response truncated (finish_reason='length') for model {model}. "
+                f"Consider increasing max_tokens or using a model with higher limits."
+            )
 
         if "message" not in choice:
             raise KeyError(

@@ -1,11 +1,28 @@
 """Base HTTP adapter with request/retry management."""
 import asyncio
+import json
+import logging
 from abc import ABC, abstractmethod
+from datetime import datetime
+from pathlib import Path
 from typing import Optional, Tuple
 
 import httpx
 from tenacity import (retry, retry_if_exception, stop_after_attempt,
                       wait_exponential)
+
+# Configure progress logger for HTTP adapter debugging
+progress_logger = logging.getLogger("ai_counsel.progress")
+if not progress_logger.handlers:
+    # Log to both console and dedicated progress file
+    project_dir = Path(__file__).parent.parent
+    progress_file = project_dir / "deliberation_progress.log"
+    progress_handler = logging.FileHandler(progress_file, mode="a")
+    progress_handler.setFormatter(logging.Formatter(
+        "%(asctime)s | %(levelname)s | %(message)s"
+    ))
+    progress_logger.addHandler(progress_handler)
+    progress_logger.setLevel(logging.DEBUG)
 
 
 def is_retryable_http_error(exception):
@@ -156,26 +173,38 @@ class BaseHTTPAdapter(ABC):
         full_url = f"{self.base_url}{endpoint}"
 
         # Log request details for debugging
-        import json
-        import logging
-
         logger = logging.getLogger(__name__)
-        body_str = json.dumps(body)
-        logger.debug(
-            f"HTTP request to {full_url}: "
-            f"body_size={len(body_str)} bytes, "
-            f"prompt_length={len(full_prompt)} chars"
-        )
+        body_str = json.dumps(body, default=str)
+
+        # Enhanced progress logging
+        progress_logger.info(f"[START] HTTP REQUEST | Model: {model} | URL: {full_url}")
+        progress_logger.debug(f"   API Key present: {bool(self.api_key)}")
+        progress_logger.debug(f"   Prompt length: {len(full_prompt)} chars")
+        progress_logger.debug(f"   Body size: {len(body_str)} bytes")
+        progress_logger.debug(f"   Headers: {list(headers.keys())}")
+        progress_logger.debug(f"   Timeout: {self.timeout}s")
+
+        start_time = datetime.now()
 
         # Execute request with retry logic
         try:
             response_json = await self._execute_request_with_retry(
                 url=full_url, headers=headers, body=body
             )
+            elapsed = (datetime.now() - start_time).total_seconds()
+            progress_logger.info(f"[SUCCESS] HTTP REQUEST | Model: {model} | Time: {elapsed:.2f}s")
+            progress_logger.debug(f"   Response keys: {list(response_json.keys()) if isinstance(response_json, dict) else 'N/A'}")
             return self.parse_response(response_json)
 
         except asyncio.TimeoutError:
+            elapsed = (datetime.now() - start_time).total_seconds()
+            progress_logger.error(f"[TIMEOUT] HTTP REQUEST | Model: {model} | Time: {elapsed:.2f}s")
             raise TimeoutError(f"HTTP request timed out after {self.timeout}s")
+
+        except Exception as e:
+            elapsed = (datetime.now() - start_time).total_seconds()
+            progress_logger.error(f"[ERROR] HTTP REQUEST FAILED | Model: {model} | Time: {elapsed:.2f}s | Error: {type(e).__name__}: {str(e)[:200]}")
+            raise
 
     async def _execute_request_with_retry(
         self, url: str, headers: dict[str, str], body: dict
@@ -212,21 +241,20 @@ class BaseHTTPAdapter(ABC):
         )
         async def _make_request():
             async with httpx.AsyncClient(timeout=self.timeout) as client:
+                progress_logger.debug(f"   [POST] Making request to {url}")
                 response = await client.post(url, headers=headers, json=body)
+                progress_logger.debug(f"   [RESPONSE] Status: {response.status_code}")
 
                 # Log error response body for 4xx errors (helps debugging)
                 if 400 <= response.status_code < 500:
-                    import logging
-
-                    logger = logging.getLogger(__name__)
                     try:
                         error_body = response.json()
-                        logger.error(
-                            f"HTTP {response.status_code} error response: {error_body}"
+                        progress_logger.error(
+                            f"   [HTTP_ERROR] {response.status_code}: {json.dumps(error_body, indent=2)}"
                         )
                     except Exception:
-                        logger.error(
-                            f"HTTP {response.status_code} error response body: {response.text}"
+                        progress_logger.error(
+                            f"   [HTTP_ERROR] {response.status_code} body: {response.text[:500]}"
                         )
 
                 response.raise_for_status()  # Raise for 4xx/5xx

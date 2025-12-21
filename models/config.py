@@ -184,6 +184,31 @@ class ToolSecurityConfig(BaseModel):
     )
 
 
+class VoteRetryConfig(BaseModel):
+    """Configuration for vote extraction retry behavior.
+
+    When a model's response doesn't contain a VOTE section, the engine
+    can retry with an explicit voting prompt to improve vote success rate.
+    """
+
+    enabled: bool = Field(
+        default=True,
+        description="Enable automatic retry when VOTE section is missing",
+    )
+    max_retries: int = Field(
+        default=1,
+        ge=0,
+        le=3,
+        description="Maximum number of retry attempts per participant",
+    )
+    min_response_length: int = Field(
+        default=100,
+        ge=0,
+        le=1000,
+        description="Minimum response length to attempt retry (too short = likely error)",
+    )
+
+
 class DeliberationConfig(BaseModel):
     """Deliberation engine configuration."""
 
@@ -209,6 +234,10 @@ class DeliberationConfig(BaseModel):
     tool_security: ToolSecurityConfig = Field(
         default_factory=ToolSecurityConfig,
         description="Security settings for deliberation tools",
+    )
+    vote_retry: VoteRetryConfig = Field(
+        default_factory=VoteRetryConfig,
+        description="Vote extraction retry settings",
     )
 
 
@@ -438,14 +467,26 @@ def load_config(path: str = "config.yaml") -> Config:
         FileNotFoundError: If config file doesn't exist
         ValidationError: If config is invalid
     """
-    # Load environment variables from .env file (if it exists)
-    load_dotenv()
-
     config_path = Path(path)
+
+    # Load environment variables from .env file in same directory as config
+    # This ensures the .env file is found regardless of the current working directory
+    config_dir = config_path.parent if config_path.parent.exists() else Path(__file__).parent.parent
+    env_path = config_dir / ".env"
+    if env_path.exists():
+        load_dotenv(env_path)
+    else:
+        # Fallback: try loading from ai-counsel project root
+        project_root = Path(__file__).parent.parent
+        env_path = project_root / ".env"
+        if env_path.exists():
+            load_dotenv(env_path)
+        else:
+            load_dotenv()  # Original behavior as last resort
     if not config_path.exists():
         raise FileNotFoundError(f"Config file not found: {path}")
 
-    with open(config_path, "r") as f:
+    with open(config_path, "r", encoding="utf-8") as f:
         data = yaml.safe_load(f)
 
     return Config(**data)
