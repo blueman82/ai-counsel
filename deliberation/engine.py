@@ -1205,7 +1205,9 @@ TOOL_REQUEST: {"name": "read_file", "arguments": {"path": "src/file.py"}}
                     logger.info(f"Summary generation completed successfully with {display_name}")
                     break
                 except Exception as e:
-                    logger.warning(f"Summary generation failed with {display_name}: {e}")
+                    # Extract first line of error for cleaner logs
+                    error_msg = str(e).split('\n')[0][:100]
+                    logger.warning(f"Summary generation failed with {display_name}: {error_msg}")
                     continue
 
         if summary is None:
