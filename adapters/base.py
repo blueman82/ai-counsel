@@ -162,12 +162,14 @@ class BaseCLIAdapter(ABC):
                         last_error = error_msg
                         continue
 
+                    # Clean error for logging (first line only, truncated)
+                    clean_error = error_msg.split('\n')[0][:150]
                     logger.error(
                         f"CLI process failed: command={self.command}, "
                         f"model={model}, returncode={process.returncode}, "
-                        f"error={error_msg[:200]}"
+                        f"error={clean_error}"
                     )
-                    raise RuntimeError(f"CLI process failed: {error_msg}")
+                    raise RuntimeError(f"CLI process failed: {clean_error}")
 
                 raw_output = stdout.decode("utf-8", errors="replace")
                 if attempt > 0:
