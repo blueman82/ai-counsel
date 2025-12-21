@@ -87,37 +87,28 @@ class DeliberationEngine:
         else:
             logger.debug("No config provided, convergence detection disabled")
 
-        # Initialize summarizer with fallback chain
-        # Try adapters in order of quality for summarization
-        self.summarizer = None
-        self.summarizer_info = None
+        # Initialize summarizer fallback chain
+        # Store all available adapters in preference order: claude, droid, codex, gemini
+        self.summarizer_chain: List[tuple] = []
 
         summarizer_preferences = [
             ("claude", "sonnet", "Claude Sonnet"),
-            ("codex", "gpt-5-codex", "GPT-5 Codex"),
             ("droid", "claude-sonnet-4-5-20250929", "Droid with Claude Sonnet"),
+            ("codex", "gpt-5-codex", "GPT-5 Codex"),
             ("gemini", "gemini-2.5-pro", "Gemini 2.5 Pro"),
         ]
 
         for cli_name, model_name, display_name in summarizer_preferences:
             if cli_name in adapters:
-                from deliberation.summarizer import DeliberationSummarizer
+                self.summarizer_chain.append((adapters[cli_name], model_name, display_name))
 
-                self.summarizer = DeliberationSummarizer(adapters[cli_name], model_name)
-                self.summarizer_info = {
-                    "cli": cli_name,
-                    "model": model_name,
-                    "name": display_name,
-                }
-                logger.info(
-                    f"AI-powered summary generation enabled (using {display_name})"
-                )
-                break
-
-        if not self.summarizer:
+        if self.summarizer_chain:
+            names = [name for _, _, name in self.summarizer_chain]
+            logger.info(f"AI-powered summary generation enabled (fallback chain: {' -> '.join(names)} -> None)")
+        else:
             logger.warning(
                 "No suitable adapter available for summary generation. "
-                "Install at least one CLI (claude, codex, droid, or gemini) for AI-powered summaries."
+                "Install at least one CLI (claude, droid, codex, or gemini) for AI-powered summaries."
             )
 
         # Initialize decision graph if enabled
