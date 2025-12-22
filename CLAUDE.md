@@ -147,6 +147,8 @@ AI Counsel is an MCP (Model Context Protocol) server that enables true deliberat
 - `list_files`: List files matching glob patterns
 - `run_command`: Execute safe read-only commands
 
+**Safety**: Tool access is confined to `working_directory`. `run_command` is allowlisted and blocks mutating flags/subcommands (e.g., `git checkout`, `find -exec`, `find -delete`).
+
 **Important**: Internal tools are NOT directly exposed via MCP. They are invoked by AI models during deliberation by including TOOL_REQUEST markers in responses. Engine parses markers, executes tools, makes results visible to all participants.
 
 **Example**: `TOOL_REQUEST: {"name": "read_file", "arguments": {"path": "/path/to/file.py"}}`

@@ -32,7 +32,7 @@ from deliberation.metrics import get_quality_tracker
 from deliberation.query_engine import QueryEngine
 from models.config import AdapterConfig, CLIToolConfig, load_config
 from models.model_registry import ModelRegistry
-from models.schema import DeliberateRequest
+from models.schema import DeliberateRequest, DeliberationResult
 
 # Project directory (where server.py is located) - for config and logs
 PROJECT_DIR = Path(__file__).parent.absolute()
@@ -45,11 +45,52 @@ logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     handlers=[
-        logging.FileHandler(log_file),
+        logging.FileHandler(log_file, encoding="utf-8"),
         logging.StreamHandler(sys.stderr),  # Explicitly use stderr
     ],
 )
 logger = logging.getLogger(__name__)
+
+
+def truncate_debate_rounds(result: DeliberationResult, max_rounds: int = 3) -> dict:
+    """Truncate full_debate to last N rounds for MCP response.
+
+    This helper extracts the truncation logic for reusability and testability.
+    It converts the DeliberationResult to a dict and trims the full_debate
+    to only include the last `max_rounds` round numbers.
+
+    Args:
+        result: The deliberation result to truncate.
+        max_rounds: Maximum number of rounds to keep (default: 3).
+
+    Returns:
+        A dict representation of the result with:
+        - full_debate: Truncated to last N rounds if needed
+        - full_debate_truncated: True if truncation occurred, False otherwise
+        - total_rounds: Original round count (only if truncated)
+    """
+    result_dict = result.model_dump()
+
+    if not result.full_debate:
+        result_dict["full_debate_truncated"] = False
+        return result_dict
+
+    round_numbers = sorted({r.round for r in result.full_debate})
+    total_rounds = len(round_numbers)
+
+    if total_rounds > max_rounds:
+        rounds_to_keep = set(round_numbers[-max_rounds:])
+        result_dict["full_debate"] = [
+            r.model_dump() if hasattr(r, "model_dump") else r
+            for r in result.full_debate
+            if r.round in rounds_to_keep
+        ]
+        result_dict["full_debate_truncated"] = True
+        result_dict["total_rounds"] = total_rounds
+    else:
+        result_dict["full_debate_truncated"] = False
+
+    return result_dict
 
 
 # Initialize server
@@ -544,22 +585,12 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
 
         # Truncate full_debate for MCP response if needed (to avoid token limit)
         max_rounds = getattr(config, "mcp", {}).get("max_rounds_in_response", 3)
-        result_dict = result.model_dump()
+        result_dict = truncate_debate_rounds(result, max_rounds)
 
-        if len(result.full_debate) > max_rounds:
-            total_rounds = len(result.full_debate)
-            # Convert RoundResponse objects to dicts for the truncated slice
-            result_dict["full_debate"] = [
-                r.model_dump() if hasattr(r, "model_dump") else r
-                for r in result.full_debate[-max_rounds:]
-            ]
-            result_dict["full_debate_truncated"] = True
-            result_dict["total_rounds"] = total_rounds
+        if result_dict.get("full_debate_truncated"):
             logger.info(
-                f"Truncated full_debate from {total_rounds} to last {max_rounds} rounds for MCP response"
+                f"Truncated full_debate from {result_dict.get('total_rounds')} to last {max_rounds} rounds for MCP response"
             )
-        else:
-            result_dict["full_debate_truncated"] = False
 
         # Summarize tool_executions for MCP response (full detail is in transcript)
         if result_dict.get("tool_executions"):
