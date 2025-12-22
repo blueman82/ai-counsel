@@ -1,0 +1,12 @@
+name: OpenHands Auto Review
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  auto-review:
+    uses: joelfuller2016/openhands-auto-review/.github/workflows/openhands-reusable.yml@main
+    with:
+      review_mode: 'label'
+      label_name: 'openhands'
