@@ -48,10 +48,13 @@ class OpenAIChatCompletionsAdapter(BaseHTTPAdapter):
         """
         endpoint = "/chat/completions"
 
-        headers = {
+        headers: dict[str, str] = {
             "Content-Type": "application/json",
-            "Authorization": f"Bearer {self.api_key}",
         }
+
+        # Only include Authorization header when api_key is set
+        if self.api_key:
+            headers["Authorization"] = f"Bearer {self.api_key}"
 
         body: dict = {
             "model": model,
