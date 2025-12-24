@@ -41,8 +41,8 @@ class TestOpenRouterAdapter:
         assert body["messages"] == [{"role": "user", "content": "What is 2+2?"}]
         assert body["stream"] is False
 
-    def test_build_request_without_api_key_still_includes_header(self):
-        """Test build_request includes Authorization header even if api_key is None."""
+    def test_build_request_without_api_key_omits_auth_header(self):
+        """Test build_request omits Authorization header when api_key is None."""
         adapter = OpenRouterAdapter(
             base_url="https://openrouter.ai/api/v1", api_key=None
         )
@@ -51,9 +51,9 @@ class TestOpenRouterAdapter:
             model="test-model", prompt="test"
         )
 
-        # Should include header with "Bearer None" - will fail at API level
-        assert "Authorization" in headers
-        assert headers["Authorization"] == "Bearer None"
+        # Should NOT include Authorization header when api_key is None
+        # (prevents "Bearer None" being sent to API)
+        assert "Authorization" not in headers
 
     def test_build_request_with_long_prompt(self):
         """Test build_request handles long prompts."""
