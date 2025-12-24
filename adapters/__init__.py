@@ -10,8 +10,9 @@ from adapters.gemini import GeminiAdapter
 from adapters.llamacpp import LlamaCppAdapter
 from adapters.lmstudio import LMStudioAdapter
 from adapters.ollama import OllamaAdapter
+from adapters.openai import OpenAIAdapter
 from adapters.openrouter import NebiusAdapter, OpenRouterAdapter
-from models.config import CLIAdapterConfig, CLIToolConfig, HTTPAdapterConfig
+from models.config import CLIAdapterConfig, CLIToolConfig, HTTPAdapterConfig, OpenAIAdapterConfig
 
 
 def create_adapter(
@@ -46,6 +47,7 @@ def create_adapter(
         "lmstudio": LMStudioAdapter,
         "openrouter": OpenRouterAdapter,
         "nebius": NebiusAdapter,
+        "openai": OpenAIAdapter,
     }
 
     # Handle legacy CLIToolConfig (backward compatibility)
@@ -86,6 +88,19 @@ def create_adapter(
                 f"(Note: HTTP adapters are being added in phases)"
             )
 
+        # Special handling for OpenAI adapter with extended config
+        if name == "openai" and isinstance(config, OpenAIAdapterConfig):
+            return OpenAIAdapter(
+                base_url=config.base_url,
+                timeout=config.timeout,
+                max_retries=config.max_retries,
+                api_key=config.api_key,
+                headers=config.headers,
+                responses_api_prefixes=config.responses_api_prefixes,
+                max_output_tokens=config.max_output_tokens,
+                max_completion_tokens=config.max_completion_tokens,
+            )
+
         return http_adapters[name](
             base_url=config.base_url,
             timeout=config.timeout,
@@ -112,5 +127,6 @@ __all__ = [
     "LMStudioAdapter",
     "NebiusAdapter",
     "OllamaAdapter",
+    "OpenAIAdapter",
     "create_adapter",
 ]

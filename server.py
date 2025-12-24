@@ -113,6 +113,7 @@ CLI_TITLES = {
     "lmstudio": "LM Studio",
     "openrouter": "OpenRouter",
     "nebius": "Nebius",
+    "openai": "OpenAI",
 }
 
 
@@ -146,6 +147,7 @@ def _build_participant_variants() -> list[dict]:
         "lmstudio",
         "openrouter",
         "nebius",
+        "openai",
     ]
 
     for cli in all_clis:

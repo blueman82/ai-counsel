@@ -176,6 +176,20 @@ adapters:
     # See https://docs.tokenfactory.nebius.com for full model list
     # Requires API key from https://tokenfactory.nebius.com/project/api-keys
 
+  openai:
+    type: openai
+    base_url: "https://api.openai.com/v1"
+    api_key: "${OPENAI_API_KEY}"
+    timeout: 300
+    max_retries: 3
+    responses_api_prefixes: ["o1", "o3", "o4", "gpt-5-pro", "gpt-5.2-pro"]  # Models using Responses API
+    # max_output_tokens: 16384  # Optional: limit for Responses API
+    # max_completion_tokens: 16384  # Optional: limit for Chat Completions API
+    # OpenAI direct API access
+    # Reasoning models (o1/o3/o4) and Pro models (gpt-5-pro, gpt-5.2-pro): Use Responses API
+    # Other GPT models: Use Chat Completions API
+    # Requires API key from https://platform.openai.com/api-keys
+
 defaults:
   mode: "quick"
   rounds: 2
@@ -376,6 +390,62 @@ model_registry:
     - id: "NousResearch/Hermes-4-70B"
       label: "Hermes 4 70B"
       tier: "balanced"
+      enabled: true
+  openai:
+    # ===== Reasoning Models (Responses API) =====
+    - id: "o3-pro"
+      label: "o3 Pro"
+      tier: "premium"
+      default: true
+      enabled: true
+    - id: "o3"
+      label: "o3"
+      tier: "reasoning"
+      enabled: true
+    - id: "o1-pro"
+      label: "o1 Pro"
+      tier: "reasoning"
+      enabled: true
+    - id: "o1"
+      label: "o1"
+      tier: "reasoning"
+      enabled: true
+    - id: "o4-mini"
+      label: "o4 Mini"
+      tier: "speed"
+      enabled: true
+    - id: "o3-mini"
+      label: "o3 Mini"
+      tier: "speed"
+      enabled: true
+    # ===== GPT Models (Chat Completions API) =====
+    - id: "gpt-5.2-pro"
+      label: "GPT-5.2 Pro"
+      tier: "flagship"
+      enabled: true
+    - id: "gpt-5.2"
+      label: "GPT-5.2"
+      tier: "premium"
+      enabled: true
+    - id: "gpt-5"
+      label: "GPT-5"
+      tier: "balanced"
+      enabled: true
+    - id: "gpt-5-pro"
+      label: "GPT-5 Pro"
+      tier: "flagship"
+      enabled: true
+    - id: "gpt-4.1"
+      label: "GPT-4.1"
+      tier: "balanced"
+      enabled: true
+    - id: "gpt-4o"
+      label: "GPT-4o"
+      tier: "general"
+      enabled: true
+    - id: "gpt-4o-mini"
+      label: "GPT-4o Mini"
+      tier: "speed"
       enabled: true
 
 storage:
