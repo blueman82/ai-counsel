@@ -10,7 +10,7 @@ from adapters.gemini import GeminiAdapter
 from adapters.llamacpp import LlamaCppAdapter
 from adapters.lmstudio import LMStudioAdapter
 from adapters.ollama import OllamaAdapter
-from adapters.openrouter import OpenRouterAdapter
+from adapters.openrouter import NebiusAdapter, OpenRouterAdapter
 from models.config import CLIAdapterConfig, CLIToolConfig, HTTPAdapterConfig
 
 
@@ -45,6 +45,7 @@ def create_adapter(
         "ollama": OllamaAdapter,
         "lmstudio": LMStudioAdapter,
         "openrouter": OpenRouterAdapter,
+        "nebius": NebiusAdapter,
     }
 
     # Handle legacy CLIToolConfig (backward compatibility)
@@ -109,6 +110,7 @@ __all__ = [
     "GeminiAdapter",
     "LlamaCppAdapter",
     "LMStudioAdapter",
+    "NebiusAdapter",
     "OllamaAdapter",
     "create_adapter",
 ]

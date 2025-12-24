@@ -61,7 +61,7 @@ mcp__ai-counsel__deliberate({
 ## Features
 
 - 🎯 **Two Modes**: `quick` (single-round) or `conference` (multi-round debate)
-- 🤖 **Mixed Adapters**: CLI tools (claude, codex, droid, gemini) + HTTP services (ollama, lmstudio, openrouter)
+- 🤖 **Mixed Adapters**: CLI tools (claude, codex, droid, gemini) + HTTP services (ollama, lmstudio, openrouter, nebius)
 - ⚡ **Auto-Convergence**: Stops when opinions stabilize (saves API costs)
 - 🗳️ **Structured Voting**: Models cast votes with confidence levels and rationale
 - 🧮 **Semantic Grouping**: Similar vote options automatically merged (0.70+ similarity)
@@ -215,7 +215,7 @@ Models cast votes with confidence levels (0.0-1.0), rationale, and continue_deba
 → **[Complete Guide](docs/structured-voting.md)** - Vote structure, examples, integration
 
 ### HTTP Adapters & Local Models
-Run Ollama, LM Studio, or OpenRouter locally for zero API costs and complete data privacy. Mix with cloud models (Claude, GPT-4) in single deliberation.
+Run Ollama, LM Studio, OpenRouter, or Nebius for flexible API costs and privacy options. Mix with cloud models (Claude, GPT-4) in single deliberation.
 
 → **[Setup Guides](docs/http-adapters/intro.md)** - Ollama, LM Studio, OpenRouter, cost analysis
 
