@@ -1,10 +1,14 @@
 """Question similarity detection for Decision Graph Memory."""
+
 import logging
 from typing import Dict, List, Optional, Tuple
 
-from deliberation.convergence import (JaccardBackend,
-                                      SentenceTransformerBackend,
-                                      SimilarityBackend, TFIDFBackend)
+from deliberation.convergence import (
+    JaccardBackend,
+    SentenceTransformerBackend,
+    SimilarityBackend,
+    TFIDFBackend,
+)
 
 logger = logging.getLogger(__name__)
 

@@ -13,8 +13,12 @@ from unittest.mock import patch
 import pytest
 
 from decision_graph.schema import DecisionNode, DecisionSimilarity
-from deliberation.exporters import (DecisionGraphExporter, _escape_markdown,
-                                    _escape_xml, _truncate_text)
+from deliberation.exporters import (
+    DecisionGraphExporter,
+    _escape_markdown,
+    _escape_xml,
+    _truncate_text,
+)
 from deliberation.query_engine import SimilarResult
 
 # ============================================================================

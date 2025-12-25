@@ -14,8 +14,7 @@ from uuid import uuid4
 
 from decision_graph.maintenance import DecisionGraphMaintenance
 from decision_graph.retrieval import DecisionRetriever
-from decision_graph.schema import (DecisionNode, DecisionSimilarity,
-                                   ParticipantStance)
+from decision_graph.schema import DecisionNode, DecisionSimilarity, ParticipantStance
 from decision_graph.similarity import QuestionSimilarityDetector
 from decision_graph.storage import DecisionGraphStorage
 from decision_graph.workers import BackgroundWorker
@@ -77,6 +76,8 @@ class DecisionGraphIntegration:
         self._worker_enabled = enable_background_worker
         self.maintenance = DecisionGraphMaintenance(storage)
         self._decision_count = 0
+        self._enqueue_tasks: set[asyncio.Task] = set()
+        self._shutting_down = False
 
         # Initialize background worker if enabled
         if enable_background_worker:
@@ -98,6 +99,9 @@ class DecisionGraphIntegration:
         This method is called automatically when needed, but can be called
         explicitly to start the worker early.
         """
+        if not self._worker_enabled or self._shutting_down:
+            logger.debug("Background worker disabled or shutting down")
+            return
         if self.worker and not self.worker.running:
             await self.worker.start()
             logger.info("Started background worker for similarity computation")
@@ -251,15 +255,24 @@ class DecisionGraphIntegration:
                         loop = asyncio.get_event_loop()
                         if loop.is_running():
                             # Ensure worker is started and enqueue
-                            async def enqueue_job():
+                            async def enqueue_job() -> None:
                                 await self.ensure_worker_started()
+                                if (
+                                    not self._worker_enabled
+                                    or self._shutting_down
+                                    or not self.worker
+                                    or not self.worker.running
+                                ):
+                                    return
                                 await self.worker.enqueue(
                                     decision_id=decision_id,
                                     priority="low",
                                     delay_seconds=5,
                                 )
 
-                            asyncio.create_task(enqueue_job())
+                            task = asyncio.create_task(enqueue_job())
+                            self._enqueue_tasks.add(task)
+                            task.add_done_callback(self._enqueue_tasks.discard)
                             logger.info(
                                 f"Queued similarity computation for decision {decision_id}"
                             )
@@ -513,7 +526,9 @@ class DecisionGraphIntegration:
                 )
 
                 if not scored_decisions:
-                    logger.info(f"No relevant decisions found for question: {question[:50]}...")
+                    logger.info(
+                        f"No relevant decisions found for question: {question[:50]}..."
+                    )
                     return ""
 
                 # Format using tiered approach
@@ -686,6 +701,13 @@ class DecisionGraphIntegration:
             >>> # ... use integration ...
             >>> await integration.shutdown()
         """
+        self._shutting_down = True
+        self._worker_enabled = False
+        if self._enqueue_tasks:
+            for task in list(self._enqueue_tasks):
+                task.cancel()
+            await asyncio.gather(*self._enqueue_tasks, return_exceptions=True)
+            self._enqueue_tasks.clear()
         if self.worker:
             logger.info("Shutting down background worker...")
             try:
@@ -698,15 +720,24 @@ class DecisionGraphIntegration:
 
     def __del__(self):
         """Cleanup on destruction - attempt graceful shutdown if event loop available."""
-        if self.worker and self.worker.running:
-            try:
-                loop = asyncio.get_event_loop()
-                if loop.is_running():
-                    asyncio.create_task(self.shutdown())
-                else:
-                    # Try to run shutdown synchronously
-                    loop.run_until_complete(self.shutdown())
-            except Exception as e:
-                logger.warning(
-                    f"Could not gracefully shutdown worker in destructor: {e}"
-                )
+        if not self.worker or not self.worker.running:
+            return
+
+        try:
+            loop = asyncio.get_event_loop()
+        except RuntimeError:
+            return
+
+        if loop.is_closed():
+            return
+
+        try:
+            if loop.is_running():
+                asyncio.create_task(self.shutdown())
+            else:
+                # Try to run shutdown synchronously
+                loop.run_until_complete(self.shutdown())
+        except RuntimeError:
+            return
+        except Exception as e:
+            logger.warning(f"Could not gracefully shutdown worker in destructor: {e}")

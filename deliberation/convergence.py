@@ -1,4 +1,5 @@
 """Convergence detection for deliberation rounds."""
+
 import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
@@ -70,9 +71,14 @@ class JaccardBackend(SimilarityBackend):
         if not text1 or not text2:
             return 0.0
 
-        # Normalize: lowercase and split into words
-        words1 = set(text1.lower().split())
-        words2 = set(text2.lower().split())
+        # Normalize: lowercase, strip punctuation, and split into words
+        import re
+
+        # Remove punctuation (keep only alphanumeric and whitespace)
+        text1_clean = re.sub(r"[^\w\s]", "", text1.lower())
+        text2_clean = re.sub(r"[^\w\s]", "", text2.lower())
+        words1 = set(text1_clean.split())
+        words2 = set(text2_clean.split())
 
         # Handle case where both are empty after normalization
         if not words1 or not words2:
@@ -272,10 +278,21 @@ class ConvergenceDetector:
         self.config = config.deliberation.convergence_detection
         self.backend = self._select_backend()
         self.consecutive_stable_count = 0
+        self.consecutive_divergent_count = 0
 
         logger.info(
             f"ConvergenceDetector initialized with {self.backend.__class__.__name__}"
         )
+
+    def reset(self) -> None:
+        """Reset state counters for a new deliberation.
+
+        Should be called at the start of each deliberation to ensure
+        counters from previous deliberations don't affect convergence detection.
+        """
+        self.consecutive_stable_count = 0
+        self.consecutive_divergent_count = 0
+        logger.debug("ConvergenceDetector state reset")
 
     def _select_backend(self) -> SimilarityBackend:
         """
@@ -352,11 +369,12 @@ class ConvergenceDetector:
 
         # Determine convergence status
         threshold = self.config.semantic_similarity_threshold
-        divergence_threshold = getattr(self.config, "divergence_threshold", 0.40)
+        divergence_threshold = self.config.divergence_threshold
 
         if min_similarity >= threshold:
             # All participants converged
             self.consecutive_stable_count += 1
+            self.consecutive_divergent_count = 0
 
             if self.consecutive_stable_count >= self.config.consecutive_stable_rounds:
                 status = "converged"
@@ -370,18 +388,18 @@ class ConvergenceDetector:
             status = "diverging"
             converged = False
             self.consecutive_stable_count = 0
+            self.consecutive_divergent_count += 1
 
         else:
             # Still refining
             status = "refining"
             converged = False
             self.consecutive_stable_count = 0
+            self.consecutive_divergent_count = 0
 
         # Check for impasse (stable disagreement)
-        if (
-            status == "diverging"
-            and self.consecutive_stable_count >= self.config.consecutive_stable_rounds
-        ):
+        impasse_rounds = max(2, self.config.consecutive_stable_rounds)
+        if status == "diverging" and self.consecutive_divergent_count >= impasse_rounds:
             status = "impasse"
 
         return ConvergenceResult(

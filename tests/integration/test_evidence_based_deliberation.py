@@ -3,6 +3,7 @@
 Tests the complete workflow of models requesting tools during deliberation,
 executing them, and injecting results into subsequent rounds.
 """
+
 from pathlib import Path
 
 import pytest
@@ -40,7 +41,8 @@ class TestEvidenceBasedDeliberation:
 
         # Create a main module
         main_file = src_dir / "main.py"
-        main_file.write_text('''"""Main module for the application."""
+        main_file.write_text(
+            '''"""Main module for the application."""
 
 def calculate_total(items):
     """Calculate total price of items."""
@@ -51,11 +53,13 @@ def process_order(order):
     """Process an order."""
     total = calculate_total(order.items)
     return {"order_id": order.id, "total": total}
-''')
+'''
+        )
 
         # Create a utils module
         utils_file = src_dir / "utils.py"
-        utils_file.write_text('''"""Utility functions."""
+        utils_file.write_text(
+            '''"""Utility functions."""
 
 def format_currency(amount):
     """Format amount as currency."""
@@ -65,7 +69,8 @@ def format_currency(amount):
 def validate_email(email):
     """Validate email address."""
     return "@" in email and "." in email
-''')
+'''
+        )
 
         # Create a config file
         config_file = src_dir / "config.json"
@@ -170,7 +175,9 @@ VOTE: {"option": "Approve", "confidence": 0.9, "rationale": "Code quality verifi
 
         adapters = {"claude": claude_adapter, "codex": codex_adapter}
         manager = TranscriptManager(output_dir=str(tmp_transcript_dir))
-        engine = DeliberationEngine(adapters=adapters, transcript_manager=manager, config=config)
+        engine = DeliberationEngine(
+            adapters=adapters, transcript_manager=manager, config=config
+        )
 
         request = DeliberateRequest(
             question="Should we approve the current implementation?",
@@ -180,7 +187,8 @@ VOTE: {"option": "Approve", "confidence": 0.9, "rationale": "Code quality verifi
             ],
             rounds=2,
             mode="conference",
-            working_directory="/tmp",)
+            working_directory="/tmp",
+        )
 
         # Execute
         result = await engine.execute(request)
@@ -197,8 +205,12 @@ VOTE: {"option": "Approve", "confidence": 0.9, "rationale": "Code quality verifi
             r for r in engine.tool_execution_history if r.request.name == "read_file"
         )
         assert read_file_record.result.success, "Tool execution should succeed"
-        assert "calculate_total" in read_file_record.result.output, "Should contain function name"
-        assert "def calculate_total" in read_file_record.result.output, "Should contain function definition"
+        assert (
+            "calculate_total" in read_file_record.result.output
+        ), "Should contain function name"
+        assert (
+            "def calculate_total" in read_file_record.result.output
+        ), "Should contain function definition"
 
         # Verify deliberation completed successfully
         assert result.status == "complete", "Deliberation should complete"
@@ -206,7 +218,11 @@ VOTE: {"option": "Approve", "confidence": 0.9, "rationale": "Code quality verifi
 
     @pytest.mark.asyncio
     async def test_multiple_tools_in_single_deliberation(
-        self, config, mock_adapters_with_tool_requests, tmp_transcript_dir, test_codebase
+        self,
+        config,
+        mock_adapters_with_tool_requests,
+        tmp_transcript_dir,
+        test_codebase,
     ):
         """Test deliberation using multiple different tools."""
         # Setup
@@ -214,7 +230,7 @@ VOTE: {"option": "Approve", "confidence": 0.9, "rationale": "Code quality verifi
         engine = DeliberationEngine(
             adapters=mock_adapters_with_tool_requests,
             transcript_manager=manager,
-            config=config
+            config=config,
         )
 
         request = DeliberateRequest(
@@ -226,13 +242,16 @@ VOTE: {"option": "Approve", "confidence": 0.9, "rationale": "Code quality verifi
             ],
             rounds=2,
             mode="conference",
-            working_directory="/tmp",)
+            working_directory="/tmp",
+        )
 
         # Execute
         result = await engine.execute(request)
 
         # Verify multiple tools were executed
-        assert len(engine.tool_execution_history) >= 3, "At least 3 tools should be executed"
+        assert (
+            len(engine.tool_execution_history) >= 3
+        ), "At least 3 tools should be executed"
 
         # Verify different tool types were used
         tool_names = {record.request.name for record in engine.tool_execution_history}
@@ -272,7 +291,9 @@ VOTE: {"option": "Approve", "confidence": 0.9, "rationale": "Code quality verifi
 
         adapters = {"claude": claude_adapter, "codex": codex_adapter}
         manager = TranscriptManager(output_dir=str(tmp_transcript_dir))
-        engine = DeliberationEngine(adapters=adapters, transcript_manager=manager, config=config)
+        engine = DeliberationEngine(
+            adapters=adapters, transcript_manager=manager, config=config
+        )
 
         request = DeliberateRequest(
             question="Test question",
@@ -282,7 +303,8 @@ VOTE: {"option": "Approve", "confidence": 0.9, "rationale": "Code quality verifi
             ],
             rounds=2,
             mode="conference",
-            working_directory="/tmp",)
+            working_directory="/tmp",
+        )
 
         # Execute
         result = await engine.execute(request)
@@ -305,7 +327,9 @@ VOTE: {"option": "Approve", "confidence": 0.9, "rationale": "Code quality verifi
 
         # Tool results should be in context for round 2
         assert context is not None, "Round 2 should have context"
-        assert "Tool Results" in context or "read_file" in context, "Context should mention tool results"
+        assert (
+            "Tool Results" in context or "read_file" in context
+        ), "Context should mention tool results"
 
     @pytest.mark.asyncio
     async def test_tool_results_influence_final_decision(
@@ -335,7 +359,9 @@ VOTE: {"option": "Approve", "confidence": 0.95, "rationale": "Code review via re
 
         adapters = {"claude": claude_adapter, "codex": codex_adapter}
         manager = TranscriptManager(output_dir=str(tmp_transcript_dir))
-        engine = DeliberationEngine(adapters=adapters, transcript_manager=manager, config=config)
+        engine = DeliberationEngine(
+            adapters=adapters, transcript_manager=manager, config=config
+        )
 
         request = DeliberateRequest(
             question="Should we approve the implementation?",
@@ -345,7 +371,8 @@ VOTE: {"option": "Approve", "confidence": 0.95, "rationale": "Code review via re
             ],
             rounds=2,
             mode="conference",
-            working_directory="/tmp",)
+            working_directory="/tmp",
+        )
 
         # Execute
         result = await engine.execute(request)
@@ -360,8 +387,13 @@ VOTE: {"option": "Approve", "confidence": 0.95, "rationale": "Code review via re
         # Verify vote rationale mentions tool usage
         votes = result.voting_result.votes_by_round
         round2_vote = next(v for v in votes if v.round == 2)
-        assert "read_file" in round2_vote.vote.rationale.lower() or "code review" in round2_vote.vote.rationale.lower()
-        assert round2_vote.vote.confidence >= 0.9, "Confidence should be high after tool verification"
+        assert (
+            "read_file" in round2_vote.vote.rationale.lower()
+            or "code review" in round2_vote.vote.rationale.lower()
+        )
+        assert (
+            round2_vote.vote.confidence >= 0.9
+        ), "Confidence should be high after tool verification"
 
     @pytest.mark.asyncio
     async def test_transcript_includes_tool_executions(
@@ -386,7 +418,9 @@ VOTE: {"option": "Approve", "confidence": 0.95, "rationale": "Code review via re
 
         adapters = {"claude": claude_adapter, "codex": codex_adapter}
         manager = TranscriptManager(output_dir=str(tmp_transcript_dir))
-        engine = DeliberationEngine(adapters=adapters, transcript_manager=manager, config=config)
+        engine = DeliberationEngine(
+            adapters=adapters, transcript_manager=manager, config=config
+        )
 
         request = DeliberateRequest(
             question="Review the codebase",
@@ -396,13 +430,16 @@ VOTE: {"option": "Approve", "confidence": 0.95, "rationale": "Code review via re
             ],
             rounds=2,
             mode="conference",
-            working_directory="/tmp",)
+            working_directory="/tmp",
+        )
 
         # Execute
         result = await engine.execute(request)
 
         # Verify tool execution history is populated
-        assert len(engine.tool_execution_history) >= 2, "Should have at least 2 tool executions"
+        assert (
+            len(engine.tool_execution_history) >= 2
+        ), "Should have at least 2 tool executions"
 
         # Verify transcript was created
         assert result.transcript_path is not None
@@ -413,13 +450,20 @@ VOTE: {"option": "Approve", "confidence": 0.95, "rationale": "Code review via re
         transcript_content = transcript_path.read_text()
 
         # Tool requests should be visible in the debate text (they're in the responses)
-        assert "TOOL_REQUEST" in transcript_content, "Transcript should show tool requests"
+        assert (
+            "TOOL_REQUEST" in transcript_content
+        ), "Transcript should show tool requests"
         assert "read_file" in transcript_content, "Transcript should mention read_file"
-        assert "search_code" in transcript_content, "Transcript should mention search_code"
+        assert (
+            "search_code" in transcript_content
+        ), "Transcript should mention search_code"
 
         # Check for round markers
         assert "Round 1" in transcript_content, "Should show round number"
-        assert "claude-sonnet-4-5@claude" in transcript_content or "gpt-4@codex" in transcript_content, "Should show participants"
+        assert (
+            "claude-sonnet-4-5@claude" in transcript_content
+            or "gpt-4@codex" in transcript_content
+        ), "Should show participants"
 
     @pytest.mark.asyncio
     async def test_tool_execution_timeout_handling(
@@ -446,7 +490,9 @@ VOTE: {"option": "Approve", "confidence": 0.95, "rationale": "Code review via re
 
         adapters = {"claude": claude_adapter, "codex": codex_adapter}
         manager = TranscriptManager(output_dir=str(tmp_transcript_dir))
-        engine = DeliberationEngine(adapters=adapters, transcript_manager=manager, config=config)
+        engine = DeliberationEngine(
+            adapters=adapters, transcript_manager=manager, config=config
+        )
 
         request = DeliberateRequest(
             question="Test timeout handling",
@@ -456,7 +502,8 @@ VOTE: {"option": "Approve", "confidence": 0.95, "rationale": "Code review via re
             ],
             rounds=2,
             mode="conference",
-            working_directory="/tmp",)
+            working_directory="/tmp",
+        )
 
         # Execute - should not raise exception even if tool times out
         result = await engine.execute(request)
@@ -468,9 +515,7 @@ VOTE: {"option": "Approve", "confidence": 0.95, "rationale": "Code review via re
         assert len(engine.tool_execution_history) > 0
 
     @pytest.mark.asyncio
-    async def test_tool_request_parsing_robustness(
-        self, config, tmp_transcript_dir
-    ):
+    async def test_tool_request_parsing_robustness(self, config, tmp_transcript_dir):
         """Verify robust parsing of TOOL_REQUEST markers."""
         claude_adapter = MockAdapter("claude")
         codex_adapter = MockAdapter("codex")
@@ -499,7 +544,9 @@ Both should be parsed correctly.
 
         adapters = {"claude": claude_adapter, "codex": codex_adapter}
         manager = TranscriptManager(output_dir=str(tmp_transcript_dir))
-        engine = DeliberationEngine(adapters=adapters, transcript_manager=manager, config=config)
+        engine = DeliberationEngine(
+            adapters=adapters, transcript_manager=manager, config=config
+        )
 
         request = DeliberateRequest(
             question="Test parsing",
@@ -509,14 +556,17 @@ Both should be parsed correctly.
             ],
             rounds=2,
             mode="conference",
-            working_directory="/tmp",)
+            working_directory="/tmp",
+        )
 
         # Execute
         result = await engine.execute(request)
 
         # Verify both tool requests were parsed (even if they fail due to invalid paths)
         # At minimum, we should see attempts in the history
-        assert len(engine.tool_execution_history) >= 2, "Should parse multiple tool requests"
+        assert (
+            len(engine.tool_execution_history) >= 2
+        ), "Should parse multiple tool requests"
 
         # Verify different tools were requested
         tool_names = [record.request.name for record in engine.tool_execution_history]
@@ -550,7 +600,9 @@ Both should be parsed correctly.
 
         adapters = {"claude": claude_adapter, "codex": codex_adapter}
         manager = TranscriptManager(output_dir=str(tmp_transcript_dir))
-        engine = DeliberationEngine(adapters=adapters, transcript_manager=manager, config=config)
+        engine = DeliberationEngine(
+            adapters=adapters, transcript_manager=manager, config=config
+        )
 
         request = DeliberateRequest(
             question="Test config",
@@ -560,7 +612,8 @@ Both should be parsed correctly.
             ],
             rounds=3,
             mode="conference",
-            working_directory="/tmp",)
+            working_directory="/tmp",
+        )
 
         # Execute
         result = await engine.execute(request)

@@ -1,4 +1,5 @@
 """Tests for OpenRouter adapter."""
+
 import os
 
 import pytest

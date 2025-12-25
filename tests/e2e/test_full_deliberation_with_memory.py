@@ -12,12 +12,16 @@ import pytest
 
 from decision_graph.integration import DecisionGraphIntegration
 from deliberation.engine import DeliberationEngine
-from models.config import (Config, ConvergenceDetectionConfig,
-                           DecisionGraphConfig, DefaultsConfig,
-                           DeliberationConfig, EarlyStoppingConfig,
-                           StorageConfig)
-from models.schema import (ConvergenceInfo, DeliberationResult, RoundResponse,
-                           Summary)
+from models.config import (
+    Config,
+    ConvergenceDetectionConfig,
+    DecisionGraphConfig,
+    DefaultsConfig,
+    DeliberationConfig,
+    EarlyStoppingConfig,
+    StorageConfig,
+)
+from models.schema import ConvergenceInfo, DeliberationResult, RoundResponse, Summary
 
 
 def make_result(consensus: str, participants=None, transcript_path="/tmp/t.md"):

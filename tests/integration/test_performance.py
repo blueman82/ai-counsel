@@ -23,8 +23,7 @@ import pytest
 from decision_graph.integration import DecisionGraphIntegration
 from decision_graph.schema import DecisionNode
 from decision_graph.storage import DecisionGraphStorage
-from models.schema import (ConvergenceInfo, DeliberationResult, RoundResponse,
-                           Summary)
+from models.schema import ConvergenceInfo, DeliberationResult, RoundResponse, Summary
 
 
 @pytest.fixture

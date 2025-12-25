@@ -3,6 +3,7 @@
 This test file verifies the CRITICAL bug fix: tool results must be injected
 into subsequent round contexts so all models can see the evidence.
 """
+
 import pytest
 from datetime import datetime
 from pathlib import Path
@@ -40,7 +41,9 @@ class TestToolResultContextInjection:
         participants = [Participant(cli="claude", model="sonnet", stance="neutral")]
 
         # Round 1: Model requests tool
-        mock_adapters["claude"].invoke_mock.return_value = f"""
+        mock_adapters[
+            "claude"
+        ].invoke_mock.return_value = f"""
 I'll check the config file.
 TOOL_REQUEST: {{"name": "read_file", "arguments": {{"path": "{test_file}"}}}}
 """
@@ -48,7 +51,9 @@ TOOL_REQUEST: {{"name": "read_file", "arguments": {{"path": "{test_file}"}}}}
         round1 = await engine.execute_round(1, "What database?", participants, [])
 
         # Verify tool was executed and stored in history
-        assert hasattr(engine, 'tool_execution_history'), "Engine should have tool_execution_history"
+        assert hasattr(
+            engine, "tool_execution_history"
+        ), "Engine should have tool_execution_history"
         assert len(engine.tool_execution_history) > 0, "Should have executed tool"
 
         # Round 2: Build context and verify tool result is included
@@ -56,7 +61,9 @@ TOOL_REQUEST: {{"name": "read_file", "arguments": {{"path": "{test_file}"}}}}
         context = engine._build_context(round1, current_round_num=2)
 
         # Verify tool results are in context
-        assert "Recent Tool Results" in context, "Context should have tool results section"
+        assert (
+            "Recent Tool Results" in context
+        ), "Context should have tool results section"
         assert "read_file" in context, "Context should mention the tool name"
         assert "postgresql" in context, "Context should contain the file contents"
         assert "port: 5432" in context, "Context should contain the full tool output"
@@ -66,7 +73,9 @@ TOOL_REQUEST: {{"name": "read_file", "arguments": {{"path": "{test_file}"}}}}
         assert "```" in context, "Should use code blocks for output"
 
     @pytest.mark.asyncio
-    async def test_tool_results_visible_to_all_participants_in_next_round(self, mock_adapters, tmp_path):
+    async def test_tool_results_visible_to_all_participants_in_next_round(
+        self, mock_adapters, tmp_path
+    ):
         """Test all participants see tool results in their prompts."""
         engine = DeliberationEngine(mock_adapters)
         engine.tool_executor = ToolExecutor()
@@ -81,11 +90,13 @@ TOOL_REQUEST: {{"name": "read_file", "arguments": {{"path": "{test_file}"}}}}
 
         participants = [
             Participant(cli="claude", model="sonnet", stance="neutral"),
-            Participant(cli="codex", model="gpt-4", stance="neutral")
+            Participant(cli="codex", model="gpt-4", stance="neutral"),
         ]
 
         # Round 1: One model uses tool
-        mock_adapters["claude"].invoke_mock.return_value = f"""
+        mock_adapters[
+            "claude"
+        ].invoke_mock.return_value = f"""
 Let me check the data.
 TOOL_REQUEST: {{"name": "read_file", "arguments": {{"path": "{test_file}"}}}}
 """
@@ -116,8 +127,8 @@ TOOL_REQUEST: {{"name": "read_file", "arguments": {{"path": "{test_file}"}}}}
 
         # Extract context from the calls (can be positional arg 3 or kwarg 'context')
         def get_context_from_call(call):
-            if 'context' in call.kwargs:
-                return call.kwargs['context']
+            if "context" in call.kwargs:
+                return call.kwargs["context"]
             elif len(call.args) > 2:
                 return call.args[2]
             return None
@@ -130,14 +141,14 @@ TOOL_REQUEST: {{"name": "read_file", "arguments": {{"path": "{test_file}"}}}}
         assert codex_context is not None, "Codex should receive context parameter"
 
         # Verify both contexts contain the tool output
-        assert "important evidence" in claude_context, \
-            "Claude should receive context with tool output"
-        assert "important evidence" in codex_context, \
-            "Codex should receive context with tool output"
-        assert "read_file" in claude_context, \
-            "Claude should see which tool was used"
-        assert "read_file" in codex_context, \
-            "Codex should see which tool was used"
+        assert (
+            "important evidence" in claude_context
+        ), "Claude should receive context with tool output"
+        assert (
+            "important evidence" in codex_context
+        ), "Codex should receive context with tool output"
+        assert "read_file" in claude_context, "Claude should see which tool was used"
+        assert "read_file" in codex_context, "Codex should see which tool was used"
 
     @pytest.mark.asyncio
     async def test_truncation_actually_applied(self, mock_adapters, tmp_path):
@@ -158,7 +169,9 @@ TOOL_REQUEST: {{"name": "read_file", "arguments": {{"path": "{test_file}"}}}}
         participants = [Participant(cli="claude", model="sonnet", stance="neutral")]
 
         # Round 1: Read large file
-        mock_adapters["claude"].invoke_mock.return_value = f"""
+        mock_adapters[
+            "claude"
+        ].invoke_mock.return_value = f"""
 Reading the file.
 TOOL_REQUEST: {{"name": "read_file", "arguments": {{"path": "{large_file}"}}}}
 """
@@ -173,10 +186,10 @@ TOOL_REQUEST: {{"name": "read_file", "arguments": {{"path": "{large_file}"}}}}
 
         # Should be truncated to ~1000 chars, not 5000
         # Context includes formatting, so allow some overhead but not full 5KB
-        assert len(context) < 3000, \
-            f"Context should be truncated (got {len(context)} chars, expected <3000)"
-        assert "truncated" in context.lower(), \
-            "Context should indicate truncation"
+        assert (
+            len(context) < 3000
+        ), f"Context should be truncated (got {len(context)} chars, expected <3000)"
+        assert "truncated" in context.lower(), "Context should indicate truncation"
 
     @pytest.mark.asyncio
     async def test_round_filtering_actually_applied(self, mock_adapters, tmp_path):
@@ -198,12 +211,19 @@ TOOL_REQUEST: {{"name": "read_file", "arguments": {{"path": "{large_file}"}}}}
             test_file = tmp_path / f"file{i}.txt"
             test_file.write_text(f"data from round {i}")
 
-            mock_adapters["claude"].invoke_mock.return_value = f"""
+            # Include VOTE to prevent vote retry mechanism from triggering additional tool executions
+            mock_adapters[
+                "claude"
+            ].invoke_mock.return_value = f"""
 Checking round {i}.
 TOOL_REQUEST: {{"name": "read_file", "arguments": {{"path": "{test_file}"}}}}
+
+VOTE: {{"option": "A", "confidence": 0.8, "rationale": "Test vote", "continue_debate": true}}
 """
 
-            responses = await engine.execute_round(i, "Test", participants, all_responses)
+            responses = await engine.execute_round(
+                i, "Test", participants, all_responses
+            )
             all_responses.extend(responses)
 
         # Verify we have 5 tool executions
@@ -213,9 +233,15 @@ TOOL_REQUEST: {{"name": "read_file", "arguments": {{"path": "{test_file}"}}}}
         context = engine._build_context(all_responses, current_round_num=6)
 
         # Should NOT include old rounds in tool results
-        assert "data from round 1" not in context, "Round 1 tool result should be filtered out"
-        assert "data from round 2" not in context, "Round 2 tool result should be filtered out"
-        assert "data from round 3" not in context, "Round 3 tool result should be filtered out"
+        assert (
+            "data from round 1" not in context
+        ), "Round 1 tool result should be filtered out"
+        assert (
+            "data from round 2" not in context
+        ), "Round 2 tool result should be filtered out"
+        assert (
+            "data from round 3" not in context
+        ), "Round 3 tool result should be filtered out"
 
         # SHOULD include recent rounds in tool results
         assert "data from round 4" in context, "Round 4 tool result should be included"
@@ -235,7 +261,9 @@ TOOL_REQUEST: {{"name": "read_file", "arguments": {{"path": "{test_file}"}}}}
         participants = [Participant(cli="claude", model="sonnet", stance="neutral")]
 
         # Round 1: Tool fails (invalid path)
-        mock_adapters["claude"].invoke_mock.return_value = """
+        mock_adapters[
+            "claude"
+        ].invoke_mock.return_value = """
 Checking file.
 TOOL_REQUEST: {"name": "read_file", "arguments": {"path": "/nonexistent/file.txt"}}
 """
@@ -244,13 +272,17 @@ TOOL_REQUEST: {"name": "read_file", "arguments": {"path": "/nonexistent/file.txt
 
         # Verify tool execution failed
         assert len(engine.tool_execution_history) > 0
-        assert not engine.tool_execution_history[0].result.success, "Tool should have failed"
+        assert not engine.tool_execution_history[
+            0
+        ].result.success, "Tool should have failed"
 
         # Round 2: Build context and verify error is shown
         context = engine._build_context(round1, current_round_num=2)
 
         # Should show the error
-        assert "Error" in context or "error" in context, "Context should show error indicator"
+        assert (
+            "Error" in context or "error" in context
+        ), "Context should show error indicator"
         assert "read_file" in context, "Should still show which tool was attempted"
 
     def test_truncate_output_method_exists_and_works(self):
@@ -275,7 +307,10 @@ TOOL_REQUEST: {"name": "read_file", "arguments": {"path": "/nonexistent/file.txt
         engine = DeliberationEngine({})
 
         # No tool execution history
-        assert not hasattr(engine, 'tool_execution_history') or len(engine.tool_execution_history) == 0
+        assert (
+            not hasattr(engine, "tool_execution_history")
+            or len(engine.tool_execution_history) == 0
+        )
 
         previous = [
             RoundResponse(
@@ -303,7 +338,7 @@ TOOL_REQUEST: {"name": "read_file", "arguments": {"path": "/nonexistent/file.txt
         engine.tool_executor.register_tool(RunCommandTool())
 
         # Add fake tool execution history
-        if not hasattr(engine, 'tool_execution_history'):
+        if not hasattr(engine, "tool_execution_history"):
             engine.tool_execution_history = []
 
         engine.tool_execution_history.append(
@@ -314,9 +349,9 @@ TOOL_REQUEST: {"name": "read_file", "arguments": {"path": "/nonexistent/file.txt
                     tool_name="read_file",
                     success=True,
                     output="test output",
-                    error=None
+                    error=None,
                 ),
-                requested_by="test@cli"
+                requested_by="test@cli",
             )
         )
 

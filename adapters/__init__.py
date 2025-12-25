@@ -1,4 +1,5 @@
 """CLI and HTTP adapter factory and exports."""
+
 from typing import Type, Union
 
 from adapters.base import BaseCLIAdapter
@@ -54,7 +55,9 @@ def create_adapter(
                 command=config.command,
                 args=config.args,
                 timeout=config.timeout,
-                default_reasoning_effort=getattr(config, "default_reasoning_effort", None),
+                default_reasoning_effort=getattr(
+                    config, "default_reasoning_effort", None
+                ),
             )
         else:
             raise ValueError(

@@ -16,8 +16,7 @@ from typing import Generator
 import pytest
 
 from decision_graph.maintenance import DecisionGraphMaintenance
-from decision_graph.schema import (DecisionNode, DecisionSimilarity,
-                                   ParticipantStance)
+from decision_graph.schema import DecisionNode, DecisionSimilarity, ParticipantStance
 from decision_graph.storage import DecisionGraphStorage
 
 

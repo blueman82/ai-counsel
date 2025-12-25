@@ -1,4 +1,5 @@
 """Transcript management for deliberations."""
+
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
@@ -52,18 +53,20 @@ class TranscriptManager:
         ]
 
         for execution in result.tool_executions:
-            lines.extend([
-                f"### {execution.request.name} (Round {execution.round_number})",
-                "",
-                f"**Requested by:** {execution.requested_by}",
-                f"**Timestamp:** {execution.timestamp}",
-                "",
-                "**Arguments:**",
-                "```json",
-                str(execution.request.arguments),
-                "```",
-                "",
-            ])
+            lines.extend(
+                [
+                    f"### {execution.request.name} (Round {execution.round_number})",
+                    "",
+                    f"**Requested by:** {execution.requested_by}",
+                    f"**Timestamp:** {execution.timestamp}",
+                    "",
+                    "**Arguments:**",
+                    "```json",
+                    str(execution.request.arguments),
+                    "```",
+                    "",
+                ]
+            )
 
             if execution.result.success:
                 # Truncate long outputs
@@ -71,22 +74,26 @@ class TranscriptManager:
                 if output and len(output) > 2000:
                     output = output[:2000] + "\n... (truncated)"
 
-                lines.extend([
-                    f"**Status:** ✅ Success",
-                    "",
-                    "**Output:**",
-                    "```",
-                    output or "(empty)",
-                    "```",
-                    "",
-                ])
+                lines.extend(
+                    [
+                        f"**Status:** ✅ Success",
+                        "",
+                        "**Output:**",
+                        "```",
+                        output or "(empty)",
+                        "```",
+                        "",
+                    ]
+                )
             else:
-                lines.extend([
-                    f"**Status:** ❌ Failed",
-                    "",
-                    f"**Error:** {execution.result.error}",
-                    "",
-                ])
+                lines.extend(
+                    [
+                        f"**Status:** ❌ Failed",
+                        "",
+                        f"**Error:** {execution.result.error}",
+                        "",
+                    ]
+                )
 
         return lines
 

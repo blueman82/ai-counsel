@@ -1,4 +1,5 @@
 """File tree generation utility for repository structure visualization."""
+
 import logging
 from pathlib import Path
 from typing import Optional, Set
@@ -8,24 +9,52 @@ logger = logging.getLogger(__name__)
 # Common files/directories to ignore in tree generation
 DEFAULT_IGNORE_PATTERNS = {
     # Version control
-    '.git', '.svn', '.hg',
+    ".git",
+    ".svn",
+    ".hg",
     # Python
-    '__pycache__', '*.pyc', '*.pyo', '*.pyd', '.Python',
-    '.venv', 'venv', 'env', 'ENV',
+    "__pycache__",
+    "*.pyc",
+    "*.pyo",
+    "*.pyd",
+    ".Python",
+    ".venv",
+    "venv",
+    "env",
+    "ENV",
     # Node.js
-    'node_modules', 'npm-debug.log', 'yarn-error.log',
+    "node_modules",
+    "npm-debug.log",
+    "yarn-error.log",
     # Build artifacts
-    'build', 'dist', '*.egg-info', '.eggs',
+    "build",
+    "dist",
+    "*.egg-info",
+    ".eggs",
     # IDE
-    '.vscode', '.idea', '.DS_Store',
+    ".vscode",
+    ".idea",
+    ".DS_Store",
     # Misc
-    '.coverage', 'htmlcov', '.pytest_cache', '.mypy_cache',
-    '.ruff_cache', '.tox',
+    ".coverage",
+    "htmlcov",
+    ".pytest_cache",
+    ".mypy_cache",
+    ".ruff_cache",
+    ".tox",
     # Deliberation outputs (prevents context contamination)
-    'transcripts',
+    "transcripts",
     # Binary files
-    '*.so', '*.dylib', '*.db', '*.sqlite',
-    '*.png', '*.jpg', '*.jpeg', '*.gif', '*.bmp', '*.ico',
+    "*.so",
+    "*.dylib",
+    "*.db",
+    "*.sqlite",
+    "*.png",
+    "*.jpg",
+    "*.jpeg",
+    "*.gif",
+    "*.bmp",
+    "*.ico",
 }
 
 
@@ -89,7 +118,7 @@ def generate_file_tree(
                 return True
             # Check wildcard patterns
             for pattern in ignore_patterns:
-                if '*' in pattern and name.endswith(pattern.replace('*', '')):
+                if "*" in pattern and name.endswith(pattern.replace("*", "")):
                     return True
             return False
 
@@ -109,7 +138,8 @@ def generate_file_tree(
 
                 # Filter ignored entries and directories exceeding max_depth
                 entries = [
-                    e for e in entries
+                    e
+                    for e in entries
                     if not should_ignore(e)
                     and not (e.is_dir() and depth + 1 > max_depth)
                 ]
@@ -155,5 +185,7 @@ def generate_file_tree(
         return tree_str
 
     except Exception as e:
-        logger.error(f"Failed to generate file tree for {root_path}: {e}", exc_info=True)
+        logger.error(
+            f"Failed to generate file tree for {root_path}: {e}", exc_info=True
+        )
         return ""

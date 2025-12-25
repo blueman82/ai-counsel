@@ -1,4 +1,5 @@
 """Tests for LM Studio adapter."""
+
 import pytest
 
 from adapters.lmstudio import LMStudioAdapter

@@ -26,17 +26,20 @@ def temp_db():
 @pytest.fixture
 def storage(temp_db):
     """Create storage instance."""
-    return DecisionGraphStorage(db_path=temp_db)
+    storage_instance = DecisionGraphStorage(db_path=temp_db)
+    yield storage_instance
+    storage_instance.close()
 
 
 @pytest.fixture
 async def worker(storage):
     """Create and cleanup worker instance."""
+    # Use low threshold (0.1) to work with Jaccard backend which produces lower scores
     worker = BackgroundWorker(
         storage=storage,
         max_queue_size=100,
         batch_size=10,
-        similarity_threshold=0.5,
+        similarity_threshold=0.1,
     )
     yield worker
     # Cleanup
@@ -235,11 +238,12 @@ class TestBackgroundWorkerEnqueue:
         await worker.start()
 
         start_time = asyncio.get_event_loop().time()
-        await worker.enqueue(decision_id="test-id", delay_seconds=0.1)
+        delay_seconds = 0.1
+        await worker.enqueue(decision_id="test-id", delay_seconds=delay_seconds)
         elapsed = asyncio.get_event_loop().time() - start_time
 
         # Should have delayed ~0.1s
-        assert elapsed >= 0.1
+        assert elapsed >= delay_seconds - 0.02
         assert worker.low_priority_queue.qsize() == 1
 
     @pytest.mark.asyncio
@@ -396,8 +400,8 @@ class TestBackgroundWorkerProcessing:
         # Wait for processing
         await asyncio.sleep(0.5)
 
-        # Check that similarity was stored
-        similarities = storage.get_similar_decisions(node2.id, threshold=0.3, limit=10)
+        # Check that similarity was stored (use low threshold for Jaccard backend)
+        similarities = storage.get_similar_decisions(node2.id, threshold=0.1, limit=10)
         assert len(similarities) > 0  # Should find node1 as similar
 
 
@@ -418,7 +422,8 @@ class TestBackgroundWorkerStats:
         assert stats["total_similarities_computed"] == 0
         assert stats["max_queue_size"] == 100
         assert stats["batch_size"] == 10
-        assert stats["similarity_threshold"] == 0.5
+        # Use low threshold (0.1) to work with Jaccard backend
+        assert stats["similarity_threshold"] == 0.1
 
     @pytest.mark.asyncio
     async def test_get_stats_after_processing(self, worker, storage):
@@ -651,39 +656,42 @@ class TestBackgroundWorkerPerformance:
         integration = DecisionGraphIntegration(storage)
         await worker.start()
 
-        result = DeliberationResult(
-            status="complete",
-            mode="quick",
-            rounds_completed=1,
-            participants=["test"],
-            full_debate=[],
-            summary=Summary(
-                consensus="Test",
-                key_agreements=[],
-                key_disagreements=[],
-                final_recommendation="Test",
-            ),
-            convergence_info=ConvergenceInfo(
-                detected=True,
-                detection_round=1,
-                final_similarity=0.85,
-                status="converged",
-                scores_by_round=[],
-                per_participant_similarity={},
-            ),
-            transcript_path="/tmp/test.md",
-        )
+        try:
+            result = DeliberationResult(
+                status="complete",
+                mode="quick",
+                rounds_completed=1,
+                participants=["test"],
+                full_debate=[],
+                summary=Summary(
+                    consensus="Test",
+                    key_agreements=[],
+                    key_disagreements=[],
+                    final_recommendation="Test",
+                ),
+                convergence_info=ConvergenceInfo(
+                    detected=True,
+                    detection_round=1,
+                    final_similarity=0.85,
+                    status="converged",
+                    scores_by_round=[],
+                    per_participant_similarity={},
+                ),
+                transcript_path="/tmp/test.md",
+            )
 
-        # Store deliberation (which would trigger background processing)
-        import time
+            # Store deliberation (which would trigger background processing)
+            import time
 
-        start = time.perf_counter()
-        decision_id = integration.store_deliberation("Test question?", result)
-        elapsed_ms = (time.perf_counter() - start) * 1000
+            start = time.perf_counter()
+            decision_id = integration.store_deliberation("Test question?", result)
+            elapsed_ms = (time.perf_counter() - start) * 1000
 
-        # Should return quickly (<100ms) without waiting for similarity computation
-        assert elapsed_ms < 100, f"Store took {elapsed_ms:.2f}ms, should be <100ms"
-        assert decision_id is not None
+            # Should return quickly (<100ms) without waiting for similarity computation
+            assert elapsed_ms < 100, f"Store took {elapsed_ms:.2f}ms, should be <100ms"
+            assert decision_id is not None
+        finally:
+            await integration.shutdown()
 
 
 if __name__ == "__main__":

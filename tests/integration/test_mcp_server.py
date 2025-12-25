@@ -3,6 +3,7 @@
 These tests validate the MCP protocol endpoints (list_tools, call_tool)
 and ensure proper parameter validation and error handling.
 """
+
 import json
 
 import pytest
@@ -165,9 +166,7 @@ class TestMCPEndpoints:
         data = json.loads(result[0].text)
         assert "error" in data
         # Should mention minimum participants requirement
-        assert (
-            "participants" in data["error"].lower() or "2" in data["error"].lower()
-        )
+        assert "participants" in data["error"].lower() or "2" in data["error"].lower()
 
     @pytest.mark.asyncio
     async def test_call_tool_deliberate_question_too_short(self):
@@ -191,9 +190,7 @@ class TestMCPEndpoints:
         data = json.loads(result[0].text)
         assert "error" in data
         # Should mention length requirement
-        assert (
-            "question" in data["error"].lower() or "length" in data["error"].lower()
-        )
+        assert "question" in data["error"].lower() or "length" in data["error"].lower()
 
     @pytest.mark.asyncio
     async def test_call_tool_deliberate_invalid_rounds(self):
@@ -354,7 +351,9 @@ class TestMCPParameterValidation:
         if data.get("results") and len(data["results"]) > 0:
             result_keys = set(data["results"][0].keys())
             # Summary should NOT include timestamp or stances
-            assert "timestamp" not in result_keys, "Summary should not include timestamp"
+            assert (
+                "timestamp" not in result_keys
+            ), "Summary should not include timestamp"
             assert "stances" not in result_keys, "Summary should not include stances"
 
     @pytest.mark.asyncio

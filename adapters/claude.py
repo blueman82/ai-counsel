@@ -1,4 +1,5 @@
 """Claude CLI adapter."""
+
 from adapters.base import BaseCLIAdapter
 
 

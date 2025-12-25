@@ -849,9 +849,7 @@ class TestDecisionRetrieverConfidenceRanking:
             assert decision2.id == "dec2"
             assert score2 == 0.65
 
-    def test_find_relevant_decisions_adaptive_k(
-        self, mock_storage, sample_decisions
-    ):
+    def test_find_relevant_decisions_adaptive_k(self, mock_storage, sample_decisions):
         """Test that find_relevant_decisions uses adaptive k (not fixed max_results)."""
         # Create 10 sample decisions for a medium-sized DB
         many_decisions = []
@@ -888,7 +886,9 @@ class TestDecisionRetrieverConfidenceRanking:
             )
 
             # Assert: Should return only k=3 results (adaptive k for medium DB)
-            assert len(results) == 3, f"Expected 3 results (adaptive k), got {len(results)}"
+            assert (
+                len(results) == 3
+            ), f"Expected 3 results (adaptive k), got {len(results)}"
 
             # Verify top 3 by score
             scores = [score for _, score in results]
@@ -908,8 +908,16 @@ class TestDecisionRetrieverConfidenceRanking:
         # Similar results include scores below threshold (0.7)
         similar_results = [
             {"id": "dec1", "question": sample_decisions[0].question, "score": 0.85},
-            {"id": "dec2", "question": sample_decisions[1].question, "score": 0.55},  # Below 0.7
-            {"id": "dec3", "question": sample_decisions[2].question, "score": 0.45},  # Below 0.7
+            {
+                "id": "dec2",
+                "question": sample_decisions[1].question,
+                "score": 0.55,
+            },  # Below 0.7
+            {
+                "id": "dec3",
+                "question": sample_decisions[2].question,
+                "score": 0.45,
+            },  # Below 0.7
         ]
 
         with patch.object(
@@ -922,7 +930,9 @@ class TestDecisionRetrieverConfidenceRanking:
 
             # Assert: Should return ALL results (including those below threshold)
             # Threshold filtering is now handled by format_context_tiered()
-            assert len(results) == 3, "Should return all results, not filter by threshold"
+            assert (
+                len(results) == 3
+            ), "Should return all results, not filter by threshold"
 
             scores = [score for _, score in results]
             assert 0.55 in scores, "Should include result below threshold (0.55)"
@@ -942,8 +952,16 @@ class TestDecisionRetrieverConfidenceRanking:
         # Similar results with scores around noise floor boundary
         similar_results = [
             {"id": "dec1", "question": sample_decisions[0].question, "score": 0.85},
-            {"id": "dec2", "question": sample_decisions[1].question, "score": 0.42},  # Above noise floor
-            {"id": "dec3", "question": sample_decisions[2].question, "score": 0.35},  # Below noise floor
+            {
+                "id": "dec2",
+                "question": sample_decisions[1].question,
+                "score": 0.42,
+            },  # Above noise floor
+            {
+                "id": "dec3",
+                "question": sample_decisions[2].question,
+                "score": 0.35,
+            },  # Below noise floor
         ]
 
         with patch.object(
@@ -955,7 +973,9 @@ class TestDecisionRetrieverConfidenceRanking:
             )
 
             # Assert: Should return results >= 0.40 (noise floor), filter out < 0.40
-            assert len(results) == 2, "Should filter out results below noise floor (0.40)"
+            assert (
+                len(results) == 2
+            ), "Should filter out results below noise floor (0.40)"
 
             scores = [score for _, score in results]
             assert 0.85 in scores, "Should include high score"
@@ -990,10 +1010,14 @@ class TestDecisionRetrieverConfidenceRanking:
             result_tuple = results[0]
 
             assert isinstance(result_tuple, tuple), "Result should be a tuple"
-            assert len(result_tuple) == 2, "Tuple should have 2 elements (DecisionNode, score)"
+            assert (
+                len(result_tuple) == 2
+            ), "Tuple should have 2 elements (DecisionNode, score)"
 
             decision, score = result_tuple
-            assert isinstance(decision, DecisionNode), "First element should be DecisionNode"
+            assert isinstance(
+                decision, DecisionNode
+            ), "First element should be DecisionNode"
             assert isinstance(score, float), "Second element should be float score"
             assert score == 0.85, "Score should match the similarity score"
 
@@ -1056,9 +1080,21 @@ class TestGetEnrichedContextTieredIntegration:
 
         # Create scored results for tiered formatting
         similar_results = [
-            {"id": "dec1", "question": sample_decisions[0].question, "score": 0.85},  # Strong
-            {"id": "dec2", "question": sample_decisions[1].question, "score": 0.65},  # Moderate
-            {"id": "dec3", "question": sample_decisions[2].question, "score": 0.45},  # Brief
+            {
+                "id": "dec1",
+                "question": sample_decisions[0].question,
+                "score": 0.85,
+            },  # Strong
+            {
+                "id": "dec2",
+                "question": sample_decisions[1].question,
+                "score": 0.65,
+            },  # Moderate
+            {
+                "id": "dec3",
+                "question": sample_decisions[2].question,
+                "score": 0.45,
+            },  # Brief
         ]
 
         with patch.object(
@@ -1071,8 +1107,11 @@ class TestGetEnrichedContextTieredIntegration:
 
             # Assert: Context should include tier labels from format_context_tiered
             assert "Tiered by Relevance" in context, "Should use tiered formatting"
-            assert "Strong Match" in context or "Moderate Match" in context or "Brief Match" in context, \
-                "Should include tier indicators"
+            assert (
+                "Strong Match" in context
+                or "Moderate Match" in context
+                or "Brief Match" in context
+            ), "Should include tier indicators"
 
     def test_get_enriched_context_backward_compat_format_context(
         self, mock_storage, sample_decisions
@@ -1084,8 +1123,7 @@ class TestGetEnrichedContextTieredIntegration:
 
         # Act: Call format_context directly (legacy method)
         context = retriever.format_context(
-            sample_decisions[:2],  # Just DecisionNode list
-            "Should we use React?"
+            sample_decisions[:2], "Should we use React?"  # Just DecisionNode list
         )
 
         # Assert: Should work without errors
@@ -1184,8 +1222,12 @@ class TestGetEnrichedContextTieredIntegration:
 
                 assert "strong" in tier_boundaries, "Should define strong threshold"
                 assert "moderate" in tier_boundaries, "Should define moderate threshold"
-                assert tier_boundaries["strong"] >= 0.75, "Strong threshold should be >= 0.75"
-                assert tier_boundaries["moderate"] >= 0.60, "Moderate threshold should be >= 0.60"
+                assert (
+                    tier_boundaries["strong"] >= 0.75
+                ), "Strong threshold should be >= 0.75"
+                assert (
+                    tier_boundaries["moderate"] >= 0.60
+                ), "Moderate threshold should be >= 0.60"
 
     def test_get_enriched_context_uses_default_token_budget(
         self, mock_storage, sample_decisions
@@ -1222,6 +1264,12 @@ class TestGetEnrichedContextTieredIntegration:
                 call_args = mock_tiered.call_args[0]
                 token_budget = call_args[2]
 
-                assert isinstance(token_budget, int), "Token budget should be an integer"
-                assert token_budget >= 1000, "Token budget should be at least 1000 (reasonable minimum)"
-                assert token_budget <= 5000, "Token budget should be <= 5000 (reasonable maximum)"
+                assert isinstance(
+                    token_budget, int
+                ), "Token budget should be an integer"
+                assert (
+                    token_budget >= 1000
+                ), "Token budget should be at least 1000 (reasonable minimum)"
+                assert (
+                    token_budget <= 5000
+                ), "Token budget should be <= 5000 (reasonable maximum)"

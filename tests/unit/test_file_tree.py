@@ -1,4 +1,5 @@
 """Unit tests for file tree generation utility."""
+
 import os
 import tempfile
 from pathlib import Path
@@ -82,7 +83,11 @@ class TestGenerateFileTree:
             # Should indicate truncation
             assert "more files" in result.lower() or "..." in result
             # Should show at most 10 files
-            file_count = sum(1 for line in result.split('\n') if line.strip() and not line.strip().endswith('/'))
+            file_count = sum(
+                1
+                for line in result.split("\n")
+                if line.strip() and not line.strip().endswith("/")
+            )
             # Allow for some flexibility in counting (directory lines vs file lines)
             assert file_count <= 12  # 10 files + truncation message + tolerance
 
@@ -293,15 +298,19 @@ class TestGenerateFileTree:
             result = generate_file_tree(tmpdir, max_depth=3, max_files=100)
 
             # Assert
-            lines = result.split('\n')
+            lines = result.split("\n")
             # Should have multiple lines
             assert len(lines) > 1
             # Nested items should have indentation (spaces or tree chars)
             has_indentation = any(
-                line.startswith('  ') or line.startswith('│') or line.startswith('├') or line.startswith('└')
-                for line in lines if line.strip()
+                line.startswith("  ")
+                or line.startswith("│")
+                or line.startswith("├")
+                or line.startswith("└")
+                for line in lines
+                if line.strip()
             )
-            assert has_indentation or '  ' in result
+            assert has_indentation or "  " in result
 
     def test_should_handle_relative_paths_correctly(self):
         """Test that relative paths are handled correctly."""
@@ -383,6 +392,7 @@ class TestGenerateFileTree:
 
             # Act
             import time
+
             start = time.time()
             result = generate_file_tree(tmpdir, max_depth=3, max_files=100)
             elapsed = time.time() - start
