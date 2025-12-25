@@ -25,7 +25,7 @@ from mcp.server import Server
 from mcp.server.stdio import stdio_server
 from mcp.types import TextContent, Tool
 
-from adapters import create_adapter, create_adapter_with_fallback, get_cli_status
+from adapters import create_adapter_with_fallback, get_cli_status
 from decision_graph.storage import DecisionGraphStorage
 from deliberation.engine import DeliberationEngine
 from deliberation.metrics import get_quality_tracker

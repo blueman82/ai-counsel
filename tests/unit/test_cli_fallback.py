@@ -1,6 +1,6 @@
 """Tests for CLI detection and OpenRouter fallback functionality."""
 import os
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
 import pytest
 
@@ -83,6 +83,7 @@ class TestClearCliCache:
             mock_which.return_value = None
             assert is_cli_available("test") is False
             initial_call_count = mock_which.call_count  # 1 call
+            assert initial_call_count == 1
 
             # Clear cache
             clear_cli_cache()
@@ -322,8 +323,13 @@ class TestGetCliStatus:
 
             status = get_cli_status()
 
-            # At least one call should have the mocked path
-            # (depends on which CLIs are actually checked)
+            # At least one CLI should be reported as available
+            assert any(cli_status["available"] for cli_status in status.values())
+            # And at least one CLI should have the mocked path
+            assert any(
+                cli_status["path"] == "/usr/local/bin/claude"
+                for cli_status in status.values()
+            )
 
     def test_unavailable_cli_has_none_path(self):
         """Test that unavailable CLI has None path."""

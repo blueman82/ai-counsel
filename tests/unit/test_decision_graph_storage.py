@@ -1029,7 +1029,8 @@ class TestImpasseDetection:
         ]
 
         result = detector.check_convergence(round3, round2, round_number=3)
-        
+
+        assert result is not None
         assert detector.consecutive_divergent_count == 0
 
     def test_consecutive_divergent_count_resets_on_refining(self):

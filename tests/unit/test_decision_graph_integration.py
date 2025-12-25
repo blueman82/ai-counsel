@@ -575,6 +575,7 @@ class TestDecisionGraphIntegrationTieredFormatting:
             context = integration_with_config.get_context_for_deliberation(
                 "Should we adopt JavaScript frameworks?"
             )
+            assert context is not None
 
             # Verify find_relevant_decisions was called (with deprecated params)
             mock_find.assert_called_once()
@@ -621,6 +622,7 @@ class TestDecisionGraphIntegrationTieredFormatting:
             context = integration_with_config.get_context_for_deliberation(
                 "Should we migrate databases?"
             )
+            assert context is not None  # Verify context was generated
 
         # Check logs for metrics
         info_logs = [r.message for r in caplog.records if r.levelname == "INFO"]
@@ -691,6 +693,7 @@ class TestDecisionGraphIntegrationTieredFormatting:
             context = integration_with_config.get_context_for_deliberation(
                 "Should we use PostgreSQL?"
             )
+            assert context is not None  # Verify context was generated
 
         # Should log database size or decision count
         debug_logs = [r.message for r in caplog.records]
@@ -712,6 +715,7 @@ class TestDecisionGraphIntegrationTieredFormatting:
                 threshold=0.8,  # Deprecated
                 max_context_decisions=5  # Deprecated
             )
+            assert context is not None  # Verify context was generated despite deprecated params
 
             # Should log deprecation warning
             warnings = [r.message for r in caplog.records if r.levelname == "WARNING"]
@@ -765,6 +769,7 @@ class TestDecisionGraphIntegrationMeasurementHooks:
             context = integration_with_config.get_context_for_deliberation(
                 "Should we adopt TypeScript for our project?"
             )
+            assert context is not None
 
         # Verify MEASUREMENT log exists
         measurement_logs = [r for r in caplog.records if "MEASUREMENT:" in r.message]
@@ -787,6 +792,7 @@ class TestDecisionGraphIntegrationMeasurementHooks:
             context = integration_with_config.get_context_for_deliberation(
                 "Should we use TypeScript?"
             )
+            assert context is not None
 
         # Verify token usage is logged
         measurement_logs = [r for r in caplog.records if "MEASUREMENT:" in r.message]
@@ -811,6 +817,7 @@ class TestDecisionGraphIntegrationMeasurementHooks:
             context = integration_with_config.get_context_for_deliberation(
                 "Should we use TypeScript?"
             )
+            assert context is not None
 
         # Verify database size is logged
         measurement_logs = [r for r in caplog.records if "MEASUREMENT:" in r.message]
@@ -832,6 +839,7 @@ class TestDecisionGraphIntegrationMeasurementHooks:
             context = integration_with_config.get_context_for_deliberation(
                 "Should we use TypeScript?"
             )
+            assert context is not None
 
         # Verify structured logging format
         measurement_logs = [r for r in caplog.records if "MEASUREMENT:" in r.message]
