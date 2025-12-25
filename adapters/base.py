@@ -1,4 +1,5 @@
 """Base CLI adapter with subprocess management."""
+
 import asyncio
 import logging
 import re
@@ -107,7 +108,9 @@ class BaseCLIAdapter(ABC):
         cwd = working_directory if working_directory else os.getcwd()
 
         # Determine effective reasoning effort: runtime > config > empty string
-        effective_reasoning_effort = reasoning_effort or self.default_reasoning_effort or ""
+        effective_reasoning_effort = (
+            reasoning_effort or self.default_reasoning_effort or ""
+        )
 
         # Format arguments with {model}, {prompt}, {working_directory}, and {reasoning_effort} placeholders
         formatted_args = [
@@ -127,7 +130,9 @@ class BaseCLIAdapter(ABC):
             f"reasoning_effort={effective_reasoning_effort or '(none)'}, "
             f"prompt_length={len(full_prompt)} chars"
         )
-        logger.debug(f"Full command: {self.command} {' '.join(formatted_args[:3])}... (args truncated)")
+        logger.debug(
+            f"Full command: {self.command} {' '.join(formatted_args[:3])}... (args truncated)"
+        )
 
         # Execute with retry logic for transient errors
         last_error = None
@@ -153,7 +158,7 @@ class BaseCLIAdapter(ABC):
                     is_transient = self._is_transient_error(error_msg)
 
                     if is_transient and attempt < self.max_retries:
-                        wait_time = 2 ** attempt  # Exponential backoff: 1s, 2s, 4s
+                        wait_time = 2**attempt  # Exponential backoff: 1s, 2s, 4s
                         logger.warning(
                             f"Transient error detected (attempt {attempt + 1}/{self.max_retries + 1}): {error_msg[:100]}. "
                             f"Retrying in {wait_time}s..."
@@ -190,7 +195,9 @@ class BaseCLIAdapter(ABC):
                 raise TimeoutError(f"CLI invocation timed out after {self.timeout}s")
 
         # All retries exhausted
-        raise RuntimeError(f"CLI failed after {self.max_retries + 1} attempts. Last error: {last_error}")
+        raise RuntimeError(
+            f"CLI failed after {self.max_retries + 1} attempts. Last error: {last_error}"
+        )
 
     def _is_transient_error(self, error_msg: str) -> bool:
         """
@@ -203,8 +210,10 @@ class BaseCLIAdapter(ABC):
             True if error is transient (503, 429, connection issues, etc.)
         """
         error_lower = error_msg.lower()
-        return any(re.search(pattern, error_lower, re.IGNORECASE)
-                   for pattern in self.TRANSIENT_ERROR_PATTERNS)
+        return any(
+            re.search(pattern, error_lower, re.IGNORECASE)
+            for pattern in self.TRANSIENT_ERROR_PATTERNS
+        )
 
     def _adjust_args_for_context(self, is_deliberation: bool) -> list[str]:
         """

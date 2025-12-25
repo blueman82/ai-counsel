@@ -13,8 +13,7 @@ from contextlib import contextmanager
 from datetime import datetime
 from typing import List, Optional, Tuple
 
-from decision_graph.schema import (DecisionNode, DecisionSimilarity,
-                                   ParticipantStance)
+from decision_graph.schema import DecisionNode, DecisionSimilarity, ParticipantStance
 
 logger = logging.getLogger(__name__)
 
@@ -45,6 +44,7 @@ class DecisionGraphStorage:
         # Ensure parent directory exists (unless using in-memory database)
         if db_path != ":memory:":
             from pathlib import Path
+
             db_file = Path(db_path)
             db_file.parent.mkdir(parents=True, exist_ok=True)
             logger.debug(f"Ensured parent directory exists: {db_file.parent}")
@@ -90,7 +90,7 @@ class DecisionGraphStorage:
 
             logger.error(
                 f"Failed to initialize DecisionGraphStorage at {db_path}: {e}",
-                exc_info=True
+                exc_info=True,
             )
             raise RuntimeError(
                 f"Database initialization failed: {e}. "
@@ -225,7 +225,11 @@ class DecisionGraphStorage:
                 "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name"
             )
             tables = {row[0] for row in cursor.fetchall()}
-            required_tables = {'decision_nodes', 'participant_stances', 'decision_similarities'}
+            required_tables = {
+                "decision_nodes",
+                "participant_stances",
+                "decision_similarities",
+            }
 
             if not required_tables.issubset(tables):
                 missing = required_tables - tables
@@ -237,7 +241,9 @@ class DecisionGraphStorage:
                 if os.path.exists(self.db_path):
                     file_size = os.path.getsize(self.db_path)
                     if file_size == 0:
-                        logger.error(f"Database file exists but is empty (0 bytes): {self.db_path}")
+                        logger.error(
+                            f"Database file exists but is empty (0 bytes): {self.db_path}"
+                        )
                         return False
                     logger.debug(f"Database file size: {file_size} bytes")
                 else:

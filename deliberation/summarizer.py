@@ -1,4 +1,5 @@
 """AI-powered summary generation for deliberations."""
+
 import logging
 from typing import Dict, List, Union
 
@@ -220,12 +221,12 @@ Please be concise and focus on the substance of the arguments, not formatting or
 
         return Summary(
             consensus=consensus,
-            key_agreements=agreements
-            if agreements
-            else ["No specific agreements identified"],
-            key_disagreements=disagreements
-            if disagreements
-            else ["No significant disagreements"],
+            key_agreements=(
+                agreements if agreements else ["No specific agreements identified"]
+            ),
+            key_disagreements=(
+                disagreements if disagreements else ["No significant disagreements"]
+            ),
             final_recommendation=recommendation,
         )
 

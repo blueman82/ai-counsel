@@ -1,9 +1,17 @@
 """Unit tests for Pydantic models."""
+
 import pytest
 from pydantic import ValidationError
 
-from models.schema import (DeliberateRequest, DeliberationResult, Participant,
-                           RoundResponse, RoundVote, Vote, VotingResult)
+from models.schema import (
+    DeliberateRequest,
+    DeliberationResult,
+    Participant,
+    RoundResponse,
+    RoundVote,
+    Vote,
+    VotingResult,
+)
 
 
 class TestParticipant:
@@ -11,9 +19,7 @@ class TestParticipant:
 
     def test_valid_participant(self):
         """Test creating a valid participant."""
-        p = Participant(
-            cli="claude", model="claude-3-5-sonnet-20241022"
-        )
+        p = Participant(cli="claude", model="claude-3-5-sonnet-20241022")
         assert p.cli == "claude"
         assert p.model == "claude-3-5-sonnet-20241022"
 
@@ -34,8 +40,6 @@ class TestParticipant:
             Participant(cli="invalid-cli", model="gpt-4")
         assert "cli" in str(exc_info.value)
 
-
-
     def test_ollama_participant(self):
         """Test creating an Ollama participant."""
         p = Participant(cli="ollama", model="llama2")
@@ -50,17 +54,13 @@ class TestParticipant:
 
     def test_llamacpp_participant(self):
         """Test creating a llama.cpp participant."""
-        p = Participant(
-            cli="llamacpp", model="/path/to/llama-2-7b.Q4_K_M.gguf"
-        )
+        p = Participant(cli="llamacpp", model="/path/to/llama-2-7b.Q4_K_M.gguf")
         assert p.cli == "llamacpp"
         assert p.model == "/path/to/llama-2-7b.Q4_K_M.gguf"
 
     def test_openrouter_participant(self):
         """Test creating an OpenRouter participant."""
-        p = Participant(
-            cli="openrouter", model="anthropic/claude-3.5-sonnet"
-        )
+        p = Participant(cli="openrouter", model="anthropic/claude-3.5-sonnet")
         assert p.cli == "openrouter"
         assert p.model == "anthropic/claude-3.5-sonnet"
 
@@ -110,11 +110,7 @@ class TestParticipantReasoningEffort:
 
     def test_reasoning_effort_from_dict(self):
         """Test creating Participant from dict with reasoning_effort."""
-        data = {
-            "cli": "codex",
-            "model": "gpt-4",
-            "reasoning_effort": "medium"
-        }
+        data = {"cli": "codex", "model": "gpt-4", "reasoning_effort": "medium"}
         p = Participant(**data)
         assert p.reasoning_effort == "medium"
 
@@ -130,7 +126,8 @@ class TestDeliberateRequest:
                 Participant(cli="claude", model="claude-3-5-sonnet-20241022"),
                 Participant(cli="codex", model="gpt-4"),
             ],
-            working_directory="/tmp",)
+            working_directory="/tmp",
+        )
         assert req.question == "Should we use TypeScript?"
         assert len(req.participants) == 2
         assert req.rounds == 2  # Default
@@ -144,7 +141,8 @@ class TestDeliberateRequest:
                 Participant(cli="claude"),
                 Participant(cli="codex"),
             ],
-            working_directory="/tmp",)
+            working_directory="/tmp",
+        )
         assert req.participants[0].model is None
         assert req.participants[1].model is None
 
@@ -153,15 +151,14 @@ class TestDeliberateRequest:
         req = DeliberateRequest(
             question="Should we refactor?",
             participants=[
-                Participant(
-                    cli="claude", model="claude-3-5-sonnet-20241022"
-                ),
+                Participant(cli="claude", model="claude-3-5-sonnet-20241022"),
                 Participant(cli="codex", model="gpt-4"),
             ],
             rounds=3,
             mode="conference",
             context="Legacy codebase, 50K LOC",
-            working_directory="/tmp",)
+            working_directory="/tmp",
+        )
         assert req.rounds == 3
         assert req.mode == "conference"
         assert req.context == "Legacy codebase, 50K LOC"
@@ -170,8 +167,10 @@ class TestDeliberateRequest:
         """Test that at least 2 participants are required."""
         with pytest.raises(ValidationError) as exc_info:
             DeliberateRequest(
-                question="Test?", participants=[Participant(cli="codex", model="gpt-4")],
-            working_directory="/tmp",)
+                question="Test?",
+                participants=[Participant(cli="codex", model="gpt-4")],
+                working_directory="/tmp",
+            )
         assert "participants" in str(exc_info.value)
 
     def test_rounds_must_be_positive(self):
@@ -184,7 +183,8 @@ class TestDeliberateRequest:
                     Participant(cli="codex", model="gpt-4"),
                 ],
                 rounds=0,
-            working_directory="/tmp",)
+                working_directory="/tmp",
+            )
         assert "rounds" in str(exc_info.value)
 
     def test_rounds_capped_at_five(self):
@@ -197,7 +197,8 @@ class TestDeliberateRequest:
                     Participant(cli="codex", model="gpt-4"),
                 ],
                 rounds=10,
-            working_directory="/tmp",)
+                working_directory="/tmp",
+            )
         assert "rounds" in str(exc_info.value)
 
 

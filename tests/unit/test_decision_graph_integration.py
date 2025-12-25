@@ -1,4 +1,5 @@
 """Unit tests for DecisionGraphIntegration with maintenance monitoring."""
+
 import asyncio
 import os
 import tempfile
@@ -45,22 +46,13 @@ def decision_graph_config():
     return Config(
         version="1.0",
         cli_tools={
-            "test": CLIToolConfig(
-                command="test",
-                args=["{prompt}"],
-                timeout=60
-            )
+            "test": CLIToolConfig(command="test", args=["{prompt}"], timeout=60)
         },
         defaults=DefaultsConfig(
-            mode="quick",
-            rounds=2,
-            max_rounds=5,
-            timeout_per_round=120
+            mode="quick", rounds=2, max_rounds=5, timeout_per_round=120
         ),
         storage=StorageConfig(
-            transcripts_dir="transcripts",
-            format="markdown",
-            auto_export=True
+            transcripts_dir="transcripts", format="markdown", auto_export=True
         ),
         deliberation=DeliberationConfig(
             convergence_detection=ConvergenceDetectionConfig(
@@ -70,15 +62,13 @@ def decision_graph_config():
                 min_rounds_before_check=1,
                 consecutive_stable_rounds=2,
                 stance_stability_threshold=0.80,
-                response_length_drop_threshold=0.40
+                response_length_drop_threshold=0.40,
             ),
             early_stopping=EarlyStoppingConfig(
-                enabled=True,
-                threshold=0.66,
-                respect_min_rounds=True
+                enabled=True, threshold=0.66, respect_min_rounds=True
             ),
             convergence_threshold=0.8,
-            enable_convergence_detection=True
+            enable_convergence_detection=True,
         ),
         decision_graph=DecisionGraphConfig(
             enabled=True,
@@ -88,8 +78,8 @@ def decision_graph_config():
             compute_similarities=True,
             context_token_budget=1500,
             tier_boundaries={"strong": 0.75, "moderate": 0.60},
-            query_window=1000
-        )
+            query_window=1000,
+        ),
     )
 
 
@@ -505,7 +495,9 @@ class TestDecisionGraphIntegrationTieredFormatting:
     @pytest.fixture
     def integration_with_config(self, storage, config):
         """Create integration instance with config."""
-        return DecisionGraphIntegration(storage, enable_background_worker=False, config=config)
+        return DecisionGraphIntegration(
+            storage, enable_background_worker=False, config=config
+        )
 
     @pytest.fixture
     def sample_decisions(self, storage):
@@ -521,7 +513,7 @@ class TestDecisionGraphIntegrationTieredFormatting:
             winning_option="Adopt TypeScript",
             convergence_status="converged",
             participants=["claude@cli"],
-            transcript_path="/test1.md"
+            transcript_path="/test1.md",
         )
         storage.save_decision_node(node1)
         decisions.append(node1)
@@ -535,7 +527,7 @@ class TestDecisionGraphIntegrationTieredFormatting:
             winning_option="Migrate to 3.11",
             convergence_status="converged",
             participants=["droid@cli"],
-            transcript_path="/test2.md"
+            transcript_path="/test2.md",
         )
         storage.save_decision_node(node2)
         decisions.append(node2)
@@ -549,21 +541,27 @@ class TestDecisionGraphIntegrationTieredFormatting:
             winning_option="PostgreSQL",
             convergence_status="converged",
             participants=["gemini@cli"],
-            transcript_path="/test3.md"
+            transcript_path="/test3.md",
         )
         storage.save_decision_node(node3)
         decisions.append(node3)
 
         return decisions
 
-    def test_get_context_uses_budget_config(self, integration_with_config, sample_decisions, caplog):
+    def test_get_context_uses_budget_config(
+        self, integration_with_config, sample_decisions, caplog
+    ):
         """Test that get_context_for_deliberation uses config budget and tier boundaries."""
         import logging
+
         caplog.set_level(logging.DEBUG)
 
         # Mock retriever's find_relevant_decisions to return scored tuples
         from unittest.mock import patch
-        with patch.object(integration_with_config.retriever, 'find_relevant_decisions') as mock_find:
+
+        with patch.object(
+            integration_with_config.retriever, "find_relevant_decisions"
+        ) as mock_find:
             # Return all 3 decisions with different scores
             mock_find.return_value = [
                 (sample_decisions[0], 0.85),  # Strong
@@ -582,13 +580,19 @@ class TestDecisionGraphIntegrationTieredFormatting:
         # Verify config values were accessed (check logs for tier boundaries usage)
         debug_logs = [r.message for r in caplog.records if r.levelname == "DEBUG"]
         # Should see logs about tier processing
-        assert any("tier" in log.lower() for log in debug_logs), "Expected tier-related debug logs"
+        assert any(
+            "tier" in log.lower() for log in debug_logs
+        ), "Expected tier-related debug logs"
 
-    def test_get_context_returns_tiered_format(self, integration_with_config, sample_decisions):
+    def test_get_context_returns_tiered_format(
+        self, integration_with_config, sample_decisions
+    ):
         """Test that get_context_for_deliberation returns tiered formatted context."""
         from unittest.mock import patch
 
-        with patch.object(integration_with_config.retriever, 'find_relevant_decisions') as mock_find:
+        with patch.object(
+            integration_with_config.retriever, "find_relevant_decisions"
+        ) as mock_find:
             # Return scored decisions
             mock_find.return_value = [
                 (sample_decisions[0], 0.85),  # Strong
@@ -601,18 +605,27 @@ class TestDecisionGraphIntegrationTieredFormatting:
             )
 
             # Verify tiered header is present
-            assert "Tiered by Relevance" in context or "Similar Past Deliberations" in context
+            assert (
+                "Tiered by Relevance" in context
+                or "Similar Past Deliberations" in context
+            )
 
             # Verify context is not empty
             assert len(context) > 0
 
-    def test_get_context_logs_metrics(self, integration_with_config, sample_decisions, caplog):
+    def test_get_context_logs_metrics(
+        self, integration_with_config, sample_decisions, caplog
+    ):
         """Test that get_context_for_deliberation logs tier distribution and token usage."""
         import logging
+
         caplog.set_level(logging.INFO)
 
         from unittest.mock import patch
-        with patch.object(integration_with_config.retriever, 'find_relevant_decisions') as mock_find:
+
+        with patch.object(
+            integration_with_config.retriever, "find_relevant_decisions"
+        ) as mock_find:
             mock_find.return_value = [
                 (sample_decisions[0], 0.85),  # Strong
                 (sample_decisions[1], 0.65),  # Moderate
@@ -627,19 +640,24 @@ class TestDecisionGraphIntegrationTieredFormatting:
 
         # Should log tier distribution or token usage
         metrics_logged = any(
-            "tier" in log.lower() or "token" in log.lower()
-            for log in info_logs
+            "tier" in log.lower() or "token" in log.lower() for log in info_logs
         )
         assert metrics_logged, f"Expected tier/token metrics in logs. Got: {info_logs}"
 
-    def test_get_context_respects_token_budget(self, integration_with_config, sample_decisions):
+    def test_get_context_respects_token_budget(
+        self, integration_with_config, sample_decisions
+    ):
         """Test that get_context_for_deliberation respects token budget from config."""
         from unittest.mock import patch
 
         # Create a config with very small token budget
-        integration_with_config.config.decision_graph.context_token_budget = 200  # Very small
+        integration_with_config.config.decision_graph.context_token_budget = (
+            200  # Very small
+        )
 
-        with patch.object(integration_with_config.retriever, 'find_relevant_decisions') as mock_find:
+        with patch.object(
+            integration_with_config.retriever, "find_relevant_decisions"
+        ) as mock_find:
             # Return many decisions
             mock_find.return_value = [
                 (sample_decisions[0], 0.85),
@@ -656,11 +674,15 @@ class TestDecisionGraphIntegrationTieredFormatting:
 
             # Should be within or close to budget (allow some overhead for header)
             # Note: Budget may be slightly exceeded due to header
-            assert estimated_tokens <= 300, f"Context exceeds budget: {estimated_tokens} tokens"
+            assert (
+                estimated_tokens <= 300
+            ), f"Context exceeds budget: {estimated_tokens} tokens"
 
     def test_get_context_empty_db_returns_empty(self, storage, config):
         """Test that get_context_for_deliberation returns empty string when DB is empty."""
-        integration = DecisionGraphIntegration(storage, enable_background_worker=False, config=config)
+        integration = DecisionGraphIntegration(
+            storage, enable_background_worker=False, config=config
+        )
 
         # DB is empty (no sample_decisions fixture)
         context = integration.get_context_for_deliberation("Should we use Vue.js?")
@@ -671,7 +693,9 @@ class TestDecisionGraphIntegrationTieredFormatting:
     def test_get_context_handles_config_none_gracefully(self, storage):
         """Test that get_context_for_deliberation handles missing config gracefully."""
         # Create integration without config
-        integration = DecisionGraphIntegration(storage, enable_background_worker=False, config=None)
+        integration = DecisionGraphIntegration(
+            storage, enable_background_worker=False, config=None
+        )
 
         # Should fall back to default behavior (use retriever's get_enriched_context)
         context = integration.get_context_for_deliberation("Should we use Angular?")
@@ -679,13 +703,19 @@ class TestDecisionGraphIntegrationTieredFormatting:
         # Should not crash, return empty or use defaults
         assert isinstance(context, str)
 
-    def test_get_context_logs_database_size(self, integration_with_config, sample_decisions, caplog):
+    def test_get_context_logs_database_size(
+        self, integration_with_config, sample_decisions, caplog
+    ):
         """Test that get_context_for_deliberation logs database size for calibration."""
         import logging
+
         caplog.set_level(logging.DEBUG)
 
         from unittest.mock import patch
-        with patch.object(integration_with_config.retriever, 'find_relevant_decisions') as mock_find:
+
+        with patch.object(
+            integration_with_config.retriever, "find_relevant_decisions"
+        ) as mock_find:
             mock_find.return_value = [(sample_decisions[0], 0.85)]
 
             context = integration_with_config.get_context_for_deliberation(
@@ -697,25 +727,33 @@ class TestDecisionGraphIntegrationTieredFormatting:
         # Look for any size-related logging (might be in retriever or integration)
         assert len(debug_logs) > 0, "Expected debug logs"
 
-    def test_backward_compatibility_with_old_params(self, integration_with_config, sample_decisions, caplog):
+    def test_backward_compatibility_with_old_params(
+        self, integration_with_config, sample_decisions, caplog
+    ):
         """Test that threshold/max_context_decisions params are deprecated but don't break."""
         import logging
+
         caplog.set_level(logging.WARNING)
 
         from unittest.mock import patch
-        with patch.object(integration_with_config.retriever, 'find_relevant_decisions') as mock_find:
+
+        with patch.object(
+            integration_with_config.retriever, "find_relevant_decisions"
+        ) as mock_find:
             mock_find.return_value = [(sample_decisions[0], 0.85)]
 
             # Call with old parameters
             context = integration_with_config.get_context_for_deliberation(
                 "Should we use Redis?",
                 threshold=0.8,  # Deprecated
-                max_context_decisions=5  # Deprecated
+                max_context_decisions=5,  # Deprecated
             )
 
             # Should log deprecation warning
             warnings = [r.message for r in caplog.records if r.levelname == "WARNING"]
-            assert any("deprecated" in w.lower() for w in warnings), "Expected deprecation warning"
+            assert any(
+                "deprecated" in w.lower() for w in warnings
+            ), "Expected deprecation warning"
 
 
 class TestDecisionGraphIntegrationMeasurementHooks:
@@ -734,7 +772,9 @@ class TestDecisionGraphIntegrationMeasurementHooks:
     @pytest.fixture
     def integration_with_config(self, storage, config):
         """Create integration instance with config."""
-        return DecisionGraphIntegration(storage, enable_background_worker=False, config=config)
+        return DecisionGraphIntegration(
+            storage, enable_background_worker=False, config=config
+        )
 
     @pytest.fixture
     def sample_decision(self, storage):
@@ -747,18 +787,24 @@ class TestDecisionGraphIntegrationMeasurementHooks:
             winning_option="Adopt TypeScript",
             convergence_status="converged",
             participants=["claude@cli"],
-            transcript_path="/test1.md"
+            transcript_path="/test1.md",
         )
         storage.save_decision_node(node)
         return node
 
-    def test_measurement_hooks_logged(self, integration_with_config, sample_decision, caplog):
+    def test_measurement_hooks_logged(
+        self, integration_with_config, sample_decision, caplog
+    ):
         """Test that tier distribution is logged on every context injection."""
         import logging
+
         caplog.set_level(logging.INFO)
 
         from unittest.mock import patch
-        with patch.object(integration_with_config.retriever, 'find_relevant_decisions') as mock_find:
+
+        with patch.object(
+            integration_with_config.retriever, "find_relevant_decisions"
+        ) as mock_find:
             # Return a decision with strong similarity
             mock_find.return_value = [(sample_decision, 0.85)]
 
@@ -772,16 +818,23 @@ class TestDecisionGraphIntegrationMeasurementHooks:
 
         # Verify tier distribution is logged
         log_message = measurement_logs[0].message
-        assert "tier_distribution" in log_message or "tiers=" in log_message, \
-            f"Expected tier distribution in log. Got: {log_message}"
+        assert (
+            "tier_distribution" in log_message or "tiers=" in log_message
+        ), f"Expected tier distribution in log. Got: {log_message}"
 
-    def test_measurement_hooks_include_tokens(self, integration_with_config, sample_decision, caplog):
+    def test_measurement_hooks_include_tokens(
+        self, integration_with_config, sample_decision, caplog
+    ):
         """Test that token usage is logged in measurement hooks."""
         import logging
+
         caplog.set_level(logging.INFO)
 
         from unittest.mock import patch
-        with patch.object(integration_with_config.retriever, 'find_relevant_decisions') as mock_find:
+
+        with patch.object(
+            integration_with_config.retriever, "find_relevant_decisions"
+        ) as mock_find:
             mock_find.return_value = [(sample_decision, 0.85)]
 
             context = integration_with_config.get_context_for_deliberation(
@@ -794,18 +847,27 @@ class TestDecisionGraphIntegrationMeasurementHooks:
 
         log_message = measurement_logs[0].message
         # Should include both tokens_used and budget
-        assert "tokens" in log_message.lower(), f"Expected token usage in log. Got: {log_message}"
+        assert (
+            "tokens" in log_message.lower()
+        ), f"Expected token usage in log. Got: {log_message}"
         # Should show budget (e.g., "tokens=500/1500")
-        assert "/" in log_message or "budget" in log_message.lower(), \
-            f"Expected token budget in log. Got: {log_message}"
+        assert (
+            "/" in log_message or "budget" in log_message.lower()
+        ), f"Expected token budget in log. Got: {log_message}"
 
-    def test_measurement_hooks_db_size_logged(self, integration_with_config, sample_decision, caplog):
+    def test_measurement_hooks_db_size_logged(
+        self, integration_with_config, sample_decision, caplog
+    ):
         """Test that database size metrics are logged."""
         import logging
+
         caplog.set_level(logging.INFO)
 
         from unittest.mock import patch
-        with patch.object(integration_with_config.retriever, 'find_relevant_decisions') as mock_find:
+
+        with patch.object(
+            integration_with_config.retriever, "find_relevant_decisions"
+        ) as mock_find:
             mock_find.return_value = [(sample_decision, 0.85)]
 
             context = integration_with_config.get_context_for_deliberation(
@@ -817,16 +879,23 @@ class TestDecisionGraphIntegrationMeasurementHooks:
         assert len(measurement_logs) > 0, "Expected MEASUREMENT log entry"
 
         log_message = measurement_logs[0].message
-        assert "db_size" in log_message or "database" in log_message.lower(), \
-            f"Expected database size in log. Got: {log_message}"
+        assert (
+            "db_size" in log_message or "database" in log_message.lower()
+        ), f"Expected database size in log. Got: {log_message}"
 
-    def test_measurement_hooks_format(self, integration_with_config, sample_decision, caplog):
+    def test_measurement_hooks_format(
+        self, integration_with_config, sample_decision, caplog
+    ):
         """Test that measurement logs use structured format for parsing."""
         import logging
+
         caplog.set_level(logging.INFO)
 
         from unittest.mock import patch
-        with patch.object(integration_with_config.retriever, 'find_relevant_decisions') as mock_find:
+
+        with patch.object(
+            integration_with_config.retriever, "find_relevant_decisions"
+        ) as mock_find:
             mock_find.return_value = [(sample_decision, 0.85)]
 
             context = integration_with_config.get_context_for_deliberation(
@@ -849,10 +918,13 @@ class TestDecisionGraphIntegrationMeasurementHooks:
         # Verify all required metrics are present
         required_metrics = ["question", "tier_distribution", "tokens", "db_size"]
         for metric in required_metrics:
-            assert metric in log_message.lower(), \
-                f"Expected '{metric}' in structured log. Got: {log_message}"
+            assert (
+                metric in log_message.lower()
+            ), f"Expected '{metric}' in structured log. Got: {log_message}"
 
-    def test_get_graph_metrics_returns_detailed_stats(self, integration_with_config, sample_decision):
+    def test_get_graph_metrics_returns_detailed_stats(
+        self, integration_with_config, sample_decision
+    ):
         """Test that get_graph_metrics() returns dict with detailed statistics."""
         # Call get_graph_metrics
         metrics = integration_with_config.get_graph_metrics()
@@ -867,12 +939,18 @@ class TestDecisionGraphIntegrationMeasurementHooks:
 
         # Verify values are reasonable
         assert metrics["total_decisions"] >= 0, "total_decisions should be non-negative"
-        assert metrics["recent_100_count"] >= 0, "recent_100_count should be non-negative"
-        assert metrics["recent_1000_count"] >= 0, "recent_1000_count should be non-negative"
+        assert (
+            metrics["recent_100_count"] >= 0
+        ), "recent_100_count should be non-negative"
+        assert (
+            metrics["recent_1000_count"] >= 0
+        ), "recent_1000_count should be non-negative"
 
     def test_get_graph_metrics_handles_empty_db(self, storage, config):
         """Test that get_graph_metrics() handles empty database gracefully."""
-        integration = DecisionGraphIntegration(storage, enable_background_worker=False, config=config)
+        integration = DecisionGraphIntegration(
+            storage, enable_background_worker=False, config=config
+        )
 
         # DB is empty
         metrics = integration.get_graph_metrics()
@@ -892,13 +970,13 @@ class TestIntegrationShutdownLogic:
         """Test that _enqueue_tasks set tracks background tasks."""
         storage = DecisionGraphStorage(db_path=temp_db)
         integration = DecisionGraphIntegration(storage, enable_background_worker=True)
-        
+
         try:
             await integration.ensure_worker_started()
-            
+
             # Store a deliberation to trigger background enqueue
             from models.schema import DeliberationResult, Summary, ConvergenceInfo
-            
+
             result = DeliberationResult(
                 status="complete",
                 mode="quick",
@@ -921,7 +999,7 @@ class TestIntegrationShutdownLogic:
                 ),
                 transcript_path="/tmp/test.md",
             )
-            
+
             decision_id = integration.store_deliberation("Test question", result)
             assert decision_id is not None
 
@@ -931,7 +1009,7 @@ class TestIntegrationShutdownLogic:
             # Check if tasks were tracked (may be empty if already completed)
             # The important thing is no crashes
             assert isinstance(integration._enqueue_tasks, set)
-            
+
         finally:
             await integration.shutdown()
             storage.close()
@@ -941,19 +1019,19 @@ class TestIntegrationShutdownLogic:
         """Test _shutting_down flag prevents new task enqueues."""
         storage = DecisionGraphStorage(db_path=temp_db)
         integration = DecisionGraphIntegration(storage, enable_background_worker=True)
-        
+
         try:
             await integration.ensure_worker_started()
-            
+
             # Trigger shutdown
             integration._shutting_down = True
-            
+
             # Attempt to ensure worker started
             await integration.ensure_worker_started()
-            
+
             # Worker should not start new operations
             assert integration._shutting_down is True
-            
+
         finally:
             await integration.shutdown()
             storage.close()
@@ -963,23 +1041,23 @@ class TestIntegrationShutdownLogic:
         """Test shutdown cancels all pending enqueue tasks."""
         storage = DecisionGraphStorage(db_path=temp_db)
         integration = DecisionGraphIntegration(storage, enable_background_worker=True)
-        
+
         try:
             await integration.ensure_worker_started()
-            
+
             # Create a long-running task
             async def long_task():
                 await asyncio.sleep(10)
-            
+
             task = asyncio.create_task(long_task())
             integration._enqueue_tasks.add(task)
-            
+
             # Shutdown should cancel it
             await integration.shutdown()
-            
+
             assert task.cancelled() or task.done()
             assert len(integration._enqueue_tasks) == 0
-            
+
         finally:
             storage.close()
 
@@ -988,18 +1066,18 @@ class TestIntegrationShutdownLogic:
         """Test ensure_worker_started returns early when shutting down."""
         storage = DecisionGraphStorage(db_path=temp_db)
         integration = DecisionGraphIntegration(storage, enable_background_worker=True)
-        
+
         try:
             # Set shutting down before starting
             integration._shutting_down = True
-            
+
             # Should return immediately
             await integration.ensure_worker_started()
-            
+
             # Worker should not have started
             if integration.worker:
                 assert not integration.worker.running
-            
+
         finally:
             await integration.shutdown()
             storage.close()
@@ -1009,18 +1087,18 @@ class TestIntegrationShutdownLogic:
         """Test shutdown sets both _shutting_down and _worker_enabled flags."""
         storage = DecisionGraphStorage(db_path=temp_db)
         integration = DecisionGraphIntegration(storage, enable_background_worker=True)
-        
+
         try:
             await integration.ensure_worker_started()
-            
+
             assert integration._worker_enabled is True
             assert integration._shutting_down is False
-            
+
             await integration.shutdown()
-            
+
             assert integration._shutting_down is True
             assert integration._worker_enabled is False
-            
+
         finally:
             storage.close()
 
@@ -1029,18 +1107,18 @@ class TestIntegrationShutdownLogic:
         """Test calling shutdown multiple times is safe."""
         storage = DecisionGraphStorage(db_path=temp_db)
         integration = DecisionGraphIntegration(storage, enable_background_worker=True)
-        
+
         try:
             await integration.ensure_worker_started()
-            
+
             # Call shutdown multiple times
             await integration.shutdown()
             await integration.shutdown()
             await integration.shutdown()
-            
+
             # Should be safe
             assert integration._shutting_down is True
-            
+
         finally:
             storage.close()
 
@@ -1049,11 +1127,11 @@ class TestIntegrationShutdownLogic:
         """Test __del__ handles case where worker was never created."""
         storage = DecisionGraphStorage(db_path=temp_db)
         integration = DecisionGraphIntegration(storage, enable_background_worker=False)
-        
+
         # Delete without starting worker
         assert integration.worker is None
         del integration
-        
+
         # Should not crash
         storage.close()
 
@@ -1062,18 +1140,18 @@ class TestIntegrationShutdownLogic:
         """Test __del__ handles already stopped worker."""
         storage = DecisionGraphStorage(db_path=temp_db)
         integration = DecisionGraphIntegration(storage, enable_background_worker=True)
-        
+
         try:
             await integration.ensure_worker_started()
             await integration.shutdown()
-            
+
             # Worker is stopped
             if integration.worker:
                 assert not integration.worker.running
-            
+
             # Delete should handle gracefully
             del integration
-            
+
         finally:
             storage.close()
 
@@ -1082,14 +1160,14 @@ class TestIntegrationShutdownLogic:
         """Test shutdown when worker was never enabled."""
         storage = DecisionGraphStorage(db_path=temp_db)
         integration = DecisionGraphIntegration(storage, enable_background_worker=False)
-        
+
         try:
             # Shutdown without worker
             await integration.shutdown()
-            
+
             assert integration._shutting_down is True
             assert integration._worker_enabled is False
-            
+
         finally:
             storage.close()
 
@@ -1098,25 +1176,25 @@ class TestIntegrationShutdownLogic:
         """Test tasks are removed from _enqueue_tasks on completion."""
         storage = DecisionGraphStorage(db_path=temp_db)
         integration = DecisionGraphIntegration(storage, enable_background_worker=True)
-        
+
         try:
             await integration.ensure_worker_started()
-            
+
             # Create a quick task
             async def quick_task():
                 await asyncio.sleep(0.01)
                 return "done"
-            
+
             task = asyncio.create_task(quick_task())
             integration._enqueue_tasks.add(task)
             task.add_done_callback(integration._enqueue_tasks.discard)
-            
+
             # Wait for task to complete
             await task
-            
+
             # Task should be removed from set
             assert task not in integration._enqueue_tasks
-            
+
         finally:
             await integration.shutdown()
             storage.close()
@@ -1126,16 +1204,16 @@ class TestIntegrationShutdownLogic:
         """Test that enqueue operations check _shutting_down flag."""
         storage = DecisionGraphStorage(db_path=temp_db)
         integration = DecisionGraphIntegration(storage, enable_background_worker=True)
-        
+
         try:
             await integration.ensure_worker_started()
-            
+
             # Set shutting down
             integration._shutting_down = True
-            
+
             # Store deliberation shouldn't enqueue background work
             from models.schema import DeliberationResult, Summary, ConvergenceInfo
-            
+
             result = DeliberationResult(
                 status="complete",
                 mode="quick",
@@ -1158,16 +1236,16 @@ class TestIntegrationShutdownLogic:
                 ),
                 transcript_path="/tmp/test.md",
             )
-            
+
             decision_id = integration.store_deliberation("Test question", result)
             assert decision_id is not None
-            
+
             # Give a moment for any background tasks
             await asyncio.sleep(0.05)
-            
+
             # No new tasks should have been created
             # (or they were cancelled immediately)
-            
+
         finally:
             await integration.shutdown()
             storage.close()

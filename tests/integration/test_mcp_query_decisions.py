@@ -1,4 +1,5 @@
 """Integration tests for MCP query_decisions tool."""
+
 import json
 from unittest.mock import AsyncMock, patch
 
@@ -56,15 +57,11 @@ class TestMCPQueryDecisionsThreshold:
         """Test custom threshold value is used in query."""
         from server import call_tool
 
-        with patch('server.QueryEngine', return_value=mock_engine):
+        with patch("server.QueryEngine", return_value=mock_engine):
             mock_engine.search_similar = AsyncMock(return_value=[])
 
             # Call with custom threshold
-            arguments = {
-                "query_text": "test query",
-                "threshold": 0.4,
-                "limit": 5
-            }
+            arguments = {"query_text": "test query", "threshold": 0.4, "limit": 5}
 
             await call_tool("query_decisions", arguments)
 
@@ -79,7 +76,7 @@ class TestMCPQueryDecisionsThreshold:
         from server import call_tool
 
         # Mock query engine to return empty results
-        with patch('server.DecisionGraphStorage', return_value=mock_storage):
+        with patch("server.DecisionGraphStorage", return_value=mock_storage):
             engine = QueryEngine(mock_storage)
 
             # Mock diagnostics
@@ -88,17 +85,16 @@ class TestMCPQueryDecisionsThreshold:
                 "total_decisions": 125,
                 "best_match_score": 0.653,
                 "near_misses": [],
-                "suggested_threshold": 0.65
+                "suggested_threshold": 0.65,
             }
 
-            with patch.object(engine, 'get_search_diagnostics', return_value=mock_diagnostics):
-                with patch('server.QueryEngine', return_value=engine):
+            with patch.object(
+                engine, "get_search_diagnostics", return_value=mock_diagnostics
+            ):
+                with patch("server.QueryEngine", return_value=engine):
                     engine.search_similar = AsyncMock(return_value=[])
 
-                    arguments = {
-                        "query_text": "test query",
-                        "threshold": 0.7
-                    }
+                    arguments = {"query_text": "test query", "threshold": 0.7}
 
                     response = await call_tool("query_decisions", arguments)
 

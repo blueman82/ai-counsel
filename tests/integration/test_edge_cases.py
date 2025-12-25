@@ -14,11 +14,9 @@ from datetime import datetime
 import pytest
 
 from decision_graph.integration import DecisionGraphIntegration
-from decision_graph.schema import (DecisionNode, DecisionSimilarity,
-                                   ParticipantStance)
+from decision_graph.schema import DecisionNode, DecisionSimilarity, ParticipantStance
 from decision_graph.storage import DecisionGraphStorage
-from models.schema import (ConvergenceInfo, DeliberationResult, RoundResponse,
-                           Summary)
+from models.schema import ConvergenceInfo, DeliberationResult, RoundResponse, Summary
 
 
 @pytest.fixture

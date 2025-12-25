@@ -1,4 +1,5 @@
 """OpenRouter HTTP adapter."""
+
 import logging
 from typing import Tuple
 

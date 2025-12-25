@@ -92,7 +92,9 @@ class DroidAdapter(BaseCLIAdapter):
             )
 
         # Compute effective reasoning effort once: runtime > config > empty string
-        effective_reasoning_effort = reasoning_effort or self.default_reasoning_effort or ""
+        effective_reasoning_effort = (
+            reasoning_effort or self.default_reasoning_effort or ""
+        )
 
         # If we already know skip-permissions works, use it directly
         if self._successful_method == "skip-permissions":
@@ -256,7 +258,9 @@ class DroidAdapter(BaseCLIAdapter):
 
         # Format arguments with placeholders
         formatted_args = [
-            arg.format(model=model, prompt=full_prompt, reasoning_effort=reasoning_effort)
+            arg.format(
+                model=model, prompt=full_prompt, reasoning_effort=reasoning_effort
+            )
             for arg in args_with_permission
         ]
 
@@ -371,7 +375,9 @@ class DroidAdapter(BaseCLIAdapter):
 
         # Format arguments with placeholders
         formatted_args = [
-            arg.format(model=model, prompt=full_prompt, reasoning_effort=reasoning_effort)
+            arg.format(
+                model=model, prompt=full_prompt, reasoning_effort=reasoning_effort
+            )
             for arg in args_with_skip
         ]
 

@@ -1,4 +1,5 @@
 """Tests for the model registry utility."""
+
 import pytest
 
 from models.config import Config, load_config
@@ -14,8 +15,9 @@ def registry() -> ModelRegistry:
 def test_registry_lists_models(registry: ModelRegistry):
     claude_entries = registry.list_for_adapter("claude")
     assert claude_entries, "Expected allowlisted Claude models"
-    assert claude_entries[0].id == "claude-sonnet-4-5-20250929"
-    assert registry.get_default("claude") == "claude-sonnet-4-5-20250929"
+    # Opus is first in config.yaml and marked as default
+    assert claude_entries[0].id == "claude-opus-4-5-20251101"
+    assert registry.get_default("claude") == "claude-opus-4-5-20251101"
 
 
 def test_registry_enforces_allowlist(registry: ModelRegistry):

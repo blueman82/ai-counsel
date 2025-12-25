@@ -1,4 +1,5 @@
 """Unit tests for tool execution infrastructure."""
+
 import shutil
 import pytest
 from deliberation.tools import BaseTool, ToolExecutor
@@ -321,7 +322,10 @@ class TestReadFileTool:
             {"path": str(outside), "working_directory": str(workspace)}
         )
         assert blocked.success is False
-        assert "working directory" in blocked.error.lower() or "access denied" in blocked.error.lower()
+        assert (
+            "working directory" in blocked.error.lower()
+            or "access denied" in blocked.error.lower()
+        )
 
     @pytest.mark.asyncio
     async def test_read_nonexistent_file_returns_error(self, tool):
@@ -479,7 +483,10 @@ class TestSearchCodeTool:
         )
 
         assert result.success is False
-        assert "working directory" in result.error.lower() or "access denied" in result.error.lower()
+        assert (
+            "working directory" in result.error.lower()
+            or "access denied" in result.error.lower()
+        )
 
 
 class TestListFilesTool:
@@ -843,10 +850,10 @@ class TestPathSecurityHelpers:
 
         base = tmp_path / "workspace"
         base.mkdir()
-        
+
         inside = base / "file.txt"
         outside = tmp_path / "outside.txt"
-        
+
         assert _is_within_directory(inside, base)
         assert not _is_within_directory(outside, base)
 
@@ -857,11 +864,11 @@ class TestPathSecurityHelpers:
 
         base = tmp_path / "workspace"
         base.mkdir()
-        
+
         # Create subdirectory
         subdir = base / "subdir"
         subdir.mkdir()
-        
+
         assert _is_within_directory(subdir, base)
 
     def test_resolve_working_directory_validates_existence(self, tmp_path):
@@ -893,7 +900,9 @@ class TestPathSecurityHelpers:
         workspace = tmp_path / "workspace"
         workspace.mkdir()
 
-        with pytest.raises(ValueError, match="Access denied.*escapes working directory"):
+        with pytest.raises(
+            ValueError, match="Access denied.*escapes working directory"
+        ):
             _resolve_path_within_working_dir("../../../etc/passwd", str(workspace))
 
     def test_resolve_path_within_working_dir_allows_relative(self, tmp_path):
@@ -929,7 +938,9 @@ class TestPathSecurityHelpers:
         outside = tmp_path / "outside.txt"
         outside.write_text("test")
 
-        with pytest.raises(ValueError, match="Access denied.*escapes working directory"):
+        with pytest.raises(
+            ValueError, match="Access denied.*escapes working directory"
+        ):
             _resolve_path_within_working_dir(str(outside), str(workspace))
 
     def test_resolve_path_without_working_dir(self, tmp_path):
@@ -959,7 +970,7 @@ class TestPathSecurityHelpers:
         from pathlib import Path
 
         path = tmp_path / "node_modules" / "package" / "file.js"
-        
+
         assert is_path_excluded(path, ["node_modules/"])
         assert is_path_excluded(path, ["node_modules/**"])
 
@@ -981,7 +992,7 @@ class TestPathSecurityHelpers:
         from deliberation.tools import is_path_excluded
 
         path = tmp_path / "deep" / "nested" / "secrets.txt"
-        
+
         assert is_path_excluded(path, ["secrets.txt"])
 
     def test_is_path_excluded_with_segment_match(self, tmp_path):
@@ -989,7 +1000,7 @@ class TestPathSecurityHelpers:
         from deliberation.tools import is_path_excluded
 
         path = tmp_path / "src" / ".git" / "config"
-        
+
         assert is_path_excluded(path, [".git"])
         assert is_path_excluded(path, [".git/"])
 
@@ -998,7 +1009,7 @@ class TestPathSecurityHelpers:
         from deliberation.tools import is_path_excluded
 
         path = tmp_path / "file.txt"
-        
+
         assert not is_path_excluded(path, [])
 
     def test_is_path_excluded_ignores_empty_pattern(self, tmp_path):
@@ -1006,7 +1017,7 @@ class TestPathSecurityHelpers:
         from deliberation.tools import is_path_excluded
 
         path = tmp_path / "file.txt"
-        
+
         assert not is_path_excluded(path, ["", "  "])
 
     def test_is_path_excluded_multiple_patterns(self, tmp_path):
@@ -1019,7 +1030,7 @@ class TestPathSecurityHelpers:
         path4 = tmp_path / "src" / "main.py"
 
         patterns = ["node_modules/", ".git/", "transcripts/**"]
-        
+
         assert is_path_excluded(path1, patterns)
         assert is_path_excluded(path2, patterns)
         assert is_path_excluded(path3, patterns)
@@ -1034,7 +1045,7 @@ class TestPathSecurityHelpers:
         path3 = tmp_path / "prod_file.py"
 
         patterns = ["test_*"]
-        
+
         assert is_path_excluded(path1, patterns)
         assert is_path_excluded(path2, patterns)
         assert not is_path_excluded(path3, patterns)
@@ -1047,6 +1058,7 @@ class TestRunCommandValidation:
     def tool(self):
         """Create RunCommandTool instance."""
         from deliberation.tools import RunCommandTool
+
         return RunCommandTool()
 
     def test_validate_git_requires_safe_subcommand(self, tool):
@@ -1079,8 +1091,16 @@ class TestRunCommandValidation:
 
     def test_validate_git_safe_subcommands(self, tool):
         """Test all safe git subcommands are allowed."""
-        safe_commands = ["status", "log", "diff", "show", "rev-parse", "ls-files", "blame"]
-        
+        safe_commands = [
+            "status",
+            "log",
+            "diff",
+            "show",
+            "rev-parse",
+            "ls-files",
+            "blame",
+        ]
+
         for cmd in safe_commands:
             result = tool._validate_command_args("git", [cmd], None)
             assert result is None, f"Safe command '{cmd}' should be allowed"
@@ -1088,7 +1108,7 @@ class TestRunCommandValidation:
     def test_validate_find_blocks_exec_flags(self, tool):
         """Test find -exec and similar flags are blocked."""
         dangerous_flags = ["-exec", "-execdir", "-ok", "-okdir", "-delete"]
-        
+
         for flag in dangerous_flags:
             result = tool._validate_command_args("find", [".", flag, "rm", "{}"], None)
             assert result is not None
@@ -1115,7 +1135,9 @@ class TestRunCommandValidation:
         outside = tmp_path / "outside"
         outside.mkdir()
 
-        result = tool._validate_command_args("cat", [str(outside / "file.txt")], workspace)
+        result = tool._validate_command_args(
+            "cat", [str(outside / "file.txt")], workspace
+        )
         assert result is not None
         assert "absolute paths outside" in result.lower()
 
@@ -1168,10 +1190,7 @@ class TestToolExecutorWorkingDirectory:
 
         from models.tool_schema import ToolRequest
 
-        request = ToolRequest(
-            name="read_file",
-            arguments={"path": "test.txt"}
-        )
+        request = ToolRequest(name="read_file", arguments={"path": "test.txt"})
 
         result = await executor.execute_tool(request, working_directory=str(workspace))
 
@@ -1196,7 +1215,7 @@ class TestToolExecutorWorkingDirectory:
 
         request = ToolRequest(
             name="read_file",
-            arguments={"path": "test.txt", "working_directory": str(workspace)}
+            arguments={"path": "test.txt", "working_directory": str(workspace)},
         )
 
         result = await executor.execute_tool(request)
@@ -1213,7 +1232,7 @@ class TestToolExecutorWorkingDirectory:
         workspace1.mkdir()
         workspace2 = tmp_path / "workspace2"
         workspace2.mkdir()
-        
+
         file1 = workspace1 / "test.txt"
         file1.write_text("workspace1")
         file2 = workspace2 / "test.txt"
@@ -1227,7 +1246,7 @@ class TestToolExecutorWorkingDirectory:
 
         request = ToolRequest(
             name="read_file",
-            arguments={"path": "test.txt", "working_directory": str(workspace2)}
+            arguments={"path": "test.txt", "working_directory": str(workspace2)},
         )
 
         # Executor parameter should win
@@ -1259,14 +1278,15 @@ class TestSymlinkSecurity:
             pytest.skip("Symlinks not supported on this platform")
 
         tool = ReadFileTool()
-        result = await tool.execute({
-            "path": "link.txt",
-            "working_directory": str(workspace)
-        })
+        result = await tool.execute(
+            {"path": "link.txt", "working_directory": str(workspace)}
+        )
 
         # Should block access because symlink target is outside workspace
         assert result.success is False
-        assert "access denied" in result.error.lower() or "escapes" in result.error.lower()
+        assert (
+            "access denied" in result.error.lower() or "escapes" in result.error.lower()
+        )
 
     @pytest.mark.asyncio
     async def test_list_files_with_symlinks_inside_workspace(self, tmp_path):
@@ -1279,16 +1299,15 @@ class TestSymlinkSecurity:
         target = workspace / "target.txt"
         target.write_text("target")
         link = workspace / "link.txt"
-        
+
         try:
             os.symlink(str(target), str(link))
         except OSError:
             pytest.skip("Symlinks not supported on this platform")
 
         tool = ListFilesTool()
-        result = await tool.execute({
-            "pattern": "*.txt",
-            "working_directory": str(workspace)
-        })
+        result = await tool.execute(
+            {"pattern": "*.txt", "working_directory": str(workspace)}
+        )
 
         assert result.success is True

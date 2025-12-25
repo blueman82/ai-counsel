@@ -1,4 +1,5 @@
 """Convergence detection for deliberation rounds."""
+
 import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
@@ -70,9 +71,14 @@ class JaccardBackend(SimilarityBackend):
         if not text1 or not text2:
             return 0.0
 
-        # Normalize: lowercase and split into words
-        words1 = set(text1.lower().split())
-        words2 = set(text2.lower().split())
+        # Normalize: lowercase, strip punctuation, and split into words
+        import re
+
+        # Remove punctuation (keep only alphanumeric and whitespace)
+        text1_clean = re.sub(r"[^\w\s]", "", text1.lower())
+        text2_clean = re.sub(r"[^\w\s]", "", text2.lower())
+        words1 = set(text1_clean.split())
+        words2 = set(text2_clean.split())
 
         # Handle case where both are empty after normalization
         if not words1 or not words2:
@@ -393,10 +399,7 @@ class ConvergenceDetector:
 
         # Check for impasse (stable disagreement)
         impasse_rounds = max(2, self.config.consecutive_stable_rounds)
-        if (
-            status == "diverging"
-            and self.consecutive_divergent_count >= impasse_rounds
-        ):
+        if status == "diverging" and self.consecutive_divergent_count >= impasse_rounds:
             status = "impasse"
 
         return ConvergenceResult(

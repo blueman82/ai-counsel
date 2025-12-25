@@ -1,4 +1,5 @@
 """Response quality metrics tracking for deliberation."""
+
 import logging
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -206,15 +207,11 @@ class ResponseQualityTracker:
 
             # Low vote success rate (<50%)
             if metrics.vote_success_rate < 50:
-                issues.append(
-                    f"low vote rate ({metrics.vote_success_rate:.0f}%)"
-                )
+                issues.append(f"low vote rate ({metrics.vote_success_rate:.0f}%)")
 
             # High truncation rate (>10%)
             if metrics.truncation_rate > 10:
-                issues.append(
-                    f"high truncation ({metrics.truncation_rate:.0f}%)"
-                )
+                issues.append(f"high truncation ({metrics.truncation_rate:.0f}%)")
 
             # Short responses (avg < 500 chars)
             if metrics.avg_response_length < 500:
@@ -223,11 +220,13 @@ class ResponseQualityTracker:
                 )
 
             if issues:
-                problems.append({
-                    "model_id": model_id,
-                    "issues": issues,
-                    "metrics": metrics.to_dict(),
-                })
+                problems.append(
+                    {
+                        "model_id": model_id,
+                        "issues": issues,
+                        "metrics": metrics.to_dict(),
+                    }
+                )
 
         return problems
 

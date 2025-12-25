@@ -1,4 +1,5 @@
 """Configuration loading and validation."""
+
 import os
 import re
 import warnings
@@ -471,7 +472,11 @@ def load_config(path: str = "config.yaml") -> Config:
 
     # Load environment variables from .env file in same directory as config
     # This ensures the .env file is found regardless of the current working directory
-    config_dir = config_path.parent if config_path.parent.exists() else Path(__file__).parent.parent
+    config_dir = (
+        config_path.parent
+        if config_path.parent.exists()
+        else Path(__file__).parent.parent
+    )
     env_path = config_dir / ".env"
     if env_path.exists():
         load_dotenv(env_path)

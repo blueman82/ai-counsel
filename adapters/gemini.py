@@ -1,4 +1,5 @@
 """Gemini CLI adapter."""
+
 from adapters.base import BaseCLIAdapter
 
 

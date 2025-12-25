@@ -1,4 +1,5 @@
 """Unit tests for Ollama adapter."""
+
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
@@ -70,7 +71,7 @@ class TestOllamaAdapter:
         response_json = {
             "model": "llama2",
             "created_at": "2023-08-01T00:00:00Z",
-            "done": True
+            "done": True,
             # Missing 'response' field
         }
 

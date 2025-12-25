@@ -1,4 +1,5 @@
 """Tests for config migration script."""
+
 import pytest
 import yaml
 

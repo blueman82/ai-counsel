@@ -1,4 +1,5 @@
 """Unit tests for server.py round truncation logic."""
+
 import pytest
 from models.schema import DeliberationResult, RoundResponse, Summary, ConvergenceInfo
 from server import truncate_debate_rounds

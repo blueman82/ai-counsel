@@ -1,4 +1,5 @@
 """Integration tests for convergence detection in deliberation engine."""
+
 from unittest.mock import AsyncMock
 
 import pytest
@@ -90,7 +91,8 @@ class TestEngineConvergenceIntegration:
             ],
             rounds=3,
             mode="conference",
-            working_directory="/tmp",)
+            working_directory="/tmp",
+        )
 
         # Round 1 responses
         round1_responses = [
@@ -250,10 +252,12 @@ class TestEngineConvergenceIntegration:
 
     def test_convergence_detector_backend_selection(self, config):
         """Test that convergence detector selects best available backend."""
-        from deliberation.convergence import (ConvergenceDetector,
-                                              JaccardBackend,
-                                              SentenceTransformerBackend,
-                                              TFIDFBackend)
+        from deliberation.convergence import (
+            ConvergenceDetector,
+            JaccardBackend,
+            SentenceTransformerBackend,
+            TFIDFBackend,
+        )
 
         detector = ConvergenceDetector(config)
 
