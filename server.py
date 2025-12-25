@@ -25,7 +25,7 @@ from mcp.server import Server
 from mcp.server.stdio import stdio_server
 from mcp.types import TextContent, Tool
 
-from adapters import create_adapter
+from adapters import create_adapter, create_adapter_with_fallback, get_cli_status
 from decision_graph.storage import DecisionGraphStorage
 from deliberation.engine import DeliberationEngine
 from deliberation.metrics import get_quality_tracker
@@ -114,7 +114,23 @@ session_defaults: dict[str, str] = {}
 
 # Create adapters - prefer new 'adapters' section, fallback to legacy 'cli_tools'
 adapters = {}
+# Track which adapters are using OpenRouter fallback and their fallback model
+adapter_fallbacks: dict[str, str] = {}  # cli_name -> fallback_model_id
 adapter_sources: list[tuple[str, dict[str, CLIToolConfig | AdapterConfig]]] = []
+
+# Log CLI availability status at startup
+cli_status = get_cli_status()
+for cli_name, status in cli_status.items():
+    if status["available"]:
+        logger.info(f"CLI '{cli_name}' available at: {status['path']}")
+    else:
+        fallback = status.get("fallback")
+        if fallback:
+            logger.warning(
+                f"CLI '{cli_name}' not installed, will use OpenRouter fallback: {fallback}"
+            )
+        else:
+            logger.warning(f"CLI '{cli_name}' not installed, no fallback available")
 
 # Try new adapters section first (preferred)
 if hasattr(config, "adapters") and config.adapters:
@@ -134,8 +150,20 @@ for source_name, adapter_configs in adapter_sources:
             continue
 
         try:
-            adapters[cli_name] = create_adapter(cli_name, cli_config)
-            logger.info(f"Initialized adapter: {cli_name} (from {source_name})")
+            # Use fallback-aware adapter creation
+            adapter, fallback_model = create_adapter_with_fallback(cli_name, cli_config)
+            adapters[cli_name] = adapter
+
+            if fallback_model:
+                adapter_fallbacks[cli_name] = fallback_model
+                logger.info(
+                    f"Initialized adapter: {cli_name} (via OpenRouter fallback: {fallback_model})"
+                )
+            else:
+                logger.info(f"Initialized adapter: {cli_name} (from {source_name})")
+        except RuntimeError as e:
+            # CLI not available and no fallback possible
+            logger.error(f"Failed to create adapter for {cli_name}: {e}")
         except Exception as e:
             logger.error(f"Failed to create adapter for {cli_name}: {e}")
 
@@ -470,6 +498,23 @@ async def list_tools() -> list[Tool]:
         )
     )
 
+    # CLI availability status tool
+    tools.append(
+        Tool(
+            name="get_cli_status",
+            description=(
+                "Check which CLI tools (claude, codex, droid, gemini, llamacpp) are installed. "
+                "Shows availability, path, and OpenRouter fallback model for each CLI. "
+                "Useful for diagnosing adapter issues or understanding fallback behavior."
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {},
+                "additionalProperties": False,
+            },
+        )
+    )
+
     return tools
 
 
@@ -495,6 +540,8 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
         return await handle_query_decisions(arguments)
     if name == "get_quality_metrics":
         return await handle_get_quality_metrics(arguments)
+    if name == "get_cli_status":
+        return await handle_get_cli_status(arguments)
     elif name != "deliberate":
         error_msg = f"Unknown tool: {name}"
         logger.error(error_msg)
@@ -577,14 +624,37 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
                         f"Allowed models: {', '.join(allowed)}."
                     )
 
-        # Execute deliberation
-        result = await engine.execute(request)
-        logger.info(
-            f"Deliberation complete: {result.rounds_completed} rounds, status: {result.status}"
-        )
+        # Execute deliberation with MCP-level timeout protection
+        mcp_timeout = config.mcp.response_timeout
+        logger.info(f"Starting deliberation with MCP timeout: {mcp_timeout}s")
+
+        try:
+            result = await asyncio.wait_for(
+                engine.execute(request),
+                timeout=mcp_timeout
+            )
+            logger.info(
+                f"Deliberation complete: {result.rounds_completed} rounds, status: {result.status}"
+            )
+        except asyncio.TimeoutError:
+            logger.warning(
+                f"Deliberation timed out after {mcp_timeout}s - returning timeout error"
+            )
+            # Return a helpful timeout error instead of hanging
+            timeout_response = {
+                "error": f"Deliberation timed out after {mcp_timeout} seconds",
+                "error_type": "TimeoutError",
+                "status": "timeout",
+                "suggestion": (
+                    "Try: (1) Use faster models, (2) Reduce rounds, "
+                    "(3) Increase mcp.response_timeout in config.yaml, "
+                    "(4) Check if free OpenRouter models are responsive"
+                ),
+            }
+            return [TextContent(type="text", text=json.dumps(timeout_response, indent=2))]
 
         # Truncate full_debate for MCP response if needed (to avoid token limit)
-        max_rounds = getattr(config, "mcp", {}).get("max_rounds_in_response", 3)
+        max_rounds = config.mcp.max_rounds_in_response
         result_dict = truncate_debate_rounds(result, max_rounds)
 
         if result_dict.get("full_debate_truncated"):
@@ -979,6 +1049,64 @@ async def handle_get_quality_metrics(arguments: dict) -> list[TextContent]:
     except Exception as e:
         logger.error(
             f"Error in get_quality_metrics: {type(e).__name__}: {e}", exc_info=True
+        )
+        error_response = {
+            "error": str(e),
+            "error_type": type(e).__name__,
+            "status": "failed",
+        }
+        return [TextContent(type="text", text=json.dumps(error_response, indent=2))]
+
+
+async def handle_get_cli_status(arguments: dict) -> list[TextContent]:
+    """Handle get_cli_status tool call.
+
+    Returns availability status for all CLI tools, including:
+    - Whether the CLI is installed and its path
+    - OpenRouter fallback model if CLI is not available
+    - Whether a fallback is currently active
+    """
+    try:
+        status = get_cli_status()
+
+        # Enhance with active fallback info
+        response = {
+            "cli_status": {},
+            "summary": {
+                "total_clis": len(status),
+                "available": 0,
+                "using_fallback": 0,
+                "unavailable_no_fallback": 0,
+            },
+        }
+
+        for cli_name, cli_info in status.items():
+            is_available = cli_info["available"]
+            has_fallback = cli_info.get("fallback") is not None
+            is_using_fallback = cli_name in adapter_fallbacks
+
+            entry = {
+                "available": is_available,
+                "path": cli_info["path"],
+                "fallback_model": cli_info.get("fallback"),
+                "using_fallback": is_using_fallback,
+            }
+
+            if is_using_fallback:
+                entry["active_fallback_model"] = adapter_fallbacks[cli_name]
+                response["summary"]["using_fallback"] += 1
+            elif is_available:
+                response["summary"]["available"] += 1
+            elif not has_fallback:
+                response["summary"]["unavailable_no_fallback"] += 1
+
+            response["cli_status"][cli_name] = entry
+
+        return [TextContent(type="text", text=json.dumps(response, indent=2))]
+
+    except Exception as e:
+        logger.error(
+            f"Error in get_cli_status: {type(e).__name__}: {e}", exc_info=True
         )
         error_response = {
             "error": str(e),
