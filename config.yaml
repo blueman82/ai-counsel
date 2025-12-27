@@ -229,21 +229,41 @@ model_registry:
       label: "Claude Sonnet 4.5 (via Droid)"
       tier: "balanced"
       enabled: true
-    - id: "gpt-5.2-codex"
-      label: "GPT-5.2 Codex (via Droid)"
+    - id: "claude-haiku-4-5-20251001"
+      label: "Claude Haiku 4.5 (via Droid)"
+      tier: "speed"
+      enabled: true
+    - id: "gpt-5.1-codex-max"
+      label: "GPT-5.1 Codex Max (via Droid)"
+      tier: "coding"
+      enabled: true
+    - id: "gpt-5.1-codex"
+      label: "GPT-5.1 Codex (via Droid)"
       tier: "coding"
       enabled: true
     - id: "gpt-5.2"
       label: "GPT-5.2 (via Droid)"
       tier: "general"
       enabled: true
+    - id: "gpt-5.1"
+      label: "GPT-5.1 (via Droid)"
+      tier: "general"
+      enabled: true
+    - id: "gemini-3-pro-preview"
+      label: "Gemini 3 Pro (via Droid)"
+      tier: "balanced"
+      enabled: true
+    - id: "gemini-3-flash-preview"
+      label: "Gemini 3 Flash (via Droid)"
+      tier: "speed"
+      enabled: true
     - id: "glm-4.6"
       label: "Droid Core (GLM-4.6)"
       tier: "open-source"
       enabled: true
-    - id: "claude-haiku-4-5-20251001"
-      label: "Claude Haiku 4.5"
-      tier: "speed"
+    - id: "glm-4.7"
+      label: "Droid Core (GLM-4.7)"
+      tier: "open-source"
       enabled: true
   gemini:
     - id: "gemini-2.5-pro"
