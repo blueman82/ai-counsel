@@ -7,6 +7,7 @@ import pytest
 from decision_graph.schema import (DecisionNode, DecisionSimilarity,
                                    ParticipantStance)
 from decision_graph.storage import DecisionGraphStorage
+from deliberation.convergence import ConvergenceDetector
 
 
 @pytest.fixture
@@ -917,3 +918,480 @@ class TestStorageEdgeCases:
         # Verify nothing was saved
         retrieved = storage.get_decision_node("test-id")
         assert retrieved is None
+
+
+class TestImpasseDetection:
+    """Test impasse detection for stable disagreement scenarios."""
+
+    def test_consecutive_divergent_count_increments_on_divergence(self):
+        """Test consecutive_divergent_count increments correctly."""
+        from models.schema import RoundResponse
+
+        config = type(
+            "Config",
+            (),
+            {
+                "deliberation": type(
+                    "Delib",
+                    (),
+                    {
+                        "convergence_detection": type(
+                            "Conv",
+                            (),
+                            {
+                                "enabled": True,
+                                "semantic_similarity_threshold": 0.85,
+                                "divergence_threshold": 0.40,
+                                "min_rounds_before_check": 2,
+                                "consecutive_stable_rounds": 2,
+                            },
+                        )()
+                    },
+                )()
+            },
+        )()
+
+        detector = ConvergenceDetector(config)
+        assert detector.consecutive_divergent_count == 0
+
+        # Create two very different responses
+        round2 = [
+            RoundResponse(
+                round=2,
+                participant="claude@cli",
+                response="Alpha position with unique perspective",
+                timestamp="2025-01-01T00:00:00",
+            )
+        ]
+
+        round3 = [
+            RoundResponse(
+                round=3,
+                participant="claude@cli",
+                response="Beta position completely different view",
+                timestamp="2025-01-01T00:01:00",
+            )
+        ]
+
+        result = detector.check_convergence(round3, round2, round_number=3)
+        
+        assert result.status == "diverging"
+        assert detector.consecutive_divergent_count == 1
+
+    def test_consecutive_divergent_count_resets_on_convergence(self):
+        """Test consecutive_divergent_count resets when convergence detected."""
+        from models.schema import RoundResponse
+
+        config = type(
+            "Config",
+            (),
+            {
+                "deliberation": type(
+                    "Delib",
+                    (),
+                    {
+                        "convergence_detection": type(
+                            "Conv",
+                            (),
+                            {
+                                "enabled": True,
+                                "semantic_similarity_threshold": 0.85,
+                                "divergence_threshold": 0.40,
+                                "min_rounds_before_check": 2,
+                                "consecutive_stable_rounds": 2,
+                            },
+                        )()
+                    },
+                )()
+            },
+        )()
+
+        detector = ConvergenceDetector(config)
+        detector.consecutive_divergent_count = 3
+
+        # Create identical responses (converged)
+        round2 = [
+            RoundResponse(
+                round=2,
+                participant="claude@cli",
+                response="We should proceed with option A",
+                timestamp="2025-01-01T00:00:00",
+            )
+        ]
+
+        round3 = [
+            RoundResponse(
+                round=3,
+                participant="claude@cli",
+                response="We should proceed with option A",
+                timestamp="2025-01-01T00:01:00",
+            )
+        ]
+
+        result = detector.check_convergence(round3, round2, round_number=3)
+
+        assert result is not None
+        assert detector.consecutive_divergent_count == 0
+
+    def test_consecutive_divergent_count_resets_on_refining(self):
+        """Test consecutive_divergent_count resets when status is refining."""
+        from models.schema import RoundResponse
+
+        config = type(
+            "Config",
+            (),
+            {
+                "deliberation": type(
+                    "Delib",
+                    (),
+                    {
+                        "convergence_detection": type(
+                            "Conv",
+                            (),
+                            {
+                                "enabled": True,
+                                "semantic_similarity_threshold": 0.85,
+                                "divergence_threshold": 0.40,
+                                "min_rounds_before_check": 2,
+                                "consecutive_stable_rounds": 2,
+                            },
+                        )()
+                    },
+                )()
+            },
+        )()
+
+        detector = ConvergenceDetector(config)
+        detector.consecutive_divergent_count = 2
+
+        # Create moderately similar responses (refining, not converged or diverging)
+        round2 = [
+            RoundResponse(
+                round=2,
+                participant="claude@cli",
+                response="I think we should consider option A because it has merit",
+                timestamp="2025-01-01T00:00:00",
+            )
+        ]
+
+        round3 = [
+            RoundResponse(
+                round=3,
+                participant="claude@cli",
+                response="I think we should consider option A with some modifications",
+                timestamp="2025-01-01T00:01:00",
+            )
+        ]
+
+        result = detector.check_convergence(round3, round2, round_number=3)
+        
+        # Should be refining (similarity between thresholds)
+        assert result.status == "refining"
+        assert detector.consecutive_divergent_count == 0
+
+    def test_impasse_threshold_calculation(self):
+        """Test impasse threshold uses max of 2 or consecutive_stable_rounds."""
+        from models.schema import RoundResponse
+
+        # Test with consecutive_stable_rounds = 1
+        config1 = type(
+            "Config",
+            (),
+            {
+                "deliberation": type(
+                    "Delib",
+                    (),
+                    {
+                        "convergence_detection": type(
+                            "Conv",
+                            (),
+                            {
+                                "enabled": True,
+                                "semantic_similarity_threshold": 0.85,
+                                "divergence_threshold": 0.40,
+                                "min_rounds_before_check": 2,
+                                "consecutive_stable_rounds": 1,
+                            },
+                        )()
+                    },
+                )()
+            },
+        )()
+
+        detector1 = ConvergenceDetector(config1)
+
+        # Create diverging responses
+        round2 = [
+            RoundResponse(
+                round=2,
+                participant="claude@cli",
+                response="Alpha",
+                timestamp="2025-01-01T00:00:00",
+            )
+        ]
+
+        round3 = [
+            RoundResponse(
+                round=3,
+                participant="claude@cli",
+                response="Zeta",
+                timestamp="2025-01-01T00:01:00",
+            )
+        ]
+
+        round4 = [
+            RoundResponse(
+                round=4,
+                participant="claude@cli",
+                response="Omega",
+                timestamp="2025-01-01T00:02:00",
+            )
+        ]
+
+        detector1.check_convergence(round3, round2, round_number=3)
+        result = detector1.check_convergence(round4, round3, round_number=4)
+
+        # Should require 2 rounds minimum (max(2, 1) = 2)
+        assert result.status == "impasse"
+
+    def test_impasse_not_triggered_before_threshold(self):
+        """Test impasse requires consecutive divergent rounds."""
+        from models.schema import RoundResponse
+
+        config = type(
+            "Config",
+            (),
+            {
+                "deliberation": type(
+                    "Delib",
+                    (),
+                    {
+                        "convergence_detection": type(
+                            "Conv",
+                            (),
+                            {
+                                "enabled": True,
+                                "semantic_similarity_threshold": 0.85,
+                                "divergence_threshold": 0.40,
+                                "min_rounds_before_check": 2,
+                                "consecutive_stable_rounds": 3,
+                            },
+                        )()
+                    },
+                )()
+            },
+        )()
+
+        detector = ConvergenceDetector(config)
+
+        # Only 2 divergent rounds (threshold is 3)
+        round2 = [
+            RoundResponse(
+                round=2,
+                participant="claude@cli",
+                response="Alpha",
+                timestamp="2025-01-01T00:00:00",
+            )
+        ]
+
+        round3 = [
+            RoundResponse(
+                round=3,
+                participant="claude@cli",
+                response="Zeta",
+                timestamp="2025-01-01T00:01:00",
+            )
+        ]
+
+        result = detector.check_convergence(round3, round2, round_number=3)
+
+        assert result.status == "diverging"
+        assert result.status != "impasse"
+
+    def test_status_progression_to_impasse(self):
+        """Test full progression: refining -> diverging -> impasse."""
+        from models.schema import RoundResponse
+
+        config = type(
+            "Config",
+            (),
+            {
+                "deliberation": type(
+                    "Delib",
+                    (),
+                    {
+                        "convergence_detection": type(
+                            "Conv",
+                            (),
+                            {
+                                "enabled": True,
+                                "semantic_similarity_threshold": 0.85,
+                                "divergence_threshold": 0.40,
+                                "min_rounds_before_check": 2,
+                                "consecutive_stable_rounds": 2,
+                            },
+                        )()
+                    },
+                )()
+            },
+        )()
+
+        detector = ConvergenceDetector(config)
+
+        rounds = [
+            [
+                RoundResponse(
+                    round=2,
+                    participant="claude@cli",
+                    response="Initial consideration of options",
+                    timestamp="2025-01-01T00:00:00",
+                )
+            ],
+            [
+                RoundResponse(
+                    round=3,
+                    participant="claude@cli",
+                    response="Completely different approach",
+                    timestamp="2025-01-01T00:01:00",
+                )
+            ],
+            [
+                RoundResponse(
+                    round=4,
+                    participant="claude@cli",
+                    response="Yet another divergent path",
+                    timestamp="2025-01-01T00:02:00",
+                )
+            ],
+        ]
+
+        # Round 3 should be diverging
+        result3 = detector.check_convergence(rounds[1], rounds[0], round_number=3)
+        assert result3.status == "diverging"
+
+        # Round 4 should be impasse
+        result4 = detector.check_convergence(rounds[2], rounds[1], round_number=4)
+        assert result4.status == "impasse"
+
+    def test_impasse_with_different_config_values(self):
+        """Test impasse detection with various configuration values."""
+        from models.schema import RoundResponse
+
+        # Test with consecutive_stable_rounds = 5
+        config = type(
+            "Config",
+            (),
+            {
+                "deliberation": type(
+                    "Delib",
+                    (),
+                    {
+                        "convergence_detection": type(
+                            "Conv",
+                            (),
+                            {
+                                "enabled": True,
+                                "semantic_similarity_threshold": 0.85,
+                                "divergence_threshold": 0.40,
+                                "min_rounds_before_check": 2,
+                                "consecutive_stable_rounds": 5,
+                            },
+                        )()
+                    },
+                )()
+            },
+        )()
+
+        detector = ConvergenceDetector(config)
+
+        # Create 5 rounds of divergence
+        for i in range(2, 7):
+            curr = [
+                RoundResponse(
+                    round=i,
+                    participant="claude@cli",
+                    response=f"Divergent response number {i}",
+                    timestamp=f"2025-01-01T00:0{i}:00",
+                )
+            ]
+            prev = [
+                RoundResponse(
+                    round=i - 1,
+                    participant="claude@cli",
+                    response=f"Divergent response number {i - 1}",
+                    timestamp=f"2025-01-01T00:0{i-1}:00",
+                )
+            ]
+            result = detector.check_convergence(curr, prev, round_number=i)
+
+        # After 5 divergent rounds, should be impasse
+        assert result.status == "impasse"
+        assert detector.consecutive_divergent_count == 5
+
+    def test_impasse_interruption_resets_counter(self):
+        """Test that a refining round interrupts impasse progression."""
+        from models.schema import RoundResponse
+
+        config = type(
+            "Config",
+            (),
+            {
+                "deliberation": type(
+                    "Delib",
+                    (),
+                    {
+                        "convergence_detection": type(
+                            "Conv",
+                            (),
+                            {
+                                "enabled": True,
+                                "semantic_similarity_threshold": 0.85,
+                                "divergence_threshold": 0.40,
+                                "min_rounds_before_check": 2,
+                                "consecutive_stable_rounds": 3,
+                            },
+                        )()
+                    },
+                )()
+            },
+        )()
+
+        detector = ConvergenceDetector(config)
+
+        # Two divergent rounds
+        round2 = [
+            RoundResponse(
+                round=2,
+                participant="claude@cli",
+                response="Alpha position",
+                timestamp="2025-01-01T00:00:00",
+            )
+        ]
+
+        round3 = [
+            RoundResponse(
+                round=3,
+                participant="claude@cli",
+                response="Zeta position",
+                timestamp="2025-01-01T00:01:00",
+            )
+        ]
+
+        detector.check_convergence(round3, round2, round_number=3)
+        assert detector.consecutive_divergent_count == 1
+
+        # Then a refining round (moderate similarity)
+        round4 = [
+            RoundResponse(
+                round=4,
+                participant="claude@cli",
+                response="Zeta position with slight modifications",
+                timestamp="2025-01-01T00:02:00",
+            )
+        ]
+
+        result = detector.check_convergence(round4, round3, round_number=4)
+        
+        # Should reset counter
+        assert result.status == "refining"
+        assert detector.consecutive_divergent_count == 0

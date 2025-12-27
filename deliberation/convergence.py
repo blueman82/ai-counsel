@@ -272,10 +272,21 @@ class ConvergenceDetector:
         self.config = config.deliberation.convergence_detection
         self.backend = self._select_backend()
         self.consecutive_stable_count = 0
+        self.consecutive_divergent_count = 0
 
         logger.info(
             f"ConvergenceDetector initialized with {self.backend.__class__.__name__}"
         )
+
+    def reset(self) -> None:
+        """Reset state counters for a new deliberation.
+
+        Should be called at the start of each deliberation to ensure
+        counters from previous deliberations don't affect convergence detection.
+        """
+        self.consecutive_stable_count = 0
+        self.consecutive_divergent_count = 0
+        logger.debug("ConvergenceDetector state reset")
 
     def _select_backend(self) -> SimilarityBackend:
         """
@@ -352,11 +363,12 @@ class ConvergenceDetector:
 
         # Determine convergence status
         threshold = self.config.semantic_similarity_threshold
-        divergence_threshold = getattr(self.config, "divergence_threshold", 0.40)
+        divergence_threshold = self.config.divergence_threshold
 
         if min_similarity >= threshold:
             # All participants converged
             self.consecutive_stable_count += 1
+            self.consecutive_divergent_count = 0
 
             if self.consecutive_stable_count >= self.config.consecutive_stable_rounds:
                 status = "converged"
@@ -370,17 +382,20 @@ class ConvergenceDetector:
             status = "diverging"
             converged = False
             self.consecutive_stable_count = 0
+            self.consecutive_divergent_count += 1
 
         else:
             # Still refining
             status = "refining"
             converged = False
             self.consecutive_stable_count = 0
+            self.consecutive_divergent_count = 0
 
         # Check for impasse (stable disagreement)
+        impasse_rounds = max(2, self.config.consecutive_stable_rounds)
         if (
             status == "diverging"
-            and self.consecutive_stable_count >= self.config.consecutive_stable_rounds
+            and self.consecutive_divergent_count >= impasse_rounds
         ):
             status = "impasse"
 

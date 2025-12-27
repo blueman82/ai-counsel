@@ -17,7 +17,9 @@ if not progress_logger.handlers:
     # Log to both console and dedicated progress file
     project_dir = Path(__file__).parent.parent
     progress_file = project_dir / "deliberation_progress.log"
-    progress_handler = logging.FileHandler(progress_file, mode="a")
+    progress_handler = logging.FileHandler(
+        progress_file, mode="a", encoding="utf-8"
+    )
     progress_handler.setFormatter(logging.Formatter(
         "%(asctime)s | %(levelname)s | %(message)s"
     ))

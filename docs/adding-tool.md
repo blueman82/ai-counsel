@@ -136,7 +136,7 @@ Available tools (use TOOL_REQUEST markers):
    TOOL_REQUEST: {"name": "list_files", "arguments": {"pattern": "**/*.py", "path": "/base/path"}}
 
 4. run_command: Execute safe read-only command
-   TOOL_REQUEST: {"name": "run_command", "arguments": {"command": "ls -la /path"}}
+   TOOL_REQUEST: {"name": "run_command", "arguments": {"command": "ls", "args": ["-la", "/path"]}}
 
 5. my_new_tool: Description of what it does
    TOOL_REQUEST: {"name": "my_new_tool", "arguments": {"arg1": "value1", "arg2": "value2"}}

@@ -273,13 +273,13 @@ Control tool behavior in `config.yaml`:
 
 **Working Directory** (Required):
 - Set `working_directory` parameter when calling `deliberate` tool
-- Tools resolve relative paths from this directory
+- Tools resolve relative paths from this directory and block paths outside it
 - Example: `working_directory: process.cwd()` in JavaScript MCP clients
 
 **Tool Security** (`deliberation.tool_security`):
 - `exclude_patterns`: Block access to sensitive directories (default: `transcripts/`, `.git/`, `node_modules/`)
 - `max_file_size_bytes`: File size limit for `read_file` (default: 1MB)
-- `command_whitelist`: Safe commands for `run_command` (ls, grep, find, cat, head, tail)
+- `run_command` is restricted to a safe allowlist and blocks mutating flags/subcommands (e.g., `git checkout`, `find -exec`, `find -delete`)
 
 **File Tree** (`deliberation.file_tree`):
 - `enabled`: Inject repository structure into Round 1 prompts (default: true)
