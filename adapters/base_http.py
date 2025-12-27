@@ -167,7 +167,10 @@ class BaseHTTPAdapter(ABC):
             full_prompt = f"{context}\n\n{prompt}"
 
         # Get request components from subclass
-        endpoint, headers, body = self.build_request(model, full_prompt)
+        endpoint, request_headers, body = self.build_request(model, full_prompt)
+
+        # Merge default headers with request-specific headers (request takes precedence)
+        headers = {**self.default_headers, **request_headers}
 
         # Build full URL
         full_url = f"{self.base_url}{endpoint}"

@@ -112,6 +112,7 @@ CLI_TITLES = {
     "ollama": "Ollama",
     "lmstudio": "LM Studio",
     "openrouter": "OpenRouter",
+    "nebius": "Nebius",
 }
 
 
@@ -144,6 +145,7 @@ def _build_participant_variants() -> list[dict]:
         "ollama",
         "lmstudio",
         "openrouter",
+        "nebius",
     ]
 
     for cli in all_clis:
@@ -267,7 +269,7 @@ async def list_tools() -> list[Tool]:
         description=(
             "Initiate deliberative consensus where AI models debate across multiple rounds. "
             "Models see each other's responses and adapt their reasoning. Supports CLI tools "
-            "(claude, codex, droid, gemini, llamacpp) and HTTP services (ollama, lmstudio, openrouter)."
+            "(claude, codex, droid, gemini, llamacpp) and HTTP services (ollama, lmstudio, openrouter, nebius)."
         ),
         inputSchema={
             "type": "object",
