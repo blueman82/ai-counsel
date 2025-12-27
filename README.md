@@ -112,7 +112,7 @@ See [CLI Model Reference](docs/CLI_MODEL_REFERENCE.md) for complete details.
 > ```javascript
 > participants: [
 >   {cli: "codex", model: "gpt-5.2-codex", reasoning_effort: "high"},    // Deep reasoning
->   {cli: "droid", model: "gpt-5.2-codex", reasoning_effort: "low"}      // Fast response
+>   {cli: "droid", model: "gpt-5.1-codex-max", reasoning_effort: "low"}   // Fast response
 > ]
 > ```
 > - **Codex**: `none`, `minimal`, `low`, `medium`, `high`, `xhigh`
