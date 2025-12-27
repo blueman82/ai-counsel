@@ -949,6 +949,36 @@ class TestAdapterFactory:
         assert "openrouter" in str(exc_info.value).lower()
         assert "unknown cli adapter" in str(exc_info.value).lower()
 
+    def test_create_nebius_adapter(self):
+        """Test creating NebiusAdapter via factory."""
+        from adapters.openrouter import NebiusAdapter
+
+        config = HTTPAdapterConfig(
+            type="http",
+            base_url="https://api.tokenfactory.nebius.com/v1",
+            api_key="nebius-test-key",
+            timeout=600,
+            max_retries=3,
+        )
+
+        adapter = create_adapter("nebius", config)
+        assert isinstance(adapter, NebiusAdapter)
+        assert adapter.base_url == "https://api.tokenfactory.nebius.com/v1"
+        assert adapter.api_key == "nebius-test-key"
+        assert adapter.timeout == 600
+        assert adapter.max_retries == 3
+
+    def test_factory_rejects_cli_config_for_nebius(self):
+        """Test Nebius with CLI config raises error."""
+        config = CLIAdapterConfig(type="cli", command="nebius", args=[], timeout=60)
+
+        with pytest.raises(ValueError) as exc_info:
+            create_adapter("nebius", config)
+
+        # Should fail because nebius is not in CLI adapters
+        assert "nebius" in str(exc_info.value).lower()
+        assert "unknown cli adapter" in str(exc_info.value).lower()
+
     def test_create_adapter_with_default_timeout(self):
         """Test factory uses timeout from config object."""
         config = CLIToolConfig(
