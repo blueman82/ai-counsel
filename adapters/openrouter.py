@@ -1,35 +1,46 @@
-"""OpenRouter HTTP adapter."""
+"""OpenAI-compatible HTTP adapters (OpenRouter, Nebius, etc.)."""
 import logging
-from typing import Tuple
+from typing import Optional, Tuple
 
 from adapters.base_http import BaseHTTPAdapter
 
 logger = logging.getLogger(__name__)
 
 
-class OpenRouterAdapter(BaseHTTPAdapter):
+class OpenAIChatCompletionsAdapter(BaseHTTPAdapter):
     """
-    Adapter for OpenRouter API.
+    Base adapter for OpenAI-compatible chat completions APIs.
 
-    OpenRouter provides access to multiple LLM providers through a unified
-    OpenAI-compatible API with authentication.
+    Many LLM providers (OpenRouter, Nebius, Together, etc.) expose
+    OpenAI-compatible endpoints. This base class provides shared logic
+    for building requests and parsing responses in the standard format.
 
-    API Reference: https://openrouter.ai/docs
-    Default endpoint: https://openrouter.ai/api/v1
+    Subclasses can customize:
+    - provider_name: Used in error messages and logging
+    - default_max_tokens: Default max_tokens value (None = omit from request)
+
+    API Format:
+        POST /chat/completions
+        {
+          "model": "model-id",
+          "messages": [{"role": "user", "content": "..."}],
+          "stream": false,
+          "max_tokens": 4096  # optional
+        }
     """
+
+    # Subclasses should override these
+    provider_name: str = "OpenAI-compatible"
+    default_max_tokens: Optional[int] = None
 
     def build_request(
         self, model: str, prompt: str
     ) -> Tuple[str, dict[str, str], dict]:
         """
-        Build OpenRouter API request (OpenAI-compatible format with auth).
-
-        OpenRouter uses the OpenAI chat completions API format with Bearer token auth:
-        POST /chat/completions
-        Authorization: Bearer <api_key>
+        Build OpenAI-compatible chat completions request.
 
         Args:
-            model: Model identifier (e.g., "anthropic/claude-3.5-sonnet", "openai/gpt-4")
+            model: Model identifier
             prompt: The prompt to send
 
         Returns:
@@ -37,44 +48,32 @@ class OpenRouterAdapter(BaseHTTPAdapter):
         """
         endpoint = "/chat/completions"
 
-        headers = {
+        headers: dict[str, str] = {
             "Content-Type": "application/json",
-            "Authorization": f"Bearer {self.api_key}",
         }
 
-        # Convert prompt to OpenAI chat format
-        # max_tokens: 4096 ensures responses aren't truncated
-        # Some models default to very low token limits
-        body = {
+        # Only include Authorization header when api_key is set
+        if self.api_key:
+            headers["Authorization"] = f"Bearer {self.api_key}"
+
+        body: dict = {
             "model": model,
             "messages": [{"role": "user", "content": prompt}],
-            "stream": False,  # Use non-streaming for simplicity
-            "max_tokens": 4096,  # Prevent truncation - models need ~2000-4000 for votes
+            "stream": False,
         }
+
+        # Only include max_tokens if configured
+        if self.default_max_tokens is not None:
+            body["max_tokens"] = self.default_max_tokens
 
         return (endpoint, headers, body)
 
     def parse_response(self, response_json: dict) -> str:
         """
-        Parse OpenRouter API response (OpenAI format).
-
-        OpenRouter returns OpenAI-compatible chat completions format:
-        {
-          "id": "gen-abc123",
-          "model": "anthropic/claude-3.5-sonnet",
-          "created": 1234567890,
-          "choices": [{
-            "index": 0,
-            "message": {
-              "role": "assistant",
-              "content": "The model's response"
-            },
-            "finish_reason": "stop"
-          }]
-        }
+        Parse OpenAI-compatible chat completions response.
 
         Args:
-            response_json: Parsed JSON response from OpenRouter
+            response_json: Parsed JSON response
 
         Returns:
             Extracted response text from first choice
@@ -85,12 +84,12 @@ class OpenRouterAdapter(BaseHTTPAdapter):
         """
         if "choices" not in response_json:
             raise KeyError(
-                f"OpenRouter response missing 'choices' field. "
+                f"{self.provider_name} response missing 'choices' field. "
                 f"Received keys: {list(response_json.keys())}"
             )
 
         if len(response_json["choices"]) == 0:
-            raise IndexError("OpenRouter response has empty 'choices' array")
+            raise IndexError(f"{self.provider_name} response has empty 'choices' array")
 
         choice = response_json["choices"][0]
 
@@ -99,13 +98,13 @@ class OpenRouterAdapter(BaseHTTPAdapter):
         if finish_reason == "length":
             model = response_json.get("model", "unknown")
             logger.warning(
-                f"OpenRouter response truncated (finish_reason='length') for model {model}. "
+                f"{self.provider_name} response truncated (finish_reason='length') for model {model}. "
                 f"Consider increasing max_tokens or using a model with higher limits."
             )
 
         if "message" not in choice:
             raise KeyError(
-                f"OpenRouter choice missing 'message' field. "
+                f"{self.provider_name} choice missing 'message' field. "
                 f"Received keys: {list(choice.keys())}"
             )
 
@@ -113,8 +112,40 @@ class OpenRouterAdapter(BaseHTTPAdapter):
 
         if "content" not in message:
             raise KeyError(
-                f"OpenRouter message missing 'content' field. "
+                f"{self.provider_name} message missing 'content' field. "
                 f"Received keys: {list(message.keys())}"
             )
 
         return message["content"]
+
+
+class OpenRouterAdapter(OpenAIChatCompletionsAdapter):
+    """
+    Adapter for OpenRouter API.
+
+    OpenRouter provides access to multiple LLM providers through a unified
+    OpenAI-compatible API with authentication.
+
+    API Reference: https://openrouter.ai/docs
+    Default endpoint: https://openrouter.ai/api/v1
+    """
+
+    provider_name = "OpenRouter"
+    # OpenRouter benefits from explicit max_tokens to prevent truncation
+    default_max_tokens = 4096
+
+
+class NebiusAdapter(OpenAIChatCompletionsAdapter):
+    """
+    Adapter for Nebius Token Factory API.
+
+    Nebius Token Factory exposes an OpenAI-compatible chat completions
+    endpoint for various open-source and proprietary models.
+
+    API Reference: https://docs.tokenfactory.nebius.com
+    Default endpoint: https://api.tokenfactory.nebius.com/v1
+    """
+
+    provider_name = "Nebius"
+    # Nebius: omit max_tokens to use model defaults
+    default_max_tokens = None
