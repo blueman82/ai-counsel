@@ -107,11 +107,12 @@ With local models, you can:
 | **LM Studio** | GUI-based model runner with OpenAI-compatible API | Non-technical users, Windows |
 | **llama.cpp** | High-performance C++ inference engine | Advanced users, maximum performance |
 
-### Cloud Router (Pay-per-Use)
+### Cloud Inference (Pay-per-Use)
 
 | Platform | Description | Best For |
 |----------|-------------|----------|
 | **OpenRouter** | Unified API for 200+ models (GPT-4, Claude, Llama, etc.) | Accessing premium models, fallback |
+| **Nebius** | High-performance inference for large models (DeepSeek, Qwen, Llama) | Reasoning models, large open-source models |
 
 ### Recommended Setup: Hybrid Approach
 
@@ -377,6 +378,23 @@ For access to 200+ models (GPT-4, Claude, Llama, etc.) when local isn't enough:
 
 **Next steps:** [OpenRouter Guide](openrouter-guide.md)
 
+### Option 5: Nebius (Large Models)
+
+For powerful reasoning models and large open-source models (DeepSeek, Qwen, Llama 405B):
+
+```bash
+# Set your API key
+export NEBIUS_API_KEY="your-api-key-here"
+
+# Test it works
+curl https://api.tokenfactory.nebius.com/v1/chat/completions \
+  -H "Authorization: Bearer $NEBIUS_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"model":"meta-llama/Llama-3.3-70B-Instruct","messages":[{"role":"user","content":"Hello"}]}'
+```
+
+**Next steps:** [Nebius Quickstart Guide](nebius-quickstart.md)
+
 ---
 
 ## Example: Complete Workflow
@@ -467,6 +485,7 @@ Common issues and solutions:
 - **[LM Studio Quickstart](lmstudio-quickstart.md)** - GUI-based local model setup
 - **[llama.cpp Quickstart](llamacpp-quickstart.md)** - High-performance C++ inference
 - **[OpenRouter Guide](openrouter-guide.md)** - Access 200+ cloud models
+- **[Nebius Quickstart](nebius-quickstart.md)** - Large reasoning models (DeepSeek, Qwen)
 - **[Troubleshooting](../troubleshooting/http-adapters.md)** - Diagnose and fix common issues
 
 ---
