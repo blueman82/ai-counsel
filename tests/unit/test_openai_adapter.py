@@ -59,6 +59,15 @@ class TestOpenAIAdapter:
         assert adapter._is_responses_api_model("gpt-4-turbo") is False
         assert adapter._is_responses_api_model("gpt-3.5-turbo") is False
 
+    def test_is_responses_api_model_boundaries(self):
+        """Boundary checks for Responses API model detection."""
+        adapter = OpenAIAdapter(base_url="https://api.openai.com/v1", api_key="sk-test")
+
+        assert adapter._is_responses_api_model("o1") is True
+        assert adapter._is_responses_api_model("o1-pro") is True
+        assert adapter._is_responses_api_model("gpt-4o1") is False
+        assert adapter._is_responses_api_model("co3") is False
+
     def test_build_request_chat_completions(self):
         """Test build_request for GPT models uses Chat Completions API."""
         adapter = OpenAIAdapter(

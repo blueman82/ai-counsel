@@ -82,7 +82,10 @@ class OpenAIAdapter(OpenAIChatCompletionsAdapter):
         Returns:
             True if model should use Responses API, False for Chat Completions
         """
-        return any(model.startswith(prefix) for prefix in self.responses_api_prefixes)
+        return any(
+            model == prefix or model.startswith(f"{prefix}-")
+            for prefix in self.responses_api_prefixes
+        )
 
     def build_request(
         self, model: str, prompt: str
