@@ -6,6 +6,30 @@ from adapters.openrouter import OpenAIChatCompletionsAdapter
 
 logger = logging.getLogger(__name__)
 
+
+class IncompleteResponseError(Exception):
+    """Raised when a response is truncated due to token limits.
+
+    This exception is raised when the OpenAI API returns status='incomplete',
+    indicating the response was cut off before completion. This typically occurs
+    when max_output_tokens or max_completion_tokens limits are reached.
+
+    Attributes:
+        content: The truncated response content that was received
+        reason: The reason for incompleteness (e.g., 'max_output_tokens')
+        model: The model that produced the incomplete response
+    """
+
+    def __init__(self, content: str, reason: str, model: str = "unknown"):
+        self.content = content
+        self.reason = reason
+        self.model = model
+        super().__init__(
+            f"Response incomplete for model {model}: {reason}. "
+            f"Received {len(content)} characters of truncated content."
+        )
+
+
 # Default prefixes for models that use the Responses API
 DEFAULT_RESPONSES_API_PREFIXES: List[str] = ["o1", "o3"]
 
@@ -149,6 +173,7 @@ class OpenAIAdapter(OpenAIChatCompletionsAdapter):
         Raises:
             KeyError: If response doesn't contain expected fields
             IndexError: If output/choices array is empty
+            IncompleteResponseError: If response status is 'incomplete' (truncated)
         """
         # Responses API format (o3/o1 models) - check for "output" or "output_text" key
         if "output" in response_json or "output_text" in response_json:
@@ -179,14 +204,44 @@ class OpenAIAdapter(OpenAIChatCompletionsAdapter):
         Raises:
             IndexError: If output array is empty
             KeyError: If no text content can be extracted
+            IncompleteResponseError: If response status is 'incomplete' (truncated)
         """
+        status = response_json.get("status", "unknown")
+        model = response_json.get("model", "unknown")
+
+        def _handle_status(content: str) -> str:
+            if status == "incomplete":
+                incomplete_reason = response_json.get(
+                    "incomplete_details", {}
+                ).get("reason", "unknown")
+                logger.warning(
+                    f"{self.provider_name} response incomplete (status='incomplete', "
+                    f"reason='{incomplete_reason}') for model {model}. "
+                    f"Consider increasing max_output_tokens or checking input length."
+                )
+                raise IncompleteResponseError(
+                    content=content,
+                    reason=incomplete_reason,
+                    model=model,
+                )
+            if status == "failed":
+                error_info = response_json.get("error", {})
+                logger.warning(
+                    f"{self.provider_name} response failed (status='failed') for model {model}. "
+                    f"Error: {error_info}"
+                )
+            return content
+
         # Check for output_text shortcut (common in newer API versions)
         if "output_text" in response_json:
-            return response_json["output_text"]
+            return _handle_status(response_json["output_text"])
 
         output = response_json.get("output", [])
 
         if len(output) == 0:
+            # Treat empty output with incomplete status as truncation
+            if status == "incomplete":
+                return _handle_status("")
             raise IndexError(f"{self.provider_name} response has empty 'output' array")
 
         # Collect all text from output items
@@ -220,28 +275,11 @@ class OpenAIAdapter(OpenAIChatCompletionsAdapter):
             logger.debug(
                 f"{self.provider_name} Responses API: extracted {len(texts)} text block(s)"
             )
+            return _handle_status(result)
 
-            # Log warning if response status indicates incomplete or failed
-            status = response_json.get("status", "unknown")
-            if status == "incomplete":
-                model = response_json.get("model", "unknown")
-                incomplete_reason = response_json.get(
-                    "incomplete_details", {}
-                ).get("reason", "unknown")
-                logger.warning(
-                    f"{self.provider_name} response incomplete (status='incomplete', "
-                    f"reason='{incomplete_reason}') for model {model}. "
-                    f"Consider increasing max_output_tokens or checking input length."
-                )
-            elif status == "failed":
-                model = response_json.get("model", "unknown")
-                error_info = response_json.get("error", {})
-                logger.warning(
-                    f"{self.provider_name} response failed (status='failed') for model {model}. "
-                    f"Error: {error_info}"
-                )
-
-            return result
+        # If no text extracted but response reports incomplete, surface it
+        if status == "incomplete":
+            return _handle_status("")
 
         # Log warning with summarized structure for debugging
         output_types = [item.get("type", "unknown") for item in output[:5]]

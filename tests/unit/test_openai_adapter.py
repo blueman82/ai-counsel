@@ -6,7 +6,7 @@ API References:
 """
 import pytest
 
-from adapters.openai import OpenAIAdapter
+from adapters.openai import IncompleteResponseError, OpenAIAdapter
 
 
 class TestOpenAIAdapter:
@@ -517,3 +517,191 @@ class TestOpenAIAdapterMaxCompletionTokens:
         assert endpoint == "/responses"
         assert body["max_output_tokens"] == 16384
         assert "max_completion_tokens" not in body
+
+
+class TestIncompleteResponseHandling:
+    """Tests for IncompleteResponseError when response is truncated."""
+
+    def test_incomplete_response_raises_exception(self):
+        """Test that status='incomplete' raises IncompleteResponseError."""
+        adapter = OpenAIAdapter(base_url="https://api.openai.com/v1", api_key="sk-test")
+
+        response_json = {
+            "id": "resp-123",
+            "model": "o3-pro",
+            "status": "incomplete",
+            "incomplete_details": {"reason": "max_output_tokens"},
+            "output": [
+                {
+                    "type": "message",
+                    "content": [{"type": "text", "text": "Truncated content here..."}],
+                }
+            ],
+        }
+
+        with pytest.raises(IncompleteResponseError) as exc_info:
+            adapter.parse_response(response_json)
+
+        error = exc_info.value
+        assert error.content == "Truncated content here..."
+        assert error.reason == "max_output_tokens"
+        assert error.model == "o3-pro"
+        assert "incomplete" in str(error).lower()
+
+    def test_incomplete_response_with_unknown_reason(self):
+        """Test IncompleteResponseError with missing incomplete_details."""
+        adapter = OpenAIAdapter(base_url="https://api.openai.com/v1", api_key="sk-test")
+
+        response_json = {
+            "id": "resp-456",
+            "model": "o3",
+            "status": "incomplete",
+            # No incomplete_details provided
+            "output": [{"type": "message", "content": "Partial..."}],
+        }
+
+        with pytest.raises(IncompleteResponseError) as exc_info:
+            adapter.parse_response(response_json)
+
+        error = exc_info.value
+        assert error.reason == "unknown"
+        assert error.content == "Partial..."
+
+    def test_incomplete_response_with_output_text_raises(self):
+        """Test status='incomplete' still raises when using output_text shortcut."""
+        adapter = OpenAIAdapter(base_url="https://api.openai.com/v1", api_key="sk-test")
+
+        response_json = {
+            "id": "resp-output-text",
+            "model": "o3-pro",
+            "status": "incomplete",
+            "incomplete_details": {"reason": "max_output_tokens"},
+            "output_text": "Truncated via output_text",
+        }
+
+        with pytest.raises(IncompleteResponseError) as exc_info:
+            adapter.parse_response(response_json)
+
+        error = exc_info.value
+        assert error.content == "Truncated via output_text"
+        assert error.reason == "max_output_tokens"
+        assert error.model == "o3-pro"
+
+    def test_incomplete_response_with_empty_output_raises(self):
+        """Test empty output array with status='incomplete' raises IncompleteResponseError."""
+        adapter = OpenAIAdapter(base_url="https://api.openai.com/v1", api_key="sk-test")
+
+        response_json = {
+            "id": "resp-empty-output",
+            "model": "o3-mini",
+            "status": "incomplete",
+            "incomplete_details": {"reason": "length"},
+            "output": [],
+        }
+
+        with pytest.raises(IncompleteResponseError) as exc_info:
+            adapter.parse_response(response_json)
+
+        error = exc_info.value
+        assert error.content == ""
+        assert error.reason == "length"
+        assert error.model == "o3-mini"
+
+    def test_completed_response_does_not_raise(self):
+        """Test that status='completed' returns content normally."""
+        adapter = OpenAIAdapter(base_url="https://api.openai.com/v1", api_key="sk-test")
+
+        response_json = {
+            "id": "resp-789",
+            "model": "o3-pro",
+            "status": "completed",
+            "output": [
+                {
+                    "type": "message",
+                    "content": [{"type": "text", "text": "Complete response."}],
+                }
+            ],
+        }
+
+        result = adapter.parse_response(response_json)
+        assert result == "Complete response."
+
+    def test_response_without_status_does_not_raise(self):
+        """Test that response without status field returns content normally."""
+        adapter = OpenAIAdapter(base_url="https://api.openai.com/v1", api_key="sk-test")
+
+        response_json = {
+            "id": "resp-abc",
+            "model": "o3",
+            "output_text": "Response without explicit status.",
+        }
+
+        result = adapter.parse_response(response_json)
+        assert result == "Response without explicit status."
+
+    def test_incomplete_response_exception_attributes(self):
+        """Test IncompleteResponseError has correct attributes."""
+        error = IncompleteResponseError(
+            content="Truncated text",
+            reason="max_output_tokens",
+            model="o3-pro",
+        )
+
+        assert error.content == "Truncated text"
+        assert error.reason == "max_output_tokens"
+        assert error.model == "o3-pro"
+        assert "o3-pro" in str(error)
+        assert "max_output_tokens" in str(error)
+        assert "14" in str(error)  # len("Truncated text")
+
+    def test_incomplete_response_default_model(self):
+        """Test IncompleteResponseError with default model value."""
+        error = IncompleteResponseError(
+            content="Some content",
+            reason="length_limit",
+        )
+
+        assert error.model == "unknown"
+        assert "unknown" in str(error)
+
+    def test_failed_response_returns_content_with_warning(self):
+        """Test that status='failed' returns content normally (logs warning).
+
+        Note: Unlike status='incomplete' which raises IncompleteResponseError,
+        status='failed' only logs a warning and returns whatever content was
+        extracted. This is intentional as failed responses may still contain
+        useful partial information, and the error details are logged for debugging.
+        """
+        adapter = OpenAIAdapter(base_url="https://api.openai.com/v1", api_key="sk-test")
+
+        response_json = {
+            "id": "resp-failed",
+            "model": "o3-pro",
+            "status": "failed",
+            "error": {"code": "server_error", "message": "Internal error"},
+            "output": [
+                {
+                    "type": "message",
+                    "content": [{"type": "text", "text": "Partial content before failure."}],
+                }
+            ],
+        }
+
+        # Should return content, not raise (warning is logged)
+        result = adapter.parse_response(response_json)
+        assert result == "Partial content before failure."
+
+    def test_failed_response_with_output_text_returns_content(self):
+        """Test that status='failed' with output_text returns content."""
+        adapter = OpenAIAdapter(base_url="https://api.openai.com/v1", api_key="sk-test")
+
+        response_json = {
+            "id": "resp-failed-text",
+            "model": "o3",
+            "status": "failed",
+            "error": {"code": "timeout"},
+            "output_text": "Content before timeout.",
+        }
+
+        result = adapter.parse_response(response_json)
+        assert result == "Content before timeout."
