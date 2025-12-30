@@ -305,6 +305,40 @@ model_registry:
       label: "Qwen 2.5 72B (OpenRouter)"
       tier: "general"
       enabled: true
+    # ===== Google Gemini Models =====
+    - id: "google/gemini-2.5-pro"
+      label: "Gemini 2.5 Pro (OpenRouter)"
+      tier: "premium"
+      enabled: true
+    - id: "google/gemini-3-pro-preview"
+      label: "Gemini 3 Pro Preview (OpenRouter)"
+      tier: "premium"
+      enabled: true
+    - id: "google/gemini-2.5-flash"
+      label: "Gemini 2.5 Flash (OpenRouter)"
+      tier: "balanced"
+      enabled: true
+    - id: "google/gemini-3-flash-preview"
+      label: "Gemini 3 Flash Preview (OpenRouter)"
+      tier: "speed"
+      enabled: true
+    # ===== xAI Grok Models =====
+    - id: "x-ai/grok-4"
+      label: "Grok 4 (OpenRouter)"
+      tier: "premium"
+      enabled: true
+    - id: "x-ai/grok-3"
+      label: "Grok 3 (OpenRouter)"
+      tier: "balanced"
+      enabled: true
+    - id: "x-ai/grok-4.1-fast"
+      label: "Grok 4.1 Fast (OpenRouter)"
+      tier: "speed"
+      enabled: true
+    - id: "x-ai/grok-code-fast-1"
+      label: "Grok Code Fast (OpenRouter)"
+      tier: "speed"
+      enabled: true
     # ===== FREE MODELS (Zero Cost) =====
     - id: "meta-llama/llama-3.3-70b-instruct:free"
       label: "Llama 3.3 70B FREE (slow)"
