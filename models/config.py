@@ -76,9 +76,46 @@ class HTTPAdapterConfig(BaseModel):
         return result
 
 
+class OpenAIAdapterConfig(HTTPAdapterConfig):
+    """Configuration for OpenAI HTTP adapter with Responses API support.
+
+    Extends HTTPAdapterConfig with OpenAI-specific settings for routing
+    models to the correct API endpoint and controlling output length.
+    """
+
+    type: Literal["openai"] = Field(
+        default="openai",
+        description="The type discriminator for the OpenAI adapter.",
+    )
+    responses_api_prefixes: List[str] = Field(
+        default=["o1", "o3"],
+        description=(
+            "Model name prefixes that use the Responses API instead of Chat Completions. "
+            "Models starting with these prefixes are routed to /responses endpoint."
+        ),
+    )
+    max_output_tokens: Optional[int] = Field(
+        default=None,
+        description=(
+            "Maximum output tokens for Responses API requests. "
+            "If None, uses OpenAI's model-specific defaults. "
+            "Only applies to o1/o3 models using the Responses API."
+        ),
+    )
+    max_completion_tokens: Optional[int] = Field(
+        default=None,
+        description=(
+            "Maximum completion tokens for Chat Completions API requests. "
+            "If None, uses OpenAI's model-specific defaults. "
+            "Only applies to GPT models using the Chat Completions API."
+        ),
+    )
+
+
 # Discriminated union - Pydantic uses 'type' field to determine which model to use
 AdapterConfig = Annotated[
-    Union[CLIAdapterConfig, HTTPAdapterConfig], Field(discriminator="type")
+    Union[CLIAdapterConfig, HTTPAdapterConfig, OpenAIAdapterConfig],
+    Field(discriminator="type"),
 ]
 
 

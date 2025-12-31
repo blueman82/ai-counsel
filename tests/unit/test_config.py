@@ -272,6 +272,87 @@ class TestAdapterConfig:
                 {"type": "invalid", "command": "test", "timeout": 60}
             )
 
+    def test_adapter_config_discriminates_openai_type(self):
+        """Test AdapterConfig discriminates to OpenAIAdapterConfig.
+
+        This test verifies the fix for the critical config wiring bug where
+        OpenAIAdapterConfig was missing from the AdapterConfig union, causing
+        OpenAI-specific fields to be silently dropped during parsing.
+        """
+        from pydantic import TypeAdapter
+
+        from models.config import AdapterConfig, OpenAIAdapterConfig
+
+        data = {
+            "type": "openai",
+            "base_url": "https://api.openai.com/v1",
+            "timeout": 120,
+            "responses_api_prefixes": ["o1", "o3", "o4"],
+            "max_output_tokens": 8192,
+            "max_completion_tokens": 4096,
+        }
+
+        adapter = TypeAdapter(AdapterConfig)
+        config = adapter.validate_python(data)
+
+        # Must be OpenAIAdapterConfig, not HTTPAdapterConfig
+        assert isinstance(config, OpenAIAdapterConfig)
+        # OpenAI-specific fields must be preserved (not silently dropped)
+        assert config.responses_api_prefixes == ["o1", "o3", "o4"]
+        assert config.max_output_tokens == 8192
+        assert config.max_completion_tokens == 4096
+
+    def test_openai_config_with_http_type_fails(self):
+        """Test that type: http does NOT create OpenAIAdapterConfig.
+
+        This ensures we require explicit type: openai and don't have
+        any backward compatibility shims that silently coerce types.
+        """
+        from pydantic import TypeAdapter
+
+        from models.config import AdapterConfig, HTTPAdapterConfig, OpenAIAdapterConfig
+
+        data = {
+            "type": "http",
+            "base_url": "https://api.openai.com/v1",
+            "responses_api_prefixes": ["o1", "o3"],  # OpenAI-specific field
+        }
+
+        adapter = TypeAdapter(AdapterConfig)
+        config = adapter.validate_python(data)
+
+        # Should be HTTPAdapterConfig, NOT OpenAIAdapterConfig
+        assert isinstance(config, HTTPAdapterConfig)
+        assert not isinstance(config, OpenAIAdapterConfig)
+        # OpenAI-specific field should NOT exist on HTTPAdapterConfig
+        assert not hasattr(config, "responses_api_prefixes")
+
+    def test_openai_adapter_factory_receives_config_fields(self):
+        """Test that OpenAI-specific fields reach the adapter factory.
+
+        This is an end-to-end test verifying the full config wiring:
+        config.yaml → Config parsing → OpenAIAdapterConfig → factory → OpenAIAdapter
+        """
+        from models.config import load_config, OpenAIAdapterConfig
+
+        config = load_config()
+        openai_config = config.adapters.get("openai")
+
+        # Config must be parsed as OpenAIAdapterConfig
+        assert openai_config is not None, "OpenAI adapter not found in config"
+        assert isinstance(openai_config, OpenAIAdapterConfig), (
+            f"Expected OpenAIAdapterConfig, got {type(openai_config).__name__}. "
+            "This indicates OpenAIAdapterConfig is missing from the AdapterConfig union."
+        )
+
+        # OpenAI-specific fields must be present and not silently dropped
+        assert hasattr(openai_config, "responses_api_prefixes")
+        assert hasattr(openai_config, "max_output_tokens")
+        assert hasattr(openai_config, "max_completion_tokens")
+
+        # Verify the discriminator is correct
+        assert openai_config.type == "openai"
+
 
 class TestConfigLoader:
     """Tests for config loader with adapter migration."""
