@@ -327,6 +327,7 @@ storage:
 
 mcp:
   max_rounds_in_response: 3
+  response_timeout: 300  # 5 min - enough for reasoning models
 
 deliberation:
   convergence_detection:
