@@ -1,190 +1,147 @@
 # ai-counsel/config.yaml
-version: "1.0"
+version: "1.1"
 
-cli_tools:
+adapters:
+  # CLI Adapters
   claude:
-    command: "claude"
-    args:
-      [
-        "-p",
-        "--model",
-        "{model}",
-        "--settings",
-        '{{"disableAllHooks": true}}',
-        "{prompt}",
-      ]
-    timeout: 60  # Reduced from 300s for faster fail-fast (MCP timeout provides overall protection)
-    # Valid models: "sonnet", "opus", "haiku" or full names like "claude-opus-4-5-20251101", "claude-sonnet-4-5-20250929"
-    # Note: -p flag is auto-removed during deliberations for full engagement
+    type: cli
+    command: "node"
+    args: ["C:\\Users\\btf\\AppData\\Roaming\\npm\\node_modules\\@anthropic-ai\\claude-code\\cli.js", "-p", "--model", "{model}", "--settings", "{{\"disableAllHooks\": true}}", "{prompt}"]
+    timeout: 300
 
   codex:
-    command: "codex"
-    args:
-      [
-        "exec",
-        "--skip-git-repo-check",
-        "--sandbox",
-        "workspace-write",
-        "--model",
-        "{model}",
-        "-c",
-        'model_reasoning_effort="{reasoning_effort}"',
-        "{prompt}",
-      ]
-    timeout: 90  # Reduced from 300s - reasoning models need more time but not 5 minutes
-    default_reasoning_effort: "medium"
-  # Valid models: "gpt-5.2-codex", "gpt-5.1-codex-max", "gpt-5.1-codex-mini", "gpt-5.2"
-    #
-    # Reasoning Effort Levels:
-    # - low: Fast responses with lighter reasoning
-    # - medium: Balances speed and reasoning depth (default)
-    # - high: Maximizes reasoning depth for complex problems
-    # - extra-high: Maximum depth (warning: consumes rate limits quickly)
-    #
-    # The {reasoning_effort} placeholder is replaced with default_reasoning_effort
-    # unless overridden per-participant:
-    #   Participant(cli="codex", model="gpt-5.1-codex", reasoning_effort="high")
-    #
-    # Security Configuration:
-    # - --skip-git-repo-check: Allows running outside git repositories
-    # - --sandbox workspace-write: Allows reads anywhere, writes only in workspace (/tmp included)
-    # - --model {model}: Specifies which model to use for the deliberation
-    # Note: This configuration enables evidence-based deliberation tools while maintaining security
-
-  droid:
-    command: "droid"
-    args: ["exec", "-m", "{model}", "-r", "{reasoning_effort}", "{prompt}"]
-    timeout: 90  # Reduced from 300s - reasoning models need more time but not 5 minutes
-    default_reasoning_effort: "medium"
-    # VALID MODEL IDS: "claude-opus-4-5-20251101", "claude-sonnet-4-5-20250929", "gpt-5.1-codex", "gpt-5.1", "glm-4.6"
-    # Note: Use model IDs (not labels). See model_registry.droid section below for full list
-    #
-    # Reasoning Effort Levels (-r flag):
-    # - off/none: No extended reasoning
-    # - low: Light reasoning
-    # - medium: Balanced reasoning (default)
-    # - high: Deep reasoning for complex problems
-    # Note: GLM-4.6 does not support reasoning effort
-    #
-    # The {reasoning_effort} placeholder is replaced with default_reasoning_effort
-    # unless overridden per-participant:
-    #   Participant(cli="droid", model="claude-opus-4-5-20251101", reasoning_effort="high")
-    #
-    # Adaptive Permission Strategy (Graceful Degradation):
-    # The Droid adapter automatically handles permission levels without manual configuration.
-    # If a permission error occurs (e.g., "insufficient permission to proceed"), the adapter
-    # will automatically retry with higher permission levels:
-    #   1. First attempt: --auto low (basic file reading, safe for text generation)
-    #   2. If fails: --auto medium (allows network/git operations for context)
-    #   3. If fails: --auto high (allows production operations if needed)
-    # This ensures deliberations work seamlessly regardless of Droid's permission requirements.
+    type: cli
+    command: "node"
+    args: ["C:\\Users\\btf\\AppData\\Roaming\\npm\\node_modules\\@openai\\codex\\bin\\codex.js", "exec", "--skip-git-repo-check", "--sandbox", "workspace-write", "--model", "{model}", "{prompt}"]
+    timeout: 300
 
   gemini:
-    command: "gemini"
-    args:
-      [
-        "-m",
-        "{model}",
-        "-p",
-        "{prompt}",
-      ]
-    timeout: 60  # Reduced from 300s - Gemini is generally fast
-    # Valid models: "gemini-2.5-pro" (default) or other Gemini identifiers
-    #
-    # Working Directory Configuration:
-    # - Subprocess runs from {working_directory} (set via cwd)
-    # - Gemini CLI removed --include-directories flag in recent update
-    # Note: If file access issues occur, check Gemini's workspace settings
+    type: cli
+    command: "node"
+    args: ["C:\\Users\\btf\\AppData\\Roaming\\npm\\node_modules\\@google\\gemini-cli\\dist\\index.js", "--allowed-mcp-server-names", "none", "-m", "{model}", "-p", "{prompt}"]
+    timeout: 300
 
-  llamacpp:
-    command: "llama-cli"
-    args: ["-m", "{model}", "-p", "{prompt}", "-n", "2048", "-c", "4096"]
-    timeout: 120  # Reduced from 300s - local models can be slow but not 5 minutes
-    # llama.cpp is a fast, lightweight LLM inference engine for running models locally
-    #
-    # AUTO-DISCOVERY:
-    # You can now use model names instead of full paths!
-    # Examples:
-    #   - "llama-3-8b" (finds Llama-3-8B-*.gguf) ✅ Recommended for deliberations
-    #   - "mistral-7b" (finds Mistral-7B-*.gguf) ✅ Recommended for deliberations
-    #   - "qwen-2.5-7b" (finds Qwen-2.5-7B-*.gguf) ✅ Recommended for deliberations
-    #   - "llama-3.2-1b" (finds Llama-3.2-1B-*.gguf) ⚠️ Too small, use for testing only
-    #   - "/full/path/to/model.gguf" (still works)
-    #
-    # Model Size Recommendations:
-    #   - Minimum 7B-8B parameters for reliable structured output
-    #   - Smaller models (<3B) struggle with vote formatting
-    #
-    # Search paths (in order):
-    #   1. $LLAMA_CPP_MODEL_PATH (colon-separated paths)
-    #   2. ~/.cache/llama.cpp/models
-    #   3. ~/models
-    #   4. ~/llama.cpp/models
-    #   5. /usr/local/share/llama.cpp/models
-    #   6. ~/.ollama/models
-    #   7. ~/.lmstudio/models
-    #
-    # Common args:
-    #   -m: model path (REQUIRED - use {model} placeholder)
-    #   -p: prompt text (REQUIRED - use {prompt} placeholder)
-    #   -n: number of tokens to predict (default: 128, recommended: 2048+ for deliberations)
-    #   -c: context size (default: 512, recommended: 4096+ for deliberations)
-    #   -t: threads (default: auto, e.g., "-t", "8")
-    #   --temp: temperature (e.g., "--temp", "0.7")
-    #
-    # Download models from https://huggingface.co/models?library=gguf
-    # Build llama.cpp: https://github.com/ggerganov/llama.cpp
-
-# HTTP Adapters Section (new format)
-adapters:
-  ollama:
-    type: http
-    base_url: "http://localhost:11434"
-    timeout: 120  # Local models - reduced from 300s
-    max_retries: 3
-    # Valid models: llama2, mistral, codellama, qwen, etc.
-    # Run 'ollama list' to see available models
-    # Ollama is a local LLM runtime - no API key needed
-  #
+  # HTTP Adapters
   lmstudio:
     type: http
-    base_url: "http://localhost:1234"
-    timeout: 120  # Local models - reduced from 300s
+    base_url: "http://127.0.0.1:1234"
+    timeout: 300
     max_retries: 3
-    # Valid models: any model loaded in LM Studio
-    # LM Studio provides OpenAI-compatible API
-    # No API key needed for local instance
+    # LM Studio local server - OpenAI-compatible API
 
-  openrouter:
+  nvmdapi:
     type: http
-    base_url: "https://openrouter.ai/api/v1"
-    api_key: "${OPENROUTER_API_KEY}" # Environment variable from .env file
-    timeout: 30  # CRITICAL: Free models can hang - reduced to 30s for fast fail-fast
-    max_retries: 2  # Reduced from 3 - fail faster
-    # Valid models: anthropic/claude-3.5-sonnet, openai/gpt-4, meta-llama/llama-3.1-8b-instruct, etc.
-    # See https://openrouter.ai/docs for full model list
-    # Requires API key from https://openrouter.ai/keys
-    # WARNING: Free models (tier: free-fast) may not respond - use paid models for reliability
-
-  nebius:
-    type: http
-    base_url: "https://api.tokenfactory.nebius.com/v1"
-    api_key: "${NEBIUS_API_KEY}" # Environment variable from .env file
-    timeout: 600  # 10 minutes for large models (DeepSeek V3, Qwen 235B, etc.)
+    base_url: "https://api.loc.nv.md/v1"
+    api_key: "yba_gcd3PJE1xfpmrnbrwpmtnqg5pbd0CDAwme9HBW0wer8xfhjnq"
+    timeout: 300
     max_retries: 3
-    # Nebius Token Factory - OpenAI-compatible API
-    # Valid models: meta-llama/Meta-Llama-3.1-70B-Instruct, Qwen/Qwen2.5-72B-Instruct, etc.
-    # See https://docs.tokenfactory.nebius.com for full model list
-    # Requires API key from https://tokenfactory.nebius.com/project/api-keys
+    # nvmd - OpenAI-compatible API
+
+  nvmdapicli:
+    type: http
+    base_url: "https://apicli.loc.nv.md/v1"
+    api_key: "yba_gcd3PJE1xfpmrnbrwpmtnqg5pbd0CDAwme9HBW0wer8xfhjnq"
+    timeout: 300
+    max_retries: 3
+    # nvmd-cli - OpenAI-compatible API (Claude, GPT, Gemini, DeepSeek)
 
 defaults:
   mode: "quick"
   rounds: 2
   max_rounds: 5
-  timeout_per_round: 45  # Reduced from 120s - should be less than adapter timeout
+  timeout_per_round: 300
 
 model_registry:
   claude:
+    - id: "opus"
+      label: "Claude Opus 4"
+      tier: "premium"
+      default: true
+      enabled: true
+    - id: "sonnet"
+      label: "Claude Sonnet 4"
+      tier: "balanced"
+      enabled: true
+    - id: "haiku"
+      label: "Claude Haiku"
+      tier: "speed"
+      enabled: true
+  codex:
+    - id: "gpt-5.2-codex"
+      label: "GPT-5.2 Codex"
+      tier: "flagship"
+      default: true
+      enabled: true
+    - id: "gpt-5.2"
+      label: "GPT-5.2"
+      tier: "flagship"
+      enabled: true
+    - id: "gpt-5.1-codex-max"
+      label: "GPT-5.1 Codex Max"
+      tier: "premium"
+      enabled: true
+    - id: "gpt-5.1-codex-mini"
+      label: "GPT-5.1 Codex Mini"
+      tier: "speed"
+      enabled: true
+  gemini:
+    - id: "gemini-3-pro-preview"
+      label: "Gemini 3 Pro Preview"
+      tier: "premium"
+      default: true
+      enabled: true
+    - id: "gemini-3-flash-preview"
+      label: "Gemini 3 Flash Preview"
+      tier: "balanced"
+      enabled: true
+    - id: "gemini-2.5-pro"
+      label: "Gemini 2.5 Pro"
+      tier: "premium"
+      enabled: true
+    - id: "gemini-2.5-flash"
+      label: "Gemini 2.5 Flash"
+      tier: "balanced"
+      enabled: true
+    - id: "gemini-2.5-flash-lite"
+      label: "Gemini 2.5 Flash Lite"
+      tier: "speed"
+      enabled: true
+  nvmdapi:
+    # nvmd: GPT-5.2 (latest)
+    - id: "gpt-5.2-xhigh"
+      label: "GPT-5.2 (xhigh reasoning)"
+      tier: "flagship"
+      enabled: true
+    - id: "gpt-5.2"
+      label: "GPT-5.2"
+      tier: "flagship"
+      default: true
+      enabled: true
+    - id: "gpt-5.2-medium"
+      label: "GPT-5.2 (medium)"
+      tier: "balanced"
+      enabled: true
+    # GPT-5.1 Codex Max
+    - id: "gpt-5.1-codex-max-xhigh"
+      label: "GPT-5.1 Codex Max (xhigh)"
+      tier: "coding"
+      enabled: true
+    - id: "gpt-5.1-codex-max"
+      label: "GPT-5.1 Codex Max"
+      tier: "coding"
+      enabled: true
+    # Speed
+    - id: "gpt-5.1-codex-mini"
+      label: "GPT-5.1 Codex Mini"
+      tier: "speed"
+      enabled: true
+    - id: "codex-mini"
+      label: "Codex Mini"
+      tier: "speed"
+      enabled: true
+
+  nvmdapicli:
+    # Claude
     - id: "claude-opus-4-5-20251101"
       label: "Claude Opus 4.5"
       tier: "premium"
@@ -198,219 +155,96 @@ model_registry:
       label: "Claude Haiku 4.5"
       tier: "speed"
       enabled: true
-    - id: "claude-opus-4-1-20250805"
-      label: "Claude Opus 4.1"
-      tier: "premium"
-      enabled: false
-  codex:
+    # GPT
+    - id: "gpt-5.2"
+      label: "GPT-5.2"
+      tier: "flagship"
+      enabled: true
     - id: "gpt-5.2-codex"
       label: "GPT-5.2 Codex"
-      tier: "flagship"
-      default: true
+      tier: "coding"
       enabled: true
     - id: "gpt-5.1-codex-max"
       label: "GPT-5.1 Codex Max"
-      tier: "flagship"
-      enabled: true
-    - id: "gpt-5.1-codex-mini"
-      label: "GPT-5.1 Codex Mini"
-      tier: "speed"
-      enabled: true
-    - id: "gpt-5.2"
-      label: "GPT-5.2"
-      tier: "general"
-      enabled: true
-  droid:
-    - id: "claude-opus-4-5-20251101"
-      label: "Claude Opus 4.5 (via Droid)"
-      tier: "premium"
-      default: true
-      enabled: true
-    - id: "claude-sonnet-4-5-20250929"
-      label: "Claude Sonnet 4.5 (via Droid)"
-      tier: "balanced"
-      enabled: true
-    - id: "claude-haiku-4-5-20251001"
-      label: "Claude Haiku 4.5 (via Droid)"
-      tier: "speed"
-      enabled: true
-    - id: "gpt-5.1-codex-max"
-      label: "GPT-5.1 Codex Max (via Droid)"
       tier: "coding"
       enabled: true
-    - id: "gpt-5.1-codex"
-      label: "GPT-5.1 Codex (via Droid)"
-      tier: "coding"
-      enabled: true
-    - id: "gpt-5.2"
-      label: "GPT-5.2 (via Droid)"
-      tier: "general"
-      enabled: true
-    - id: "gpt-5.1"
-      label: "GPT-5.1 (via Droid)"
-      tier: "general"
-      enabled: true
-    - id: "gemini-3-pro-preview"
-      label: "Gemini 3 Pro (via Droid)"
-      tier: "balanced"
-      enabled: true
-    - id: "gemini-3-flash-preview"
-      label: "Gemini 3 Flash (via Droid)"
-      tier: "speed"
-      enabled: true
-    - id: "glm-4.6"
-      label: "Droid Core (GLM-4.6)"
-      tier: "open-source"
-      enabled: true
-    - id: "glm-4.7"
-      label: "Droid Core (GLM-4.7)"
-      tier: "open-source"
-      enabled: true
-  gemini:
+    # Gemini
     - id: "gemini-2.5-pro"
       label: "Gemini 2.5 Pro"
-      tier: "general"
-      default: true
-      enabled: true
-  openrouter:
-    - id: "anthropic/claude-sonnet-4"
-      label: "Claude Sonnet 4 (OpenRouter)"
       tier: "premium"
-      default: true
       enabled: true
-    - id: "anthropic/claude-3.5-sonnet"
-      label: "Claude 3.5 Sonnet (OpenRouter)"
-      tier: "balanced"
+    - id: "gemini-3-pro-preview"
+      label: "Gemini 3 Pro Preview"
+      tier: "premium"
       enabled: true
-    - id: "openai/gpt-4o"
-      label: "GPT-4o (OpenRouter)"
-      tier: "balanced"
-      enabled: true
-    - id: "openai/gpt-4o-mini"
-      label: "GPT-4o Mini (OpenRouter)"
+    - id: "gemini-2.5-flash"
+      label: "Gemini 2.5 Flash"
       tier: "speed"
       enabled: true
-    - id: "google/gemini-2.0-flash-001"
-      label: "Gemini 2.0 Flash (OpenRouter)"
+    - id: "gemini-3-flash-preview"
+      label: "Gemini 3 Flash Preview"
       tier: "speed"
       enabled: true
-    - id: "meta-llama/llama-3.3-70b-instruct"
-      label: "Llama 3.3 70B (OpenRouter)"
-      tier: "general"
-      enabled: true
-    - id: "deepseek/deepseek-r1"
-      label: "DeepSeek R1 (OpenRouter)"
+    # DeepSeek
+    - id: "deepseek-reasoner"
+      label: "DeepSeek Reasoner"
       tier: "reasoning"
       enabled: true
-    - id: "qwen/qwen-2.5-72b-instruct"
-      label: "Qwen 2.5 72B (OpenRouter)"
-      tier: "general"
-      enabled: true
-    # ===== Google Gemini Models =====
-    - id: "google/gemini-2.5-pro"
-      label: "Gemini 2.5 Pro (OpenRouter)"
-      tier: "premium"
-      enabled: true
-    - id: "google/gemini-3-pro-preview"
-      label: "Gemini 3 Pro Preview (OpenRouter)"
-      tier: "premium"
-      enabled: true
-    - id: "google/gemini-2.5-flash"
-      label: "Gemini 2.5 Flash (OpenRouter)"
+    - id: "deepseek-chat"
+      label: "DeepSeek Chat"
       tier: "balanced"
       enabled: true
-    - id: "google/gemini-3-flash-preview"
-      label: "Gemini 3 Flash Preview (OpenRouter)"
-      tier: "speed"
-      enabled: true
-    # ===== xAI Grok Models =====
-    - id: "x-ai/grok-4"
-      label: "Grok 4 (OpenRouter)"
-      tier: "premium"
-      enabled: true
-    - id: "x-ai/grok-3"
-      label: "Grok 3 (OpenRouter)"
-      tier: "balanced"
-      enabled: true
-    - id: "x-ai/grok-4.1-fast"
-      label: "Grok 4.1 Fast (OpenRouter)"
-      tier: "speed"
-      enabled: true
-    - id: "x-ai/grok-code-fast-1"
-      label: "Grok Code Fast (OpenRouter)"
-      tier: "speed"
-      enabled: true
-    # ===== FREE MODELS (Zero Cost) =====
-    - id: "meta-llama/llama-3.3-70b-instruct:free"
-      label: "Llama 3.3 70B FREE (slow)"
-      tier: "free"
-      enabled: false  # Disabled - too slow (70B params)
-    - id: "mistralai/mistral-small-3.1-24b-instruct:free"
-      label: "Mistral Small 24B FREE"
-      tier: "free-fast"
-      enabled: true
-    - id: "google/gemma-3-27b-it:free"
-      label: "Gemma 3 27B FREE"
-      tier: "free-fast"
-      enabled: true
-    - id: "meta-llama/llama-4-scout:free"
-      label: "Llama 4 Scout FREE (17B active)"
-      tier: "free-fast"
-      enabled: true
-    - id: "qwen/qwen3-32b:free"
-      label: "Qwen 3 32B FREE"
-      tier: "free-fast"
-      enabled: true
-    # ===== ULTRA-FAST CHEAP MODELS =====
-    - id: "google/gemini-2.5-flash-preview-05-20"
-      label: "Gemini 2.5 Flash Preview"
-      tier: "speed"
-      enabled: true
-  nebius:
-    - id: "meta-llama/Llama-3.3-70B-Instruct"
-      label: "Llama 3.3 70B"
-      tier: "balanced"
-      default: true
-      enabled: true
-    - id: "deepseek-ai/DeepSeek-V3-0324"
-      label: "DeepSeek V3"
-      tier: "premium"
-      enabled: true
-    - id: "Qwen/Qwen3-235B-A22B-Instruct-2507"
-      label: "Qwen 3 235B"
-      tier: "flagship"
-      enabled: true
-    - id: "nvidia/Llama-3_1-Nemotron-Ultra-253B-v1"
-      label: "Nemotron Ultra 253B"
-      tier: "flagship"
-      enabled: true
-    - id: "deepseek-ai/DeepSeek-R1-0528"
-      label: "DeepSeek R1"
-      tier: "reasoning"
-      enabled: true
+
+  lmstudio:
+    # Large models (70B+)
     - id: "openai/gpt-oss-120b"
       label: "GPT-OSS 120B"
-      tier: "open-source"
-      enabled: true
-    - id: "Qwen/Qwen3-235B-A22B-Thinking-2507"
-      label: "Qwen 3 235B Thinking"
-      tier: "reasoning"
-      enabled: true
-    - id: "NousResearch/Hermes-4-405B"
-      label: "Hermes 4 405B"
       tier: "flagship"
       enabled: true
-    - id: "moonshotai/Kimi-K2-Thinking"
-      label: "Kimi K2 Thinking"
-      tier: "reasoning"
-      enabled: true
-    - id: "Qwen/Qwen3-Next-80B-A3B-Thinking"
-      label: "Qwen 3 Next 80B Thinking"
-      tier: "reasoning"
-      enabled: true
-    - id: "NousResearch/Hermes-4-70B"
+    - id: "nousresearch/hermes-4-70b"
       label: "Hermes 4 70B"
+      tier: "premium"
+      enabled: true
+    # Coding models (30B)
+    - id: "qwen3-coder-30b-a3b-instruct-1m"
+      label: "Qwen3 Coder 30B (1M ctx)"
+      tier: "coding"
+      enabled: true
+    - id: "qwen2.5-coder-32b-instruct"
+      label: "Qwen 2.5 Coder 32B"
+      tier: "coding"
+      enabled: true
+    - id: "arch-agent-32b-i1"
+      label: "Arch Agent 32B"
+      tier: "agent"
+      enabled: true
+    # Medium models (20B)
+    - id: "openai/gpt-oss-20b"
+      label: "GPT-OSS 20B"
       tier: "balanced"
+      enabled: true
+    - id: "mistralai/devstral-small-2507"
+      label: "Devstral Small"
+      tier: "coding"
+      enabled: true
+    # Small models (8B)
+    - id: "qwen/qwen3-8b"
+      label: "Qwen3 8B"
+      tier: "speed"
+      default: true
+      enabled: true
+    - id: "deepseek-coder-v2-lite-instruct"
+      label: "DeepSeek Coder v2 Lite"
+      tier: "speed"
+      enabled: true
+    # Vision models
+    - id: "qwen/qwen3-vl-30b"
+      label: "Qwen3 VL 30B (vision)"
+      tier: "vision"
+      enabled: true
+    - id: "qwen/qwen3-vl-8b"
+      label: "Qwen3 VL 8B (vision)"
+      tier: "vision"
       enabled: true
 
 storage:
@@ -419,105 +253,65 @@ storage:
   auto_export: true
 
 mcp:
-  # Maximum rounds to include in MCP response (to avoid token limit)
-  # Full transcript is always saved to file - this only affects MCP response size
   max_rounds_in_response: 3
 
-  # MCP response timeout (seconds) - maximum time to wait for deliberation
-  # For fast responses: 15-30s (use reliable, fast models)
-  # For reasoning models: 60-120s (Claude Opus, GPT-5.1-Codex)
-  # WARNING: Free OpenRouter models may hang indefinitely - use shorter timeouts
-  response_timeout: 30.0
-
-  # If true, return partial results on timeout instead of error
-  fast_fail_on_timeout: true
-
 deliberation:
-  # Convergence detection settings
   convergence_detection:
     enabled: true
+    semantic_similarity_threshold: 0.85
+    divergence_threshold: 0.40
+    min_rounds_before_check: 1
+    consecutive_stable_rounds: 2
+    stance_stability_threshold: 0.80
+    response_length_drop_threshold: 0.40
 
-    # Similarity thresholds
-    semantic_similarity_threshold: 0.85 # Models converged if similarity >= this
-    divergence_threshold: 0.40 # Models diverging if similarity < this
-
-    # Round constraints
-    min_rounds_before_check: 1 # Check convergence starting from round 2 (need 2 rounds to compare)
-    consecutive_stable_rounds: 2 # Require 2 stable rounds to confirm
-
-    # Secondary metrics
-    stance_stability_threshold: 0.80 # 80% of participants must have stable stances
-    response_length_drop_threshold: 0.40 # Flag if response length drops >40%
-
-  # Model-controlled early stopping
   early_stopping:
     enabled: true
-    threshold: 0.66 # Stop if >=66% of models want to stop (2/3 consensus)
-    respect_min_rounds: true # Don't stop before defaults.rounds is reached
+    threshold: 0.66
+    respect_min_rounds: true
 
-  # Legacy settings (keep these)
   convergence_threshold: 0.8
   enable_convergence_detection: true
 
-  # File tree injection for Round 1
-  # Reduced from max_depth=3, max_files=100 to prevent "input too long" errors
-  # on models with smaller context windows (e.g., Claude via OpenRouter/Bedrock)
   file_tree:
     enabled: true
     max_depth: 2
     max_files: 50
 
-  # Tool security settings (prevents context contamination)
   tool_security:
     exclude_patterns:
-      - "transcripts/" # Exclude deliberation transcripts (prevents models from reading about other codebases)
+      - "transcripts/"
       - "transcripts/**"
-      - ".git/" # Exclude version control
+      - ".git/"
       - ".git/**"
-      - "node_modules/" # Exclude dependencies
+      - "node_modules/"
       - "node_modules/**"
-      - ".venv/" # Exclude Python virtual environments
+      - ".venv/"
       - "venv/"
-      - "__pycache__/" # Exclude Python cache
-    max_file_size_bytes: 1048576 # 1MB limit for read_file
+      - "__pycache__/"
+    max_file_size_bytes: 1048576
 
-  # Vote retry settings (automatic retry when VOTE section missing)
   vote_retry:
-    enabled: true # Enable automatic retry for missing votes
-    max_retries: 1 # Retry once per participant
-    min_response_length: 100 # Only retry if response is at least 100 chars
+    enabled: true
+    max_retries: 1
+    min_response_length: 100
 
-# Decision Graph Memory
 decision_graph:
-  enabled: true # Feature toggle (opt-in)
-  db_path: "decision_graph.db" # Relative to project root - works for any user
-
-  # DEPRECATED: similarity_threshold is no longer used. Use tier_boundaries instead.
-  similarity_threshold: 0.6 # Minimum similarity score for context injection (0.0-1.0)
-
-  # NEW: Budget-aware context injection parameters
-  # Reduced from 1500 to prevent "input too long" errors on smaller context models
-  context_token_budget: 1000 # Max tokens for context injection (prevents token bloat)
+  enabled: true
+  db_path: "decision_graph.db"
+  context_token_budget: 1000
   tier_boundaries:
-    strong: 0.75 # Strong matches get full formatting (~500 tokens each)
-    moderate: 0.60 # Moderate matches get summary formatting (~200 tokens each)
-  query_window: 1000 # Recent decisions to query (scalability limit)
-
-  # Cache configuration
-  query_cache_size: 200 # L1 cache size for query results
-  embedding_cache_size: 500 # L2 cache size for embeddings
-  query_ttl: 300 # Cache TTL in seconds (5 minutes)
-
-  # Adaptive K configuration (retrieval candidate selection)
-  adaptive_k_small_threshold: 100 # DB size threshold for small DB
-  adaptive_k_medium_threshold: 1000 # DB size threshold for medium DB
-  adaptive_k_small: 5 # Candidates for small DB (<100 decisions)
-  adaptive_k_medium: 3 # Candidates for medium DB (100-999 decisions)
-  adaptive_k_large: 2 # Candidates for large DB (≥1000 decisions)
-
-  # Similarity filtering
-  noise_floor: 0.40 # Filter out results below this similarity score
-
-  # Keep for backward compatibility
-  max_context_decisions: 3 # Maximum number of past decisions to inject as context
-  compute_similarities: true # Compute edge similarities after storing deliberation
+    strong: 0.75
+    moderate: 0.60
+  query_window: 1000
+  query_cache_size: 200
+  embedding_cache_size: 500
+  query_ttl: 300
+  adaptive_k_small_threshold: 100
+  adaptive_k_medium_threshold: 1000
+  adaptive_k_small: 5
+  adaptive_k_medium: 3
+  adaptive_k_large: 2
+  noise_floor: 0.40
+  max_context_decisions: 3
+  compute_similarities: true
