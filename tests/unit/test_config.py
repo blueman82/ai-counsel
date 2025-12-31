@@ -26,7 +26,7 @@ class TestConfigLoading:
         claude = config.cli_tools["claude"]
         assert claude.command == "claude"
         assert isinstance(claude.args, list)
-        assert claude.timeout == 300  # 5 minutes for reasoning models
+        assert claude.timeout == 60  # Reduced from 300s for faster fail-fast
 
     def test_defaults_loaded(self):
         """Test default settings are loaded."""

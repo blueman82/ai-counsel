@@ -25,7 +25,9 @@ progress_logger = logging.getLogger("ai_counsel.progress")
 if not progress_logger.handlers:
     project_dir = Path(__file__).parent.parent
     progress_file = project_dir / "deliberation_progress.log"
-    progress_handler = logging.FileHandler(progress_file, mode="a")
+    progress_handler = logging.FileHandler(
+        progress_file, mode="a", encoding="utf-8"
+    )
     progress_handler.setFormatter(logging.Formatter(
         "%(asctime)s | %(levelname)s | %(message)s"
     ))
@@ -1030,6 +1032,11 @@ TOOL_REQUEST: {"name": "read_file", "arguments": {"path": "src/file.py"}}
         # Clear tool execution history from previous deliberations to prevent memory leak
         # In long-running MCP servers, this prevents unbounded growth across deliberations
         self.tool_execution_history = []
+
+        # Reset convergence detector state from previous deliberations
+        # This ensures counters don't carry over and affect convergence detection
+        if self.convergence_detector:
+            self.convergence_detector.reset()
 
         # Track issues encountered during deliberation
         issues_encountered: List[str] = []

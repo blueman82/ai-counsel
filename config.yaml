@@ -13,7 +13,7 @@ cli_tools:
         '{{"disableAllHooks": true}}',
         "{prompt}",
       ]
-    timeout: 300
+    timeout: 60  # Reduced from 300s for faster fail-fast (MCP timeout provides overall protection)
     # Valid models: "sonnet", "opus", "haiku" or full names like "claude-opus-4-5-20251101", "claude-sonnet-4-5-20250929"
     # Note: -p flag is auto-removed during deliberations for full engagement
 
@@ -31,7 +31,7 @@ cli_tools:
         'model_reasoning_effort="{reasoning_effort}"',
         "{prompt}",
       ]
-    timeout: 300
+    timeout: 90  # Reduced from 300s - reasoning models need more time but not 5 minutes
     default_reasoning_effort: "medium"
   # Valid models: "gpt-5.2-codex", "gpt-5.1-codex-max", "gpt-5.1-codex-mini", "gpt-5.2"
     #
@@ -54,7 +54,7 @@ cli_tools:
   droid:
     command: "droid"
     args: ["exec", "-m", "{model}", "-r", "{reasoning_effort}", "{prompt}"]
-    timeout: 300
+    timeout: 90  # Reduced from 300s - reasoning models need more time but not 5 minutes
     default_reasoning_effort: "medium"
     # VALID MODEL IDS: "claude-opus-4-5-20251101", "claude-sonnet-4-5-20250929", "gpt-5.1-codex", "gpt-5.1", "glm-4.6"
     # Note: Use model IDs (not labels). See model_registry.droid section below for full list
@@ -88,7 +88,7 @@ cli_tools:
         "-p",
         "{prompt}",
       ]
-    timeout: 300
+    timeout: 60  # Reduced from 300s - Gemini is generally fast
     # Valid models: "gemini-2.5-pro" (default) or other Gemini identifiers
     #
     # Working Directory Configuration:
@@ -99,7 +99,7 @@ cli_tools:
   llamacpp:
     command: "llama-cli"
     args: ["-m", "{model}", "-p", "{prompt}", "-n", "2048", "-c", "4096"]
-    timeout: 300
+    timeout: 120  # Reduced from 300s - local models can be slow but not 5 minutes
     # llama.cpp is a fast, lightweight LLM inference engine for running models locally
     #
     # AUTO-DISCOVERY:
@@ -140,7 +140,7 @@ adapters:
   ollama:
     type: http
     base_url: "http://localhost:11434"
-    timeout: 300
+    timeout: 120  # Local models - reduced from 300s
     max_retries: 3
     # Valid models: llama2, mistral, codellama, qwen, etc.
     # Run 'ollama list' to see available models
@@ -149,7 +149,7 @@ adapters:
   lmstudio:
     type: http
     base_url: "http://localhost:1234"
-    timeout: 300
+    timeout: 120  # Local models - reduced from 300s
     max_retries: 3
     # Valid models: any model loaded in LM Studio
     # LM Studio provides OpenAI-compatible API
@@ -159,11 +159,12 @@ adapters:
     type: http
     base_url: "https://openrouter.ai/api/v1"
     api_key: "${OPENROUTER_API_KEY}" # Environment variable from .env file
-    timeout: 300
-    max_retries: 3
+    timeout: 30  # CRITICAL: Free models can hang - reduced to 30s for fast fail-fast
+    max_retries: 2  # Reduced from 3 - fail faster
     # Valid models: anthropic/claude-3.5-sonnet, openai/gpt-4, meta-llama/llama-3.1-8b-instruct, etc.
     # See https://openrouter.ai/docs for full model list
     # Requires API key from https://openrouter.ai/keys
+    # WARNING: Free models (tier: free-fast) may not respond - use paid models for reliability
 
   nebius:
     type: http
@@ -180,7 +181,7 @@ defaults:
   mode: "quick"
   rounds: 2
   max_rounds: 5
-  timeout_per_round: 120
+  timeout_per_round: 45  # Reduced from 120s - should be less than adapter timeout
 
 model_registry:
   claude:
@@ -421,6 +422,15 @@ mcp:
   # Maximum rounds to include in MCP response (to avoid token limit)
   # Full transcript is always saved to file - this only affects MCP response size
   max_rounds_in_response: 3
+
+  # MCP response timeout (seconds) - maximum time to wait for deliberation
+  # For fast responses: 15-30s (use reliable, fast models)
+  # For reasoning models: 60-120s (Claude Opus, GPT-5.1-Codex)
+  # WARNING: Free OpenRouter models may hang indefinitely - use shorter timeouts
+  response_timeout: 30.0
+
+  # If true, return partial results on timeout instead of error
+  fast_fail_on_timeout: true
 
 deliberation:
   # Convergence detection settings

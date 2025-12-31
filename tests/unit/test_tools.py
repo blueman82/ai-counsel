@@ -1,4 +1,5 @@
 """Unit tests for tool execution infrastructure."""
+import shutil
 import pytest
 from deliberation.tools import BaseTool, ToolExecutor
 from models.tool_schema import ToolRequest, ToolResult
@@ -301,6 +302,28 @@ class TestReadFileTool:
         assert result.error is None
 
     @pytest.mark.asyncio
+    async def test_read_file_respects_working_directory(self, tool, tmp_path):
+        """Test read_file blocks access outside working_directory."""
+        workspace = tmp_path / "workspace"
+        workspace.mkdir()
+        inside = workspace / "inside.txt"
+        inside.write_text("inside")
+        outside = tmp_path / "outside.txt"
+        outside.write_text("outside")
+
+        allowed = await tool.execute(
+            {"path": "inside.txt", "working_directory": str(workspace)}
+        )
+        assert allowed.success is True
+        assert "inside" in allowed.output
+
+        blocked = await tool.execute(
+            {"path": str(outside), "working_directory": str(workspace)}
+        )
+        assert blocked.success is False
+        assert "working directory" in blocked.error.lower() or "access denied" in blocked.error.lower()
+
+    @pytest.mark.asyncio
     async def test_read_nonexistent_file_returns_error(self, tool):
         """Test reading nonexistent file returns error."""
         result = await tool.execute(
@@ -438,6 +461,26 @@ class TestSearchCodeTool:
         """Test tool has correct name."""
         assert tool.name == "search_code"
 
+    @pytest.mark.asyncio
+    async def test_search_blocks_outside_working_directory(self, tool, tmp_path):
+        """Test search_code blocks access outside working_directory."""
+        workspace = tmp_path / "workspace"
+        workspace.mkdir()
+        outside_dir = tmp_path / "outside"
+        outside_dir.mkdir()
+        (outside_dir / "file.py").write_text("secret")
+
+        result = await tool.execute(
+            {
+                "pattern": "secret",
+                "path": str(outside_dir),
+                "working_directory": str(workspace),
+            }
+        )
+
+        assert result.success is False
+        assert "working directory" in result.error.lower() or "access denied" in result.error.lower()
+
 
 class TestListFilesTool:
     """Tests for ListFilesTool implementation."""
@@ -502,6 +545,23 @@ class TestListFilesTool:
         """Test tool has correct name."""
         assert tool.name == "list_files"
 
+    @pytest.mark.asyncio
+    async def test_list_files_blocks_traversal_pattern(self, tool, tmp_path):
+        """Test list_files blocks traversal patterns when working_directory set."""
+        workspace = tmp_path / "workspace"
+        workspace.mkdir()
+
+        result = await tool.execute(
+            {
+                "pattern": "../*.py",
+                "path": ".",
+                "working_directory": str(workspace),
+            }
+        )
+
+        assert result.success is False
+        assert "path traversal" in result.error.lower()
+
 
 class TestRunCommandTool:
     """Tests for RunCommandTool implementation."""
@@ -516,6 +576,8 @@ class TestRunCommandTool:
     @pytest.mark.asyncio
     async def test_run_whitelisted_command(self, tool):
         """Test running whitelisted command succeeds."""
+        if shutil.which("pwd") is None:
+            pytest.skip("pwd command not available on this platform")
         result = await tool.execute({"command": "pwd", "args": []})
 
         assert result.success is True
@@ -524,6 +586,8 @@ class TestRunCommandTool:
     @pytest.mark.asyncio
     async def test_run_command_with_args(self, tool, tmp_path):
         """Test running command with arguments."""
+        if shutil.which("cat") is None:
+            pytest.skip("cat command not available on this platform")
         # Create a test file
         test_file = tmp_path / "test.txt"
         test_file.write_text("test content")
@@ -565,6 +629,45 @@ class TestRunCommandTool:
     async def test_tool_name(self, tool):
         """Test tool has correct name."""
         assert tool.name == "run_command"
+
+    @pytest.mark.asyncio
+    async def test_run_command_blocks_git_mutation(self, tool):
+        """Test git subcommands outside allowlist are blocked."""
+        result = await tool.execute({"command": "git", "args": ["checkout", "main"]})
+
+        assert result.success is False
+        assert "git subcommand" in result.error.lower()
+
+    @pytest.mark.asyncio
+    async def test_run_command_blocks_find_exec(self, tool):
+        """Test find -exec is blocked."""
+        result = await tool.execute(
+            {"command": "find", "args": [".", "-exec", "rm", "-rf", "{}", ";"]}
+        )
+
+        assert result.success is False
+        assert "find flags" in result.error.lower()
+
+    @pytest.mark.asyncio
+    async def test_run_command_blocks_absolute_paths_outside_workdir(
+        self, tool, tmp_path
+    ):
+        """Test absolute paths outside working_directory are blocked."""
+        workspace = tmp_path / "workspace"
+        workspace.mkdir()
+        outside = tmp_path / "outside.txt"
+        outside.write_text("data")
+
+        result = await tool.execute(
+            {
+                "command": "cat",
+                "args": [str(outside)],
+                "working_directory": str(workspace),
+            }
+        )
+
+        assert result.success is False
+        assert "absolute paths outside" in result.error.lower()
 
 
 class TestGetFileTreeTool:
@@ -676,3 +779,516 @@ class TestGetFileTreeTool:
 
         assert result.success is True
         assert "file.py" in result.output
+
+
+# =============================================================================
+# Tests for Path Security Helper Functions (New in this PR)
+# =============================================================================
+
+
+class TestPathSecurityHelpers:
+    """Test security helper functions for path validation and normalization."""
+
+    def test_normalize_match_text_replaces_backslashes(self):
+        """Test that backslashes are normalized to forward slashes."""
+        from deliberation.tools import _normalize_match_text
+
+        result = _normalize_match_text(r"path\to\file.txt")
+        assert "\\" not in result
+        assert "/" in result
+
+    def test_normalize_match_text_strips_whitespace(self):
+        """Test that whitespace is stripped."""
+        from deliberation.tools import _normalize_match_text
+
+        result = _normalize_match_text("  /path/to/file  ")
+        assert result == "/path/to/file"
+
+    def test_normalize_path_handles_resolution_errors(self):
+        """Test that path normalization handles resolution errors gracefully."""
+        from deliberation.tools import _normalize_path
+        from pathlib import Path
+
+        # Even if resolution fails, should return a normalized string
+        result = _normalize_path(Path("/nonexistent/path"))
+        assert isinstance(result, str)
+        assert "/" in result or "\\" not in result
+
+    def test_path_contains_segment_detects_directory(self):
+        """Test segment detection in paths."""
+        from deliberation.tools import _path_contains_segment
+
+        assert _path_contains_segment("/home/user/project/src", "project")
+        assert _path_contains_segment("/home/user/project/src", "src")
+        assert not _path_contains_segment("/home/user/project/src", "nothere")
+
+    def test_path_contains_segment_handles_nested_segments(self):
+        """Test nested directory segment detection."""
+        from deliberation.tools import _path_contains_segment
+
+        assert _path_contains_segment("/a/b/c/d", "b/c")
+        assert not _path_contains_segment("/a/b/c/d", "b/d")
+
+    def test_path_contains_segment_handles_empty_segment(self):
+        """Test empty segment returns False."""
+        from deliberation.tools import _path_contains_segment
+
+        assert not _path_contains_segment("/path/to/file", "")
+        assert not _path_contains_segment("/path/to/file", "   ")
+
+    def test_is_within_directory_detects_escapes(self, tmp_path):
+        """Test detection of paths escaping base directory."""
+        from deliberation.tools import _is_within_directory
+        from pathlib import Path
+
+        base = tmp_path / "workspace"
+        base.mkdir()
+        
+        inside = base / "file.txt"
+        outside = tmp_path / "outside.txt"
+        
+        assert _is_within_directory(inside, base)
+        assert not _is_within_directory(outside, base)
+
+    def test_is_within_directory_handles_relative_paths(self, tmp_path):
+        """Test relative path handling."""
+        from deliberation.tools import _is_within_directory
+        from pathlib import Path
+
+        base = tmp_path / "workspace"
+        base.mkdir()
+        
+        # Create subdirectory
+        subdir = base / "subdir"
+        subdir.mkdir()
+        
+        assert _is_within_directory(subdir, base)
+
+    def test_resolve_working_directory_validates_existence(self, tmp_path):
+        """Test working directory validation."""
+        from deliberation.tools import _resolve_working_directory
+
+        # Valid directory
+        result = _resolve_working_directory(str(tmp_path))
+        assert result == tmp_path.resolve()
+
+        # Invalid directory
+        with pytest.raises(ValueError, match="Working directory not found"):
+            _resolve_working_directory(str(tmp_path / "nonexistent"))
+
+    def test_resolve_working_directory_requires_directory(self, tmp_path):
+        """Test that working directory must be a directory, not a file."""
+        from deliberation.tools import _resolve_working_directory
+
+        file_path = tmp_path / "file.txt"
+        file_path.write_text("content")
+
+        with pytest.raises(ValueError, match="Working directory not found"):
+            _resolve_working_directory(str(file_path))
+
+    def test_resolve_path_within_working_dir_blocks_traversal(self, tmp_path):
+        """Test path traversal is blocked."""
+        from deliberation.tools import _resolve_path_within_working_dir
+
+        workspace = tmp_path / "workspace"
+        workspace.mkdir()
+
+        with pytest.raises(ValueError, match="Access denied.*escapes working directory"):
+            _resolve_path_within_working_dir("../../../etc/passwd", str(workspace))
+
+    def test_resolve_path_within_working_dir_allows_relative(self, tmp_path):
+        """Test relative paths within working directory are allowed."""
+        from deliberation.tools import _resolve_path_within_working_dir
+
+        workspace = tmp_path / "workspace"
+        workspace.mkdir()
+        subdir = workspace / "subdir"
+        subdir.mkdir()
+
+        result = _resolve_path_within_working_dir("subdir", str(workspace))
+        assert result == subdir.resolve()
+
+    def test_resolve_path_within_working_dir_allows_absolute_if_within(self, tmp_path):
+        """Test absolute paths are allowed if within working directory."""
+        from deliberation.tools import _resolve_path_within_working_dir
+
+        workspace = tmp_path / "workspace"
+        workspace.mkdir()
+        inside = workspace / "file.txt"
+        inside.write_text("test")
+
+        result = _resolve_path_within_working_dir(str(inside), str(workspace))
+        assert result == inside.resolve()
+
+    def test_resolve_path_within_working_dir_blocks_absolute_outside(self, tmp_path):
+        """Test absolute paths outside working directory are blocked."""
+        from deliberation.tools import _resolve_path_within_working_dir
+
+        workspace = tmp_path / "workspace"
+        workspace.mkdir()
+        outside = tmp_path / "outside.txt"
+        outside.write_text("test")
+
+        with pytest.raises(ValueError, match="Access denied.*escapes working directory"):
+            _resolve_path_within_working_dir(str(outside), str(workspace))
+
+    def test_resolve_path_without_working_dir(self, tmp_path):
+        """Test resolution works without working directory constraint."""
+        from deliberation.tools import _resolve_path_within_working_dir
+
+        file_path = tmp_path / "file.txt"
+        file_path.write_text("test")
+
+        result = _resolve_path_within_working_dir(str(file_path), None)
+        assert result == file_path.resolve()
+
+    def test_pattern_has_traversal_detects_dotdot(self):
+        """Test detection of .. in patterns."""
+        from deliberation.tools import _pattern_has_traversal
+
+        assert _pattern_has_traversal("../file.txt")
+        assert _pattern_has_traversal("dir/../file.txt")
+        assert _pattern_has_traversal(r"dir\..\file.txt")
+        assert not _pattern_has_traversal("./file.txt")
+        assert not _pattern_has_traversal("file.txt")
+        assert not _pattern_has_traversal("dir/file.txt")
+
+    def test_is_path_excluded_with_directory_patterns(self, tmp_path):
+        """Test exclusion with directory patterns."""
+        from deliberation.tools import is_path_excluded
+        from pathlib import Path
+
+        path = tmp_path / "node_modules" / "package" / "file.js"
+        
+        assert is_path_excluded(path, ["node_modules/"])
+        assert is_path_excluded(path, ["node_modules/**"])
+
+    def test_is_path_excluded_with_glob_patterns(self, tmp_path):
+        """Test exclusion with glob patterns."""
+        from deliberation.tools import is_path_excluded
+
+        path1 = tmp_path / "test.pyc"
+        path2 = tmp_path / "src" / "test.pyc"
+        path3 = tmp_path / "test.py"
+
+        patterns = ["*.pyc"]
+        assert is_path_excluded(path1, patterns)
+        assert is_path_excluded(path2, patterns)
+        assert not is_path_excluded(path3, patterns)
+
+    def test_is_path_excluded_with_basename_match(self, tmp_path):
+        """Test exclusion based on basename."""
+        from deliberation.tools import is_path_excluded
+
+        path = tmp_path / "deep" / "nested" / "secrets.txt"
+        
+        assert is_path_excluded(path, ["secrets.txt"])
+
+    def test_is_path_excluded_with_segment_match(self, tmp_path):
+        """Test exclusion based on path segment."""
+        from deliberation.tools import is_path_excluded
+
+        path = tmp_path / "src" / ".git" / "config"
+        
+        assert is_path_excluded(path, [".git"])
+        assert is_path_excluded(path, [".git/"])
+
+    def test_is_path_excluded_empty_patterns(self, tmp_path):
+        """Test that empty pattern list excludes nothing."""
+        from deliberation.tools import is_path_excluded
+
+        path = tmp_path / "file.txt"
+        
+        assert not is_path_excluded(path, [])
+
+    def test_is_path_excluded_ignores_empty_pattern(self, tmp_path):
+        """Test that empty patterns in list are ignored."""
+        from deliberation.tools import is_path_excluded
+
+        path = tmp_path / "file.txt"
+        
+        assert not is_path_excluded(path, ["", "  "])
+
+    def test_is_path_excluded_multiple_patterns(self, tmp_path):
+        """Test multiple exclusion patterns."""
+        from deliberation.tools import is_path_excluded
+
+        path1 = tmp_path / "node_modules" / "pkg" / "index.js"
+        path2 = tmp_path / ".git" / "config"
+        path3 = tmp_path / "transcripts" / "debate.md"
+        path4 = tmp_path / "src" / "main.py"
+
+        patterns = ["node_modules/", ".git/", "transcripts/**"]
+        
+        assert is_path_excluded(path1, patterns)
+        assert is_path_excluded(path2, patterns)
+        assert is_path_excluded(path3, patterns)
+        assert not is_path_excluded(path4, patterns)
+
+    def test_is_path_excluded_wildcard_patterns(self, tmp_path):
+        """Test wildcard pattern matching."""
+        from deliberation.tools import is_path_excluded
+
+        path1 = tmp_path / "test_file.py"
+        path2 = tmp_path / "src" / "test_module.py"
+        path3 = tmp_path / "prod_file.py"
+
+        patterns = ["test_*"]
+        
+        assert is_path_excluded(path1, patterns)
+        assert is_path_excluded(path2, patterns)
+        assert not is_path_excluded(path3, patterns)
+
+
+class TestRunCommandValidation:
+    """Test RunCommandTool command validation logic."""
+
+    @pytest.fixture
+    def tool(self):
+        """Create RunCommandTool instance."""
+        from deliberation.tools import RunCommandTool
+        return RunCommandTool()
+
+    def test_validate_git_requires_safe_subcommand(self, tool):
+        """Test git command validation."""
+        result = tool._validate_command_args("git", ["status"], None)
+        assert result is None
+
+        result = tool._validate_command_args("git", ["checkout", "main"], None)
+        assert result is not None
+        assert "not allowed" in result.lower()
+
+    def test_validate_git_allows_version_flag(self, tool):
+        """Test git --version is allowed."""
+        result = tool._validate_command_args("git", ["--version"], None)
+        assert result is None
+
+        result = tool._validate_command_args("git", ["-v"], None)
+        assert result is None
+
+    def test_validate_git_blocks_unsafe_flags(self, tool):
+        """Test unsafe git flags are blocked."""
+        result = tool._validate_command_args("git", ["--help"], None)
+        assert result is not None
+
+    def test_validate_git_requires_subcommand(self, tool):
+        """Test git requires a subcommand."""
+        result = tool._validate_command_args("git", [], None)
+        assert result is not None
+        assert "subcommand is required" in result.lower()
+
+    def test_validate_git_safe_subcommands(self, tool):
+        """Test all safe git subcommands are allowed."""
+        safe_commands = ["status", "log", "diff", "show", "rev-parse", "ls-files", "blame"]
+        
+        for cmd in safe_commands:
+            result = tool._validate_command_args("git", [cmd], None)
+            assert result is None, f"Safe command '{cmd}' should be allowed"
+
+    def test_validate_find_blocks_exec_flags(self, tool):
+        """Test find -exec and similar flags are blocked."""
+        dangerous_flags = ["-exec", "-execdir", "-ok", "-okdir", "-delete"]
+        
+        for flag in dangerous_flags:
+            result = tool._validate_command_args("find", [".", flag, "rm", "{}"], None)
+            assert result is not None
+            assert "find flags" in result.lower()
+
+    def test_validate_find_allows_safe_usage(self, tool):
+        """Test safe find usage is allowed."""
+        result = tool._validate_command_args("find", [".", "-name", "*.py"], None)
+        assert result is None
+
+    def test_validate_blocks_path_traversal(self, tool, tmp_path):
+        """Test path traversal in arguments is blocked."""
+        workspace = tmp_path / "workspace"
+        workspace.mkdir()
+
+        result = tool._validate_command_args("ls", ["../../../etc"], workspace)
+        assert result is not None
+        assert "path traversal" in result.lower()
+
+    def test_validate_blocks_absolute_paths_outside_workdir(self, tool, tmp_path):
+        """Test absolute paths outside working directory are blocked."""
+        workspace = tmp_path / "workspace"
+        workspace.mkdir()
+        outside = tmp_path / "outside"
+        outside.mkdir()
+
+        result = tool._validate_command_args("cat", [str(outside / "file.txt")], workspace)
+        assert result is not None
+        assert "absolute paths outside" in result.lower()
+
+    def test_validate_allows_absolute_paths_inside_workdir(self, tool, tmp_path):
+        """Test absolute paths inside working directory are allowed."""
+        workspace = tmp_path / "workspace"
+        workspace.mkdir()
+        inside = workspace / "file.txt"
+        inside.write_text("test")
+
+        result = tool._validate_command_args("cat", [str(inside)], workspace)
+        assert result is None
+
+    def test_validate_ignores_flags(self, tool, tmp_path):
+        """Test validation ignores flag arguments."""
+        workspace = tmp_path / "workspace"
+        workspace.mkdir()
+
+        result = tool._validate_command_args("ls", ["-la", "-h"], workspace)
+        assert result is None
+
+    def test_validate_without_working_directory(self, tool):
+        """Test validation works without working directory."""
+        result = tool._validate_command_args("ls", ["-la"], None)
+        assert result is None
+
+    def test_validate_handles_non_string_args(self, tool):
+        """Test validation handles non-string arguments gracefully."""
+        # Should not crash on non-string args
+        result = tool._validate_command_args("echo", ["test", 123, None], None)
+        assert result is None  # Non-strings are skipped
+
+
+class TestToolExecutorWorkingDirectory:
+    """Test ToolExecutor properly handles working_directory parameter."""
+
+    @pytest.mark.asyncio
+    async def test_executor_propagates_working_directory_to_tool(self, tmp_path):
+        """Test that ToolExecutor passes working_directory to tool execution."""
+        from deliberation.tools import ToolExecutor, ReadFileTool
+
+        workspace = tmp_path / "workspace"
+        workspace.mkdir()
+        test_file = workspace / "test.txt"
+        test_file.write_text("content from workspace")
+
+        executor = ToolExecutor()
+        tool = ReadFileTool()
+        executor.register_tool(tool)
+
+        from models.tool_schema import ToolRequest
+
+        request = ToolRequest(
+            name="read_file",
+            arguments={"path": "test.txt"}
+        )
+
+        result = await executor.execute_tool(request, working_directory=str(workspace))
+
+        assert result.success is True
+        assert "content from workspace" in result.output
+
+    @pytest.mark.asyncio
+    async def test_executor_working_directory_in_request_arguments(self, tmp_path):
+        """Test working_directory can come from request arguments."""
+        from deliberation.tools import ToolExecutor, ReadFileTool
+
+        workspace = tmp_path / "workspace"
+        workspace.mkdir()
+        test_file = workspace / "test.txt"
+        test_file.write_text("test content")
+
+        executor = ToolExecutor()
+        tool = ReadFileTool()
+        executor.register_tool(tool)
+
+        from models.tool_schema import ToolRequest
+
+        request = ToolRequest(
+            name="read_file",
+            arguments={"path": "test.txt", "working_directory": str(workspace)}
+        )
+
+        result = await executor.execute_tool(request)
+
+        assert result.success is True
+        assert "test content" in result.output
+
+    @pytest.mark.asyncio
+    async def test_executor_parameter_overrides_request_argument(self, tmp_path):
+        """Test executor parameter takes precedence over request argument."""
+        from deliberation.tools import ToolExecutor, ReadFileTool
+
+        workspace1 = tmp_path / "workspace1"
+        workspace1.mkdir()
+        workspace2 = tmp_path / "workspace2"
+        workspace2.mkdir()
+        
+        file1 = workspace1 / "test.txt"
+        file1.write_text("workspace1")
+        file2 = workspace2 / "test.txt"
+        file2.write_text("workspace2")
+
+        executor = ToolExecutor()
+        tool = ReadFileTool()
+        executor.register_tool(tool)
+
+        from models.tool_schema import ToolRequest
+
+        request = ToolRequest(
+            name="read_file",
+            arguments={"path": "test.txt", "working_directory": str(workspace2)}
+        )
+
+        # Executor parameter should win
+        result = await executor.execute_tool(request, working_directory=str(workspace1))
+
+        assert result.success is True
+        assert "workspace1" in result.output
+
+
+class TestSymlinkSecurity:
+    """Test security against symlink attacks."""
+
+    @pytest.mark.asyncio
+    async def test_read_file_follows_symlinks_but_checks_destination(self, tmp_path):
+        """Test that symlinks are followed but destination is validated."""
+        from deliberation.tools import ReadFileTool
+        import os
+
+        workspace = tmp_path / "workspace"
+        workspace.mkdir()
+        outside = tmp_path / "outside.txt"
+        outside.write_text("secret data")
+
+        # Create symlink from workspace to outside file
+        link = workspace / "link.txt"
+        try:
+            os.symlink(str(outside), str(link))
+        except OSError:
+            pytest.skip("Symlinks not supported on this platform")
+
+        tool = ReadFileTool()
+        result = await tool.execute({
+            "path": "link.txt",
+            "working_directory": str(workspace)
+        })
+
+        # Should block access because symlink target is outside workspace
+        assert result.success is False
+        assert "access denied" in result.error.lower() or "escapes" in result.error.lower()
+
+    @pytest.mark.asyncio
+    async def test_list_files_with_symlinks_inside_workspace(self, tmp_path):
+        """Test list_files handles symlinks within workspace."""
+        from deliberation.tools import ListFilesTool
+        import os
+
+        workspace = tmp_path / "workspace"
+        workspace.mkdir()
+        target = workspace / "target.txt"
+        target.write_text("target")
+        link = workspace / "link.txt"
+        
+        try:
+            os.symlink(str(target), str(link))
+        except OSError:
+            pytest.skip("Symlinks not supported on this platform")
+
+        tool = ListFilesTool()
+        result = await tool.execute({
+            "pattern": "*.txt",
+            "working_directory": str(workspace)
+        })
+
+        assert result.success is True
