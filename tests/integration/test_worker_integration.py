@@ -35,7 +35,9 @@ def temp_db():
 @pytest.fixture
 def storage(temp_db):
     """Create storage instance."""
-    return DecisionGraphStorage(db_path=temp_db)
+    storage_instance = DecisionGraphStorage(db_path=temp_db)
+    yield storage_instance
+    storage_instance.close()
 
 
 @pytest.fixture
