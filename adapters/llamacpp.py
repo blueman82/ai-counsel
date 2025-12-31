@@ -18,7 +18,7 @@ Typical output format:
 """
 import os
 from pathlib import Path
-from typing import Optional
+from typing import ClassVar, Optional
 from adapters.base import BaseCLIAdapter
 
 
@@ -26,7 +26,7 @@ class LlamaCppAdapter(BaseCLIAdapter):
     """Adapter for llama.cpp CLI tool (llama-cli) with auto-discovery."""
 
     # Default search paths for GGUF model files
-    DEFAULT_SEARCH_PATHS = [
+    DEFAULT_SEARCH_PATHS: ClassVar[list[str]] = [
         "~/.cache/llama.cpp/models",
         "~/models",
         "~/llama.cpp/models",

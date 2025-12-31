@@ -277,9 +277,17 @@ class DroidAdapter(BaseCLIAdapter):
                 cwd=cwd,
             )
 
-            stdout, stderr = await asyncio.wait_for(
-                process.communicate(), timeout=self.timeout
+            stdout, stderr, timed_out = await self._read_with_activity_timeout(
+                process, model
             )
+
+            if timed_out:
+                logger.warning(
+                    f"Droid activity timeout: no output for {self.timeout}s"
+                )
+                raise TimeoutError(
+                    f"CLI invocation timed out after {self.timeout}s of inactivity"
+                )
 
             if process.returncode != 0:
                 error_msg = stderr.decode("utf-8", errors="replace")
@@ -287,9 +295,6 @@ class DroidAdapter(BaseCLIAdapter):
 
             raw_output = stdout.decode("utf-8", errors="replace")
             return self.parse_output(raw_output)
-
-        except asyncio.TimeoutError:
-            raise TimeoutError(f"CLI invocation timed out after {self.timeout}s")
 
     def _inject_permission_level(
         self, args: list[str], permission_level: str
@@ -390,9 +395,17 @@ class DroidAdapter(BaseCLIAdapter):
                 cwd=cwd,
             )
 
-            stdout, stderr = await asyncio.wait_for(
-                process.communicate(), timeout=self.timeout
+            stdout, stderr, timed_out = await self._read_with_activity_timeout(
+                process, model
             )
+
+            if timed_out:
+                logger.warning(
+                    f"Droid activity timeout: no output for {self.timeout}s"
+                )
+                raise TimeoutError(
+                    f"CLI invocation timed out after {self.timeout}s of inactivity"
+                )
 
             if process.returncode != 0:
                 error_msg = stderr.decode("utf-8", errors="replace")
@@ -400,9 +413,6 @@ class DroidAdapter(BaseCLIAdapter):
 
             raw_output = stdout.decode("utf-8", errors="replace")
             return self.parse_output(raw_output)
-
-        except asyncio.TimeoutError:
-            raise TimeoutError(f"CLI invocation timed out after {self.timeout}s")
 
     def parse_output(self, raw_output: str) -> str:
         """

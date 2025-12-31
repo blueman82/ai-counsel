@@ -17,7 +17,6 @@ transcripts/*.json
 !transcripts/20251030_153509_Should_we_use_REST_or_GraphQL_for_our_new_API_Con.md
 !transcripts/20251030_153834_Should_we_prioritize_code_quality_or_delivery_spee.md
 .env
-config.local.yaml
 
 # Demo/test files (not tracked)
 demo.cast

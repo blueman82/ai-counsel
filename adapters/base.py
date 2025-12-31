@@ -208,6 +208,96 @@ class BaseCLIAdapter(ABC):
         return any(re.search(pattern, error_lower, re.IGNORECASE)
                    for pattern in self.TRANSIENT_ERROR_PATTERNS)
 
+    async def _read_with_activity_timeout(
+        self,
+        process: asyncio.subprocess.Process,
+        model: str,
+        activity_timeout: Optional[int] = None,
+    ) -> tuple[bytes, bytes, bool]:
+        """
+        Read process output with activity-based timeout.
+
+        Unlike a simple timeout on the entire operation, this resets the timer
+        whenever new output is received. This is useful for long-running operations
+        where the model continues to produce output.
+
+        Args:
+            process: The running subprocess
+            model: Model identifier (for logging)
+            activity_timeout: Seconds of inactivity before timeout.
+                Defaults to self.timeout if not specified.
+
+        Returns:
+            Tuple of (stdout_bytes, stderr_bytes, timed_out_flag)
+        """
+        timeout = activity_timeout if activity_timeout is not None else self.timeout
+        stdout_chunks: list[bytes] = []
+        stderr_chunks: list[bytes] = []
+        timed_out = False
+
+        async def read_stream(
+            stream: Optional[asyncio.StreamReader],
+            chunks: list[bytes],
+        ) -> None:
+            """Read from stream until EOF."""
+            if stream is None:
+                return
+            while True:
+                chunk = await stream.read(4096)
+                if not chunk:
+                    break
+                chunks.append(chunk)
+
+        # Create tasks for reading stdout and stderr
+        stdout_task = asyncio.create_task(
+            read_stream(process.stdout, stdout_chunks)
+        )
+        stderr_task = asyncio.create_task(
+            read_stream(process.stderr, stderr_chunks)
+        )
+
+        try:
+            # Wait for both streams with activity-based timeout
+            pending = {stdout_task, stderr_task}
+            while pending:
+                done, pending = await asyncio.wait(
+                    pending,
+                    timeout=timeout,
+                    return_when=asyncio.FIRST_COMPLETED,
+                )
+                if not done:
+                    # Timeout with no activity
+                    timed_out = True
+                    logger.warning(
+                        f"Activity timeout: no output from {model} for {timeout}s"
+                    )
+                    # Cancel remaining tasks
+                    for task in pending:
+                        task.cancel()
+                    # Kill the process
+                    try:
+                        process.kill()
+                    except ProcessLookupError:
+                        pass
+                    break
+
+        except Exception as e:
+            logger.error(f"Error reading process output: {e}")
+            stdout_task.cancel()
+            stderr_task.cancel()
+            raise
+
+        # Wait for process to finish
+        try:
+            await asyncio.wait_for(process.wait(), timeout=5.0)
+        except asyncio.TimeoutError:
+            try:
+                process.kill()
+            except ProcessLookupError:
+                pass
+
+        return b"".join(stdout_chunks), b"".join(stderr_chunks), timed_out
+
     def _adjust_args_for_context(self, is_deliberation: bool) -> list[str]:
         """
         Adjust CLI arguments based on context (deliberation vs regular Claude Code work).
