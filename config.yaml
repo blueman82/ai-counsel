@@ -30,19 +30,21 @@ adapters:
     # LM Studio local server - OpenAI-compatible API
 
   nvmdapi:
-    type: http
+    type: openai
     base_url: "https://api.loc.nv.md/v1"
     api_key: "yba_gcd3PJE1xfpmrnbrwpmtnqg5pbd0CDAwme9HBW0wer8xfhjnq"
     timeout: 300
     max_retries: 3
+    responses_api_prefixes: ["o1", "o3", "o4", "gpt-5-pro", "gpt-5.2-pro"]  # Reasoning models use Responses API
     # nvmd - OpenAI-compatible API
 
   nvmdapicli:
-    type: http
+    type: openai
     base_url: "https://apicli.loc.nv.md/v1"
     api_key: "yba_gcd3PJE1xfpmrnbrwpmtnqg5pbd0CDAwme9HBW0wer8xfhjnq"
     timeout: 300
     max_retries: 3
+    responses_api_prefixes: []  # Empty = all models use Chat Completions; add prefixes if Responses API supported
     # nvmd-cli - OpenAI-compatible API (Claude, GPT, Gemini, DeepSeek)
 
   openai:
