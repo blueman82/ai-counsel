@@ -2,10 +2,26 @@
 import asyncio
 import logging
 import re
+import time
 from abc import ABC, abstractmethod
+from pathlib import Path
 from typing import Optional
 
 logger = logging.getLogger(__name__)
+
+# Configure progress logger for CLI adapter activity tracking
+progress_logger = logging.getLogger("ai_counsel.progress")
+if not progress_logger.handlers:
+    project_dir = Path(__file__).parent.parent
+    progress_file = project_dir / "deliberation_progress.log"
+    progress_handler = logging.FileHandler(
+        progress_file, mode="a", encoding="utf-8"
+    )
+    progress_handler.setFormatter(logging.Formatter(
+        "%(asctime)s | %(levelname)s | %(message)s"
+    ))
+    progress_logger.addHandler(progress_handler)
+    progress_logger.setLevel(logging.DEBUG)
 
 
 class BaseCLIAdapter(ABC):
@@ -33,6 +49,7 @@ class BaseCLIAdapter(ABC):
         command: str,
         args: list[str],
         timeout: int = 60,
+        activity_timeout: int = 120,
         max_retries: int = 2,
         default_reasoning_effort: Optional[str] = None,
     ):
@@ -42,7 +59,11 @@ class BaseCLIAdapter(ABC):
         Args:
             command: CLI command to execute
             args: List of argument templates (may contain {model}, {prompt} placeholders)
-            timeout: Timeout in seconds (default: 60)
+            timeout: Maximum total execution time in seconds (default: 60).
+                     This is the hard limit - process will be killed after this time.
+            activity_timeout: Seconds without new output before considering process hung (default: 120).
+                     If model is actively generating output, this timer resets on each chunk.
+                     This allows long-running but active processes to complete.
             max_retries: Maximum retry attempts for transient errors (default: 2)
             default_reasoning_effort: Default reasoning effort level for this adapter.
                 Only applicable to codex (low/medium/high/extra-high) and droid (off/low/medium/high).
@@ -51,6 +72,7 @@ class BaseCLIAdapter(ABC):
         self.command = command
         self.args = args
         self.timeout = timeout
+        self.activity_timeout = activity_timeout
         self.max_retries = max_retries
         self.default_reasoning_effort = default_reasoning_effort
 
@@ -142,9 +164,14 @@ class BaseCLIAdapter(ABC):
                     cwd=cwd,
                 )
 
-                stdout, stderr = await asyncio.wait_for(
-                    process.communicate(), timeout=self.timeout
+                # Use activity-based timeout instead of fixed timeout
+                stdout, stderr, timed_out = await self._read_with_activity_timeout(
+                    process, model
                 )
+
+                if timed_out:
+                    # Process was killed due to inactivity
+                    raise asyncio.TimeoutError()
 
                 if process.returncode != 0:
                     error_msg = stderr.decode("utf-8", errors="replace")
@@ -187,9 +214,12 @@ class BaseCLIAdapter(ABC):
             except asyncio.TimeoutError:
                 logger.error(
                     f"CLI invocation timed out: command={self.command}, "
-                    f"model={model}, timeout={self.timeout}s"
+                    f"model={model}, activity_timeout={self.activity_timeout}s"
                 )
-                raise TimeoutError(f"CLI invocation timed out after {self.timeout}s")
+                raise TimeoutError(
+                    f"CLI invocation timed out: no output for {self.activity_timeout}s "
+                    f"(model may be hung or unresponsive)"
+                )
 
         # All retries exhausted
         raise RuntimeError(f"CLI failed after {self.max_retries + 1} attempts. Last error: {last_error}")
@@ -207,6 +237,143 @@ class BaseCLIAdapter(ABC):
         error_lower = error_msg.lower()
         return any(re.search(pattern, error_lower, re.IGNORECASE)
                    for pattern in self.TRANSIENT_ERROR_PATTERNS)
+
+    async def _read_with_activity_timeout(
+        self,
+        process: asyncio.subprocess.Process,
+        model: str,
+    ) -> tuple[bytes, bytes, bool]:
+        """
+        Read process output with activity-based timeout.
+
+        Instead of a fixed total timeout, this monitors output activity.
+        The timeout only triggers if no new output is received for `activity_timeout` seconds.
+        This allows long-running but active processes to complete.
+
+        Args:
+            process: The subprocess to read from
+            model: Model name (for logging)
+
+        Returns:
+            Tuple of (stdout_bytes, stderr_bytes, timed_out)
+            timed_out is True if process was killed due to inactivity
+        """
+        stdout_chunks: list[bytes] = []
+        stderr_chunks: list[bytes] = []
+        last_activity = time.time()
+        start_time = time.time()
+        total_bytes = 0
+        last_log_time = start_time
+
+        progress_logger.info(
+            f"[CLI_START] {model} | Starting process | "
+            f"activity_timeout={self.activity_timeout}s, max_timeout={self.timeout}s"
+        )
+
+        async def read_stream(stream, chunks: list[bytes], name: str):
+            """Read from a stream and track activity."""
+            nonlocal last_activity, total_bytes, last_log_time
+            while True:
+                try:
+                    chunk = await asyncio.wait_for(
+                        stream.read(4096),
+                        timeout=1.0  # Check every second
+                    )
+                    if not chunk:
+                        break  # EOF
+                    chunks.append(chunk)
+                    last_activity = time.time()
+                    total_bytes += len(chunk)
+
+                    # Log progress every 10 seconds
+                    now = time.time()
+                    if now - last_log_time >= 10:
+                        elapsed = now - start_time
+                        progress_logger.info(
+                            f"[CLI_PROGRESS] {model} | "
+                            f"elapsed={elapsed:.1f}s | "
+                            f"bytes={total_bytes} | "
+                            f"stream={name} | "
+                            f"last_chunk={len(chunk)}b"
+                        )
+                        last_log_time = now
+
+                except asyncio.TimeoutError:
+                    # No data this second, but check if we should continue
+                    pass
+
+        # Start reading both streams concurrently
+        stdout_task = asyncio.create_task(
+            read_stream(process.stdout, stdout_chunks, "stdout")
+        )
+        stderr_task = asyncio.create_task(
+            read_stream(process.stderr, stderr_chunks, "stderr")
+        )
+
+        timed_out = False
+        try:
+            while not stdout_task.done() or not stderr_task.done():
+                await asyncio.sleep(0.5)
+
+                now = time.time()
+                elapsed = now - start_time
+                inactive_time = now - last_activity
+
+                # Check activity timeout (no output for too long)
+                if inactive_time > self.activity_timeout:
+                    progress_logger.warning(
+                        f"[CLI_TIMEOUT] {model} | "
+                        f"No activity for {inactive_time:.1f}s | "
+                        f"Killing process"
+                    )
+                    timed_out = True
+                    break
+
+                # Check hard timeout (total time exceeded)
+                if elapsed > self.timeout:
+                    progress_logger.warning(
+                        f"[CLI_TIMEOUT] {model} | "
+                        f"Hard timeout after {elapsed:.1f}s | "
+                        f"Killing process"
+                    )
+                    timed_out = True
+                    break
+
+        finally:
+            if timed_out:
+                # Kill the process
+                try:
+                    process.kill()
+                    await process.wait()
+                except Exception:
+                    pass
+
+            # Cancel any remaining tasks
+            stdout_task.cancel()
+            stderr_task.cancel()
+            try:
+                await stdout_task
+            except (asyncio.CancelledError, Exception):
+                pass
+            try:
+                await stderr_task
+            except (asyncio.CancelledError, Exception):
+                pass
+
+        # Wait for process to finish (if not killed)
+        if not timed_out:
+            await process.wait()
+
+        elapsed = time.time() - start_time
+        progress_logger.info(
+            f"[CLI_DONE] {model} | "
+            f"elapsed={elapsed:.1f}s | "
+            f"bytes={total_bytes} | "
+            f"returncode={process.returncode} | "
+            f"timed_out={timed_out}"
+        )
+
+        return b"".join(stdout_chunks), b"".join(stderr_chunks), timed_out
 
     def _adjust_args_for_context(self, is_deliberation: bool) -> list[str]:
         """

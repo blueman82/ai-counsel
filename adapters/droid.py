@@ -22,7 +22,8 @@ class DroidAdapter(BaseCLIAdapter):
         self,
         command: str = "droid",
         args: list[str] | None = None,
-        timeout: int = 60,
+        timeout: int = 600,
+        activity_timeout: int = 120,
         default_reasoning_effort: Optional[str] = None,
     ):
         """
@@ -31,7 +32,8 @@ class DroidAdapter(BaseCLIAdapter):
         Args:
             command: Command to execute (default: "droid")
             args: List of argument templates (from config.yaml)
-            timeout: Timeout in seconds (default: 60)
+            timeout: Maximum total execution time in seconds (default: 600)
+            activity_timeout: Seconds without output before timeout (default: 120)
             default_reasoning_effort: Default reasoning effort level (off/low/medium/high).
                 Can be overridden per-participant at invocation time.
 
@@ -47,6 +49,7 @@ class DroidAdapter(BaseCLIAdapter):
             command=command,
             args=args,
             timeout=timeout,
+            activity_timeout=activity_timeout,
             default_reasoning_effort=default_reasoning_effort,
         )
         self._successful_method: Optional[Literal["skip-permissions"]] = None

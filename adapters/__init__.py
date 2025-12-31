@@ -148,6 +148,7 @@ def create_adapter(
                 command=config.command,
                 args=config.args,
                 timeout=config.timeout,
+                activity_timeout=getattr(config, "activity_timeout", 120),
                 default_reasoning_effort=getattr(config, "default_reasoning_effort", None),
             )
         else:
@@ -168,6 +169,7 @@ def create_adapter(
             command=config.command,
             args=config.args,
             timeout=config.timeout,
+            activity_timeout=config.activity_timeout,
             default_reasoning_effort=config.default_reasoning_effort,
         )
 

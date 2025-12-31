@@ -16,7 +16,15 @@ class CLIAdapterConfig(BaseModel):
     type: Literal["cli"] = "cli"
     command: str
     args: list[str]
-    timeout: int = 60
+    timeout: int = 600
+    activity_timeout: int = Field(
+        default=120,
+        description=(
+            "Seconds without new output before considering process hung. "
+            "Unlike timeout (hard limit), this resets every time the model produces output. "
+            "Allows long-running but active processes to complete."
+        ),
+    )
     default_reasoning_effort: Optional[str] = Field(
         default=None,
         description=(
