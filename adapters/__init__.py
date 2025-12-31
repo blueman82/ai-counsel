@@ -75,6 +75,7 @@ def create_adapter(
             command=config.command,
             args=config.args,
             timeout=config.timeout,
+            activity_timeout=config.activity_timeout,
             default_reasoning_effort=config.default_reasoning_effort,
         )
 
