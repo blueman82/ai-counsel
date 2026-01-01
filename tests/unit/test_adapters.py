@@ -12,6 +12,7 @@ from adapters.codex import CodexAdapter
 from adapters.droid import DroidAdapter
 from adapters.gemini import GeminiAdapter
 from models.config import CLIAdapterConfig, CLIToolConfig, HTTPAdapterConfig
+from tests.conftest import create_mock_process
 
 
 class TestBaseCLIAdapter:
@@ -55,12 +56,12 @@ class TestClaudeAdapter:
     @patch("adapters.base.asyncio.create_subprocess_exec")
     async def test_invoke_success(self, mock_subprocess):
         """Test successful CLI invocation."""
-        # Mock subprocess
-        mock_process = Mock()
-        mock_process.communicate = AsyncMock(
-            return_value=(b"Claude Code output\n\nActual model response here", b"")
+        # Mock subprocess with activity-timeout compatible mock
+        mock_process = create_mock_process(
+            stdout_data=b"Claude Code output\n\nActual model response here",
+            stderr_data=b"",
+            returncode=0,
         )
-        mock_process.returncode = 0
         mock_subprocess.return_value = mock_process
 
         adapter = ClaudeAdapter(
@@ -83,9 +84,9 @@ class TestClaudeAdapter:
     @pytest.mark.asyncio
     @patch("adapters.base.asyncio.create_subprocess_exec")
     async def test_invoke_timeout(self, mock_subprocess):
-        """Test timeout handling."""
-        mock_process = Mock()
-        mock_process.communicate = AsyncMock(side_effect=asyncio.TimeoutError())
+        """Test timeout handling with activity-based timeout."""
+        # Use hang_on_read to simulate a process that produces no output
+        mock_process = create_mock_process(hang_on_read=True)
         mock_subprocess.return_value = mock_process
 
         adapter = ClaudeAdapter(
@@ -98,22 +99,23 @@ class TestClaudeAdapter:
                 "{prompt}",
             ],
             timeout=1,
+            activity_timeout=0.01,  # Very short timeout for test speed
         )
 
         with pytest.raises(TimeoutError) as exc_info:
             await adapter.invoke("test", "model")
 
-        assert "timed out" in str(exc_info.value).lower()
+        assert "activity" in str(exc_info.value).lower() or "timeout" in str(exc_info.value).lower()
 
     @pytest.mark.asyncio
     @patch("adapters.base.asyncio.create_subprocess_exec")
     async def test_invoke_process_error(self, mock_subprocess):
         """Test process error handling."""
-        mock_process = Mock()
-        mock_process.communicate = AsyncMock(
-            return_value=(b"", b"Error: Model not found")
+        mock_process = create_mock_process(
+            stdout_data=b"",
+            stderr_data=b"Error: Model not found",
+            returncode=1,
         )
-        mock_process.returncode = 1
         mock_subprocess.return_value = mock_process
 
         adapter = ClaudeAdapter(
@@ -174,12 +176,11 @@ class TestCodexAdapter:
     @patch("adapters.base.asyncio.create_subprocess_exec")
     async def test_invoke_success(self, mock_subprocess):
         """Test successful CLI invocation."""
-        # Mock subprocess
-        mock_process = Mock()
-        mock_process.communicate = AsyncMock(
-            return_value=(b"This is the codex model response.", b"")
+        mock_process = create_mock_process(
+            stdout_data=b"This is the codex model response.",
+            stderr_data=b"",
+            returncode=0,
         )
-        mock_process.returncode = 0
         mock_subprocess.return_value = mock_process
 
         adapter = CodexAdapter(args=["exec", "--model", "{model}", "{prompt}"])
@@ -191,29 +192,31 @@ class TestCodexAdapter:
     @pytest.mark.asyncio
     @patch("adapters.base.asyncio.create_subprocess_exec")
     async def test_invoke_timeout(self, mock_subprocess):
-        """Test timeout handling."""
-        mock_process = Mock()
-        mock_process.communicate = AsyncMock(side_effect=asyncio.TimeoutError())
+        """Test timeout handling with activity-based timeout."""
+        # Use hang_on_read to simulate a process that produces no output
+        mock_process = create_mock_process(hang_on_read=True)
         mock_subprocess.return_value = mock_process
 
         adapter = CodexAdapter(
-            args=["exec", "--model", "{model}", "{prompt}"], timeout=1
+            args=["exec", "--model", "{model}", "{prompt}"],
+            timeout=1,
+            activity_timeout=0.01,  # Very short timeout for test speed
         )
 
         with pytest.raises(TimeoutError) as exc_info:
             await adapter.invoke("test", "model")
 
-        assert "timed out" in str(exc_info.value).lower()
+        assert "activity" in str(exc_info.value).lower() or "timeout" in str(exc_info.value).lower()
 
     @pytest.mark.asyncio
     @patch("adapters.base.asyncio.create_subprocess_exec")
     async def test_invoke_process_error(self, mock_subprocess):
         """Test process error handling."""
-        mock_process = Mock()
-        mock_process.communicate = AsyncMock(
-            return_value=(b"", b"Error: Model not available")
+        mock_process = create_mock_process(
+            stdout_data=b"",
+            stderr_data=b"Error: Model not available",
+            returncode=1,
         )
-        mock_process.returncode = 1
         mock_subprocess.return_value = mock_process
 
         adapter = CodexAdapter(args=["exec", "--model", "{model}", "{prompt}"])
@@ -248,12 +251,11 @@ class TestGeminiAdapter:
     @patch("adapters.base.asyncio.create_subprocess_exec")
     async def test_invoke_success(self, mock_subprocess):
         """Test successful CLI invocation."""
-        # Mock subprocess
-        mock_process = Mock()
-        mock_process.communicate = AsyncMock(
-            return_value=(b"This is the gemini model response.", b"")
+        mock_process = create_mock_process(
+            stdout_data=b"This is the gemini model response.",
+            stderr_data=b"",
+            returncode=0,
         )
-        mock_process.returncode = 0
         mock_subprocess.return_value = mock_process
 
         adapter = GeminiAdapter(args=["-m", "{model}", "-p", "{prompt}"])
@@ -265,27 +267,31 @@ class TestGeminiAdapter:
     @pytest.mark.asyncio
     @patch("adapters.base.asyncio.create_subprocess_exec")
     async def test_invoke_timeout(self, mock_subprocess):
-        """Test timeout handling."""
-        mock_process = Mock()
-        mock_process.communicate = AsyncMock(side_effect=asyncio.TimeoutError())
+        """Test timeout handling with activity-based timeout."""
+        # Use hang_on_read to simulate a process that produces no output
+        mock_process = create_mock_process(hang_on_read=True)
         mock_subprocess.return_value = mock_process
 
-        adapter = GeminiAdapter(args=["-m", "{model}", "-p", "{prompt}"], timeout=1)
+        adapter = GeminiAdapter(
+            args=["-m", "{model}", "-p", "{prompt}"],
+            timeout=1,
+            activity_timeout=0.01,  # Very short timeout for test speed
+        )
 
         with pytest.raises(TimeoutError) as exc_info:
             await adapter.invoke("test", "model")
 
-        assert "timed out" in str(exc_info.value).lower()
+        assert "activity" in str(exc_info.value).lower() or "timeout" in str(exc_info.value).lower()
 
     @pytest.mark.asyncio
     @patch("adapters.base.asyncio.create_subprocess_exec")
     async def test_invoke_process_error(self, mock_subprocess):
         """Test process error handling."""
-        mock_process = Mock()
-        mock_process.communicate = AsyncMock(
-            return_value=(b"", b"Error: Model not available")
+        mock_process = create_mock_process(
+            stdout_data=b"",
+            stderr_data=b"Error: Model not available",
+            returncode=1,
         )
-        mock_process.returncode = 1
         mock_subprocess.return_value = mock_process
 
         adapter = GeminiAdapter(args=["-m", "{model}", "-p", "{prompt}"])
@@ -320,12 +326,11 @@ class TestDroidAdapter:
     @patch("adapters.base.asyncio.create_subprocess_exec")
     async def test_invoke_success(self, mock_subprocess):
         """Test successful CLI invocation."""
-        # Mock subprocess
-        mock_process = Mock()
-        mock_process.communicate = AsyncMock(
-            return_value=(b"This is the droid model response.", b"")
+        mock_process = create_mock_process(
+            stdout_data=b"This is the droid model response.",
+            stderr_data=b"",
+            returncode=0,
         )
-        mock_process.returncode = 0
         mock_subprocess.return_value = mock_process
 
         adapter = DroidAdapter(args=["exec", "{prompt}"])
@@ -337,27 +342,31 @@ class TestDroidAdapter:
     @pytest.mark.asyncio
     @patch("adapters.base.asyncio.create_subprocess_exec")
     async def test_invoke_timeout(self, mock_subprocess):
-        """Test timeout handling."""
-        mock_process = Mock()
-        mock_process.communicate = AsyncMock(side_effect=asyncio.TimeoutError())
+        """Test timeout handling with activity-based timeout."""
+        # Use hang_on_read to simulate a process that produces no output
+        mock_process = create_mock_process(hang_on_read=True)
         mock_subprocess.return_value = mock_process
 
-        adapter = DroidAdapter(args=["exec", "{prompt}"], timeout=1)
+        adapter = DroidAdapter(
+            args=["exec", "{prompt}"],
+            timeout=1,
+            activity_timeout=0.01,  # Very short timeout for test speed
+        )
 
         with pytest.raises(TimeoutError) as exc_info:
             await adapter.invoke("test", "model")
 
-        assert "timed out" in str(exc_info.value).lower()
+        assert "activity" in str(exc_info.value).lower() or "timeout" in str(exc_info.value).lower()
 
     @pytest.mark.asyncio
     @patch("adapters.base.asyncio.create_subprocess_exec")
     async def test_invoke_process_error(self, mock_subprocess):
         """Test process error handling."""
-        mock_process = Mock()
-        mock_process.communicate = AsyncMock(
-            return_value=(b"", b"Error: Model not available")
+        mock_process = create_mock_process(
+            stdout_data=b"",
+            stderr_data=b"Error: Model not available",
+            returncode=1,
         )
-        mock_process.returncode = 1
         mock_subprocess.return_value = mock_process
 
         adapter = DroidAdapter(args=["exec", "{prompt}"])
@@ -388,23 +397,22 @@ class TestDroidAdapter:
         def subprocess_side_effect(*args, **kwargs):
             nonlocal call_count
             call_count += 1
-            mock_process = Mock()
 
             # Check if this invocation uses --skip-permissions-unsafe
             if "--skip-permissions-unsafe" in args:
                 # Success with skip-permissions
-                mock_process.communicate = AsyncMock(
-                    return_value=(b"Response with skip-permissions", b"")
+                return create_mock_process(
+                    stdout_data=b"Response with skip-permissions",
+                    stderr_data=b"",
+                    returncode=0,
                 )
-                mock_process.returncode = 0
             else:
                 # Fail for --auto attempts (permission denied)
-                mock_process.communicate = AsyncMock(
-                    return_value=(b"", b"Error: insufficient permission to proceed")
+                return create_mock_process(
+                    stdout_data=b"",
+                    stderr_data=b"Error: insufficient permission to proceed",
+                    returncode=1,
                 )
-                mock_process.returncode = 1
-
-            return mock_process
 
         mock_subprocess.side_effect = subprocess_side_effect
 
@@ -438,14 +446,13 @@ class TestDroidAdapter:
         def subprocess_side_effect(*args, **kwargs):
             nonlocal call_count
             call_count += 1
-            mock_process = Mock()
 
             # All invocations succeed (simulate --auto low working)
-            mock_process.communicate = AsyncMock(
-                return_value=(b"Response with auto low", b"")
+            return create_mock_process(
+                stdout_data=b"Response with auto low",
+                stderr_data=b"",
+                returncode=0,
             )
-            mock_process.returncode = 0
-            return mock_process
 
         mock_subprocess.side_effect = subprocess_side_effect
 
@@ -485,9 +492,11 @@ class TestCodexReasoningEffort:
     @patch("adapters.base.asyncio.create_subprocess_exec")
     async def test_reasoning_effort_substituted_into_placeholder(self, mock_subprocess):
         """Test reasoning_effort is substituted into {reasoning_effort} placeholder."""
-        mock_process = Mock()
-        mock_process.communicate = AsyncMock(return_value=(b"Response", b""))
-        mock_process.returncode = 0
+        mock_process = create_mock_process(
+            stdout_data=b"Response",
+            stderr_data=b"",
+            returncode=0,
+        )
         mock_subprocess.return_value = mock_process
 
         # Use config-style args with placeholder
@@ -534,9 +543,11 @@ class TestCodexReasoningEffort:
     @patch("adapters.base.asyncio.create_subprocess_exec")
     async def test_default_reasoning_effort_used_when_none(self, mock_subprocess):
         """Test default_reasoning_effort is used when reasoning_effort=None."""
-        mock_process = Mock()
-        mock_process.communicate = AsyncMock(return_value=(b"Response", b""))
-        mock_process.returncode = 0
+        mock_process = create_mock_process(
+            stdout_data=b"Response",
+            stderr_data=b"",
+            returncode=0,
+        )
         mock_subprocess.return_value = mock_process
 
         adapter = CodexAdapter(
@@ -566,9 +577,11 @@ class TestCodexReasoningEffort:
     @patch("adapters.base.asyncio.create_subprocess_exec")
     async def test_reasoning_effort_overrides_default(self, mock_subprocess):
         """Test runtime reasoning_effort overrides default_reasoning_effort."""
-        mock_process = Mock()
-        mock_process.communicate = AsyncMock(return_value=(b"Response", b""))
-        mock_process.returncode = 0
+        mock_process = create_mock_process(
+            stdout_data=b"Response",
+            stderr_data=b"",
+            returncode=0,
+        )
         mock_subprocess.return_value = mock_process
 
         # Has default of "low", but we pass "high" at runtime
@@ -603,9 +616,11 @@ class TestCodexReasoningEffort:
     @patch("adapters.base.asyncio.create_subprocess_exec")
     async def test_empty_reasoning_effort_when_no_default(self, mock_subprocess):
         """Test empty string when no default and no runtime reasoning_effort."""
-        mock_process = Mock()
-        mock_process.communicate = AsyncMock(return_value=(b"Response", b""))
-        mock_process.returncode = 0
+        mock_process = create_mock_process(
+            stdout_data=b"Response",
+            stderr_data=b"",
+            returncode=0,
+        )
         mock_subprocess.return_value = mock_process
 
         # No default reasoning effort
@@ -647,9 +662,11 @@ class TestDroidReasoningEffort:
     @patch("adapters.droid.asyncio.create_subprocess_exec")
     async def test_reasoning_effort_injected_as_r_flag(self, mock_subprocess):
         """Test reasoning_effort is substituted into {reasoning_effort} placeholder."""
-        mock_process = Mock()
-        mock_process.communicate = AsyncMock(return_value=(b"Response", b""))
-        mock_process.returncode = 0
+        mock_process = create_mock_process(
+            stdout_data=b"Response",
+            stderr_data=b"",
+            returncode=0,
+        )
         mock_subprocess.return_value = mock_process
 
         # Use config.yaml format with {reasoning_effort} placeholder
@@ -687,9 +704,11 @@ class TestDroidReasoningEffort:
     @patch("adapters.droid.asyncio.create_subprocess_exec")
     async def test_reasoning_effort_off_injected(self, mock_subprocess):
         """Test 'off' reasoning_effort is correctly substituted."""
-        mock_process = Mock()
-        mock_process.communicate = AsyncMock(return_value=(b"Response", b""))
-        mock_process.returncode = 0
+        mock_process = create_mock_process(
+            stdout_data=b"Response",
+            stderr_data=b"",
+            returncode=0,
+        )
         mock_subprocess.return_value = mock_process
 
         # Use config.yaml format with {reasoning_effort} placeholder
@@ -715,22 +734,21 @@ class TestDroidReasoningEffort:
         def subprocess_side_effect(*args, **kwargs):
             nonlocal call_count
             call_count += 1
-            mock_process = Mock()
 
             # First call (--auto low) fails with permission error
             if call_count == 1:
-                mock_process.communicate = AsyncMock(
-                    return_value=(b"", b"Error: insufficient permission to proceed")
+                return create_mock_process(
+                    stdout_data=b"",
+                    stderr_data=b"Error: insufficient permission to proceed",
+                    returncode=1,
                 )
-                mock_process.returncode = 1
             else:
                 # Second call (--auto medium) succeeds
-                mock_process.communicate = AsyncMock(
-                    return_value=(b"Response with reasoning", b"")
+                return create_mock_process(
+                    stdout_data=b"Response with reasoning",
+                    stderr_data=b"",
+                    returncode=0,
                 )
-                mock_process.returncode = 0
-
-            return mock_process
 
         mock_subprocess.side_effect = subprocess_side_effect
 
@@ -756,9 +774,11 @@ class TestDroidReasoningEffort:
     @patch("adapters.droid.asyncio.create_subprocess_exec")
     async def test_none_reasoning_effort_uses_empty_string(self, mock_subprocess):
         """Test None reasoning_effort substitutes empty string into placeholder."""
-        mock_process = Mock()
-        mock_process.communicate = AsyncMock(return_value=(b"Response", b""))
-        mock_process.returncode = 0
+        mock_process = create_mock_process(
+            stdout_data=b"Response",
+            stderr_data=b"",
+            returncode=0,
+        )
         mock_subprocess.return_value = mock_process
 
         # Use config.yaml format with {reasoning_effort} placeholder
@@ -1068,9 +1088,11 @@ class TestConfigBasedReasoningDefaults:
         self, mock_subprocess
     ):
         """Test runtime reasoning_effort takes priority over config default."""
-        mock_process = Mock()
-        mock_process.communicate = AsyncMock(return_value=(b"Response", b""))
-        mock_process.returncode = 0
+        mock_process = create_mock_process(
+            stdout_data=b"Response",
+            stderr_data=b"",
+            returncode=0,
+        )
         mock_subprocess.return_value = mock_process
 
         # Create adapter with config default of "low"
@@ -1105,9 +1127,11 @@ class TestConfigBasedReasoningDefaults:
     @patch("adapters.base.asyncio.create_subprocess_exec")
     async def test_config_default_used_when_runtime_is_none(self, mock_subprocess):
         """Test config default is used when reasoning_effort=None at runtime."""
-        mock_process = Mock()
-        mock_process.communicate = AsyncMock(return_value=(b"Response", b""))
-        mock_process.returncode = 0
+        mock_process = create_mock_process(
+            stdout_data=b"Response",
+            stderr_data=b"",
+            returncode=0,
+        )
         mock_subprocess.return_value = mock_process
 
         # Create adapter with config default
@@ -1141,9 +1165,11 @@ class TestConfigBasedReasoningDefaults:
     @patch("adapters.base.asyncio.create_subprocess_exec")
     async def test_empty_string_when_no_default_and_no_runtime(self, mock_subprocess):
         """Test empty string is used when no config default and no runtime value."""
-        mock_process = Mock()
-        mock_process.communicate = AsyncMock(return_value=(b"Response", b""))
-        mock_process.returncode = 0
+        mock_process = create_mock_process(
+            stdout_data=b"Response",
+            stderr_data=b"",
+            returncode=0,
+        )
         mock_subprocess.return_value = mock_process
 
         # Create adapter WITHOUT config default
@@ -1177,9 +1203,11 @@ class TestConfigBasedReasoningDefaults:
     @patch("adapters.droid.asyncio.create_subprocess_exec")
     async def test_droid_runtime_overrides_config_default(self, mock_subprocess):
         """Test Droid runtime reasoning_effort overrides config default."""
-        mock_process = Mock()
-        mock_process.communicate = AsyncMock(return_value=(b"Response", b""))
-        mock_process.returncode = 0
+        mock_process = create_mock_process(
+            stdout_data=b"Response",
+            stderr_data=b"",
+            returncode=0,
+        )
         mock_subprocess.return_value = mock_process
 
         # Create adapter with config default of "low"
@@ -1207,9 +1235,11 @@ class TestConfigBasedReasoningDefaults:
     @patch("adapters.droid.asyncio.create_subprocess_exec")
     async def test_droid_config_default_used_when_runtime_none(self, mock_subprocess):
         """Test Droid uses config default when runtime reasoning_effort=None."""
-        mock_process = Mock()
-        mock_process.communicate = AsyncMock(return_value=(b"Response", b""))
-        mock_process.returncode = 0
+        mock_process = create_mock_process(
+            stdout_data=b"Response",
+            stderr_data=b"",
+            returncode=0,
+        )
         mock_subprocess.return_value = mock_process
 
         # Create adapter with config default
@@ -1315,12 +1345,11 @@ class TestWorkingDirectoryIsolation:
     @patch("adapters.base.asyncio.create_subprocess_exec")
     async def test_invoke_uses_working_directory_as_cwd(self, mock_subprocess):
         """Test that invoke() uses working_directory as subprocess cwd."""
-        # Mock subprocess
-        mock_process = Mock()
-        mock_process.communicate = AsyncMock(
-            return_value=(b"Response from working directory", b"")
+        mock_process = create_mock_process(
+            stdout_data=b"Response from working directory",
+            stderr_data=b"",
+            returncode=0,
         )
-        mock_process.returncode = 0
         mock_subprocess.return_value = mock_process
 
         adapter = ClaudeAdapter(
@@ -1355,12 +1384,11 @@ class TestWorkingDirectoryIsolation:
         self, mock_subprocess
     ):
         """Test that invoke() without working_directory uses current directory."""
-        # Mock subprocess
-        mock_process = Mock()
-        mock_process.communicate = AsyncMock(
-            return_value=(b"Response from current dir", b"")
+        mock_process = create_mock_process(
+            stdout_data=b"Response from current dir",
+            stderr_data=b"",
+            returncode=0,
         )
-        mock_process.returncode = 0
         mock_subprocess.return_value = mock_process
 
         adapter = CodexAdapter(args=["exec", "--model", "{model}", "{prompt}"])
@@ -1382,12 +1410,11 @@ class TestWorkingDirectoryIsolation:
     @patch("adapters.base.asyncio.create_subprocess_exec")
     async def test_gemini_adapter_uses_working_directory(self, mock_subprocess):
         """Test that GeminiAdapter uses working_directory."""
-        # Mock subprocess
-        mock_process = Mock()
-        mock_process.communicate = AsyncMock(
-            return_value=(b"Gemini response from working dir", b"")
+        mock_process = create_mock_process(
+            stdout_data=b"Gemini response from working dir",
+            stderr_data=b"",
+            returncode=0,
         )
-        mock_process.returncode = 0
         mock_subprocess.return_value = mock_process
 
         adapter = GeminiAdapter(args=["-m", "{model}", "-p", "{prompt}"])

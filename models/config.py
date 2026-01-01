@@ -18,6 +18,14 @@ class CLIAdapterConfig(BaseModel):
     command: str
     args: list[str]
     timeout: int = 60
+    activity_timeout: Optional[int] = Field(
+        default=None,
+        description=(
+            "Inactivity timeout in seconds. Resets each time output is received. "
+            "If None, falls back to 'timeout' value. Useful for long-running models "
+            "that produce output incrementally (e.g., reasoning models with thinking tokens)."
+        ),
+    )
     default_reasoning_effort: Optional[str] = Field(
         default=None,
         description=(
@@ -36,6 +44,13 @@ class HTTPAdapterConfig(BaseModel):
     api_key: Optional[str] = None
     headers: Optional[dict[str, str]] = None
     timeout: int = 60
+    activity_timeout: Optional[int] = Field(
+        default=None,
+        description=(
+            "Inactivity timeout in seconds for streaming responses. "
+            "Resets each time a chunk is received. If None, falls back to 'timeout'."
+        ),
+    )
     max_retries: int = 3
 
     @field_validator("api_key", "base_url")

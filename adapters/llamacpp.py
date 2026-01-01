@@ -41,6 +41,7 @@ class LlamaCppAdapter(BaseCLIAdapter):
         command: str = "llama-cli",
         args: list[str] | None = None,
         timeout: int = 120,
+        activity_timeout: int | None = None,
         search_paths: list[str] | None = None,
         default_reasoning_effort: str | None = None,
     ):
@@ -51,6 +52,7 @@ class LlamaCppAdapter(BaseCLIAdapter):
             command: Command to execute (default: "llama-cli")
             args: List of argument templates (from config.yaml)
             timeout: Timeout in seconds (default: 120, as local inference can be slow)
+            activity_timeout: Inactivity timeout in seconds (resets on output)
             search_paths: Custom search paths for models (uses DEFAULT_SEARCH_PATHS if None)
             default_reasoning_effort: Ignored (llama.cpp doesn't support reasoning effort)
 
@@ -63,6 +65,7 @@ class LlamaCppAdapter(BaseCLIAdapter):
             command=command,
             args=args,
             timeout=timeout,
+            activity_timeout=activity_timeout,
             default_reasoning_effort=default_reasoning_effort,
         )
         self.search_paths = search_paths or self.DEFAULT_SEARCH_PATHS

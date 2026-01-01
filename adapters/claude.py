@@ -11,6 +11,7 @@ class ClaudeAdapter(BaseCLIAdapter):
         command: str = "claude",
         args: list[str] | None = None,
         timeout: int = 60,
+        activity_timeout: int | None = None,
         default_reasoning_effort: str | None = None,
     ):
         """
@@ -20,6 +21,7 @@ class ClaudeAdapter(BaseCLIAdapter):
             command: Command to execute (default: "claude")
             args: List of argument templates (from config.yaml)
             timeout: Timeout in seconds (default: 60)
+            activity_timeout: Inactivity timeout in seconds (resets on output)
             default_reasoning_effort: Ignored (Claude doesn't support reasoning effort)
         """
         if args is None:
@@ -28,6 +30,7 @@ class ClaudeAdapter(BaseCLIAdapter):
             command=command,
             args=args,
             timeout=timeout,
+            activity_timeout=activity_timeout,
             default_reasoning_effort=default_reasoning_effort,
         )
 

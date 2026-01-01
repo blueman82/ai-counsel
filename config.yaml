@@ -13,7 +13,8 @@ cli_tools:
         '{{"disableAllHooks": true}}',
         "{prompt}",
       ]
-    timeout: 60  # Reduced from 300s for faster fail-fast (MCP timeout provides overall protection)
+    timeout: 300  # Total maximum time
+    activity_timeout: 60  # Resets on each output chunk - allows long responses while catching hangs
     # Valid models: "sonnet", "opus", "haiku" or full names like "claude-opus-4-5-20251101", "claude-sonnet-4-5-20250929"
     # Note: -p flag is auto-removed during deliberations for full engagement
 
@@ -32,6 +33,7 @@ cli_tools:
         "{prompt}",
       ]
     timeout: 90  # Reduced from 300s - reasoning models need more time but not 5 minutes
+    activity_timeout: 45  # Resets on output - catches hangs while allowing reasoning
     default_reasoning_effort: "medium"
   # Valid models: "gpt-5.2-codex", "gpt-5.1-codex-max", "gpt-5.1-codex-mini", "gpt-5.2"
     #
@@ -55,6 +57,7 @@ cli_tools:
     command: "droid"
     args: ["exec", "-m", "{model}", "-r", "{reasoning_effort}", "{prompt}"]
     timeout: 90  # Reduced from 300s - reasoning models need more time but not 5 minutes
+    activity_timeout: 45  # Resets on output - catches hangs while allowing reasoning
     default_reasoning_effort: "medium"
     # VALID MODEL IDS: "claude-opus-4-5-20251101", "claude-sonnet-4-5-20250929", "gpt-5.1-codex", "gpt-5.1", "glm-4.6"
     # Note: Use model IDs (not labels). See model_registry.droid section below for full list
@@ -89,6 +92,7 @@ cli_tools:
         "{prompt}",
       ]
     timeout: 60  # Reduced from 300s - Gemini is generally fast
+    activity_timeout: 30  # Resets on output - Gemini is fast but can hang
     # Valid models: "gemini-2.5-pro" (default) or other Gemini identifiers
     #
     # Working Directory Configuration:
@@ -100,6 +104,7 @@ cli_tools:
     command: "llama-cli"
     args: ["-m", "{model}", "-p", "{prompt}", "-n", "2048", "-c", "4096"]
     timeout: 120  # Reduced from 300s - local models can be slow but not 5 minutes
+    activity_timeout: 60  # Resets on output - local models generate tokens continuously
     # llama.cpp is a fast, lightweight LLM inference engine for running models locally
     #
     # AUTO-DISCOVERY:

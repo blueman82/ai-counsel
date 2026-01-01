@@ -17,6 +17,7 @@ class GeminiAdapter(BaseCLIAdapter):
         command: str = "gemini",
         args: list[str] | None = None,
         timeout: int = 60,
+        activity_timeout: int | None = None,
         default_reasoning_effort: str | None = None,
     ):
         """
@@ -26,6 +27,7 @@ class GeminiAdapter(BaseCLIAdapter):
             command: Command to execute (default: "gemini")
             args: List of argument templates (from config.yaml)
             timeout: Timeout in seconds (default: 60)
+            activity_timeout: Inactivity timeout in seconds (resets on output)
             default_reasoning_effort: Ignored (Gemini doesn't support reasoning effort)
 
         Note:
@@ -37,6 +39,7 @@ class GeminiAdapter(BaseCLIAdapter):
             command=command,
             args=args,
             timeout=timeout,
+            activity_timeout=activity_timeout,
             default_reasoning_effort=default_reasoning_effort,
         )
 

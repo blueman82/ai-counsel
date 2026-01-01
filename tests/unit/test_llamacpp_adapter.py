@@ -22,6 +22,7 @@ from unittest.mock import AsyncMock, Mock, patch
 import pytest
 
 from adapters.llamacpp import LlamaCppAdapter
+from tests.conftest import create_mock_process
 
 
 class TestLlamaCppAdapter:
@@ -182,10 +183,8 @@ llama_print_timings: total time = 100 ms
         model_file = tmp_path / "model.gguf"
         model_file.touch()
 
-        mock_process = Mock()
-        mock_process.communicate = AsyncMock(
-            return_value=(
-                b"""
+        mock_process = create_mock_process(
+            stdout_data=b"""
 llama_model_loader: loaded meta data
 sampling: repeat_last_n = 64
 
@@ -193,10 +192,9 @@ The answer is 42.
 
 llama_print_timings: total time = 100 ms
             """,
-                b"",
-            )
+            stderr_data=b"",
+            returncode=0,
         )
-        mock_process.returncode = 0
         mock_subprocess.return_value = mock_process
 
         adapter = LlamaCppAdapter(args=["-m", "{model}", "-p", "{prompt}"])
@@ -212,21 +210,25 @@ llama_print_timings: total time = 100 ms
     async def test_should_raise_timeout_error_when_process_times_out(
         self, mock_subprocess, tmp_path
     ):
-        """Test timeout handling."""
+        """Test timeout handling with activity-based timeout."""
         # Create a temporary model file
         model_file = tmp_path / "model.gguf"
         model_file.touch()
 
-        mock_process = Mock()
-        mock_process.communicate = AsyncMock(side_effect=asyncio.TimeoutError())
+        # Use hang_on_read to simulate process that produces no output
+        mock_process = create_mock_process(hang_on_read=True)
         mock_subprocess.return_value = mock_process
 
-        adapter = LlamaCppAdapter(args=["-m", "{model}", "-p", "{prompt}"], timeout=1)
+        adapter = LlamaCppAdapter(
+            args=["-m", "{model}", "-p", "{prompt}"],
+            timeout=1,
+            activity_timeout=0.01,  # Very short for fast test
+        )
 
         with pytest.raises(TimeoutError) as exc_info:
             await adapter.invoke("test prompt", str(model_file))
 
-        assert "timed out" in str(exc_info.value).lower()
+        assert "activity" in str(exc_info.value).lower() or "timeout" in str(exc_info.value).lower()
 
     @pytest.mark.asyncio
     @patch("adapters.base.asyncio.create_subprocess_exec")
@@ -238,11 +240,11 @@ llama_print_timings: total time = 100 ms
         model_file = tmp_path / "model.gguf"
         model_file.touch()
 
-        mock_process = Mock()
-        mock_process.communicate = AsyncMock(
-            return_value=(b"", b"error: failed to load model")
+        mock_process = create_mock_process(
+            stdout_data=b"",
+            stderr_data=b"error: failed to load model",
+            returncode=1,
         )
-        mock_process.returncode = 1
         mock_subprocess.return_value = mock_process
 
         adapter = LlamaCppAdapter(args=["-m", "{model}", "-p", "{prompt}"])
@@ -262,11 +264,11 @@ llama_print_timings: total time = 100 ms
         model_file = tmp_path / "model.gguf"
         model_file.touch()
 
-        mock_process = Mock()
-        mock_process.communicate = AsyncMock(
-            return_value=(b"Response with context.", b"")
+        mock_process = create_mock_process(
+            stdout_data=b"Response with context.",
+            stderr_data=b"",
+            returncode=0,
         )
-        mock_process.returncode = 0
         mock_subprocess.return_value = mock_process
 
         adapter = LlamaCppAdapter(args=["-m", "{model}", "-p", "{prompt}"])
@@ -700,9 +702,11 @@ class TestLlamaCppAutoDiscovery:
         model_file = models_dir / "llama-2-7b.gguf"
         model_file.touch()
 
-        mock_process = Mock()
-        mock_process.communicate = AsyncMock(return_value=(b"Response", b""))
-        mock_process.returncode = 0
+        mock_process = create_mock_process(
+            stdout_data=b"Response",
+            stderr_data=b"",
+            returncode=0,
+        )
         mock_subprocess.return_value = mock_process
 
         adapter = LlamaCppAdapter(

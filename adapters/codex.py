@@ -21,6 +21,7 @@ class CodexAdapter(BaseCLIAdapter):
         command: str = "codex",
         args: list[str] | None = None,
         timeout: int = 60,
+        activity_timeout: Optional[int] = None,
         default_reasoning_effort: Optional[str] = None,
     ):
         """
@@ -30,6 +31,7 @@ class CodexAdapter(BaseCLIAdapter):
             command: Command to execute (default: "codex")
             args: List of argument templates (from config.yaml with {reasoning_effort} placeholder)
             timeout: Timeout in seconds (default: 60)
+            activity_timeout: Inactivity timeout in seconds (resets on output)
             default_reasoning_effort: Default reasoning effort level (none/minimal/low/medium/high).
                 Used when {reasoning_effort} placeholder is in args. Can be overridden per-participant.
         """
@@ -47,6 +49,7 @@ class CodexAdapter(BaseCLIAdapter):
             command=command,
             args=args,
             timeout=timeout,
+            activity_timeout=activity_timeout,
             default_reasoning_effort=default_reasoning_effort,
         )
 
