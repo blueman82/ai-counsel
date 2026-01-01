@@ -452,6 +452,34 @@ class DecisionGraphConfig(BaseModel):
         return str(path)
 
 
+class MCPConfig(BaseModel):
+    """MCP server configuration."""
+
+    max_rounds_in_response: int = Field(
+        default=3,
+        ge=1,
+        le=10,
+        description="Maximum rounds to include in MCP response (avoids token limits)",
+    )
+    response_timeout: float = Field(
+        default=30.0,
+        ge=5.0,
+        le=600.0,
+        description=(
+            "Maximum seconds to wait for deliberation response. "
+            "Set lower (15-30s) for fast responses with reliable models. "
+            "Set higher (60-120s) for reasoning models that need more time."
+        ),
+    )
+    fast_fail_on_timeout: bool = Field(
+        default=True,
+        description=(
+            "If True, return partial results when timeout is reached. "
+            "If False, raise an error on timeout."
+        ),
+    )
+
+
 class Config(BaseModel):
     """Root configuration model."""
 
@@ -471,6 +499,10 @@ class Config(BaseModel):
     storage: StorageConfig
     deliberation: DeliberationConfig
     decision_graph: Optional[DecisionGraphConfig] = None
+    mcp: MCPConfig = Field(
+        default_factory=MCPConfig,
+        description="MCP server configuration including response timeouts",
+    )
 
     def model_post_init(self, __context):
         """Post-initialization validation."""
