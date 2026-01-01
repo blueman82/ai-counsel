@@ -184,6 +184,8 @@ CLI_TITLES = {
     "openrouter": "OpenRouter",
     "nebius": "Nebius",
     "openai": "OpenAI",
+    "nvmdapi": "NVMD API",
+    "nvmdapicli": "NVMD API CLI",
 }
 
 
@@ -218,6 +220,8 @@ def _build_participant_variants() -> list[dict]:
         "openrouter",
         "nebius",
         "openai",
+        "nvmdapi",
+        "nvmdapicli",
     ]
 
     for cli in all_clis:

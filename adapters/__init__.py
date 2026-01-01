@@ -139,6 +139,8 @@ def create_adapter(
         "openrouter": OpenRouterAdapter,
         "nebius": NebiusAdapter,
         "openai": OpenAIAdapter,
+        "nvmdapi": OpenAIAdapter,
+        "nvmdapicli": OpenAIAdapter,
     }
 
     # Handle legacy CLIToolConfig (backward compatibility)

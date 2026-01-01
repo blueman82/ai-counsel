@@ -11,6 +11,7 @@ decisions are added to the graph.
 
 import hashlib
 import logging
+import threading
 import time
 from collections import OrderedDict
 from datetime import datetime
@@ -38,6 +39,7 @@ class LRUCache:
         self.maxsize = maxsize
         self._cache: OrderedDict = OrderedDict()
         self._ttl_map: Dict[str, float] = {}  # key -> expiration timestamp
+        self._lock = threading.RLock()  # Reentrant lock for thread-safety
 
         # Statistics
         self._hits = 0
@@ -55,23 +57,24 @@ class LRUCache:
         Returns:
             Cached value if found and not expired, None otherwise
         """
-        # Check if key exists
-        if key not in self._cache:
-            self._misses += 1
-            return None
-
-        # Check TTL expiration
-        if key in self._ttl_map:
-            if time.time() > self._ttl_map[key]:
-                # Expired - remove and return None
-                self._remove(key)
+        with self._lock:
+            # Check if key exists
+            if key not in self._cache:
                 self._misses += 1
                 return None
 
-        # Move to end (mark as recently used)
-        self._cache.move_to_end(key)
-        self._hits += 1
-        return self._cache[key]
+            # Check TTL expiration
+            if key in self._ttl_map:
+                if time.time() > self._ttl_map[key]:
+                    # Expired - remove and return None
+                    self._remove(key)
+                    self._misses += 1
+                    return None
+
+            # Move to end (mark as recently used)
+            self._cache.move_to_end(key)
+            self._hits += 1
+            return self._cache[key]
 
     def put(self, key: str, value: Any, ttl: Optional[float] = None) -> None:
         """Put item in cache with optional TTL.
@@ -81,31 +84,32 @@ class LRUCache:
             value: Value to cache
             ttl: Optional time-to-live in seconds (None = no expiration)
         """
-        # If key already exists, update it
-        if key in self._cache:
-            self._cache.move_to_end(key)
+        with self._lock:
+            # If key already exists, update it
+            if key in self._cache:
+                self._cache.move_to_end(key)
+                self._cache[key] = value
+
+                # Update TTL
+                if ttl is not None:
+                    self._ttl_map[key] = time.time() + ttl
+                elif key in self._ttl_map:
+                    del self._ttl_map[key]
+
+                return
+
+            # Add new item
             self._cache[key] = value
 
-            # Update TTL
+            # Set TTL if provided
             if ttl is not None:
                 self._ttl_map[key] = time.time() + ttl
-            elif key in self._ttl_map:
-                del self._ttl_map[key]
 
-            return
-
-        # Add new item
-        self._cache[key] = value
-
-        # Set TTL if provided
-        if ttl is not None:
-            self._ttl_map[key] = time.time() + ttl
-
-        # Evict oldest item if over capacity
-        if len(self._cache) > self.maxsize:
-            oldest_key = next(iter(self._cache))
-            self._remove(oldest_key)
-            self._evictions += 1
+            # Evict oldest item if over capacity
+            if len(self._cache) > self.maxsize:
+                oldest_key = next(iter(self._cache))
+                self._remove(oldest_key)
+                self._evictions += 1
 
     def _remove(self, key: str) -> None:
         """Remove item from cache and TTL map."""
@@ -123,22 +127,25 @@ class LRUCache:
         Returns:
             True if key was present, False otherwise
         """
-        if key in self._cache:
-            self._remove(key)
-            logger.debug(f"Invalidated cache key: {key[:50]}...")
-            return True
-        return False
+        with self._lock:
+            if key in self._cache:
+                self._remove(key)
+                logger.debug(f"Invalidated cache key: {key[:50]}...")
+                return True
+            return False
 
     def clear(self) -> None:
         """Clear all items from cache."""
-        count = len(self._cache)
-        self._cache.clear()
-        self._ttl_map.clear()
-        logger.debug(f"Cleared cache ({count} items removed)")
+        with self._lock:
+            count = len(self._cache)
+            self._cache.clear()
+            self._ttl_map.clear()
+            logger.debug(f"Cleared cache ({count} items removed)")
 
     def size(self) -> int:
         """Get current number of items in cache."""
-        return len(self._cache)
+        with self._lock:
+            return len(self._cache)
 
     def get_stats(self) -> Dict[str, int | float]:
         """Get cache statistics.
@@ -146,22 +153,24 @@ class LRUCache:
         Returns:
             Dict with hits, misses, evictions, size, hit_rate
         """
-        total_requests = self._hits + self._misses
-        hit_rate = self._hits / total_requests if total_requests > 0 else 0.0
+        with self._lock:
+            total_requests = self._hits + self._misses
+            hit_rate = self._hits / total_requests if total_requests > 0 else 0.0
 
-        return {
-            "hits": self._hits,
-            "misses": self._misses,
-            "evictions": self._evictions,
-            "size": len(self._cache),
-            "hit_rate": hit_rate,
-        }
+            return {
+                "hits": self._hits,
+                "misses": self._misses,
+                "evictions": self._evictions,
+                "size": len(self._cache),
+                "hit_rate": hit_rate,
+            }
 
     def reset_stats(self) -> None:
         """Reset statistics counters."""
-        self._hits = 0
-        self._misses = 0
-        self._evictions = 0
+        with self._lock:
+            self._hits = 0
+            self._misses = 0
+            self._evictions = 0
 
 
 class SimilarityCache:

@@ -19,6 +19,8 @@ class Participant(BaseModel):
         "openrouter",
         "nebius",
         "openai",
+        "nvmdapi",
+        "nvmdapicli",
     ] = Field(
         ...,
         description="Adapter to use for this participant (CLI tools or HTTP services)",
