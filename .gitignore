@@ -100,3 +100,6 @@ docs/dev/
 
 # Local config override (user-specific, never commit)
 config.local.yaml
+
+# MCP configuration (contains secrets)
+.mcp.json
