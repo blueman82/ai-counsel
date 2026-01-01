@@ -1,4 +1,5 @@
 """Configuration loading and validation."""
+
 import os
 import re
 import warnings
@@ -17,13 +18,6 @@ class CLIAdapterConfig(BaseModel):
     command: str
     args: list[str]
     timeout: int = 60
-    activity_timeout: int = Field(
-        default=120,
-        description=(
-            "Seconds without new output before considering process hung. "
-            "Timer resets on each output chunk, allowing slow but active processes to complete."
-        ),
-    )
     default_reasoning_effort: Optional[str] = Field(
         default=None,
         description=(
@@ -83,9 +77,46 @@ class HTTPAdapterConfig(BaseModel):
         return result
 
 
+class OpenAIAdapterConfig(HTTPAdapterConfig):
+    """Configuration for OpenAI HTTP adapter with Responses API support.
+
+    Extends HTTPAdapterConfig with OpenAI-specific settings for routing
+    models to the correct API endpoint and controlling output length.
+    """
+
+    type: Literal["openai"] = Field(
+        default="openai",
+        description="The type discriminator for the OpenAI adapter.",
+    )
+    responses_api_prefixes: List[str] = Field(
+        default=["o1", "o3"],
+        description=(
+            "Model name prefixes that use the Responses API instead of Chat Completions. "
+            "Models starting with these prefixes are routed to /responses endpoint."
+        ),
+    )
+    max_output_tokens: Optional[int] = Field(
+        default=None,
+        description=(
+            "Maximum output tokens for Responses API requests. "
+            "If None, uses OpenAI's model-specific defaults. "
+            "Only applies to o1/o3 models using the Responses API."
+        ),
+    )
+    max_completion_tokens: Optional[int] = Field(
+        default=None,
+        description=(
+            "Maximum completion tokens for Chat Completions API requests. "
+            "If None, uses OpenAI's model-specific defaults. "
+            "Only applies to GPT models using the Chat Completions API."
+        ),
+    )
+
+
 # Discriminated union - Pydantic uses 'type' field to determine which model to use
 AdapterConfig = Annotated[
-    Union[CLIAdapterConfig, HTTPAdapterConfig], Field(discriminator="type")
+    Union[CLIAdapterConfig, HTTPAdapterConfig, OpenAIAdapterConfig],
+    Field(discriminator="type"),
 ]
 
 
@@ -422,6 +453,34 @@ class DecisionGraphConfig(BaseModel):
         return str(path)
 
 
+class MCPConfig(BaseModel):
+    """MCP server configuration."""
+
+    max_rounds_in_response: int = Field(
+        default=3,
+        ge=1,
+        le=10,
+        description="Maximum rounds to include in MCP response (avoids token limits)",
+    )
+    response_timeout: float = Field(
+        default=30.0,
+        ge=5.0,
+        le=600.0,
+        description=(
+            "Maximum seconds to wait for deliberation response. "
+            "Set lower (15-30s) for fast responses with reliable models. "
+            "Set higher (60-120s) for reasoning models that need more time."
+        ),
+    )
+    fast_fail_on_timeout: bool = Field(
+        default=True,
+        description=(
+            "If True, return partial results when timeout is reached. "
+            "If False, raise an error on timeout."
+        ),
+    )
+
+
 class Config(BaseModel):
     """Root configuration model."""
 
@@ -441,6 +500,10 @@ class Config(BaseModel):
     storage: StorageConfig
     deliberation: DeliberationConfig
     decision_graph: Optional[DecisionGraphConfig] = None
+    mcp: MCPConfig = Field(
+        default_factory=MCPConfig,
+        description="MCP server configuration including response timeouts",
+    )
 
     def model_post_init(self, __context):
         """Post-initialization validation."""
@@ -478,7 +541,11 @@ def load_config(path: str = "config.yaml") -> Config:
 
     # Load environment variables from .env file in same directory as config
     # This ensures the .env file is found regardless of the current working directory
-    config_dir = config_path.parent if config_path.parent.exists() else Path(__file__).parent.parent
+    config_dir = (
+        config_path.parent
+        if config_path.parent.exists()
+        else Path(__file__).parent.parent
+    )
     env_path = config_dir / ".env"
     if env_path.exists():
         load_dotenv(env_path)

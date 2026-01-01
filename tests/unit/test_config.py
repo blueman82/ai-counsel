@@ -1,4 +1,5 @@
 """Unit tests for configuration loading."""
+
 import os
 from pathlib import Path
 
@@ -26,7 +27,7 @@ class TestConfigLoading:
         claude = config.cli_tools["claude"]
         assert claude.command == "claude"
         assert isinstance(claude.args, list)
-        assert claude.timeout == 300  # 5 minutes for reasoning models
+        assert claude.timeout == 60  # Reduced from 300s for faster fail-fast
 
     def test_defaults_loaded(self):
         """Test default settings are loaded."""
@@ -140,14 +141,16 @@ class TestCLIAdapterConfig:
         # codex should have {reasoning_effort} placeholder in args
         assert "codex" in config.cli_tools
         codex_config = config.cli_tools["codex"]
-        assert any("{reasoning_effort}" in str(arg) for arg in codex_config.args), \
-            "codex args should contain {reasoning_effort} placeholder"
+        assert any(
+            "{reasoning_effort}" in str(arg) for arg in codex_config.args
+        ), "codex args should contain {reasoning_effort} placeholder"
 
         # droid should have {reasoning_effort} placeholder in args
         assert "droid" in config.cli_tools
         droid_config = config.cli_tools["droid"]
-        assert any("{reasoning_effort}" in str(arg) for arg in droid_config.args), \
-            "droid args should contain {reasoning_effort} placeholder"
+        assert any(
+            "{reasoning_effort}" in str(arg) for arg in droid_config.args
+        ), "droid args should contain {reasoning_effort} placeholder"
 
 
 class TestHTTPAdapterConfig:
@@ -271,6 +274,87 @@ class TestAdapterConfig:
             adapter.validate_python(
                 {"type": "invalid", "command": "test", "timeout": 60}
             )
+
+    def test_adapter_config_discriminates_openai_type(self):
+        """Test AdapterConfig discriminates to OpenAIAdapterConfig.
+
+        This test verifies the fix for the critical config wiring bug where
+        OpenAIAdapterConfig was missing from the AdapterConfig union, causing
+        OpenAI-specific fields to be silently dropped during parsing.
+        """
+        from pydantic import TypeAdapter
+
+        from models.config import AdapterConfig, OpenAIAdapterConfig
+
+        data = {
+            "type": "openai",
+            "base_url": "https://api.openai.com/v1",
+            "timeout": 120,
+            "responses_api_prefixes": ["o1", "o3", "o4"],
+            "max_output_tokens": 8192,
+            "max_completion_tokens": 4096,
+        }
+
+        adapter = TypeAdapter(AdapterConfig)
+        config = adapter.validate_python(data)
+
+        # Must be OpenAIAdapterConfig, not HTTPAdapterConfig
+        assert isinstance(config, OpenAIAdapterConfig)
+        # OpenAI-specific fields must be preserved (not silently dropped)
+        assert config.responses_api_prefixes == ["o1", "o3", "o4"]
+        assert config.max_output_tokens == 8192
+        assert config.max_completion_tokens == 4096
+
+    def test_openai_config_with_http_type_fails(self):
+        """Test that type: http does NOT create OpenAIAdapterConfig.
+
+        This ensures we require explicit type: openai and don't have
+        any backward compatibility shims that silently coerce types.
+        """
+        from pydantic import TypeAdapter
+
+        from models.config import AdapterConfig, HTTPAdapterConfig, OpenAIAdapterConfig
+
+        data = {
+            "type": "http",
+            "base_url": "https://api.openai.com/v1",
+            "responses_api_prefixes": ["o1", "o3"],  # OpenAI-specific field
+        }
+
+        adapter = TypeAdapter(AdapterConfig)
+        config = adapter.validate_python(data)
+
+        # Should be HTTPAdapterConfig, NOT OpenAIAdapterConfig
+        assert isinstance(config, HTTPAdapterConfig)
+        assert not isinstance(config, OpenAIAdapterConfig)
+        # OpenAI-specific field should NOT exist on HTTPAdapterConfig
+        assert not hasattr(config, "responses_api_prefixes")
+
+    def test_openai_adapter_factory_receives_config_fields(self):
+        """Test that OpenAI-specific fields reach the adapter factory.
+
+        This is an end-to-end test verifying the full config wiring:
+        config.yaml → Config parsing → OpenAIAdapterConfig → factory → OpenAIAdapter
+        """
+        from models.config import load_config, OpenAIAdapterConfig
+
+        config = load_config()
+        openai_config = config.adapters.get("openai")
+
+        # Config must be parsed as OpenAIAdapterConfig
+        assert openai_config is not None, "OpenAI adapter not found in config"
+        assert isinstance(openai_config, OpenAIAdapterConfig), (
+            f"Expected OpenAIAdapterConfig, got {type(openai_config).__name__}. "
+            "This indicates OpenAIAdapterConfig is missing from the AdapterConfig union."
+        )
+
+        # OpenAI-specific fields must be present and not silently dropped
+        assert hasattr(openai_config, "responses_api_prefixes")
+        assert hasattr(openai_config, "max_output_tokens")
+        assert hasattr(openai_config, "max_completion_tokens")
+
+        # Verify the discriminator is correct
+        assert openai_config.type == "openai"
 
 
 class TestConfigLoader:
@@ -447,7 +531,9 @@ class TestDecisionGraphConfig:
         up from models/config.py where DecisionGraphConfig is defined.
         """
         # This mirrors the logic in DecisionGraphConfig.resolve_db_path
-        config_module_path = Path(__file__).parent.parent.parent / "models" / "config.py"
+        config_module_path = (
+            Path(__file__).parent.parent.parent / "models" / "config.py"
+        )
         return config_module_path.parent.parent
 
     def test_db_path_relative_to_project_root(self, project_root):
@@ -468,9 +554,9 @@ class TestDecisionGraphConfig:
 
         # Path should be at project root
         expected_path = (project_root / "decision_graph.db").resolve()
-        assert config.db_path == str(expected_path), (
-            f"Expected {expected_path}, got {config.db_path}"
-        )
+        assert config.db_path == str(
+            expected_path
+        ), f"Expected {expected_path}, got {config.db_path}"
 
         # Verify it's a string, not a Path object
         assert isinstance(config.db_path, str), "db_path should be returned as string"
@@ -493,9 +579,9 @@ class TestDecisionGraphConfig:
         assert resolved_path.is_absolute(), "Absolute path should remain absolute"
 
         # Should be unchanged (no symlink resolution for absolute paths)
-        assert config.db_path == absolute_path, (
-            f"Absolute path should be preserved unchanged"
-        )
+        assert (
+            config.db_path == absolute_path
+        ), f"Absolute path should be preserved unchanged"
 
     def test_db_path_with_env_var(self, project_root, monkeypatch):
         """
@@ -511,21 +597,18 @@ class TestDecisionGraphConfig:
         test_data_dir = "/var/data"
         monkeypatch.setenv("TEST_DATA_DIR", test_data_dir)
 
-        config = DecisionGraphConfig(
-            enabled=True,
-            db_path="${TEST_DATA_DIR}/graph.db"
-        )
+        config = DecisionGraphConfig(enabled=True, db_path="${TEST_DATA_DIR}/graph.db")
 
         # Should resolve env var and path is already absolute (no further resolution)
         expected_path = "/var/data/graph.db"
-        assert config.db_path == expected_path, (
-            f"Expected {expected_path}, got {config.db_path}"
-        )
+        assert (
+            config.db_path == expected_path
+        ), f"Expected {expected_path}, got {config.db_path}"
 
         # Path should be absolute
-        assert Path(config.db_path).is_absolute(), (
-            "Path with resolved env var should be absolute"
-        )
+        assert Path(
+            config.db_path
+        ).is_absolute(), "Path with resolved env var should be absolute"
 
     def test_db_path_with_relative_env_var(self, project_root, monkeypatch):
         """
@@ -539,16 +622,13 @@ class TestDecisionGraphConfig:
         # Set up relative path in environment variable
         monkeypatch.setenv("TEST_DATA_DIR", "data")
 
-        config = DecisionGraphConfig(
-            enabled=True,
-            db_path="${TEST_DATA_DIR}/graph.db"
-        )
+        config = DecisionGraphConfig(enabled=True, db_path="${TEST_DATA_DIR}/graph.db")
 
         # Should resolve env var, then make absolute relative to project root
         expected_path = (project_root / "data" / "graph.db").resolve()
-        assert config.db_path == str(expected_path), (
-            f"Expected {expected_path}, got {config.db_path}"
-        )
+        assert config.db_path == str(
+            expected_path
+        ), f"Expected {expected_path}, got {config.db_path}"
 
     def test_db_path_parent_directory(self, project_root):
         """
@@ -563,14 +643,14 @@ class TestDecisionGraphConfig:
 
         # Should resolve .. relative to project root
         expected_path = (project_root / ".." / "shared" / "graph.db").resolve()
-        assert config.db_path == str(expected_path), (
-            f"Expected {expected_path}, got {config.db_path}"
-        )
+        assert config.db_path == str(
+            expected_path
+        ), f"Expected {expected_path}, got {config.db_path}"
 
         # Path should be absolute
-        assert Path(config.db_path).is_absolute(), (
-            "Path with parent directory should be absolute"
-        )
+        assert Path(
+            config.db_path
+        ).is_absolute(), "Path with parent directory should be absolute"
 
     def test_db_path_subdirectory(self, project_root):
         """
@@ -582,20 +662,21 @@ class TestDecisionGraphConfig:
         from models.config import DecisionGraphConfig
 
         config = DecisionGraphConfig(
-            enabled=True,
-            db_path="data/graphs/decision_graph.db"
+            enabled=True, db_path="data/graphs/decision_graph.db"
         )
 
         # Should preserve subdirectory structure under project root
-        expected_path = (project_root / "data" / "graphs" / "decision_graph.db").resolve()
-        assert config.db_path == str(expected_path), (
-            f"Expected {expected_path}, got {config.db_path}"
-        )
+        expected_path = (
+            project_root / "data" / "graphs" / "decision_graph.db"
+        ).resolve()
+        assert config.db_path == str(
+            expected_path
+        ), f"Expected {expected_path}, got {config.db_path}"
 
         # Path should be absolute
-        assert Path(config.db_path).is_absolute(), (
-            "Subdirectory path should be absolute"
-        )
+        assert Path(
+            config.db_path
+        ).is_absolute(), "Subdirectory path should be absolute"
 
     def test_db_path_missing_env_var(self):
         """
@@ -612,18 +693,17 @@ class TestDecisionGraphConfig:
 
         with pytest.raises(ValidationError) as exc_info:
             DecisionGraphConfig(
-                enabled=True,
-                db_path="${NONEXISTENT_TEST_VAR}/graph.db"
+                enabled=True, db_path="${NONEXISTENT_TEST_VAR}/graph.db"
             )
 
         # Error message should mention the missing variable
         error_message = str(exc_info.value)
-        assert "NONEXISTENT_TEST_VAR" in error_message, (
-            "Error should mention the missing environment variable"
-        )
-        assert "not set" in error_message.lower(), (
-            "Error should indicate variable is not set"
-        )
+        assert (
+            "NONEXISTENT_TEST_VAR" in error_message
+        ), "Error should mention the missing environment variable"
+        assert (
+            "not set" in error_message.lower()
+        ), "Error should indicate variable is not set"
 
     def test_db_path_multiple_env_vars(self, monkeypatch):
         """
@@ -638,15 +718,14 @@ class TestDecisionGraphConfig:
         monkeypatch.setenv("TEST_DB_NAME", "decisions")
 
         config = DecisionGraphConfig(
-            enabled=True,
-            db_path="${TEST_BASE_DIR}/${TEST_DB_NAME}.db"
+            enabled=True, db_path="${TEST_BASE_DIR}/${TEST_DB_NAME}.db"
         )
 
         # Both env vars should be resolved
         expected_path = Path("/opt/app/decisions.db").resolve()
-        assert config.db_path == str(expected_path), (
-            f"Expected {expected_path}, got {config.db_path}"
-        )
+        assert config.db_path == str(
+            expected_path
+        ), f"Expected {expected_path}, got {config.db_path}"
 
     def test_db_path_default_value(self, project_root):
         """
@@ -663,9 +742,9 @@ class TestDecisionGraphConfig:
         config = DecisionGraphConfig(enabled=True)
 
         # Default is the literal string (validator doesn't run on Field defaults)
-        assert config.db_path == "decision_graph.db", (
-            f"Expected default 'decision_graph.db', got {config.db_path}"
-        )
+        assert (
+            config.db_path == "decision_graph.db"
+        ), f"Expected default 'decision_graph.db', got {config.db_path}"
 
     def test_db_path_cwd_independence(self, project_root, tmp_path, monkeypatch):
         """
@@ -688,14 +767,14 @@ class TestDecisionGraphConfig:
 
         # Path should still resolve relative to project root, not cwd
         expected_path = (project_root / "decision_graph.db").resolve()
-        assert config.db_path == str(expected_path), (
-            f"Path should be relative to project root, not cwd"
-        )
+        assert config.db_path == str(
+            expected_path
+        ), f"Path should be relative to project root, not cwd"
 
         # Should NOT be in tmp_path
-        assert not config.db_path.startswith(str(tmp_path)), (
-            "Path should not be relative to current working directory"
-        )
+        assert not config.db_path.startswith(
+            str(tmp_path)
+        ), "Path should not be relative to current working directory"
 
     def test_db_path_home_directory_expansion(self, project_root):
         """
@@ -713,14 +792,14 @@ class TestDecisionGraphConfig:
         # Current behavior: ~ is treated as relative path, resolved from project root
         # This is because Path("~/data").is_absolute() returns False
         expected_path = (project_root / "~" / "data" / "graph.db").resolve()
-        assert config.db_path == str(expected_path), (
-            f"Expected {expected_path}, got {config.db_path}"
-        )
+        assert config.db_path == str(
+            expected_path
+        ), f"Expected {expected_path}, got {config.db_path}"
 
         # Should be absolute (resolved from project root)
-        assert Path(config.db_path).is_absolute(), (
-            "Path should be absolute after resolution"
-        )
+        assert Path(
+            config.db_path
+        ).is_absolute(), "Path should be absolute after resolution"
 
     def test_db_path_validation_fields(self):
         """
@@ -746,7 +825,9 @@ class TestDecisionGraphConfig:
         assert config.max_context_decisions == 5
         assert config.compute_similarities is False
 
-    def test_db_path_invalid_similarity_threshold_still_validates_path(self, project_root):
+    def test_db_path_invalid_similarity_threshold_still_validates_path(
+        self, project_root
+    ):
         """
         Test that db_path is validated even if other field validation fails.
 
@@ -764,9 +845,9 @@ class TestDecisionGraphConfig:
 
         # Should fail on similarity_threshold, not db_path
         error_message = str(exc_info.value)
-        assert "similarity_threshold" in error_message.lower(), (
-            "Should report similarity_threshold validation error"
-        )
+        assert (
+            "similarity_threshold" in error_message.lower()
+        ), "Should report similarity_threshold validation error"
 
 
 class TestDecisionGraphBudgetAwareConfig:
@@ -779,14 +860,20 @@ class TestDecisionGraphBudgetAwareConfig:
         config = DecisionGraphConfig(enabled=True)
 
         # Verify new fields exist
-        assert hasattr(config, 'context_token_budget'), "Missing context_token_budget field"
-        assert hasattr(config, 'tier_boundaries'), "Missing tier_boundaries field"
-        assert hasattr(config, 'query_window'), "Missing query_window field"
+        assert hasattr(
+            config, "context_token_budget"
+        ), "Missing context_token_budget field"
+        assert hasattr(config, "tier_boundaries"), "Missing tier_boundaries field"
+        assert hasattr(config, "query_window"), "Missing query_window field"
 
         # Verify defaults
-        assert config.context_token_budget == 1500, "Default context_token_budget should be 1500"
-        assert config.tier_boundaries == {"strong": 0.75, "moderate": 0.60}, \
-            "Default tier_boundaries should be {strong: 0.75, moderate: 0.60}"
+        assert (
+            config.context_token_budget == 1500
+        ), "Default context_token_budget should be 1500"
+        assert config.tier_boundaries == {
+            "strong": 0.75,
+            "moderate": 0.60,
+        }, "Default tier_boundaries should be {strong: 0.75, moderate: 0.60}"
         assert config.query_window == 1000, "Default query_window should be 1000"
 
     def test_decision_graph_config_tier_boundaries_validation(self):
@@ -795,58 +882,59 @@ class TestDecisionGraphBudgetAwareConfig:
 
         # Valid: 0.75 > 0.60
         config = DecisionGraphConfig(
-            enabled=True,
-            tier_boundaries={"strong": 0.75, "moderate": 0.60}
+            enabled=True, tier_boundaries={"strong": 0.75, "moderate": 0.60}
         )
-        assert config.tier_boundaries["strong"] > config.tier_boundaries["moderate"], \
-            "Strong threshold should be greater than moderate"
-        assert config.tier_boundaries["moderate"] > 0.0, \
-            "Moderate threshold should be greater than 0"
+        assert (
+            config.tier_boundaries["strong"] > config.tier_boundaries["moderate"]
+        ), "Strong threshold should be greater than moderate"
+        assert (
+            config.tier_boundaries["moderate"] > 0.0
+        ), "Moderate threshold should be greater than 0"
 
         # Invalid: strong <= moderate should raise
         with pytest.raises(ValidationError) as exc_info:
             DecisionGraphConfig(
-                enabled=True,
-                tier_boundaries={"strong": 0.60, "moderate": 0.60}
+                enabled=True, tier_boundaries={"strong": 0.60, "moderate": 0.60}
             )
-        assert "tier_boundaries" in str(exc_info.value).lower(), \
-            "Error should mention tier_boundaries"
+        assert (
+            "tier_boundaries" in str(exc_info.value).lower()
+        ), "Error should mention tier_boundaries"
 
         # Invalid: strong < moderate (reversed order)
         with pytest.raises(ValidationError) as exc_info:
             DecisionGraphConfig(
-                enabled=True,
-                tier_boundaries={"strong": 0.50, "moderate": 0.70}
+                enabled=True, tier_boundaries={"strong": 0.50, "moderate": 0.70}
             )
-        assert "tier_boundaries" in str(exc_info.value).lower(), \
-            "Error should mention tier_boundaries"
+        assert (
+            "tier_boundaries" in str(exc_info.value).lower()
+        ), "Error should mention tier_boundaries"
 
         # Invalid: moderate <= 0
         with pytest.raises(ValidationError) as exc_info:
             DecisionGraphConfig(
-                enabled=True,
-                tier_boundaries={"strong": 0.75, "moderate": 0.0}
+                enabled=True, tier_boundaries={"strong": 0.75, "moderate": 0.0}
             )
-        assert "tier_boundaries" in str(exc_info.value).lower(), \
-            "Error should mention tier_boundaries"
+        assert (
+            "tier_boundaries" in str(exc_info.value).lower()
+        ), "Error should mention tier_boundaries"
 
         # Invalid: missing keys
         with pytest.raises(ValidationError) as exc_info:
             DecisionGraphConfig(
-                enabled=True,
-                tier_boundaries={"strong": 0.75}  # Missing 'moderate'
+                enabled=True, tier_boundaries={"strong": 0.75}  # Missing 'moderate'
             )
-        assert "tier_boundaries" in str(exc_info.value).lower(), \
-            "Error should mention tier_boundaries"
+        assert (
+            "tier_boundaries" in str(exc_info.value).lower()
+        ), "Error should mention tier_boundaries"
 
         # Invalid: strong > 1.0
         with pytest.raises(ValidationError) as exc_info:
             DecisionGraphConfig(
-                enabled=True,
-                tier_boundaries={"strong": 1.5, "moderate": 0.60}
+                enabled=True, tier_boundaries={"strong": 1.5, "moderate": 0.60}
             )
-        assert "tier_boundaries" in str(exc_info.value).lower(), \
-            "Error should mention tier_boundaries"
+        assert (
+            "tier_boundaries" in str(exc_info.value).lower()
+        ), "Error should mention tier_boundaries"
 
     def test_decision_graph_config_query_window_validation(self):
         """Query window must be >= 50 and <= 10000."""
@@ -867,20 +955,23 @@ class TestDecisionGraphBudgetAwareConfig:
         # Invalid: below minimum
         with pytest.raises(ValidationError) as exc_info:
             DecisionGraphConfig(enabled=True, query_window=49)
-        assert "query_window" in str(exc_info.value).lower(), \
-            "Error should mention query_window"
+        assert (
+            "query_window" in str(exc_info.value).lower()
+        ), "Error should mention query_window"
 
         # Invalid: above maximum
         with pytest.raises(ValidationError) as exc_info:
             DecisionGraphConfig(enabled=True, query_window=10001)
-        assert "query_window" in str(exc_info.value).lower(), \
-            "Error should mention query_window"
+        assert (
+            "query_window" in str(exc_info.value).lower()
+        ), "Error should mention query_window"
 
         # Invalid: negative value
         with pytest.raises(ValidationError) as exc_info:
             DecisionGraphConfig(enabled=True, query_window=-100)
-        assert "query_window" in str(exc_info.value).lower(), \
-            "Error should mention query_window"
+        assert (
+            "query_window" in str(exc_info.value).lower()
+        ), "Error should mention query_window"
 
     def test_decision_graph_config_context_token_budget_validation(self):
         """Context token budget must be >= 500 and <= 10000."""
@@ -901,14 +992,16 @@ class TestDecisionGraphBudgetAwareConfig:
         # Invalid: below minimum
         with pytest.raises(ValidationError) as exc_info:
             DecisionGraphConfig(enabled=True, context_token_budget=499)
-        assert "context_token_budget" in str(exc_info.value).lower(), \
-            "Error should mention context_token_budget"
+        assert (
+            "context_token_budget" in str(exc_info.value).lower()
+        ), "Error should mention context_token_budget"
 
         # Invalid: above maximum
         with pytest.raises(ValidationError) as exc_info:
             DecisionGraphConfig(enabled=True, context_token_budget=10001)
-        assert "context_token_budget" in str(exc_info.value).lower(), \
-            "Error should mention context_token_budget"
+        assert (
+            "context_token_budget" in str(exc_info.value).lower()
+        ), "Error should mention context_token_budget"
 
     def test_decision_graph_config_backward_compatibility(self):
         """Old config (without new fields) still loads with defaults."""
@@ -920,7 +1013,7 @@ class TestDecisionGraphBudgetAwareConfig:
             db_path="test.db",
             similarity_threshold=0.7,
             max_context_decisions=3,
-            compute_similarities=True
+            compute_similarities=True,
         )
 
         # Should still work and have default values for new fields
@@ -938,10 +1031,7 @@ class TestDecisionGraphBudgetAwareConfig:
         from models.config import DecisionGraphConfig
 
         # Old style: using similarity_threshold
-        config = DecisionGraphConfig(
-            enabled=True,
-            similarity_threshold=0.8
-        )
+        config = DecisionGraphConfig(enabled=True, similarity_threshold=0.8)
 
         # Should still accept and store the value
         assert config.similarity_threshold == 0.8
@@ -955,7 +1045,7 @@ class TestDecisionGraphBudgetAwareConfig:
             enabled=True,
             similarity_threshold=0.8,  # Old field
             context_token_budget=2000,  # New field
-            tier_boundaries={"strong": 0.80, "moderate": 0.65}
+            tier_boundaries={"strong": 0.80, "moderate": 0.65},
         )
 
         assert config2.similarity_threshold == 0.8
@@ -971,24 +1061,33 @@ class TestDecisionGraphBudgetAwareConfig:
         assert config.decision_graph is not None, "decision_graph section should exist"
 
         # Verify new budget-aware parameters are loaded
-        assert hasattr(config.decision_graph, 'context_token_budget'), \
-            "config.yaml should define context_token_budget"
-        assert hasattr(config.decision_graph, 'tier_boundaries'), \
-            "config.yaml should define tier_boundaries"
-        assert hasattr(config.decision_graph, 'query_window'), \
-            "config.yaml should define query_window"
+        assert hasattr(
+            config.decision_graph, "context_token_budget"
+        ), "config.yaml should define context_token_budget"
+        assert hasattr(
+            config.decision_graph, "tier_boundaries"
+        ), "config.yaml should define tier_boundaries"
+        assert hasattr(
+            config.decision_graph, "query_window"
+        ), "config.yaml should define query_window"
 
         # Verify expected values from config.yaml
-        assert config.decision_graph.context_token_budget == 1500, \
-            "context_token_budget should be 1500 in config.yaml"
-        assert config.decision_graph.tier_boundaries == {"strong": 0.75, "moderate": 0.60}, \
-            "tier_boundaries should be {strong: 0.75, moderate: 0.60} in config.yaml"
-        assert config.decision_graph.query_window == 1000, \
-            "query_window should be 1000 in config.yaml"
+        # Note: Reduced from 1500 to 1000 to prevent "input too long" errors on smaller context models
+        assert (
+            config.decision_graph.context_token_budget == 1000
+        ), "context_token_budget should be 1000 in config.yaml"
+        assert config.decision_graph.tier_boundaries == {
+            "strong": 0.75,
+            "moderate": 0.60,
+        }, "tier_boundaries should be {strong: 0.75, moderate: 0.60} in config.yaml"
+        assert (
+            config.decision_graph.query_window == 1000
+        ), "query_window should be 1000 in config.yaml"
 
         # Verify deprecated field is still present (backward compatibility)
-        assert hasattr(config.decision_graph, 'similarity_threshold'), \
-            "similarity_threshold should still exist for backward compatibility"
+        assert hasattr(
+            config.decision_graph, "similarity_threshold"
+        ), "similarity_threshold should still exist for backward compatibility"
 
 
 class TestFileTreeConfig:
@@ -1073,7 +1172,12 @@ class TestFileTreeConfig:
 
     def test_deliberation_config_has_file_tree(self):
         """Test DeliberationConfig includes file_tree field."""
-        from models.config import DeliberationConfig, FileTreeConfig, ConvergenceDetectionConfig, EarlyStoppingConfig
+        from models.config import (
+            DeliberationConfig,
+            FileTreeConfig,
+            ConvergenceDetectionConfig,
+            EarlyStoppingConfig,
+        )
 
         config = DeliberationConfig(
             convergence_detection=ConvergenceDetectionConfig(
@@ -1095,7 +1199,7 @@ class TestFileTreeConfig:
         )
 
         # Should have file_tree field with defaults
-        assert hasattr(config, 'file_tree')
+        assert hasattr(config, "file_tree")
         assert isinstance(config.file_tree, FileTreeConfig)
         assert config.file_tree.max_depth == 3
         assert config.file_tree.max_files == 100
@@ -1103,7 +1207,12 @@ class TestFileTreeConfig:
 
     def test_deliberation_config_custom_file_tree(self):
         """Test DeliberationConfig with custom file_tree values."""
-        from models.config import DeliberationConfig, FileTreeConfig, ConvergenceDetectionConfig, EarlyStoppingConfig
+        from models.config import (
+            DeliberationConfig,
+            FileTreeConfig,
+            ConvergenceDetectionConfig,
+            EarlyStoppingConfig,
+        )
 
         custom_file_tree = FileTreeConfig(max_depth=5, max_files=200, enabled=False)
 
@@ -1141,9 +1250,10 @@ class TestFileTreeConfig:
         assert config.deliberation is not None
 
         # Verify file_tree field exists
-        assert hasattr(config.deliberation, 'file_tree')
+        assert hasattr(config.deliberation, "file_tree")
 
         # Verify expected values from config.yaml
+        # Note: Reduced from max_depth=3, max_files=100 to prevent "input too long" errors
         assert config.deliberation.file_tree.enabled is True
-        assert config.deliberation.file_tree.max_depth == 3
-        assert config.deliberation.file_tree.max_files == 100
+        assert config.deliberation.file_tree.max_depth == 2
+        assert config.deliberation.file_tree.max_files == 50

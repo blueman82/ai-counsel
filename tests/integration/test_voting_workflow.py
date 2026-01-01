@@ -3,6 +3,7 @@
 Tests the complete voting pipeline from vote parsing through aggregation,
 convergence detection, and transcript generation.
 """
+
 from pathlib import Path
 
 import pytest
@@ -137,7 +138,8 @@ VOTE: {"option": "Option A", "confidence": 0.93, "rationale": "Unanimous agreeme
             ],
             rounds=2,
             mode="conference",
-            working_directory="/tmp",)
+            working_directory="/tmp",
+        )
 
         # Execute
         result = await engine.execute(request)
@@ -200,7 +202,8 @@ VOTE: {"option": "Option A", "confidence": 0.93, "rationale": "Unanimous agreeme
             ],
             rounds=2,
             mode="conference",
-            working_directory="/tmp",)
+            working_directory="/tmp",
+        )
 
         # Execute
         result = await engine.execute(request)
@@ -256,7 +259,8 @@ VOTE: {"option": "Option A", "confidence": 0.93, "rationale": "Unanimous agreeme
             ],
             rounds=2,
             mode="conference",
-            working_directory="/tmp",)
+            working_directory="/tmp",
+        )
 
         # Execute
         result = await engine.execute(request)
@@ -301,7 +305,8 @@ VOTE: {"option": "Option A", "confidence": 0.93, "rationale": "Unanimous agreeme
             ],
             rounds=2,
             mode="conference",
-            working_directory="/tmp",)
+            working_directory="/tmp",
+        )
 
         # Execute
         result = await engine.execute(request)
@@ -357,7 +362,8 @@ VOTE: {"option": "Option A", "confidence": 0.93, "rationale": "Unanimous agreeme
             ],
             rounds=2,
             mode="conference",
-            working_directory="/tmp",)
+            working_directory="/tmp",
+        )
 
         # Execute
         result = await engine.execute(request)
@@ -432,7 +438,8 @@ VOTE: {"option": "Option A", "confidence": 0.93, "rationale": "Unanimous agreeme
             ],
             rounds=2,
             mode="conference",
-            working_directory="/tmp",)
+            working_directory="/tmp",
+        )
 
         # Execute
         result = await engine.execute(request)

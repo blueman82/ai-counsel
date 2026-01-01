@@ -35,7 +35,10 @@ class CodexAdapter(BaseCLIAdapter):
         """
         if args is None:
             raise ValueError("args must be provided from config.yaml")
-        if default_reasoning_effort is not None and default_reasoning_effort not in self.VALID_REASONING_EFFORTS:
+        if (
+            default_reasoning_effort is not None
+            and default_reasoning_effort not in self.VALID_REASONING_EFFORTS
+        ):
             raise ValueError(
                 f"Invalid default_reasoning_effort '{default_reasoning_effort}' for Codex. "
                 f"Valid values: {sorted(self.VALID_REASONING_EFFORTS)}"
@@ -77,7 +80,10 @@ class CodexAdapter(BaseCLIAdapter):
             RuntimeError: If CLI process fails
         """
         # Validate reasoning_effort if provided
-        if reasoning_effort is not None and reasoning_effort not in self.VALID_REASONING_EFFORTS:
+        if (
+            reasoning_effort is not None
+            and reasoning_effort not in self.VALID_REASONING_EFFORTS
+        ):
             raise ValueError(
                 f"Invalid reasoning_effort '{reasoning_effort}' for Codex. "
                 f"Valid values: {sorted(self.VALID_REASONING_EFFORTS)}"

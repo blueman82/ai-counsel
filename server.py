@@ -14,6 +14,7 @@ TOOL_REQUEST markers (not directly exposed via MCP):
 
 The internal tools are executed by the DeliberationEngine, not the MCP client.
 """
+
 import asyncio
 import json
 import logging
@@ -25,14 +26,14 @@ from mcp.server import Server
 from mcp.server.stdio import stdio_server
 from mcp.types import TextContent, Tool
 
-from adapters import create_adapter
+from adapters import create_adapter_with_fallback, get_cli_status
 from decision_graph.storage import DecisionGraphStorage
 from deliberation.engine import DeliberationEngine
 from deliberation.metrics import get_quality_tracker
 from deliberation.query_engine import QueryEngine
 from models.config import AdapterConfig, CLIToolConfig, load_config
 from models.model_registry import ModelRegistry
-from models.schema import DeliberateRequest
+from models.schema import DeliberateRequest, DeliberationResult
 
 # Project directory (where server.py is located) - for config and logs
 PROJECT_DIR = Path(__file__).parent.absolute()
@@ -45,11 +46,52 @@ logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     handlers=[
-        logging.FileHandler(log_file),
+        logging.FileHandler(log_file, encoding="utf-8"),
         logging.StreamHandler(sys.stderr),  # Explicitly use stderr
     ],
 )
 logger = logging.getLogger(__name__)
+
+
+def truncate_debate_rounds(result: DeliberationResult, max_rounds: int = 3) -> dict:
+    """Truncate full_debate to last N rounds for MCP response.
+
+    This helper extracts the truncation logic for reusability and testability.
+    It converts the DeliberationResult to a dict and trims the full_debate
+    to only include the last `max_rounds` round numbers.
+
+    Args:
+        result: The deliberation result to truncate.
+        max_rounds: Maximum number of rounds to keep (default: 3).
+
+    Returns:
+        A dict representation of the result with:
+        - full_debate: Truncated to last N rounds if needed
+        - full_debate_truncated: True if truncation occurred, False otherwise
+        - total_rounds: Original round count (only if truncated)
+    """
+    result_dict = result.model_dump()
+
+    if not result.full_debate:
+        result_dict["full_debate_truncated"] = False
+        return result_dict
+
+    round_numbers = sorted({r.round for r in result.full_debate})
+    total_rounds = len(round_numbers)
+
+    if total_rounds > max_rounds:
+        rounds_to_keep = set(round_numbers[-max_rounds:])
+        result_dict["full_debate"] = [
+            r.model_dump() if hasattr(r, "model_dump") else r
+            for r in result.full_debate
+            if r.round in rounds_to_keep
+        ]
+        result_dict["full_debate_truncated"] = True
+        result_dict["total_rounds"] = total_rounds
+    else:
+        result_dict["full_debate_truncated"] = False
+
+    return result_dict
 
 
 # Initialize server
@@ -57,9 +99,18 @@ app = Server("ai-counsel")
 
 
 # Load configuration from project directory
+# Prefer local config if exists, fallback to base config
 try:
-    config_path = PROJECT_DIR / "config.yaml"
-    logger.info(f"Loading config from: {config_path}")
+    local_config_path = PROJECT_DIR / "config.local.yaml"
+    base_config_path = PROJECT_DIR / "config.yaml"
+
+    if local_config_path.exists():
+        config_path = local_config_path
+        logger.info(f"Loading local config from: {config_path}")
+    else:
+        config_path = base_config_path
+        logger.info(f"Loading config from: {config_path}")
+
     config = load_config(str(config_path))
     logger.info("Configuration loaded successfully")
 except Exception as e:
@@ -73,7 +124,23 @@ session_defaults: dict[str, str] = {}
 
 # Create adapters - prefer new 'adapters' section, fallback to legacy 'cli_tools'
 adapters = {}
+# Track which adapters are using OpenRouter fallback and their fallback model
+adapter_fallbacks: dict[str, str] = {}  # cli_name -> fallback_model_id
 adapter_sources: list[tuple[str, dict[str, CLIToolConfig | AdapterConfig]]] = []
+
+# Log CLI availability status at startup
+cli_status = get_cli_status()
+for cli_name, status in cli_status.items():
+    if status["available"]:
+        logger.info(f"CLI '{cli_name}' available at: {status['path']}")
+    else:
+        fallback = status.get("fallback")
+        if fallback:
+            logger.warning(
+                f"CLI '{cli_name}' not installed, will use OpenRouter fallback: {fallback}"
+            )
+        else:
+            logger.warning(f"CLI '{cli_name}' not installed, no fallback available")
 
 # Try new adapters section first (preferred)
 if hasattr(config, "adapters") and config.adapters:
@@ -93,8 +160,20 @@ for source_name, adapter_configs in adapter_sources:
             continue
 
         try:
-            adapters[cli_name] = create_adapter(cli_name, cli_config)
-            logger.info(f"Initialized adapter: {cli_name} (from {source_name})")
+            # Use fallback-aware adapter creation
+            adapter, fallback_model = create_adapter_with_fallback(cli_name, cli_config)
+            adapters[cli_name] = adapter
+
+            if fallback_model:
+                adapter_fallbacks[cli_name] = fallback_model
+                logger.info(
+                    f"Initialized adapter: {cli_name} (via OpenRouter fallback: {fallback_model})"
+                )
+            else:
+                logger.info(f"Initialized adapter: {cli_name} (from {source_name})")
+        except RuntimeError as e:
+            # CLI not available and no fallback possible
+            logger.error(f"Failed to create adapter for {cli_name}: {e}")
         except Exception as e:
             logger.error(f"Failed to create adapter for {cli_name}: {e}")
 
@@ -113,6 +192,9 @@ CLI_TITLES = {
     "lmstudio": "LM Studio",
     "openrouter": "OpenRouter",
     "nebius": "Nebius",
+    "openai": "OpenAI",
+    "nvmdapi": "NVMD API",
+    "nvmdapicli": "NVMD API CLI",
 }
 
 
@@ -146,6 +228,9 @@ def _build_participant_variants() -> list[dict]:
         "lmstudio",
         "openrouter",
         "nebius",
+        "openai",
+        "nvmdapi",
+        "nvmdapicli",
     ]
 
     for cli in all_clis:
@@ -431,6 +516,23 @@ async def list_tools() -> list[Tool]:
         )
     )
 
+    # CLI availability status tool
+    tools.append(
+        Tool(
+            name="get_cli_status",
+            description=(
+                "Check which CLI tools (claude, codex, droid, gemini, llamacpp) are installed. "
+                "Shows availability, path, and OpenRouter fallback model for each CLI. "
+                "Useful for diagnosing adapter issues or understanding fallback behavior."
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {},
+                "additionalProperties": False,
+            },
+        )
+    )
+
     return tools
 
 
@@ -456,6 +558,8 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
         return await handle_query_decisions(arguments)
     if name == "get_quality_metrics":
         return await handle_get_quality_metrics(arguments)
+    if name == "get_cli_status":
+        return await handle_get_cli_status(arguments)
     elif name != "deliberate":
         error_msg = f"Unknown tool: {name}"
         logger.error(error_msg)
@@ -477,8 +581,12 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
                         # Check if user passed a label instead of ID
                         all_models = model_registry.get_all_models(cli_name)
                         matching_label = next(
-                            (entry for entry in all_models if entry.label == model_provided),
-                            None
+                            (
+                                entry
+                                for entry in all_models
+                                if entry.label == model_provided
+                            ),
+                            None,
                         )
 
                         if matching_label:
@@ -504,7 +612,9 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
             provided_model = participant.model
 
             if not provided_model:
-                default_model = session_defaults.get(cli) or model_registry.get_default(cli)
+                default_model = session_defaults.get(cli) or model_registry.get_default(
+                    cli
+                )
                 if not default_model:
                     raise ValueError(
                         f"No model provided for adapter '{cli}', and no default is configured."
@@ -517,12 +627,12 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
                 # Check if model exists but is disabled (for operational visibility)
                 all_models = model_registry.get_all_models(cli)
                 all_ids = {e.id for e in all_models}
-                
+
                 if provided_model in all_ids:
                     logger.warning(
                         f"User requested disabled model '{provided_model}' for adapter '{cli}'"
                     )
-                
+
                 allowed = sorted(model_registry.allowed_ids(cli))
                 if allowed:
                     raise ValueError(
@@ -530,7 +640,9 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
                         f"Allowed models: {', '.join(allowed)}."
                     )
             # Ensure session default remains valid (e.g., config change)
-            if participant.model and not model_registry.is_allowed(cli, participant.model):
+            if participant.model and not model_registry.is_allowed(
+                cli, participant.model
+            ):
                 allowed = sorted(model_registry.allowed_ids(cli))
                 if allowed:
                     raise ValueError(
@@ -538,30 +650,43 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
                         f"Allowed models: {', '.join(allowed)}."
                     )
 
-        # Execute deliberation
-        result = await engine.execute(request)
-        logger.info(
-            f"Deliberation complete: {result.rounds_completed} rounds, status: {result.status}"
-        )
+        # Execute deliberation with MCP-level timeout protection
+        mcp_timeout = config.mcp.response_timeout
+        logger.info(f"Starting deliberation with MCP timeout: {mcp_timeout}s")
+
+        try:
+            result = await asyncio.wait_for(
+                engine.execute(request),
+                timeout=mcp_timeout
+            )
+            logger.info(
+                f"Deliberation complete: {result.rounds_completed} rounds, status: {result.status}"
+            )
+        except asyncio.TimeoutError:
+            logger.warning(
+                f"Deliberation timed out after {mcp_timeout}s - returning timeout error"
+            )
+            # Return a helpful timeout error instead of hanging
+            timeout_response = {
+                "error": f"Deliberation timed out after {mcp_timeout} seconds",
+                "error_type": "TimeoutError",
+                "status": "timeout",
+                "suggestion": (
+                    "Try: (1) Use faster models, (2) Reduce rounds, "
+                    "(3) Increase mcp.response_timeout in config.yaml, "
+                    "(4) Check if free OpenRouter models are responsive"
+                ),
+            }
+            return [TextContent(type="text", text=json.dumps(timeout_response, indent=2))]
 
         # Truncate full_debate for MCP response if needed (to avoid token limit)
-        max_rounds = getattr(config, "mcp", {}).get("max_rounds_in_response", 3)
-        result_dict = result.model_dump()
+        max_rounds = config.mcp.max_rounds_in_response
+        result_dict = truncate_debate_rounds(result, max_rounds)
 
-        if len(result.full_debate) > max_rounds:
-            total_rounds = len(result.full_debate)
-            # Convert RoundResponse objects to dicts for the truncated slice
-            result_dict["full_debate"] = [
-                r.model_dump() if hasattr(r, "model_dump") else r
-                for r in result.full_debate[-max_rounds:]
-            ]
-            result_dict["full_debate_truncated"] = True
-            result_dict["total_rounds"] = total_rounds
+        if result_dict.get("full_debate_truncated"):
             logger.info(
-                f"Truncated full_debate from {total_rounds} to last {max_rounds} rounds for MCP response"
+                f"Truncated full_debate from {result_dict.get('total_rounds')} to last {max_rounds} rounds for MCP response"
             )
-        else:
-            result_dict["full_debate_truncated"] = False
 
         # Summarize tool_executions for MCP response (full detail is in transcript)
         if result_dict.get("tool_executions"):
@@ -584,8 +709,12 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
 
             # Replace massive tool_executions array with compact summary
             result_dict["tool_executions"] = tool_summary
-            result_dict["tool_executions_note"] = "Tool execution details available in transcript file"
-            logger.info(f"Summarized {tool_summary['total_tools_executed']} tool executions for MCP response")
+            result_dict["tool_executions_note"] = (
+                "Tool execution details available in transcript file"
+            )
+            logger.info(
+                f"Summarized {tool_summary['total_tools_executed']} tool executions for MCP response"
+            )
 
         # Serialize result
         result_json = json.dumps(result_dict, indent=2)
@@ -668,12 +797,12 @@ async def handle_set_session_models(arguments: dict) -> list[TextContent]:
             # Check if model exists but is disabled (for operational visibility)
             all_models = model_registry.get_all_models(cli)
             all_ids = {e.id for e in all_models}
-            
+
             if value in all_ids:
                 logger.warning(
                     f"User attempted to set disabled model '{value}' as session default for adapter '{cli}'"
                 )
-            
+
             allowed = sorted(model_registry.allowed_ids(cli))
             raise ValueError(
                 f"Model '{value}' is not allowlisted for adapter '{cli}'. "
@@ -709,34 +838,42 @@ async def handle_query_decisions(arguments: dict) -> list[TextContent]:
         format_type = arguments.get("format", "summary")
 
         # Validate mutual exclusivity
-        provided_params = sum([
-            bool(query_text),
-            bool(find_contradictions),
-            bool(decision_id)
-        ])
+        provided_params = sum(
+            [bool(query_text), bool(find_contradictions), bool(decision_id)]
+        )
 
         if provided_params == 0:
-            return [TextContent(
-                type="text",
-                text=json.dumps({
-                    "error": "Must provide one of: query_text, find_contradictions, or decision_id",
-                    "status": "failed"
-                }, indent=2)
-            )]
+            return [
+                TextContent(
+                    type="text",
+                    text=json.dumps(
+                        {
+                            "error": "Must provide one of: query_text, find_contradictions, or decision_id",
+                            "status": "failed",
+                        },
+                        indent=2,
+                    ),
+                )
+            ]
 
         if provided_params > 1:
-            return [TextContent(
-                type="text",
-                text=json.dumps({
-                    "error": "Only one of query_text, find_contradictions, or decision_id can be provided",
-                    "status": "failed",
-                    "provided": {
-                        "query_text": bool(query_text),
-                        "find_contradictions": bool(find_contradictions),
-                        "decision_id": bool(decision_id)
-                    }
-                }, indent=2)
-            )]
+            return [
+                TextContent(
+                    type="text",
+                    text=json.dumps(
+                        {
+                            "error": "Only one of query_text, find_contradictions, or decision_id can be provided",
+                            "status": "failed",
+                            "provided": {
+                                "query_text": bool(query_text),
+                                "find_contradictions": bool(find_contradictions),
+                                "decision_id": bool(decision_id),
+                            },
+                        },
+                        indent=2,
+                    ),
+                )
+            ]
 
         # Helper function to format decision results based on format type
         def format_decision(decision, score=None):
@@ -802,14 +939,14 @@ async def handle_query_decisions(arguments: dict) -> list[TextContent]:
 
         if query_text:
             # Search similar decisions
-            results = await engine.search_similar(query_text, limit=limit, threshold=threshold)
+            results = await engine.search_similar(
+                query_text, limit=limit, threshold=threshold
+            )
 
             # If empty, include diagnostics
             if not results:
                 diagnostics = engine.get_search_diagnostics(
-                    query_text,
-                    limit=limit,
-                    threshold=threshold
+                    query_text, limit=limit, threshold=threshold
                 )
 
                 result = {
@@ -820,10 +957,7 @@ async def handle_query_decisions(arguments: dict) -> list[TextContent]:
                         "total_decisions": diagnostics["total_decisions"],
                         "best_match_score": diagnostics["best_match_score"],
                         "near_misses": [
-                            {
-                                "question": d.question,
-                                "score": round(s, 3)
-                            }
+                            {"question": d.question, "score": round(s, 3)}
                             for d, s in diagnostics["near_misses"][:3]
                         ],
                         "suggested_threshold": diagnostics["suggested_threshold"],
@@ -831,17 +965,14 @@ async def handle_query_decisions(arguments: dict) -> list[TextContent]:
                             f"No results found above threshold {threshold}. "
                             f"Best match scored {diagnostics['best_match_score']:.3f}. "
                             f"Try threshold={diagnostics['suggested_threshold']:.2f} or use different keywords."
-                        )
-                    }
+                        ),
+                    },
                 }
             else:
                 result = {
                     "type": "similar_decisions",
                     "count": len(results),
-                    "results": [
-                        format_decision(r.decision, r.score)
-                        for r in results
-                    ],
+                    "results": [format_decision(r.decision, r.score) for r in results],
                 }
 
         elif find_contradictions:
@@ -950,6 +1081,64 @@ async def handle_get_quality_metrics(arguments: dict) -> list[TextContent]:
     except Exception as e:
         logger.error(
             f"Error in get_quality_metrics: {type(e).__name__}: {e}", exc_info=True
+        )
+        error_response = {
+            "error": str(e),
+            "error_type": type(e).__name__,
+            "status": "failed",
+        }
+        return [TextContent(type="text", text=json.dumps(error_response, indent=2))]
+
+
+async def handle_get_cli_status(arguments: dict) -> list[TextContent]:
+    """Handle get_cli_status tool call.
+
+    Returns availability status for all CLI tools, including:
+    - Whether the CLI is installed and its path
+    - OpenRouter fallback model if CLI is not available
+    - Whether a fallback is currently active
+    """
+    try:
+        status = get_cli_status()
+
+        # Enhance with active fallback info
+        response = {
+            "cli_status": {},
+            "summary": {
+                "total_clis": len(status),
+                "available": 0,
+                "using_fallback": 0,
+                "unavailable_no_fallback": 0,
+            },
+        }
+
+        for cli_name, cli_info in status.items():
+            is_available = cli_info["available"]
+            has_fallback = cli_info.get("fallback") is not None
+            is_using_fallback = cli_name in adapter_fallbacks
+
+            entry = {
+                "available": is_available,
+                "path": cli_info["path"],
+                "fallback_model": cli_info.get("fallback"),
+                "using_fallback": is_using_fallback,
+            }
+
+            if is_using_fallback:
+                entry["active_fallback_model"] = adapter_fallbacks[cli_name]
+                response["summary"]["using_fallback"] += 1
+            elif is_available:
+                response["summary"]["available"] += 1
+            elif not has_fallback:
+                response["summary"]["unavailable_no_fallback"] += 1
+
+            response["cli_status"][cli_name] = entry
+
+        return [TextContent(type="text", text=json.dumps(response, indent=2))]
+
+    except Exception as e:
+        logger.error(
+            f"Error in get_cli_status: {type(e).__name__}: {e}", exc_info=True
         )
         error_response = {
             "error": str(e),

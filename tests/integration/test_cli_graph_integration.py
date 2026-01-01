@@ -11,6 +11,7 @@ This module tests the complete end-to-end workflow for decision graph operations
 These tests use real DecisionGraphStorage (in-memory) with realistic decision data
 to validate the full integration between CLI commands, query engine, storage, and exporters.
 """
+
 import json
 import tempfile
 from datetime import datetime, timedelta
@@ -22,8 +23,7 @@ import pytest
 
 from decision_graph.integration import DecisionGraphIntegration
 from decision_graph.retrieval import DecisionRetriever
-from decision_graph.schema import (DecisionNode, DecisionSimilarity,
-                                   ParticipantStance)
+from decision_graph.schema import DecisionNode, DecisionSimilarity, ParticipantStance
 from decision_graph.storage import DecisionGraphStorage
 
 
@@ -303,9 +303,7 @@ class TestDecisionGraphCLIIntegration:
         )
 
         # Assert: Should find TypeScript-related decisions
-        assert (
-            len(scored_decisions) >= 2
-        ), "Should find at least 2 TypeScript decisions"
+        assert len(scored_decisions) >= 2, "Should find at least 2 TypeScript decisions"
 
         # Extract decisions from tuples
         decisions = [d for d, score in scored_decisions]
@@ -329,7 +327,7 @@ class TestDecisionGraphCLIIntegration:
         # Arrange: Get the two GraphQL-related decisions
         dec_003 = populated_storage.get_decision_node("dec-003")
         dec_004 = populated_storage.get_decision_node("dec-004")
-        
+
         assert dec_003 is not None, "dec-003 should exist in test data"
         assert dec_004 is not None, "dec-004 should exist in test data"
 

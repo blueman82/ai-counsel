@@ -1,4 +1,5 @@
 """Unit tests for deliberation engine."""
+
 from datetime import datetime
 from pathlib import Path
 
@@ -31,9 +32,7 @@ class TestDeliberationEngine:
         mock_adapters["claude"] = mock_adapters["claude"]
         engine = DeliberationEngine(mock_adapters)
 
-        participants = [
-            Participant(cli="claude", model="claude-3-5-sonnet")
-        ]
+        participants = [Participant(cli="claude", model="claude-3-5-sonnet")]
 
         mock_adapters["claude"].invoke_mock.return_value = "This is Claude's response"
 
@@ -84,9 +83,7 @@ class TestDeliberationEngine:
         mock_adapters["claude"] = mock_adapters["claude"]
         engine = DeliberationEngine(mock_adapters)
 
-        participants = [
-            Participant(cli="claude", model="claude-3-5-sonnet")
-        ]
+        participants = [Participant(cli="claude", model="claude-3-5-sonnet")]
 
         previous = [
             RoundResponse(
@@ -119,9 +116,7 @@ class TestDeliberationEngine:
         mock_adapters["claude"] = mock_adapters["claude"]
         engine = DeliberationEngine(mock_adapters)
 
-        participants = [
-            Participant(cli="claude", model="claude-3-5-sonnet")
-        ]
+        participants = [Participant(cli="claude", model="claude-3-5-sonnet")]
 
         mock_adapters["claude"].invoke_mock.side_effect = RuntimeError("API Error")
 
@@ -142,9 +137,7 @@ class TestDeliberationEngine:
         mock_adapters["claude"] = mock_adapters["claude"]
         engine = DeliberationEngine(mock_adapters)
 
-        participants = [
-            Participant(cli="claude", model="claude-3-opus")
-        ]
+        participants = [Participant(cli="claude", model="claude-3-opus")]
 
         mock_adapters["claude"].invoke_mock.return_value = "Response"
 
@@ -162,9 +155,7 @@ class TestDeliberationEngine:
         mock_adapters["claude"] = mock_adapters["claude"]
         engine = DeliberationEngine(mock_adapters)
 
-        participants = [
-            Participant(cli="claude", model="claude-3-5-sonnet")
-        ]
+        participants = [Participant(cli="claude", model="claude-3-5-sonnet")]
 
         mock_adapters["claude"].invoke_mock.return_value = "Response"
 
@@ -196,7 +187,8 @@ class TestDeliberationEngineMultiRound:
             ],
             rounds=3,
             mode="conference",
-            working_directory="/tmp",)
+            working_directory="/tmp",
+        )
 
         mock_adapters["claude"].invoke_mock.return_value = "Claude response"
         mock_adapters["codex"].invoke_mock.return_value = "Codex response"
@@ -225,7 +217,8 @@ class TestDeliberationEngineMultiRound:
             ],
             rounds=2,
             mode="conference",
-            working_directory="/tmp",)
+            working_directory="/tmp",
+        )
 
         mock_adapters["claude"].invoke_mock.return_value = "Claude response"
         mock_adapters["codex"].invoke_mock.return_value = "Codex response"
@@ -255,7 +248,8 @@ class TestDeliberationEngineMultiRound:
             ],
             rounds=5,  # Request 5 rounds
             mode="quick",  # But quick mode should override to 1,
-            working_directory="/tmp",)
+            working_directory="/tmp",
+        )
 
         mock_adapters["claude"].invoke_mock.return_value = "Claude response"
         mock_adapters["codex"].invoke_mock.return_value = "Codex response"
@@ -277,13 +271,12 @@ class TestDeliberationEngineMultiRound:
         request = DeliberateRequest(
             question="Should we use TypeScript?",
             participants=[
-                Participant(
-                    cli="claude", model="claude-3-5-sonnet-20241022"
-                ),
+                Participant(cli="claude", model="claude-3-5-sonnet-20241022"),
                 Participant(cli="codex", model="gpt-4"),
             ],
             rounds=1,
-            working_directory="/tmp",)
+            working_directory="/tmp",
+        )
 
         mock_adapters["claude"] = mock_adapters["claude"]
         mock_adapters["claude"].invoke_mock.return_value = "Claude response"
@@ -334,9 +327,7 @@ class TestEngineReasoningEffort:
         mock_adapters["codex"] = mock_adapters["codex"]
         engine = DeliberationEngine(mock_adapters)
 
-        participants = [
-            Participant(cli="codex", model="gpt-4")  # No reasoning_effort
-        ]
+        participants = [Participant(cli="codex", model="gpt-4")]  # No reasoning_effort
 
         mock_adapters["codex"].invoke_mock.return_value = "Codex response"
 
@@ -353,7 +344,9 @@ class TestEngineReasoningEffort:
         assert call_kwargs.get("reasoning_effort") is None
 
     @pytest.mark.asyncio
-    async def test_different_participants_different_reasoning_efforts(self, mock_adapters):
+    async def test_different_participants_different_reasoning_efforts(
+        self, mock_adapters
+    ):
         """Test each participant's reasoning_effort is passed to their respective adapter."""
         mock_adapters["codex"] = mock_adapters["codex"]
         engine = DeliberationEngine(mock_adapters)
@@ -477,7 +470,9 @@ class TestVoteParsing:
     def test_parse_vote_from_response_no_vote(self):
         """Test parsing when no vote marker present but response is long enough."""
         # Response must be >= 500 chars to get "no_vote_marker" instead of "response_too_short"
-        response_text = "This is just a regular response without a vote. " * 15  # ~750 chars
+        response_text = (
+            "This is just a regular response without a vote. " * 15
+        )  # ~750 chars
 
         engine = DeliberationEngine({})
         vote, failure_reason = engine._parse_vote(response_text)
@@ -602,9 +597,7 @@ class TestVoteParsing:
         mock_adapters["claude"] = mock_adapters["claude"]
         engine = DeliberationEngine(mock_adapters)
 
-        participants = [
-            Participant(cli="claude", model="claude-3-5-sonnet")
-        ]
+        participants = [Participant(cli="claude", model="claude-3-5-sonnet")]
 
         # Response includes a vote
         response_with_vote = """
@@ -643,7 +636,8 @@ class TestVoteParsing:
             ],
             rounds=2,
             mode="conference",
-            working_directory="/tmp",)
+            working_directory="/tmp",
+        )
 
         # Both vote for Option A in round 1
         mock_adapters["claude"].invoke_mock.side_effect = [
@@ -684,13 +678,16 @@ class TestVoteAbstainFallback:
     def test_parse_vote_failure_reason_tool_focus_no_vote(self):
         """Test that tool-focused responses without votes get correct failure reason."""
         # Response has TOOL_REQUEST but no VOTE marker
-        response_text = """
+        response_text = (
+            """
         I need to examine the codebase first.
 
         TOOL_REQUEST: {"name": "read_file", "arguments": {"path": "/src/main.py"}}
 
         Let me analyze this file before making a decision.
-        """ + " " * 500  # Pad to be >= 500 chars
+        """
+            + " " * 500
+        )  # Pad to be >= 500 chars
 
         engine = DeliberationEngine({})
         vote, failure_reason = engine._parse_vote(response_text)
@@ -873,20 +870,24 @@ class TestEngineWithTools:
                     tool_name=self.name,
                     success=True,
                     output="Should timeout before this",
-                    error=None
+                    error=None,
                 )
 
         # Setup engine with custom tool executor that has the slow tool
         engine = DeliberationEngine(mock_adapters)
         engine.tool_executor = ToolExecutor()
-        engine.tool_executor.register_tool(SlowReadFileTool())  # Override read_file with slow version
+        engine.tool_executor.register_tool(
+            SlowReadFileTool()
+        )  # Override read_file with slow version
         engine.tool_execution_history = []
 
         participants = [Participant(cli="claude", model="sonnet", stance="neutral")]
 
         # Mock response with tool request (use read_file which is a valid tool name)
         # Include VOTE marker to avoid triggering vote retry logic
-        mock_adapters["claude"].invoke_mock.return_value = """
+        mock_adapters[
+            "claude"
+        ].invoke_mock.return_value = """
         I need to check something.
         TOOL_REQUEST: {"name": "read_file", "arguments": {"path": "/test.txt"}}
         VOTE: {"option": "Check file", "confidence": 0.8, "rationale": "Need to verify content"}
@@ -898,18 +899,28 @@ class TestEngineWithTools:
         duration = time.time() - start
 
         # Should timeout in ~30s, NOT 60s
-        assert duration < 35, f"Tool execution should timeout at 30s, but took {duration:.1f}s"
+        assert (
+            duration < 35
+        ), f"Tool execution should timeout at 30s, but took {duration:.1f}s"
 
         # Should have tool execution result with timeout error
-        assert hasattr(engine, 'tool_execution_history'), "Engine should track tool execution history"
-        assert len(engine.tool_execution_history) > 0, "Should have recorded tool execution"
+        assert hasattr(
+            engine, "tool_execution_history"
+        ), "Engine should track tool execution history"
+        assert (
+            len(engine.tool_execution_history) > 0
+        ), "Should have recorded tool execution"
 
         tool_record = engine.tool_execution_history[0]
         assert not tool_record.result.success, "Timeout should result in failure"
-        assert "timeout" in tool_record.result.error.lower(), f"Error should mention timeout: {tool_record.result.error}"
+        assert (
+            "timeout" in tool_record.result.error.lower()
+        ), f"Error should mention timeout: {tool_record.result.error}"
 
     @pytest.mark.asyncio
-    async def test_tool_history_cleared_between_deliberations(self, mock_adapters, tmp_path):
+    async def test_tool_history_cleared_between_deliberations(
+        self, mock_adapters, tmp_path
+    ):
         """Test tool execution history is cleared between deliberations.
 
         CRITICAL MEMORY LEAK: tool_execution_history grows unbounded across deliberations
@@ -929,7 +940,9 @@ class TestEngineWithTools:
         # Use forward slashes for cross-platform JSON compatibility
         test_file1_str = str(test_file1).replace("\\", "/")
 
-        mock_adapters["claude"].invoke_mock.return_value = f"""
+        mock_adapters[
+            "claude"
+        ].invoke_mock.return_value = f"""
         I need to read file1.
         TOOL_REQUEST: {{"name": "read_file", "arguments": {{"path": "{test_file1_str}"}}}}
         VOTE: {{"option": "Read file1", "confidence": 0.8, "rationale": "Need to check content"}}
@@ -937,21 +950,25 @@ class TestEngineWithTools:
 
         participants = [
             Participant(cli="claude", model="sonnet", stance="neutral"),
-            Participant(cli="codex", model="gpt-4", stance="neutral")
+            Participant(cli="codex", model="gpt-4", stance="neutral"),
         ]
 
         # Execute first deliberation
         from models.schema import DeliberateRequest
+
         request1 = DeliberateRequest(
             question="Test question for deliberation 1",
             participants=participants,
             rounds=1,
             mode="quick",
-            working_directory="/tmp",)
+            working_directory="/tmp",
+        )
         result1 = await engine.execute(request1)
 
         # Verify tool was executed
-        assert len(engine.tool_execution_history) > 0, "First deliberation should have tool execution"
+        assert (
+            len(engine.tool_execution_history) > 0
+        ), "First deliberation should have tool execution"
         first_deliberation_count = len(engine.tool_execution_history)
 
         # Second deliberation with different tool request
@@ -960,7 +977,9 @@ class TestEngineWithTools:
         # Use forward slashes for cross-platform JSON compatibility
         test_file2_str = str(test_file2).replace("\\", "/")
 
-        mock_adapters["claude"].invoke_mock.return_value = f"""
+        mock_adapters[
+            "claude"
+        ].invoke_mock.return_value = f"""
         I need to read file2.
         TOOL_REQUEST: {{"name": "read_file", "arguments": {{"path": "{test_file2_str}"}}}}
         VOTE: {{"option": "Read file2", "confidence": 0.8, "rationale": "Need to check content"}}
@@ -971,23 +990,27 @@ class TestEngineWithTools:
             participants=participants,
             rounds=1,
             mode="quick",
-            working_directory="/tmp",)
+            working_directory="/tmp",
+        )
         result2 = await engine.execute(request2)
 
         # CRITICAL: History should NOT contain both deliberations
         # It should only contain the second deliberation's tools
-        assert len(engine.tool_execution_history) <= first_deliberation_count, \
-            f"MEMORY LEAK: Tool history should be cleared between deliberations. " \
+        assert len(engine.tool_execution_history) <= first_deliberation_count, (
+            f"MEMORY LEAK: Tool history should be cleared between deliberations. "
             f"Found {len(engine.tool_execution_history)} records (expected <= {first_deliberation_count})"
+        )
 
         # Verify the history contains only the second deliberation
-        assert any("file2.txt" in str(record.request.arguments)
-                   for record in engine.tool_execution_history), \
-            "Should contain second deliberation's tool"
+        assert any(
+            "file2.txt" in str(record.request.arguments)
+            for record in engine.tool_execution_history
+        ), "Should contain second deliberation's tool"
 
-        assert not any("file1.txt" in str(record.request.arguments)
-                       for record in engine.tool_execution_history), \
-            "Should NOT contain first deliberation's tool (indicates memory leak)"
+        assert not any(
+            "file1.txt" in str(record.request.arguments)
+            for record in engine.tool_execution_history
+        ), "Should NOT contain first deliberation's tool (indicates memory leak)"
 
     @pytest.mark.asyncio
     async def test_tool_history_memory_bounded(self, mock_adapters, tmp_path):
@@ -1003,7 +1026,7 @@ class TestEngineWithTools:
 
         participants = [
             Participant(cli="claude", model="sonnet", stance="neutral"),
-            Participant(cli="codex", model="gpt-4", stance="neutral")
+            Participant(cli="codex", model="gpt-4", stance="neutral"),
         ]
 
         # Simulate 10 deliberations (simulating long-running MCP server)
@@ -1013,28 +1036,33 @@ class TestEngineWithTools:
             # Use forward slashes for cross-platform JSON compatibility
             test_file_str = str(test_file).replace("\\", "/")
 
-            mock_adapters["claude"].invoke_mock.return_value = f"""
+            mock_adapters[
+                "claude"
+            ].invoke_mock.return_value = f"""
             Reading file {i}.
             TOOL_REQUEST: {{"name": "read_file", "arguments": {{"path": "{test_file_str}"}}}}
             VOTE: {{"option": "Read file", "confidence": 0.8, "rationale": "Need content"}}
             """
 
             from models.schema import DeliberateRequest
+
             request = DeliberateRequest(
                 question=f"Test question for deliberation number {i}",
                 participants=participants,
                 rounds=1,
                 mode="quick",
-            working_directory="/tmp",)
+                working_directory="/tmp",
+            )
 
             await engine.execute(request)
 
         # Memory should be bounded (not 10x the first deliberation)
         # With fix (clear at start): should be ~1x (only last deliberation)
         # Without fix (BUG): should be ~10x (all deliberations accumulated)
-        assert len(engine.tool_execution_history) < 5, \
-            f"MEMORY LEAK: History has {len(engine.tool_execution_history)} records after 10 deliberations. " \
+        assert len(engine.tool_execution_history) < 5, (
+            f"MEMORY LEAK: History has {len(engine.tool_execution_history)} records after 10 deliberations. "
             f"Expected < 5 (with cleanup), but unbounded growth detected!"
+        )
 
 
 class TestVotingPrompts:
@@ -1141,7 +1169,8 @@ class TestVoteGrouping:
                 ],
                 rounds=1,
                 mode="quick",
-            working_directory="/tmp",)
+                working_directory="/tmp",
+            )
 
             # Simulate the actual votes from docker-compose deliberation:
             # Claude and Codex vote for Option A
@@ -1204,15 +1233,16 @@ class TestVoteGrouping:
                 ],
                 rounds=1,
                 mode="quick",
-            working_directory="/tmp",)
+                working_directory="/tmp",
+            )
 
             # Two very different votes that shouldn't be merged
-            mock_adapters[
-                "claude"
-            ].invoke_mock.return_value = 'Analysis\n\nVOTE: {"option": "Yes", "confidence": 0.9, "rationale": "Good idea"}'
-            mock_adapters[
-                "codex"
-            ].invoke_mock.return_value = 'Analysis\n\nVOTE: {"option": "No", "confidence": 0.9, "rationale": "Bad idea"}'
+            mock_adapters["claude"].invoke_mock.return_value = (
+                'Analysis\n\nVOTE: {"option": "Yes", "confidence": 0.9, "rationale": "Good idea"}'
+            )
+            mock_adapters["codex"].invoke_mock.return_value = (
+                'Analysis\n\nVOTE: {"option": "No", "confidence": 0.9, "rationale": "Bad idea"}'
+            )
 
             result = await engine.execute(request)
 
@@ -1244,11 +1274,12 @@ class TestEngineContextEfficiency:
             question="What's in this file?",
             participants=[
                 Participant(cli="claude", model="sonnet", stance="neutral"),
-                Participant(cli="codex", model="gpt-4", stance="neutral")
+                Participant(cli="codex", model="gpt-4", stance="neutral"),
             ],
             rounds=2,
             mode="conference",
-            working_directory="/tmp",)
+            working_directory="/tmp",
+        )
 
         # Round 1: Read large file (simulated tool result with large output)
         # Round 2: Check context size
@@ -1281,7 +1312,7 @@ class TestEngineContextEfficiency:
 
         participants = [
             Participant(cli="claude", model="sonnet", stance="neutral"),
-            Participant(cli="codex", model="gpt-4", stance="neutral")
+            Participant(cli="codex", model="gpt-4", stance="neutral"),
         ]
 
         request = DeliberateRequest(
@@ -1289,7 +1320,8 @@ class TestEngineContextEfficiency:
             participants=participants,
             rounds=5,
             mode="conference",
-            working_directory="/tmp",)
+            working_directory="/tmp",
+        )
 
         # Simulate 5 rounds with distinct responses
         mock_adapters["claude"].invoke_mock.side_effect = [
@@ -1325,7 +1357,7 @@ class TestEngineContextEfficiency:
 
         participants = [
             Participant(cli="claude", model="sonnet", stance="neutral"),
-            Participant(cli="codex", model="gpt-4", stance="neutral")
+            Participant(cli="codex", model="gpt-4", stance="neutral"),
         ]
 
         request = DeliberateRequest(
@@ -1333,13 +1365,16 @@ class TestEngineContextEfficiency:
             participants=participants,
             rounds=5,  # Max 5 rounds
             mode="conference",
-            working_directory="/tmp",)
+            working_directory="/tmp",
+        )
 
         # Simulate 5 rounds, each with 2KB response
         large_response = "x" * 2000
         mock_adapters["claude"].invoke_mock.side_effect = [
             f"Round {i}: {large_response}" for i in range(1, 6)
-        ] + ["Summary"]  # Add summary response
+        ] + [
+            "Summary"
+        ]  # Add summary response
         mock_adapters["codex"].invoke_mock.side_effect = [
             f"Codex {i}: {large_response}" for i in range(1, 6)
         ]
@@ -1352,9 +1387,7 @@ class TestEngineContextEfficiency:
 
         # Test that _build_context accepts current_round_num parameter
         # This parameter will be used for tool result filtering in Task 7
-        context = engine._build_context(
-            result.full_debate, current_round_num=6
-        )
+        context = engine._build_context(result.full_debate, current_round_num=6)
 
         # Verify context was built successfully
         # Note: Response context is NOT truncated (only tool outputs will be)

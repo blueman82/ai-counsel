@@ -92,7 +92,9 @@ class DroidAdapter(BaseCLIAdapter):
             )
 
         # Compute effective reasoning effort once: runtime > config > empty string
-        effective_reasoning_effort = reasoning_effort or self.default_reasoning_effort or ""
+        effective_reasoning_effort = (
+            reasoning_effort or self.default_reasoning_effort or ""
+        )
 
         # If we already know skip-permissions works, use it directly
         if self._successful_method == "skip-permissions":
@@ -256,40 +258,45 @@ class DroidAdapter(BaseCLIAdapter):
 
         # Format arguments with placeholders
         formatted_args = [
-            arg.format(model=model, prompt=full_prompt, reasoning_effort=reasoning_effort)
+            arg.format(
+                model=model, prompt=full_prompt, reasoning_effort=reasoning_effort
+            )
             for arg in args_with_permission
         ]
 
-        # Execute subprocess
-        try:
-            # Determine working directory for subprocess
-            # Use provided working_directory if specified, otherwise use current directory
-            import os
+        # Determine working directory for subprocess
+        # Use provided working_directory if specified, otherwise use current directory
+        import os
 
-            cwd = working_directory if working_directory else os.getcwd()
+        cwd = working_directory if working_directory else os.getcwd()
 
-            process = await asyncio.create_subprocess_exec(
-                self.command,
-                *formatted_args,
-                stdin=asyncio.subprocess.DEVNULL,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
-                cwd=cwd,
+        process = await asyncio.create_subprocess_exec(
+            self.command,
+            *formatted_args,
+            stdin=asyncio.subprocess.DEVNULL,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+            cwd=cwd,
+        )
+
+        stdout, stderr, timed_out = await self._read_with_activity_timeout(
+            process, model
+        )
+
+        if timed_out:
+            logger.warning(
+                f"Droid activity timeout: no output for {self.timeout}s"
+            )
+            raise TimeoutError(
+                f"CLI invocation timed out after {self.timeout}s of inactivity"
             )
 
-            stdout, stderr = await asyncio.wait_for(
-                process.communicate(), timeout=self.timeout
-            )
+        if process.returncode != 0:
+            error_msg = stderr.decode("utf-8", errors="replace")
+            raise RuntimeError(f"CLI process failed: {error_msg}")
 
-            if process.returncode != 0:
-                error_msg = stderr.decode("utf-8", errors="replace")
-                raise RuntimeError(f"CLI process failed: {error_msg}")
-
-            raw_output = stdout.decode("utf-8", errors="replace")
-            return self.parse_output(raw_output)
-
-        except asyncio.TimeoutError:
-            raise TimeoutError(f"CLI invocation timed out after {self.timeout}s")
+        raw_output = stdout.decode("utf-8", errors="replace")
+        return self.parse_output(raw_output)
 
     def _inject_permission_level(
         self, args: list[str], permission_level: str
@@ -371,38 +378,44 @@ class DroidAdapter(BaseCLIAdapter):
 
         # Format arguments with placeholders
         formatted_args = [
-            arg.format(model=model, prompt=full_prompt, reasoning_effort=reasoning_effort)
+            arg.format(
+                model=model, prompt=full_prompt, reasoning_effort=reasoning_effort
+            )
             for arg in args_with_skip
         ]
 
-        # Execute subprocess
-        try:
-            import os
+        # Determine working directory
+        import os
 
-            cwd = working_directory if working_directory else os.getcwd()
+        cwd = working_directory if working_directory else os.getcwd()
 
-            process = await asyncio.create_subprocess_exec(
-                self.command,
-                *formatted_args,
-                stdin=asyncio.subprocess.DEVNULL,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
-                cwd=cwd,
+        process = await asyncio.create_subprocess_exec(
+            self.command,
+            *formatted_args,
+            stdin=asyncio.subprocess.DEVNULL,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+            cwd=cwd,
+        )
+
+        stdout, stderr, timed_out = await self._read_with_activity_timeout(
+            process, model
+        )
+
+        if timed_out:
+            logger.warning(
+                f"Droid activity timeout: no output for {self.timeout}s"
+            )
+            raise TimeoutError(
+                f"CLI invocation timed out after {self.timeout}s of inactivity"
             )
 
-            stdout, stderr = await asyncio.wait_for(
-                process.communicate(), timeout=self.timeout
-            )
+        if process.returncode != 0:
+            error_msg = stderr.decode("utf-8", errors="replace")
+            raise RuntimeError(f"CLI process failed: {error_msg}")
 
-            if process.returncode != 0:
-                error_msg = stderr.decode("utf-8", errors="replace")
-                raise RuntimeError(f"CLI process failed: {error_msg}")
-
-            raw_output = stdout.decode("utf-8", errors="replace")
-            return self.parse_output(raw_output)
-
-        except asyncio.TimeoutError:
-            raise TimeoutError(f"CLI invocation timed out after {self.timeout}s")
+        raw_output = stdout.decode("utf-8", errors="replace")
+        return self.parse_output(raw_output)
 
     def parse_output(self, raw_output: str) -> str:
         """

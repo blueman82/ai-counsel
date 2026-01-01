@@ -1,4 +1,5 @@
 """Model registry utilities derived from configuration."""
+
 from __future__ import annotations
 
 import logging
@@ -14,7 +15,7 @@ logger = logging.getLogger(__name__)
 @dataclass(frozen=True)
 class RegistryEntry:
     """Normalized model definition entry.
-    
+
     Attributes:
         id: Unique model identifier used by adapter
         label: Human-friendly display name for UI dropdowns
@@ -133,7 +134,7 @@ class ModelRegistry:
                 f"Marked default '{all_defaults[0].id}' for adapter '{cli}' is disabled. "
                 f"Falling back to first enabled model: '{enabled_entries[0].id}'"
             )
-        
+
         return enabled_entries[0].id
 
     def is_allowed(self, cli: str, model_id: str) -> bool:

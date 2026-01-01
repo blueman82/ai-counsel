@@ -1,12 +1,12 @@
 """Unit tests for decision graph schema models."""
+
 from datetime import datetime
 from uuid import uuid4
 
 import pytest
 from pydantic import ValidationError
 
-from decision_graph.schema import (DecisionNode, DecisionSimilarity,
-                                   ParticipantStance)
+from decision_graph.schema import DecisionNode, DecisionSimilarity, ParticipantStance
 
 
 class TestDecisionNode:

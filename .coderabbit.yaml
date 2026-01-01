@@ -1,0 +1,21 @@
+# CodeRabbit Configuration
+# https://docs.coderabbit.ai/guides/configure-coderabbit
+
+version: "1"
+
+reviews:
+  # Ignore legacy upstream files not relevant to this fork
+  path_filters:
+    - "!agents/**"
+    - "!docs/**"
+
+  # Review settings
+  auto_review:
+    enabled: true
+    drafts: false
+
+  # Language for review comments
+  language: "ru-RU"
+
+chat:
+  auto_reply: true

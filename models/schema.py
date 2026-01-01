@@ -1,4 +1,5 @@
 """Pydantic models for AI Counsel."""
+
 from typing import Dict, List, Literal, Optional
 
 from pydantic import BaseModel, Field
@@ -17,6 +18,9 @@ class Participant(BaseModel):
         "lmstudio",
         "openrouter",
         "nebius",
+        "openai",
+        "nvmdapi",
+        "nvmdapicli",
     ] = Field(
         ...,
         description="Adapter to use for this participant (CLI tools or HTTP services)",
@@ -59,7 +63,7 @@ class DeliberateRequest(BaseModel):
     )
     working_directory: str = Field(
         ...,
-        description="Working directory for tool execution (tools resolve relative paths from here). Required for deliberations using evidence-based tools."
+        description="Working directory for tool execution (tools resolve relative paths from here). Required for deliberations using evidence-based tools.",
     )
 
 

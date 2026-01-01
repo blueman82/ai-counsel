@@ -167,9 +167,7 @@ class DecisionRetriever:
                 query_question, cache_key_threshold, max_results
             )
             if cached_similar is not None:
-                logger.info(
-                    f"L1 cache hit for query: {query_question[:50]}..."
-                )
+                logger.info(f"L1 cache hit for query: {query_question[:50]}...")
                 # Reconstruct (DecisionNode, score) tuples from cached results
                 results = []
                 for match in cached_similar:
@@ -209,13 +207,19 @@ class DecisionRetriever:
         )
 
         # 7. Explicitly filter by noise floor (defensive check)
-        filtered_similar = [match for match in similar if match["score"] >= self.noise_floor]
+        filtered_similar = [
+            match for match in similar if match["score"] >= self.noise_floor
+        ]
 
         if not filtered_similar:
-            logger.info(f"No similar decisions found above noise floor {self.noise_floor}")
+            logger.info(
+                f"No similar decisions found above noise floor {self.noise_floor}"
+            )
             # Cache empty result to avoid recomputation
             if self.cache:
-                self.cache.cache_result(query_question, cache_key_threshold, max_results, [])
+                self.cache.cache_result(
+                    query_question, cache_key_threshold, max_results, []
+                )
             return []
 
         # 8. Apply adaptive k limit (not threshold filtering)
@@ -423,7 +427,9 @@ class DecisionRetriever:
                     f"distribution: {result['tier_distribution']})"
                 )
             else:
-                logger.info("No relevant context found for query (all below noise floor)")
+                logger.info(
+                    "No relevant context found for query (all below noise floor)"
+                )
 
             return context
 

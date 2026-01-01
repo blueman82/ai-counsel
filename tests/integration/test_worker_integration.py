@@ -17,8 +17,15 @@ import pytest
 
 from decision_graph.integration import DecisionGraphIntegration
 from decision_graph.storage import DecisionGraphStorage
-from models.schema import (ConvergenceInfo, DeliberationResult, RoundResponse,
-                           RoundVote, Summary, Vote, VotingResult)
+from models.schema import (
+    ConvergenceInfo,
+    DeliberationResult,
+    RoundResponse,
+    RoundVote,
+    Summary,
+    Vote,
+    VotingResult,
+)
 
 
 @pytest.fixture
@@ -35,7 +42,9 @@ def temp_db():
 @pytest.fixture
 def storage(temp_db):
     """Create storage instance."""
-    return DecisionGraphStorage(db_path=temp_db)
+    storage_instance = DecisionGraphStorage(db_path=temp_db)
+    yield storage_instance
+    storage_instance.close()
 
 
 @pytest.fixture

@@ -8,7 +8,7 @@ times fast by deferring expensive similarity computation to background tasks.
 import asyncio
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, List, Optional
 from uuid import uuid4
 
@@ -31,12 +31,14 @@ class SimilarityJob:
         priority: Job priority ("high" or "low")
         created_at: Timestamp when job was created
         job_id: Unique job identifier
+        process_after: Timestamp after which job should be processed (for delayed execution)
     """
 
     decision_id: str
     priority: str = "low"  # "high" or "low"
     created_at: datetime = field(default_factory=datetime.now)
     job_id: str = field(default_factory=lambda: str(uuid4()))
+    process_after: Optional[datetime] = None
 
 
 class BackgroundWorker:
@@ -204,7 +206,9 @@ class BackgroundWorker:
         Args:
             decision_id: UUID of decision to compute similarities for
             priority: Job priority ("high" or "low")
-            delay_seconds: Delay before processing (allows batching)
+            delay_seconds: Delay before processing (allows batching).
+                The delay is non-blocking - job is enqueued immediately but
+                will only be processed after delay_seconds have elapsed.
 
         Raises:
             asyncio.QueueFull: If queue is at max capacity
@@ -219,10 +223,16 @@ class BackgroundWorker:
             )
             return
 
+        # Calculate when job should be processed (non-blocking delay)
+        process_after = None
+        if delay_seconds > 0:
+            process_after = datetime.now() + timedelta(seconds=delay_seconds)
+
         job = SimilarityJob(
             decision_id=decision_id,
             priority=priority,
             created_at=datetime.now(),
+            process_after=process_after,
         )
 
         # Select queue based on priority
@@ -231,14 +241,11 @@ class BackgroundWorker:
         )
 
         try:
-            # Apply delay to allow batching
-            if delay_seconds > 0:
-                await asyncio.sleep(delay_seconds)
-
-            # Enqueue job (will raise QueueFull if at capacity)
+            # Enqueue job immediately (will raise QueueFull if at capacity)
             queue.put_nowait(job)
             logger.debug(
                 f"Enqueued {priority}-priority job {job.job_id} for decision {decision_id}"
+                + (f" (delayed until {process_after})" if process_after else "")
             )
         except asyncio.QueueFull:
             logger.error(
@@ -251,6 +258,7 @@ class BackgroundWorker:
 
         Continuously processes jobs from priority queues until stopped.
         High-priority jobs are processed before low-priority jobs.
+        Jobs with process_after set are deferred until that time.
         """
         logger.info("Worker loop started")
 
@@ -258,9 +266,11 @@ class BackgroundWorker:
             try:
                 # Try high-priority queue first (non-blocking)
                 job = None
+                queue_used = None
                 try:
                     job = self.high_priority_queue.get_nowait()
-                    logger.debug(f"Processing high-priority job {job.job_id}")
+                    queue_used = self.high_priority_queue
+                    logger.debug(f"Checking high-priority job {job.job_id}")
                 except asyncio.QueueEmpty:
                     pass
 
@@ -268,7 +278,8 @@ class BackgroundWorker:
                 if job is None:
                     try:
                         job = self.low_priority_queue.get_nowait()
-                        logger.debug(f"Processing low-priority job {job.job_id}")
+                        queue_used = self.low_priority_queue
+                        logger.debug(f"Checking low-priority job {job.job_id}")
                     except asyncio.QueueEmpty:
                         pass
 
@@ -276,6 +287,21 @@ class BackgroundWorker:
                 if job is None:
                     await asyncio.sleep(0.1)
                     continue
+
+                # Check if job is ready to process (respecting process_after delay)
+                if job.process_after and datetime.now() < job.process_after:
+                    # Job not ready yet - put back in queue and continue
+                    try:
+                        queue_used.put_nowait(job)
+                    except asyncio.QueueFull:
+                        # Queue is full, process immediately instead of dropping
+                        logger.warning(
+                            f"Queue full while re-queueing delayed job {job.job_id}, "
+                            f"processing immediately"
+                        )
+                    else:
+                        await asyncio.sleep(0.1)
+                        continue
 
                 # Process job
                 self.active_jobs.append(job.job_id)

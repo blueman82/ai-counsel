@@ -1,4 +1,5 @@
 """Deliberation engine for orchestrating multi-model discussions."""
+
 import asyncio
 import json
 import logging
@@ -25,10 +26,10 @@ progress_logger = logging.getLogger("ai_counsel.progress")
 if not progress_logger.handlers:
     project_dir = Path(__file__).parent.parent
     progress_file = project_dir / "deliberation_progress.log"
-    progress_handler = logging.FileHandler(progress_file, mode="a")
-    progress_handler.setFormatter(logging.Formatter(
-        "%(asctime)s | %(levelname)s | %(message)s"
-    ))
+    progress_handler = logging.FileHandler(progress_file, mode="a", encoding="utf-8")
+    progress_handler.setFormatter(
+        logging.Formatter("%(asctime)s | %(levelname)s | %(message)s")
+    )
     progress_logger.addHandler(progress_handler)
     progress_logger.setLevel(logging.DEBUG)
 
@@ -133,8 +134,7 @@ class DeliberationEngine:
                     logger.info(f"Decision graph memory enabled (db: {db_path})")
                 except Exception as e:
                     logger.warning(
-                        f"Failed to initialize decision graph: {e}",
-                        exc_info=True
+                        f"Failed to initialize decision graph: {e}", exc_info=True
                     )
                     logger.warning(
                         "Continuing without decision graph memory. "
@@ -162,19 +162,31 @@ class DeliberationEngine:
             self.tool_executor = ToolExecutor()
             # Get security config from deliberation config (handle None config gracefully)
             security_config = None
-            if config and hasattr(config, "deliberation") and hasattr(config.deliberation, "tool_security"):
+            if (
+                config
+                and hasattr(config, "deliberation")
+                and hasattr(config.deliberation, "tool_security")
+            ):
                 security_config = config.deliberation.tool_security
             # Register all available tools with security config
-            self.tool_executor.register_tool(ReadFileTool(security_config=security_config))
-            self.tool_executor.register_tool(SearchCodeTool(security_config=security_config))
-            self.tool_executor.register_tool(ListFilesTool(security_config=security_config))
+            self.tool_executor.register_tool(
+                ReadFileTool(security_config=security_config)
+            )
+            self.tool_executor.register_tool(
+                SearchCodeTool(security_config=security_config)
+            )
+            self.tool_executor.register_tool(
+                ListFilesTool(security_config=security_config)
+            )
             self.tool_executor.register_tool(RunCommandTool())
             self.tool_executor.register_tool(GetFileTreeTool())
             logger.info(
                 "Tool executor initialized with 5 tools (read_file, search_code, list_files, run_command, get_file_tree)"
             )
             if security_config and security_config.exclude_patterns:
-                logger.info(f"Tool security enabled with {len(security_config.exclude_patterns)} exclusion patterns")
+                logger.info(
+                    f"Tool security enabled with {len(security_config.exclude_patterns)} exclusion patterns"
+                )
         except Exception as e:
             logger.warning(
                 f"Failed to initialize tool executor: {e}. Tool execution will be disabled."
@@ -273,11 +285,17 @@ The following files are available in the working directory:
 
         # ========== PARALLEL MODEL INVOCATION ==========
         # Run all participant adapters concurrently for ~3x speedup
-        async def invoke_participant(participant: Participant) -> tuple[Participant, str]:
+        async def invoke_participant(
+            participant: Participant,
+        ) -> tuple[Participant, str]:
             """Invoke a single participant's adapter and return the response."""
             adapter = self.adapters[participant.cli]
 
-            reasoning_info = f", reasoning_effort={participant.reasoning_effort}" if participant.reasoning_effort else ""
+            reasoning_info = (
+                f", reasoning_effort={participant.reasoning_effort}"
+                if participant.reasoning_effort
+                else ""
+            )
             logger.info(
                 f"Round {round_num}: Invoking {participant.model}@{participant.cli} "
                 f"with prompt_length={len(enhanced_prompt)} chars, "
@@ -354,10 +372,11 @@ The following files are available in the working directory:
                 return (participant, f"[ERROR: {type(e).__name__}: {str(e)}]")
 
         # Run all participants in PARALLEL using asyncio.gather
-        logger.info(f"Round {round_num}: Invoking {len(participants)} participants in PARALLEL")
+        logger.info(
+            f"Round {round_num}: Invoking {len(participants)} participants in PARALLEL"
+        )
         parallel_results = await asyncio.gather(
-            *[invoke_participant(p) for p in participants],
-            return_exceptions=True
+            *[invoke_participant(p) for p in participants], return_exceptions=True
         )
 
         # Process results and handle any exceptions from gather
@@ -366,8 +385,12 @@ The following files are available in the working directory:
             if isinstance(result, Exception):
                 # Handle unexpected exceptions from gather itself
                 participant = participants[i]
-                logger.error(f"Unexpected error for {participant.model}@{participant.cli}: {result}")
-                participant_responses.append((participant, f"[ERROR: {type(result).__name__}: {str(result)}]"))
+                logger.error(
+                    f"Unexpected error for {participant.model}@{participant.cli}: {result}"
+                )
+                participant_responses.append(
+                    (participant, f"[ERROR: {type(result).__name__}: {str(result)}]")
+                )
             else:
                 participant_responses.append(result)
 
@@ -529,7 +552,9 @@ The following files are available in the working directory:
 
         return "\n".join(context_parts)
 
-    def _parse_vote(self, response_text: str, participant_id: str = "") -> tuple[Optional[Vote], str]:
+    def _parse_vote(
+        self, response_text: str, participant_id: str = ""
+    ) -> tuple[Optional[Vote], str]:
         """
         Parse vote from response text if present.
 
@@ -713,7 +738,9 @@ Reply with ONLY the VOTE line. Do not repeat your analysis."""
         quality_tracker = get_quality_tracker()
 
         for response in responses:
-            vote, failure_reason = self._parse_vote(response.response, response.participant)
+            vote, failure_reason = self._parse_vote(
+                response.response, response.participant
+            )
 
             # Track metrics for this response
             is_abstain = False
@@ -728,7 +755,9 @@ Reply with ONLY the VOTE line. Do not repeat your analysis."""
             else:
                 # Failed to parse vote - create abstain if enabled
                 if include_abstains:
-                    vote = self._create_abstain_vote(response.participant, failure_reason)
+                    vote = self._create_abstain_vote(
+                        response.participant, failure_reason
+                    )
                     is_abstain = True
                     logger.info(
                         f"Created ABSTAIN vote for {response.participant} (reason: {failure_reason})"
@@ -933,6 +962,8 @@ You have access to tools to gather concrete evidence. Use them actively:
 **How to use tools:**
 ```
 TOOL_REQUEST: {"name": "read_file", "arguments": {"path": "src/file.py"}}
+TOOL_REQUEST: {"name": "run_command", "arguments": {"command": "git", "args": ["show", "HEAD"]}}
+TOOL_REQUEST: {"name": "search_code", "arguments": {"pattern": "class.*Adapter", "path": "."}}
 ```
 
 **IMPORTANT:**
@@ -946,7 +977,9 @@ TOOL_REQUEST: {"name": "read_file", "arguments": {"path": "src/file.py"}}
 
         voting_instructions = self._build_voting_instructions()
         enhanced_prompt_final = f"{deliberation_instructions}{tool_instructions}\n\n## Question\n{prompt}\n\n{voting_instructions}"
-        logger.debug(f"Enhanced prompt total length: {len(enhanced_prompt_final)} chars")
+        logger.debug(
+            f"Enhanced prompt total length: {len(enhanced_prompt_final)} chars"
+        )
         return enhanced_prompt_final
 
     def _check_early_stopping(
@@ -1031,6 +1064,11 @@ TOOL_REQUEST: {"name": "read_file", "arguments": {"path": "src/file.py"}}
         # In long-running MCP servers, this prevents unbounded growth across deliberations
         self.tool_execution_history = []
 
+        # Reset convergence detector state from previous deliberations
+        # This ensures counters don't carry over and affect convergence detection
+        if self.convergence_detector:
+            self.convergence_detector.reset()
+
         # Track issues encountered during deliberation
         issues_encountered: List[str] = []
         deliberation_start = datetime.now()
@@ -1038,9 +1076,15 @@ TOOL_REQUEST: {"name": "read_file", "arguments": {"path": "src/file.py"}}
         # Log deliberation start with all participating models
         model_list = [f"{p.model}@{p.cli}" for p in request.participants]
         progress_logger.info("=" * 70)
-        progress_logger.info(f"🎯 DELIBERATION START | Mode: {request.mode} | Rounds: {request.rounds}")
-        progress_logger.info(f"   Question: {request.question[:100]}{'...' if len(request.question) > 100 else ''}")
-        progress_logger.info(f"   Models ({len(request.participants)}): {', '.join(model_list)}")
+        progress_logger.info(
+            f"🎯 DELIBERATION START | Mode: {request.mode} | Rounds: {request.rounds}"
+        )
+        progress_logger.info(
+            f"   Question: {request.question[:100]}{'...' if len(request.question) > 100 else ''}"
+        )
+        progress_logger.info(
+            f"   Models ({len(request.participants)}): {', '.join(model_list)}"
+        )
         progress_logger.info(f"   Working Dir: {request.working_directory}")
         progress_logger.info("-" * 70)
 
@@ -1077,7 +1121,13 @@ TOOL_REQUEST: {"name": "read_file", "arguments": {"path": "src/file.py"}}
 
             try:
                 # Execute round with timeout protection (5 min per round max)
-                round_timeout = self.config.defaults.timeout_per_round if self.config and hasattr(self.config, 'defaults') and hasattr(self.config.defaults, 'timeout_per_round') else 300
+                round_timeout = (
+                    self.config.defaults.timeout_per_round
+                    if self.config
+                    and hasattr(self.config, "defaults")
+                    and hasattr(self.config.defaults, "timeout_per_round")
+                    else 300
+                )
                 round_responses = await asyncio.wait_for(
                     self.execute_round(
                         round_num=round_num,
@@ -1087,11 +1137,15 @@ TOOL_REQUEST: {"name": "read_file", "arguments": {"path": "src/file.py"}}
                         graph_context=graph_context,
                         working_directory=request.working_directory,
                     ),
-                    timeout=round_timeout
+                    timeout=round_timeout,
                 )
             except asyncio.TimeoutError:
-                progress_logger.error(f"   ⏱️ ROUND {round_num} TIMED OUT after {round_timeout}s")
-                issues_encountered.append(f"Round {round_num}: Timed out after {round_timeout}s")
+                progress_logger.error(
+                    f"   ⏱️ ROUND {round_num} TIMED OUT after {round_timeout}s"
+                )
+                issues_encountered.append(
+                    f"Round {round_num}: Timed out after {round_timeout}s"
+                )
                 # Create error responses for all participants
                 round_responses = [
                     RoundResponse(
@@ -1103,12 +1157,18 @@ TOOL_REQUEST: {"name": "read_file", "arguments": {"path": "src/file.py"}}
                     for p in request.participants
                 ]
             except asyncio.CancelledError:
-                progress_logger.warning(f"   ⚠️ ROUND {round_num} CANCELLED - request interrupted")
+                progress_logger.warning(
+                    f"   ⚠️ ROUND {round_num} CANCELLED - request interrupted"
+                )
                 issues_encountered.append(f"Round {round_num}: Cancelled by client")
                 raise  # Re-raise to propagate cancellation
             except Exception as e:
-                progress_logger.error(f"   💥 ROUND {round_num} FAILED: {type(e).__name__}: {str(e)[:100]}")
-                issues_encountered.append(f"Round {round_num}: {type(e).__name__}: {str(e)[:50]}")
+                progress_logger.error(
+                    f"   💥 ROUND {round_num} FAILED: {type(e).__name__}: {str(e)[:100]}"
+                )
+                issues_encountered.append(
+                    f"Round {round_num}: {type(e).__name__}: {str(e)[:50]}"
+                )
                 # Create error responses for all participants
                 round_responses = [
                     RoundResponse(
@@ -1123,16 +1183,24 @@ TOOL_REQUEST: {"name": "read_file", "arguments": {"path": "src/file.py"}}
 
             # Log round completion with model results
             round_elapsed = (datetime.now() - round_start).total_seconds()
-            successful = [r for r in round_responses if not r.response.startswith("[ERROR")]
+            successful = [
+                r for r in round_responses if not r.response.startswith("[ERROR")
+            ]
             failed = [r for r in round_responses if r.response.startswith("[ERROR")]
 
-            progress_logger.info(f"📍 ROUND {round_num} COMPLETE | Time: {round_elapsed:.1f}s | Success: {len(successful)}/{len(round_responses)}")
+            progress_logger.info(
+                f"📍 ROUND {round_num} COMPLETE | Time: {round_elapsed:.1f}s | Success: {len(successful)}/{len(round_responses)}"
+            )
             for r in round_responses:
                 if r.response.startswith("[ERROR"):
                     progress_logger.error(f"   ❌ {r.participant}: {r.response[:100]}")
-                    issues_encountered.append(f"Round {round_num}: {r.participant} - {r.response[:50]}")
+                    issues_encountered.append(
+                        f"Round {round_num}: {r.participant} - {r.response[:50]}"
+                    )
                 else:
-                    progress_logger.info(f"   ✅ {r.participant}: {len(r.response)} chars")
+                    progress_logger.info(
+                        f"   ✅ {r.participant}: {len(r.response)} chars"
+                    )
 
             # Check for model-controlled early stopping
             # Use config minimum rounds, not request rounds, for respect_min_rounds
@@ -1329,12 +1397,14 @@ TOOL_REQUEST: {"name": "read_file", "arguments": {"path": "src/file.py"}}
             # since it comes from ConvergenceInfo.status or is set to "unknown"
             result.convergence_info = ConvergenceInfo(
                 detected=convergence_detected,
-                detection_round=actual_rounds_completed
-                if convergence_detected
-                else None,
-                final_similarity=final_convergence_info.min_similarity
-                if final_convergence_info
-                else 0.0,
+                detection_round=(
+                    actual_rounds_completed if convergence_detected else None
+                ),
+                final_similarity=(
+                    final_convergence_info.min_similarity
+                    if final_convergence_info
+                    else 0.0
+                ),
                 status=cast(
                     Literal[
                         "converged",
@@ -1350,9 +1420,11 @@ TOOL_REQUEST: {"name": "read_file", "arguments": {"path": "src/file.py"}}
                     convergence_status,
                 ),
                 scores_by_round=[],  # Could track all rounds if needed
-                per_participant_similarity=final_convergence_info.per_participant_similarity
-                if final_convergence_info
-                else {},
+                per_participant_similarity=(
+                    final_convergence_info.per_participant_similarity
+                    if final_convergence_info
+                    else {}
+                ),
             )
 
         # Save transcript
@@ -1373,10 +1445,14 @@ TOOL_REQUEST: {"name": "read_file", "arguments": {"path": "src/file.py"}}
         # Log deliberation completion summary
         total_elapsed = (datetime.now() - deliberation_start).total_seconds()
         progress_logger.info("-" * 70)
-        progress_logger.info(f"🏁 DELIBERATION COMPLETE | Time: {total_elapsed:.1f}s | Rounds: {actual_rounds_completed}/{rounds_to_execute}")
+        progress_logger.info(
+            f"🏁 DELIBERATION COMPLETE | Time: {total_elapsed:.1f}s | Rounds: {actual_rounds_completed}/{rounds_to_execute}"
+        )
         progress_logger.info(f"   Status: {result.status}")
         if result.convergence_info:
-            progress_logger.info(f"   Convergence: {result.convergence_info.status} (similarity: {result.convergence_info.final_similarity:.2f})")
+            progress_logger.info(
+                f"   Convergence: {result.convergence_info.status} (similarity: {result.convergence_info.final_similarity:.2f})"
+            )
         if result.voting_result and result.voting_result.winning_option:
             progress_logger.info(f"   Winner: {result.voting_result.winning_option}")
         if issues_encountered:

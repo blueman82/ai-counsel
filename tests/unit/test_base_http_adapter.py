@@ -1,4 +1,5 @@
 """Unit tests for BaseHTTPAdapter."""
+
 import asyncio
 from typing import Optional
 from unittest.mock import AsyncMock, Mock, patch
@@ -235,6 +236,8 @@ class TestHTTPAdapterInvoke:
 
         mock_response = Mock()
         mock_response.status_code = 400
+        mock_response.json.return_value = {"error": "Bad Request"}
+        mock_response.text = "Bad Request"
         mock_response.raise_for_status = Mock(
             side_effect=httpx.HTTPStatusError(
                 "400 Bad Request",
