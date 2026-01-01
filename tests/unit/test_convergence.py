@@ -1,4 +1,5 @@
 """Unit tests for convergence detection."""
+
 import pytest
 
 try:
@@ -6,8 +7,11 @@ try:
 except ImportError:
     ConvergenceDetector = None
 
-from deliberation.convergence import (JaccardBackend,
-                                      SentenceTransformerBackend, TFIDFBackend)
+from deliberation.convergence import (
+    JaccardBackend,
+    SentenceTransformerBackend,
+    TFIDFBackend,
+)
 
 # =============================================================================
 # Jaccard Similarity Backend Tests
@@ -617,7 +621,7 @@ class TestImpasseDetection:
         ]
 
         result = detector.check_convergence(round3, round2, round_number=3)
-        
+
         # Should be refining (similarity between thresholds)
         assert result.status == "refining"
         assert detector.consecutive_divergent_count == 0
@@ -849,7 +853,9 @@ class TestImpasseDetection:
             "Quantum computing will revolutionize cryptography and security",
         ]
 
-        for i in range(2, 8):  # rounds 2-7, but round 2 returns None (min_rounds_before_check)
+        for i in range(
+            2, 8
+        ):  # rounds 2-7, but round 2 returns None (min_rounds_before_check)
             curr = [
                 RoundResponse(
                     round=i,
@@ -924,18 +930,19 @@ class TestImpasseDetection:
         detector.check_convergence(round3, round2, round_number=3)
         assert detector.consecutive_divergent_count == 1
 
-        # Then a refining round (moderate similarity - same topic, different wording)
+        # Then a refining round (moderate similarity - same words, different phrasing)
+        # Using same key words (pasta, Italian, olive, oil, fresh, ingredients) to get ~50% Jaccard
         round4 = [
             RoundResponse(
                 round=4,
                 participant="claude@cli",
-                response="Making pasta at home needs quality ingredients like olive oil",
+                response="Italian pasta cooking requires fresh olive oil and quality ingredients",
                 timestamp="2025-01-01T00:02:00",
             )
         ]
 
         result = detector.check_convergence(round4, round3, round_number=4)
-        
-        # Should reset counter
+
+        # Should reset counter - similarity ~60% is above 0.40 divergence threshold = "refining"
         assert result.status == "refining"
         assert detector.consecutive_divergent_count == 0

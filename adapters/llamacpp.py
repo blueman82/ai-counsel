@@ -16,6 +16,7 @@ Typical output format:
     llama_print_timings: sample time = Y ms
     llama_print_timings: eval time = Z ms
 """
+
 import os
 from pathlib import Path
 from typing import ClassVar, Optional
@@ -134,7 +135,9 @@ class LlamaCppAdapter(BaseCLIAdapter):
         if not found_models:
             raise FileNotFoundError(
                 f"Model not found: '{model}'\n\n"
-                f"Searched in:\n" + "\n".join(f"  - {p}" for p in self._get_expanded_search_paths()) + "\n\n"
+                f"Searched in:\n"
+                + "\n".join(f"  - {p}" for p in self._get_expanded_search_paths())
+                + "\n\n"
                 f"Available models:\n" + self._format_available_models() + "\n\n"
                 f"Tips:\n"
                 f"  - Use full path: '/path/to/model.gguf'\n"
@@ -240,7 +243,9 @@ class LlamaCppAdapter(BaseCLIAdapter):
 
         # Limit to first 10 to avoid overwhelming output
         if len(all_models) > 10:
-            return "\n".join(all_models[:10]) + f"\n  ... and {len(all_models) - 10} more"
+            return (
+                "\n".join(all_models[:10]) + f"\n  ... and {len(all_models) - 10} more"
+            )
 
         return "\n".join(all_models)
 

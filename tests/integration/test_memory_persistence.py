@@ -5,6 +5,7 @@ ensuring that decision graph memory maintains data integrity through database
 restarts, context injection works correctly, and backward compatibility is
 maintained.
 """
+
 import os
 import tempfile
 from datetime import datetime
@@ -14,8 +15,15 @@ import pytest
 from decision_graph.integration import DecisionGraphIntegration
 from decision_graph.schema import DecisionNode
 from decision_graph.storage import DecisionGraphStorage
-from models.schema import (ConvergenceInfo, DeliberationResult, RoundResponse,
-                           RoundVote, Summary, Vote, VotingResult)
+from models.schema import (
+    ConvergenceInfo,
+    DeliberationResult,
+    RoundResponse,
+    RoundVote,
+    Summary,
+    Vote,
+    VotingResult,
+)
 
 
 @pytest.fixture
@@ -193,9 +201,7 @@ class TestMemoryPersistence:
 
         # Create new connection to same database
         storage2 = DecisionGraphStorage(db_path=temp_db)
-        DecisionGraphIntegration(
-            storage2, enable_background_worker=False
-        )
+        DecisionGraphIntegration(storage2, enable_background_worker=False)
 
         # Data should still be there
         node = storage2.get_decision_node(decision_id)

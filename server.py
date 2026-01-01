@@ -14,6 +14,7 @@ TOOL_REQUEST markers (not directly exposed via MCP):
 
 The internal tools are executed by the DeliberationEngine, not the MCP client.
 """
+
 import asyncio
 import json
 import logging
@@ -567,8 +568,12 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
                         # Check if user passed a label instead of ID
                         all_models = model_registry.get_all_models(cli_name)
                         matching_label = next(
-                            (entry for entry in all_models if entry.label == model_provided),
-                            None
+                            (
+                                entry
+                                for entry in all_models
+                                if entry.label == model_provided
+                            ),
+                            None,
                         )
 
                         if matching_label:
@@ -594,7 +599,9 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
             provided_model = participant.model
 
             if not provided_model:
-                default_model = session_defaults.get(cli) or model_registry.get_default(cli)
+                default_model = session_defaults.get(cli) or model_registry.get_default(
+                    cli
+                )
                 if not default_model:
                     raise ValueError(
                         f"No model provided for adapter '{cli}', and no default is configured."
@@ -607,12 +614,12 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
                 # Check if model exists but is disabled (for operational visibility)
                 all_models = model_registry.get_all_models(cli)
                 all_ids = {e.id for e in all_models}
-                
+
                 if provided_model in all_ids:
                     logger.warning(
                         f"User requested disabled model '{provided_model}' for adapter '{cli}'"
                     )
-                
+
                 allowed = sorted(model_registry.allowed_ids(cli))
                 if allowed:
                     raise ValueError(
@@ -620,7 +627,9 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
                         f"Allowed models: {', '.join(allowed)}."
                     )
             # Ensure session default remains valid (e.g., config change)
-            if participant.model and not model_registry.is_allowed(cli, participant.model):
+            if participant.model and not model_registry.is_allowed(
+                cli, participant.model
+            ):
                 allowed = sorted(model_registry.allowed_ids(cli))
                 if allowed:
                     raise ValueError(
@@ -687,8 +696,12 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
 
             # Replace massive tool_executions array with compact summary
             result_dict["tool_executions"] = tool_summary
-            result_dict["tool_executions_note"] = "Tool execution details available in transcript file"
-            logger.info(f"Summarized {tool_summary['total_tools_executed']} tool executions for MCP response")
+            result_dict["tool_executions_note"] = (
+                "Tool execution details available in transcript file"
+            )
+            logger.info(
+                f"Summarized {tool_summary['total_tools_executed']} tool executions for MCP response"
+            )
 
         # Serialize result
         result_json = json.dumps(result_dict, indent=2)
@@ -771,12 +784,12 @@ async def handle_set_session_models(arguments: dict) -> list[TextContent]:
             # Check if model exists but is disabled (for operational visibility)
             all_models = model_registry.get_all_models(cli)
             all_ids = {e.id for e in all_models}
-            
+
             if value in all_ids:
                 logger.warning(
                     f"User attempted to set disabled model '{value}' as session default for adapter '{cli}'"
                 )
-            
+
             allowed = sorted(model_registry.allowed_ids(cli))
             raise ValueError(
                 f"Model '{value}' is not allowlisted for adapter '{cli}'. "
@@ -812,34 +825,42 @@ async def handle_query_decisions(arguments: dict) -> list[TextContent]:
         format_type = arguments.get("format", "summary")
 
         # Validate mutual exclusivity
-        provided_params = sum([
-            bool(query_text),
-            bool(find_contradictions),
-            bool(decision_id)
-        ])
+        provided_params = sum(
+            [bool(query_text), bool(find_contradictions), bool(decision_id)]
+        )
 
         if provided_params == 0:
-            return [TextContent(
-                type="text",
-                text=json.dumps({
-                    "error": "Must provide one of: query_text, find_contradictions, or decision_id",
-                    "status": "failed"
-                }, indent=2)
-            )]
+            return [
+                TextContent(
+                    type="text",
+                    text=json.dumps(
+                        {
+                            "error": "Must provide one of: query_text, find_contradictions, or decision_id",
+                            "status": "failed",
+                        },
+                        indent=2,
+                    ),
+                )
+            ]
 
         if provided_params > 1:
-            return [TextContent(
-                type="text",
-                text=json.dumps({
-                    "error": "Only one of query_text, find_contradictions, or decision_id can be provided",
-                    "status": "failed",
-                    "provided": {
-                        "query_text": bool(query_text),
-                        "find_contradictions": bool(find_contradictions),
-                        "decision_id": bool(decision_id)
-                    }
-                }, indent=2)
-            )]
+            return [
+                TextContent(
+                    type="text",
+                    text=json.dumps(
+                        {
+                            "error": "Only one of query_text, find_contradictions, or decision_id can be provided",
+                            "status": "failed",
+                            "provided": {
+                                "query_text": bool(query_text),
+                                "find_contradictions": bool(find_contradictions),
+                                "decision_id": bool(decision_id),
+                            },
+                        },
+                        indent=2,
+                    ),
+                )
+            ]
 
         # Helper function to format decision results based on format type
         def format_decision(decision, score=None):
@@ -905,14 +926,14 @@ async def handle_query_decisions(arguments: dict) -> list[TextContent]:
 
         if query_text:
             # Search similar decisions
-            results = await engine.search_similar(query_text, limit=limit, threshold=threshold)
+            results = await engine.search_similar(
+                query_text, limit=limit, threshold=threshold
+            )
 
             # If empty, include diagnostics
             if not results:
                 diagnostics = engine.get_search_diagnostics(
-                    query_text,
-                    limit=limit,
-                    threshold=threshold
+                    query_text, limit=limit, threshold=threshold
                 )
 
                 result = {
@@ -923,10 +944,7 @@ async def handle_query_decisions(arguments: dict) -> list[TextContent]:
                         "total_decisions": diagnostics["total_decisions"],
                         "best_match_score": diagnostics["best_match_score"],
                         "near_misses": [
-                            {
-                                "question": d.question,
-                                "score": round(s, 3)
-                            }
+                            {"question": d.question, "score": round(s, 3)}
                             for d, s in diagnostics["near_misses"][:3]
                         ],
                         "suggested_threshold": diagnostics["suggested_threshold"],
@@ -934,17 +952,14 @@ async def handle_query_decisions(arguments: dict) -> list[TextContent]:
                             f"No results found above threshold {threshold}. "
                             f"Best match scored {diagnostics['best_match_score']:.3f}. "
                             f"Try threshold={diagnostics['suggested_threshold']:.2f} or use different keywords."
-                        )
-                    }
+                        ),
+                    },
                 }
             else:
                 result = {
                     "type": "similar_decisions",
                     "count": len(results),
-                    "results": [
-                        format_decision(r.decision, r.score)
-                        for r in results
-                    ],
+                    "results": [format_decision(r.decision, r.score) for r in results],
                 }
 
         elif find_contradictions:

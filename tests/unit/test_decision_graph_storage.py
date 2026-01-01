@@ -1,11 +1,11 @@
 """Unit tests for decision graph storage layer."""
+
 import sqlite3
 from datetime import datetime
 
 import pytest
 
-from decision_graph.schema import (DecisionNode, DecisionSimilarity,
-                                   ParticipantStance)
+from decision_graph.schema import DecisionNode, DecisionSimilarity, ParticipantStance
 from decision_graph.storage import DecisionGraphStorage
 from deliberation.convergence import ConvergenceDetector
 
@@ -974,7 +974,7 @@ class TestImpasseDetection:
         ]
 
         result = detector.check_convergence(round3, round2, round_number=3)
-        
+
         assert result.status == "diverging"
         assert detector.consecutive_divergent_count == 1
 
@@ -1084,7 +1084,7 @@ class TestImpasseDetection:
         ]
 
         result = detector.check_convergence(round3, round2, round_number=3)
-        
+
         # Should be refining (similarity between thresholds)
         assert result.status == "refining"
         assert detector.consecutive_divergent_count == 0
@@ -1304,13 +1304,28 @@ class TestImpasseDetection:
 
         detector = ConvergenceDetector(config)
 
-        # Create 5 rounds of divergence
-        for i in range(2, 7):
+        # Create divergent rounds - use completely unrelated topics for low Jaccard
+        # With min_rounds_before_check=2, first check happens at round 3
+        # Need 6 rounds (2-7) to get 5 divergent checks (at rounds 3,4,5,6,7)
+        # impasse_rounds = max(2, consecutive_stable_rounds=5) = 5
+        divergent_topics = [
+            "Python programming is excellent for data science applications",  # index 0
+            "JavaScript frameworks power modern web development today",  # index 1
+            "Quantum computing research advances processor technology rapidly",  # index 2
+            "Marine biology studies underwater ecosystems extensively worldwide",  # index 3
+            "Ancient Roman architecture influences modern building designs profoundly",  # index 4
+            "Cryptocurrency markets fluctuate based on global economic trends",  # index 5
+            "Organic chemistry compounds synthesize complex molecular structures efficiently",  # index 6
+            "Renaissance art techniques revolutionized visual expression completely",  # index 7
+        ]
+        for i in range(
+            2, 8
+        ):  # rounds 2-7, but only 3-7 are checked (5 divergent checks)
             curr = [
                 RoundResponse(
                     round=i,
                     participant="claude@cli",
-                    response=f"Divergent response number {i}",
+                    response=divergent_topics[i],
                     timestamp=f"2025-01-01T00:0{i}:00",
                 )
             ]
@@ -1318,13 +1333,13 @@ class TestImpasseDetection:
                 RoundResponse(
                     round=i - 1,
                     participant="claude@cli",
-                    response=f"Divergent response number {i - 1}",
+                    response=divergent_topics[i - 1],
                     timestamp=f"2025-01-01T00:0{i-1}:00",
                 )
             ]
             result = detector.check_convergence(curr, prev, round_number=i)
 
-        # After 5 divergent rounds, should be impasse
+        # After 5 divergent checks (rounds 3-7), should be impasse
         assert result.status == "impasse"
         assert detector.consecutive_divergent_count == 5
 
@@ -1391,7 +1406,7 @@ class TestImpasseDetection:
         ]
 
         result = detector.check_convergence(round4, round3, round_number=4)
-        
+
         # Should reset counter
         assert result.status == "refining"
         assert detector.consecutive_divergent_count == 0

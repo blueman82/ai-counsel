@@ -1,4 +1,5 @@
 """Base HTTP adapter with request/retry management."""
+
 import asyncio
 import json
 import logging
@@ -8,8 +9,7 @@ from pathlib import Path
 from typing import Optional, Tuple
 
 import httpx
-from tenacity import (retry, retry_if_exception, stop_after_attempt,
-                      wait_exponential)
+from tenacity import retry, retry_if_exception, stop_after_attempt, wait_exponential
 
 # Configure progress logger for HTTP adapter debugging
 progress_logger = logging.getLogger("ai_counsel.progress")
@@ -17,12 +17,10 @@ if not progress_logger.handlers:
     # Log to both console and dedicated progress file
     project_dir = Path(__file__).parent.parent
     progress_file = project_dir / "deliberation_progress.log"
-    progress_handler = logging.FileHandler(
-        progress_file, mode="a", encoding="utf-8"
+    progress_handler = logging.FileHandler(progress_file, mode="a", encoding="utf-8")
+    progress_handler.setFormatter(
+        logging.Formatter("%(asctime)s | %(levelname)s | %(message)s")
     )
-    progress_handler.setFormatter(logging.Formatter(
-        "%(asctime)s | %(levelname)s | %(message)s"
-    ))
     progress_logger.addHandler(progress_handler)
     progress_logger.setLevel(logging.DEBUG)
 
@@ -197,18 +195,26 @@ class BaseHTTPAdapter(ABC):
                 url=full_url, headers=headers, body=body
             )
             elapsed = (datetime.now() - start_time).total_seconds()
-            progress_logger.info(f"[SUCCESS] HTTP REQUEST | Model: {model} | Time: {elapsed:.2f}s")
-            progress_logger.debug(f"   Response keys: {list(response_json.keys()) if isinstance(response_json, dict) else 'N/A'}")
+            progress_logger.info(
+                f"[SUCCESS] HTTP REQUEST | Model: {model} | Time: {elapsed:.2f}s"
+            )
+            progress_logger.debug(
+                f"   Response keys: {list(response_json.keys()) if isinstance(response_json, dict) else 'N/A'}"
+            )
             return self.parse_response(response_json)
 
         except asyncio.TimeoutError:
             elapsed = (datetime.now() - start_time).total_seconds()
-            progress_logger.error(f"[TIMEOUT] HTTP REQUEST | Model: {model} | Time: {elapsed:.2f}s")
+            progress_logger.error(
+                f"[TIMEOUT] HTTP REQUEST | Model: {model} | Time: {elapsed:.2f}s"
+            )
             raise TimeoutError(f"HTTP request timed out after {self.timeout}s")
 
         except Exception as e:
             elapsed = (datetime.now() - start_time).total_seconds()
-            progress_logger.error(f"[ERROR] HTTP REQUEST FAILED | Model: {model} | Time: {elapsed:.2f}s | Error: {type(e).__name__}: {str(e)[:200]}")
+            progress_logger.error(
+                f"[ERROR] HTTP REQUEST FAILED | Model: {model} | Time: {elapsed:.2f}s | Error: {type(e).__name__}: {str(e)[:200]}"
+            )
             raise
 
     async def _execute_request_with_retry(

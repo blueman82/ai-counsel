@@ -8,11 +8,15 @@ Tests the QuestionSimilarityDetector across all available backends:
 These are integration tests because they test the full similarity detection
 pipeline with real backends, not mocked components.
 """
+
 import pytest
 
 from decision_graph.similarity import QuestionSimilarityDetector
-from deliberation.convergence import (JaccardBackend,
-                                      SentenceTransformerBackend, TFIDFBackend)
+from deliberation.convergence import (
+    JaccardBackend,
+    SentenceTransformerBackend,
+    TFIDFBackend,
+)
 
 
 @pytest.mark.integration

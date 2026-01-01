@@ -14,8 +14,7 @@ from uuid import uuid4
 
 from decision_graph.maintenance import DecisionGraphMaintenance
 from decision_graph.retrieval import DecisionRetriever
-from decision_graph.schema import (DecisionNode, DecisionSimilarity,
-                                   ParticipantStance)
+from decision_graph.schema import DecisionNode, DecisionSimilarity, ParticipantStance
 from decision_graph.similarity import QuestionSimilarityDetector
 from decision_graph.storage import DecisionGraphStorage
 from decision_graph.workers import BackgroundWorker
@@ -527,7 +526,9 @@ class DecisionGraphIntegration:
                 )
 
                 if not scored_decisions:
-                    logger.info(f"No relevant decisions found for question: {question[:50]}...")
+                    logger.info(
+                        f"No relevant decisions found for question: {question[:50]}..."
+                    )
                     return ""
 
                 # Format using tiered approach
@@ -739,6 +740,4 @@ class DecisionGraphIntegration:
         except RuntimeError:
             return
         except Exception as e:
-            logger.warning(
-                f"Could not gracefully shutdown worker in destructor: {e}"
-            )
+            logger.warning(f"Could not gracefully shutdown worker in destructor: {e}")

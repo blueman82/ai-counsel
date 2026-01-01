@@ -1,4 +1,5 @@
 """Pydantic models for AI Counsel."""
+
 from typing import Dict, List, Literal, Optional
 
 from pydantic import BaseModel, Field
@@ -60,7 +61,7 @@ class DeliberateRequest(BaseModel):
     )
     working_directory: str = Field(
         ...,
-        description="Working directory for tool execution (tools resolve relative paths from here). Required for deliberations using evidence-based tools."
+        description="Working directory for tool execution (tools resolve relative paths from here). Required for deliberations using evidence-based tools.",
     )
 
 
