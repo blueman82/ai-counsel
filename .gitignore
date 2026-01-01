@@ -97,3 +97,6 @@ REVIEW_SUMMARY.txt
 
 # Internal development documentation (not for public repo)
 docs/dev/
+
+# Local config override (user-specific, never commit)
+config.local.yaml

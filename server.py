@@ -99,9 +99,18 @@ app = Server("ai-counsel")
 
 
 # Load configuration from project directory
+# Prefer local config if exists, fallback to base config
 try:
-    config_path = PROJECT_DIR / "config.yaml"
-    logger.info(f"Loading config from: {config_path}")
+    local_config_path = PROJECT_DIR / "config.local.yaml"
+    base_config_path = PROJECT_DIR / "config.yaml"
+
+    if local_config_path.exists():
+        config_path = local_config_path
+        logger.info(f"Loading local config from: {config_path}")
+    else:
+        config_path = base_config_path
+        logger.info(f"Loading config from: {config_path}")
+
     config = load_config(str(config_path))
     logger.info("Configuration loaded successfully")
 except Exception as e:
