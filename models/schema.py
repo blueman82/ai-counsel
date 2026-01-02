@@ -17,6 +17,7 @@ class Participant(BaseModel):
         "lmstudio",
         "openrouter",
         "nebius",
+        "openai",
     ] = Field(
         ...,
         description="Adapter to use for this participant (CLI tools or HTTP services)",
