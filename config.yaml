@@ -380,6 +380,14 @@ model_registry:
       tier: "speed"
       enabled: true
   nebius:
+    - id: "moonshotai/Kimi-K2-Thinking"
+      label: "Kimi K2 Thinking"
+      tier: "reasoning"
+      enabled: true
+    - id: "NousResearch/Hermes-4-405B"
+      label: "Hermes 4 405B"
+      tier: "flagship"
+      enabled: true
     - id: "meta-llama/Llama-3.3-70B-Instruct"
       label: "Llama 3.3 70B"
       tier: "balanced"
@@ -391,6 +399,10 @@ model_registry:
       enabled: true
     - id: "Qwen/Qwen3-235B-A22B-Instruct-2507"
       label: "Qwen 3 235B"
+      tier: "flagship"
+      enabled: true
+    - id: "Qwen/Qwen3-Coder-480B-A35B-Instruct"
+      label: "Qwen 3 Coder 480B (35B active)"
       tier: "flagship"
       enabled: true
     - id: "nvidia/Llama-3_1-Nemotron-Ultra-253B-v1"
