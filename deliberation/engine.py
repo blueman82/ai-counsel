@@ -1098,9 +1098,9 @@ TOOL_REQUEST: {"name": "search_code", "arguments": {"pattern": "class.*Adapter",
                 round_responses = [
                     RoundResponse(
                         round=round_num,
-                        cli=p.cli,
-                        model=p.model,
+                        participant=f"{p.model}@{p.cli}",
                         response=f"[ERROR: Round timed out after {round_timeout}s]",
+                        timestamp=datetime.now().isoformat(),
                     )
                     for p in request.participants
                 ]
@@ -1115,9 +1115,9 @@ TOOL_REQUEST: {"name": "search_code", "arguments": {"pattern": "class.*Adapter",
                 round_responses = [
                     RoundResponse(
                         round=round_num,
-                        cli=p.cli,
-                        model=p.model,
+                        participant=f"{p.model}@{p.cli}",
                         response=f"[ERROR: {type(e).__name__}: {str(e)[:200]}]",
+                        timestamp=datetime.now().isoformat(),
                     )
                     for p in request.participants
                 ]
