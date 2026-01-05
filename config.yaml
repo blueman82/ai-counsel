@@ -194,7 +194,7 @@ defaults:
   mode: "quick"
   rounds: 2
   max_rounds: 5
-  timeout_per_round: 120
+  timeout_per_round: 600
 
 model_registry:
   claude:
