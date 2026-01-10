@@ -137,6 +137,110 @@ class TestDeliberationEngine:
         assert "[ERROR: RuntimeError: API Error]" in responses[0].response
 
     @pytest.mark.asyncio
+    async def test_execute_round_error_has_valid_roundresponse_schema(self, mock_adapters):
+        """Regression test: Ensure error handlers create valid RoundResponse objects.
+
+        This test prevents regression of the bug where error handlers used incorrect
+        field names (cli, model) instead of the required 'participant' field, and
+        missing 'timestamp' field, causing Pydantic validation errors.
+
+        See commit 64cfb293 for the original fix.
+        """
+        mock_adapters["claude"] = mock_adapters["claude"]
+        engine = DeliberationEngine(mock_adapters)
+
+        participants = [
+            Participant(cli="claude", model="claude-3-5-sonnet")
+        ]
+
+        mock_adapters["claude"].invoke_mock.side_effect = RuntimeError("Test error")
+
+        responses = await engine.execute_round(
+            round_num=1,
+            prompt="Test prompt",
+            participants=participants,
+            previous_responses=[],
+        )
+
+        # Should have exactly 1 response
+        assert len(responses) == 1
+
+        # Response must be valid RoundResponse (Pydantic validation)
+        assert isinstance(responses[0], RoundResponse)
+
+        # CRITICAL: Must have 'participant' field (not 'cli' or 'model')
+        assert responses[0].participant == "claude-3-5-sonnet@claude"
+
+        # CRITICAL: Must have 'timestamp' field in ISO format
+        assert responses[0].timestamp is not None
+        assert isinstance(responses[0].timestamp, str)
+        # Verify it's a valid ISO timestamp by parsing it
+        datetime.fromisoformat(responses[0].timestamp)
+
+        # Must have correct round number
+        assert responses[0].round == 1
+
+        # Must have error message in response
+        assert "[ERROR: RuntimeError: Test error]" in responses[0].response
+
+    @pytest.mark.asyncio
+    async def test_execute_round_timeout_has_valid_roundresponse_schema(self, mock_adapters):
+        """Regression test: Ensure timeout handler creates valid RoundResponse objects.
+
+        This test prevents regression of the bug where the timeout handler used
+        incorrect field names (cli, model) instead of 'participant', and was missing
+        the 'timestamp' field, causing Pydantic validation errors.
+
+        See commit 64cfb293 for the original fix.
+        """
+        import asyncio
+
+        mock_adapters["claude"] = mock_adapters["claude"]
+        engine = DeliberationEngine(mock_adapters)
+
+        participants = [
+            Participant(cli="claude", model="claude-3-5-sonnet"),
+            Participant(cli="codex", model="gpt-4"),
+        ]
+
+        # Simulate timeout by raising TimeoutError
+        mock_adapters["claude"].invoke_mock.side_effect = asyncio.TimeoutError()
+        mock_adapters["codex"].invoke_mock.side_effect = asyncio.TimeoutError()
+
+        # Set a very short timeout to trigger the timeout path
+        responses = await engine.execute_round(
+            round_num=2,
+            prompt="Test prompt",
+            participants=participants,
+            previous_responses=[],
+            round_timeout=1,  # 1 second timeout
+        )
+
+        # Should have responses for all participants
+        assert len(responses) == 2
+
+        # Verify both responses are valid RoundResponse objects
+        for i, response in enumerate(responses):
+            # Must be valid RoundResponse (Pydantic validation)
+            assert isinstance(response, RoundResponse)
+
+            # CRITICAL: Must have 'participant' field with correct format
+            expected_participant = f"{participants[i].model}@{participants[i].cli}"
+            assert response.participant == expected_participant
+
+            # CRITICAL: Must have 'timestamp' field in ISO format
+            assert response.timestamp is not None
+            assert isinstance(response.timestamp, str)
+            # Verify it's a valid ISO timestamp by parsing it
+            datetime.fromisoformat(response.timestamp)
+
+            # Must have correct round number
+            assert response.round == 2
+
+            # Must have timeout error message
+            assert "[ERROR: Round timed out" in response.response
+
+    @pytest.mark.asyncio
     async def test_execute_round_passes_correct_model(self, mock_adapters):
         """Test that correct model is passed to adapter."""
         mock_adapters["claude"] = mock_adapters["claude"]
