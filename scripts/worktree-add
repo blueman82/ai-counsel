@@ -1,0 +1,78 @@
+#!/bin/bash
+#
+# worktree-add - Create a git worktree with venv symlinked
+#
+# Usage: ./scripts/worktree-add <path> <branch>
+# Example: ./scripts/worktree-add ../ai-counsel-feature feature/new-adapter
+#
+
+set -e
+
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
+# Get the main repo root (where this script lives)
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+MAIN_REPO="$(dirname "$SCRIPT_DIR")"
+
+if [ $# -lt 2 ]; then
+    echo -e "${RED}Usage: ./scripts/worktree-add <path> <branch>${NC}"
+    echo ""
+    echo "Examples:"
+    echo "  ./scripts/worktree-add ../ai-counsel-feature feature/new-adapter"
+    echo "  ./scripts/worktree-add /tmp/ai-counsel-test feature/test-branch"
+    exit 1
+fi
+
+WORKTREE_PATH="$1"
+BRANCH="$2"
+
+echo -e "${BLUE}[INFO]${NC} Creating worktree at: $WORKTREE_PATH"
+echo -e "${BLUE}[INFO]${NC} Branch: $BRANCH"
+
+# Create the worktree (try creating new branch, fall back to existing)
+cd "$MAIN_REPO"
+git worktree add "$WORKTREE_PATH" -b "$BRANCH" 2>/dev/null || git worktree add "$WORKTREE_PATH" "$BRANCH"
+
+# Resolve the absolute path of the new worktree
+WORKTREE_ABS="$(cd "$WORKTREE_PATH" && pwd)"
+
+echo -e "${BLUE}[INFO]${NC} Setting up symlinks for build artifacts..."
+
+# Symlink Python venv if it exists
+if [ -d "$MAIN_REPO/.venv" ]; then
+    ln -sf "$MAIN_REPO/.venv" "$WORKTREE_ABS/.venv"
+    echo -e "${GREEN}[SUCCESS]${NC} Symlinked .venv"
+else
+    echo -e "${RED}[WARN]${NC} No .venv found in main repo - run 'python3 -m venv .venv && pip install -r requirements.txt' first"
+fi
+
+# Symlink .pytest_cache if it exists
+if [ -d "$MAIN_REPO/.pytest_cache" ]; then
+    ln -sf "$MAIN_REPO/.pytest_cache" "$WORKTREE_ABS/.pytest_cache"
+    echo -e "${GREEN}[SUCCESS]${NC} Symlinked .pytest_cache"
+fi
+
+# Symlink .mypy_cache if it exists
+if [ -d "$MAIN_REPO/.mypy_cache" ]; then
+    ln -sf "$MAIN_REPO/.mypy_cache" "$WORKTREE_ABS/.mypy_cache"
+    echo -e "${GREEN}[SUCCESS]${NC} Symlinked .mypy_cache"
+fi
+
+# Symlink .ruff_cache if it exists
+if [ -d "$MAIN_REPO/.ruff_cache" ]; then
+    ln -sf "$MAIN_REPO/.ruff_cache" "$WORKTREE_ABS/.ruff_cache"
+    echo -e "${GREEN}[SUCCESS]${NC} Symlinked .ruff_cache"
+fi
+
+echo ""
+echo -e "${GREEN}[SUCCESS]${NC} Worktree ready at: $WORKTREE_ABS"
+echo ""
+echo "Next steps:"
+echo "  cd $WORKTREE_ABS"
+echo "  source .venv/bin/activate"
+echo "  pytest tests/unit -v          # Run unit tests"
+echo "  python server.py              # Run MCP server"
