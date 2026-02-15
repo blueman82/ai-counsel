@@ -21,7 +21,8 @@ class CLIAdapterConfig(BaseModel):
         default=None,
         description=(
             "Default reasoning effort level for this adapter. "
-            "Only applicable to codex (low/medium/high/extra-high) and droid (off/low/medium/high). "
+            "Only applicable to codex (low/medium/high/xhigh), droid (off/low/medium/high), "
+            "and claude (low/medium/high, Opus 4.6+ only). "
             "Ignored by other adapters. Can be overridden per-participant."
         ),
     )
