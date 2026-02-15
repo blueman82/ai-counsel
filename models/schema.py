@@ -33,8 +33,9 @@ class Participant(BaseModel):
         default=None,
         description=(
             "Reasoning effort level for models that support it. "
-            "Codex supports: 'low', 'medium', 'high'. "
+            "Codex supports: 'low', 'medium', 'high', 'xhigh'. "
             "Droid supports: 'off', 'low', 'medium', 'high'. "
+            "Claude supports: 'low', 'medium', 'high' (Opus 4.6+ only, Sonnet/Haiku do NOT). "
             "If omitted, uses the adapter's configured default."
         ),
     )

@@ -158,6 +158,175 @@ class TestClaudeAdapter:
         assert "Loading model" not in result
 
 
+class TestClaudeReasoningEffort:
+    """Tests for ClaudeAdapter reasoning_effort support (Opus 4.6+ only)."""
+
+    def test_valid_reasoning_efforts(self):
+        """Test ClaudeAdapter accepts valid reasoning effort values."""
+        adapter = ClaudeAdapter(args=["-p", "--model", "{model}", "{prompt}"])
+
+        assert "low" in adapter.VALID_REASONING_EFFORTS
+        assert "medium" in adapter.VALID_REASONING_EFFORTS
+        assert "high" in adapter.VALID_REASONING_EFFORTS
+        # Claude does not support xhigh (that's Codex-only)
+        assert "xhigh" not in adapter.VALID_REASONING_EFFORTS
+
+    def test_is_opus_model_detection(self):
+        """Test _is_opus_model correctly identifies Opus models."""
+        assert ClaudeAdapter._is_opus_model("opus") is True
+        assert ClaudeAdapter._is_opus_model("opus") is True
+        assert ClaudeAdapter._is_opus_model("claude-sonnet-4-5-20250929") is False
+        assert ClaudeAdapter._is_opus_model("sonnet") is False
+        assert ClaudeAdapter._is_opus_model("haiku") is False
+        assert ClaudeAdapter._is_opus_model("claude-haiku-4-5-20251001") is False
+
+    @pytest.mark.asyncio
+    @patch("adapters.base.asyncio.create_subprocess_exec")
+    async def test_opus_with_reasoning_effort_injects_flag(self, mock_subprocess):
+        """Test reasoning_effort injects --effort flag for Opus models."""
+        mock_process = Mock()
+        mock_process.communicate = AsyncMock(return_value=(b"Response", b""))
+        mock_process.returncode = 0
+        mock_subprocess.return_value = mock_process
+
+        adapter = ClaudeAdapter(
+            args=["-p", "--model", "{model}", "--settings",
+                  '{{"disableAllHooks": true}}', "{prompt}"]
+        )
+        await adapter.invoke(
+            prompt="Test prompt",
+            model="opus",
+            reasoning_effort="high",
+        )
+
+        mock_subprocess.assert_called_once()
+        call_args = list(mock_subprocess.call_args[0])
+        assert "--effort" in call_args
+        re_index = call_args.index("--effort")
+        assert call_args[re_index + 1] == "high"
+
+    @pytest.mark.asyncio
+    @patch("adapters.base.asyncio.create_subprocess_exec")
+    async def test_sonnet_with_reasoning_effort_raises(self, mock_subprocess):
+        """Test reasoning_effort raises ValueError for Sonnet models."""
+        adapter = ClaudeAdapter(
+            args=["-p", "--model", "{model}", "{prompt}"]
+        )
+
+        with pytest.raises(ValueError, match="only supported for Opus"):
+            await adapter.invoke(
+                prompt="Test prompt",
+                model="claude-sonnet-4-5-20250929",
+                reasoning_effort="high",
+            )
+
+        mock_subprocess.assert_not_called()
+
+    @pytest.mark.asyncio
+    @patch("adapters.base.asyncio.create_subprocess_exec")
+    async def test_haiku_with_reasoning_effort_raises(self, mock_subprocess):
+        """Test reasoning_effort raises ValueError for Haiku models."""
+        adapter = ClaudeAdapter(
+            args=["-p", "--model", "{model}", "{prompt}"]
+        )
+
+        with pytest.raises(ValueError, match="only supported for Opus"):
+            await adapter.invoke(
+                prompt="Test prompt",
+                model="haiku",
+                reasoning_effort="medium",
+            )
+
+        mock_subprocess.assert_not_called()
+
+    @pytest.mark.asyncio
+    @patch("adapters.base.asyncio.create_subprocess_exec")
+    async def test_invalid_reasoning_effort_raises(self, mock_subprocess):
+        """Test invalid reasoning_effort raises ValueError."""
+        adapter = ClaudeAdapter(
+            args=["-p", "--model", "{model}", "{prompt}"]
+        )
+
+        with pytest.raises(ValueError, match="Invalid reasoning_effort"):
+            await adapter.invoke(
+                prompt="Test prompt",
+                model="opus",
+                reasoning_effort="xhigh",
+            )
+
+        mock_subprocess.assert_not_called()
+
+    @pytest.mark.asyncio
+    @patch("adapters.base.asyncio.create_subprocess_exec")
+    async def test_opus_without_effort_no_flag_injected(self, mock_subprocess):
+        """Test Opus model without reasoning_effort doesn't inject flag."""
+        mock_process = Mock()
+        mock_process.communicate = AsyncMock(return_value=(b"Response", b""))
+        mock_process.returncode = 0
+        mock_subprocess.return_value = mock_process
+
+        adapter = ClaudeAdapter(
+            args=["-p", "--model", "{model}", "{prompt}"]
+        )
+        await adapter.invoke(
+            prompt="Test prompt",
+            model="opus",
+        )
+
+        mock_subprocess.assert_called_once()
+        call_args = list(mock_subprocess.call_args[0])
+        assert "--effort" not in call_args
+
+    def test_default_reasoning_effort_validation(self):
+        """Test invalid default_reasoning_effort raises ValueError."""
+        with pytest.raises(ValueError, match="Invalid default_reasoning_effort"):
+            ClaudeAdapter(
+                args=["-p", "--model", "{model}", "{prompt}"],
+                default_reasoning_effort="xhigh",
+            )
+
+    @pytest.mark.asyncio
+    @patch("adapters.base.asyncio.create_subprocess_exec")
+    async def test_default_effort_used_for_opus(self, mock_subprocess):
+        """Test default_reasoning_effort is applied for Opus when no runtime effort."""
+        mock_process = Mock()
+        mock_process.communicate = AsyncMock(return_value=(b"Response", b""))
+        mock_process.returncode = 0
+        mock_subprocess.return_value = mock_process
+
+        adapter = ClaudeAdapter(
+            args=["-p", "--model", "{model}", "{prompt}"],
+            default_reasoning_effort="medium",
+        )
+        await adapter.invoke(
+            prompt="Test prompt",
+            model="opus",
+        )
+
+        mock_subprocess.assert_called_once()
+        call_args = list(mock_subprocess.call_args[0])
+        assert "--effort" in call_args
+        re_index = call_args.index("--effort")
+        assert call_args[re_index + 1] == "medium"
+
+    @pytest.mark.asyncio
+    @patch("adapters.base.asyncio.create_subprocess_exec")
+    async def test_default_effort_ignored_for_sonnet(self, mock_subprocess):
+        """Test default_reasoning_effort raises for non-Opus even when set as default."""
+        adapter = ClaudeAdapter(
+            args=["-p", "--model", "{model}", "{prompt}"],
+            default_reasoning_effort="medium",
+        )
+
+        with pytest.raises(ValueError, match="only supported for Opus"):
+            await adapter.invoke(
+                prompt="Test prompt",
+                model="sonnet",
+            )
+
+        mock_subprocess.assert_not_called()
+
+
 class TestCodexAdapter:
     """Tests for CodexAdapter."""
 
@@ -478,7 +647,7 @@ class TestCodexReasoningEffort:
         assert "low" in adapter.VALID_REASONING_EFFORTS
         assert "medium" in adapter.VALID_REASONING_EFFORTS
         assert "high" in adapter.VALID_REASONING_EFFORTS
-        assert "xhigh" not in adapter.VALID_REASONING_EFFORTS
+        assert "xhigh" in adapter.VALID_REASONING_EFFORTS
 
     @pytest.mark.asyncio
     @patch("adapters.base.asyncio.create_subprocess_exec")
@@ -1195,10 +1364,11 @@ class TestConfigBasedReasoningDefaults:
         assert "low" in adapter.VALID_REASONING_EFFORTS
         assert "medium" in adapter.VALID_REASONING_EFFORTS
         assert "high" in adapter.VALID_REASONING_EFFORTS
-        assert "xhigh" not in adapter.VALID_REASONING_EFFORTS
+        assert "xhigh" in adapter.VALID_REASONING_EFFORTS
 
         # Invalid values should not be in the set
         assert "off" not in adapter.VALID_REASONING_EFFORTS  # off is only valid for droid
+        assert "none" not in adapter.VALID_REASONING_EFFORTS  # removed in current Codex CLI
         assert "invalid" not in adapter.VALID_REASONING_EFFORTS
 
     def test_droid_invalid_reasoning_effort_validation(self):
@@ -1231,7 +1401,7 @@ class TestConfigBasedReasoningDefaults:
             await adapter.invoke(
                 prompt="Test",
                 model="gpt-4",
-                reasoning_effort="xhigh",
+                reasoning_effort="ultra",
             )
 
         assert "invalid reasoning_effort" in str(exc_info.value).lower()

@@ -14,7 +14,7 @@ class CodexAdapter(BaseCLIAdapter):
 
     # Valid reasoning effort levels for Codex CLI
     # See: codex exec --help for current options
-    VALID_REASONING_EFFORTS = {"none", "minimal", "low", "medium", "high"}
+    VALID_REASONING_EFFORTS = {"low", "medium", "high", "xhigh"}
 
     def __init__(
         self,
@@ -30,7 +30,7 @@ class CodexAdapter(BaseCLIAdapter):
             command: Command to execute (default: "codex")
             args: List of argument templates (from config.yaml with {reasoning_effort} placeholder)
             timeout: Timeout in seconds (default: 60)
-            default_reasoning_effort: Default reasoning effort level (none/minimal/low/medium/high).
+            default_reasoning_effort: Default reasoning effort level (low/medium/high/xhigh).
                 Used when {reasoning_effort} placeholder is in args. Can be overridden per-participant.
         """
         if args is None:
@@ -65,7 +65,7 @@ class CodexAdapter(BaseCLIAdapter):
             context: Optional additional context
             is_deliberation: Whether this is part of a deliberation
             working_directory: Optional working directory for subprocess execution
-            reasoning_effort: Optional reasoning effort level (none, minimal, low, medium, high).
+            reasoning_effort: Optional reasoning effort level (low, medium, high, xhigh).
                 Substituted into {reasoning_effort} placeholder by base class.
 
         Returns:

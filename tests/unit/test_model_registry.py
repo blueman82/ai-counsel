@@ -14,8 +14,8 @@ def registry() -> ModelRegistry:
 def test_registry_lists_models(registry: ModelRegistry):
     claude_entries = registry.list_for_adapter("claude")
     assert claude_entries, "Expected allowlisted Claude models"
-    assert claude_entries[0].id == "claude-sonnet-4-5-20250929"
-    assert registry.get_default("claude") == "claude-sonnet-4-5-20250929"
+    assert claude_entries[0].id == "opus"
+    assert registry.get_default("claude") == "opus"
 
 
 def test_registry_enforces_allowlist(registry: ModelRegistry):

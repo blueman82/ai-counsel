@@ -1,6 +1,7 @@
 """Base CLI adapter with subprocess management."""
 import asyncio
 import logging
+import os
 import re
 from abc import ABC, abstractmethod
 from typing import Optional
@@ -45,7 +46,8 @@ class BaseCLIAdapter(ABC):
             timeout: Timeout in seconds (default: 60)
             max_retries: Maximum retry attempts for transient errors (default: 2)
             default_reasoning_effort: Default reasoning effort level for this adapter.
-                Only applicable to codex (low/medium/high/extra-high) and droid (off/low/medium/high).
+                Only applicable to codex (low/medium/high/xhigh), droid (off/low/medium/high),
+                and claude (low/medium/high, Opus 4.6+ only).
                 Ignored by other adapters. Can be overridden per-participant.
         """
         self.command = command
@@ -101,9 +103,6 @@ class BaseCLIAdapter(ABC):
         args = self._adjust_args_for_context(is_deliberation)
 
         # Determine working directory for subprocess
-        # Use provided working_directory if specified, otherwise use current directory
-        import os
-
         cwd = working_directory if working_directory else os.getcwd()
 
         # Determine effective reasoning effort: runtime > config > empty string
@@ -129,6 +128,11 @@ class BaseCLIAdapter(ABC):
         )
         logger.debug(f"Full command: {self.command} {' '.join(formatted_args[:3])}... (args truncated)")
 
+        # Build a clean environment for subprocesses.
+        # Strip CLAUDECODE to prevent "nested session" errors when invoking
+        # claude CLI as a deliberation participant from within Claude Code.
+        subprocess_env = {k: v for k, v in os.environ.items() if k != "CLAUDECODE"}
+
         # Execute with retry logic for transient errors
         last_error = None
         for attempt in range(self.max_retries + 1):
@@ -140,6 +144,7 @@ class BaseCLIAdapter(ABC):
                     stdout=asyncio.subprocess.PIPE,
                     stderr=asyncio.subprocess.PIPE,
                     cwd=cwd,
+                    env=subprocess_env,
                 )
 
                 stdout, stderr = await asyncio.wait_for(
