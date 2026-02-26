@@ -389,6 +389,22 @@ model_registry:
       label: "Qwen 3 32B FREE"
       tier: "free-fast"
       enabled: true
+    - id: "xiaomi/mimo-vl-7b-rl:free"
+      label: "MiMo-V2-Flash FREE (Xiaomi, 256K ctx)"
+      tier: "free-fast"
+      enabled: true
+    - id: "deepseek/deepseek-r1:free"
+      label: "DeepSeek R1 FREE (reasoning)"
+      tier: "free"
+      enabled: true
+    - id: "mistralai/devstral-small:free"
+      label: "Devstral 2 FREE (coding/agentic, 256K ctx)"
+      tier: "free-fast"
+      enabled: true
+    - id: "arcee-ai/kat-coder-pro-v1:free"
+      label: "KAT-Coder-Pro V1 FREE (73.4% SWE-Bench)"
+      tier: "free-fast"
+      enabled: true
     # ===== ULTRA-FAST CHEAP MODELS =====
     - id: "google/gemini-2.5-flash-preview-05-20"
       label: "Gemini 2.5 Flash Preview"
