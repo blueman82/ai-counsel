@@ -3,6 +3,8 @@ import asyncio
 import logging
 import os
 import re
+import shutil
+import sys
 from abc import ABC, abstractmethod
 from typing import Optional
 
@@ -50,7 +52,17 @@ class BaseCLIAdapter(ABC):
                 and claude (low/medium/high, Opus 4.6+ only).
                 Ignored by other adapters. Can be overridden per-participant.
         """
-        self.command = command
+        # On Windows, bare command names like "claude" won't resolve via
+        # asyncio.create_subprocess_exec — it needs the full path or .cmd/.exe
+        # extension. Use shutil.which() to resolve the actual executable path.
+        if sys.platform == "win32" and not os.path.isabs(command):
+            resolved = shutil.which(command)
+            if resolved:
+                self.command = resolved
+            else:
+                self.command = command
+        else:
+            self.command = command
         self.args = args
         self.timeout = timeout
         self.max_retries = max_retries
@@ -108,11 +120,23 @@ class BaseCLIAdapter(ABC):
         # Determine effective reasoning effort: runtime > config > empty string
         effective_reasoning_effort = reasoning_effort or self.default_reasoning_effort or ""
 
+        # Detect if prompt should be piped via stdin instead of as a CLI arg.
+        # On Windows, command lines are limited to ~8192 chars. Long prompts
+        # (common in deliberations with context/file trees) exceed this limit.
+        # If any arg is exactly "{prompt}", we remove it and pipe via stdin.
+        use_stdin = any(arg == "{prompt}" for arg in args)
+        prompt_bytes = None
+
+        if use_stdin:
+            # Remove the {prompt} placeholder from args — will pipe via stdin
+            args = [arg for arg in args if arg != "{prompt}"]
+            prompt_bytes = full_prompt.encode("utf-8")
+
         # Format arguments with {model}, {prompt}, {working_directory}, and {reasoning_effort} placeholders
         formatted_args = [
             arg.format(
                 model=model,
-                prompt=full_prompt,
+                prompt=full_prompt if not use_stdin else "",
                 working_directory=cwd,
                 reasoning_effort=effective_reasoning_effort,
             )
@@ -120,11 +144,12 @@ class BaseCLIAdapter(ABC):
         ]
 
         # Log the command being executed
+        delivery = "stdin" if use_stdin else "arg"
         logger.info(
             f"Executing CLI adapter: command={self.command}, "
             f"model={model}, cwd={cwd}, "
             f"reasoning_effort={effective_reasoning_effort or '(none)'}, "
-            f"prompt_length={len(full_prompt)} chars"
+            f"prompt_length={len(full_prompt)} chars, prompt_delivery={delivery}"
         )
         logger.debug(f"Full command: {self.command} {' '.join(formatted_args[:3])}... (args truncated)")
 
@@ -140,7 +165,7 @@ class BaseCLIAdapter(ABC):
                 process = await asyncio.create_subprocess_exec(
                     self.command,
                     *formatted_args,
-                    stdin=asyncio.subprocess.DEVNULL,
+                    stdin=asyncio.subprocess.PIPE if use_stdin else asyncio.subprocess.DEVNULL,
                     stdout=asyncio.subprocess.PIPE,
                     stderr=asyncio.subprocess.PIPE,
                     cwd=cwd,
@@ -148,7 +173,7 @@ class BaseCLIAdapter(ABC):
                 )
 
                 stdout, stderr = await asyncio.wait_for(
-                    process.communicate(), timeout=self.timeout
+                    process.communicate(input=prompt_bytes), timeout=self.timeout
                 )
 
                 if process.returncode != 0:

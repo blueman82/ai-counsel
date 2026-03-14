@@ -131,8 +131,9 @@ class OpenRouterAdapter(OpenAIChatCompletionsAdapter):
     """
 
     provider_name = "OpenRouter"
-    # OpenRouter benefits from explicit max_tokens to prevent truncation
-    default_max_tokens = 4096
+    # OpenRouter benefits from explicit max_tokens to prevent truncation.
+    # 16384 allows for detailed deliberation responses (architecture reviews, etc.)
+    default_max_tokens = 16384
 
 
 class NebiusAdapter(OpenAIChatCompletionsAdapter):

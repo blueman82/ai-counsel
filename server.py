@@ -546,6 +546,37 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
             f"Deliberation complete: {result.rounds_completed} rounds, status: {result.status}"
         )
 
+        # Auto-save results (JSON + HTML) to results/ directory
+        try:
+            from scripts.render_result import render_html
+            results_dir = PROJECT_DIR / "results"
+            results_dir.mkdir(exist_ok=True)
+
+            # Build filename from transcript path or timestamp
+            transcript = getattr(result, 'transcript_path', '') or ''
+            if transcript:
+                stem = Path(transcript).stem
+            else:
+                from datetime import datetime as dt
+                stem = dt.now().strftime('%Y%m%d_%H%M%S_deliberation')
+
+            result_dict_for_save = result.model_dump()
+
+            # Save JSON
+            json_path = results_dir / f'{stem}.json'
+            with open(json_path, 'w', encoding='utf-8') as f:
+                json.dump(result_dict_for_save, f, indent=2, default=str)
+
+            # Save HTML
+            html_content = render_html(result_dict_for_save)
+            html_path = results_dir / f'{stem}.html'
+            with open(html_path, 'w', encoding='utf-8') as f:
+                f.write(html_content)
+
+            logger.info(f"Results saved: {json_path}, {html_path}")
+        except Exception as save_err:
+            logger.warning(f"Failed to auto-save results: {save_err}")
+
         # Truncate full_debate for MCP response if needed (to avoid token limit)
         max_rounds = getattr(config, "mcp", {}).get("max_rounds_in_response", 3)
         result_dict = result.model_dump()

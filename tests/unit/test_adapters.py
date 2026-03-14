@@ -47,7 +47,13 @@ class TestClaudeAdapter:
             ],
             timeout=90,
         )
-        assert adapter.command == "claude"
+        # On Windows, command is resolved to full path (e.g., C:\...\claude.CMD)
+        # On other platforms, it stays as "claude"
+        import sys
+        if sys.platform == "win32":
+            assert "claude" in adapter.command.lower()
+        else:
+            assert adapter.command == "claude"
         assert adapter.timeout == 90
 
     @pytest.mark.asyncio
@@ -939,7 +945,7 @@ class TestAdapterFactory:
         )
         adapter = create_adapter("claude", config)
         assert isinstance(adapter, ClaudeAdapter)
-        assert adapter.command == "claude"
+        assert "claude" in adapter.command.lower()
         assert adapter.timeout == 90
 
     def test_factory_passes_default_reasoning_effort_from_cli_adapter_config(self):
@@ -1176,7 +1182,7 @@ class TestAdapterFactory:
         )
         adapter = create_adapter("claude", config)
         assert isinstance(adapter, ClaudeAdapter)
-        assert adapter.command == "claude"
+        assert "claude" in adapter.command.lower()
         assert adapter.timeout == 60
 
     def test_create_adapter_with_http_adapter_config_unknown_adapter(self):
