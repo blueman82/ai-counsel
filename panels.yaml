@@ -1,0 +1,60 @@
+panels:
+  architecture-review:
+    description: "Architecture and design review"
+    participants:
+      - cli: claude
+        model: sonnet
+      - cli: openrouter
+        model: google/gemini-2.5-flash
+      - cli: openrouter
+        model: google/gemma-3-27b-it:free
+    mode: conference
+    rounds: 2
+
+  security-audit:
+    description: "Security-focused review"
+    participants:
+      - cli: claude
+        model: opus
+        reasoning_effort: high
+      - cli: openrouter
+        model: x-ai/grok-4
+      - cli: openrouter
+        model: qwen/qwen-2.5-72b-instruct
+    mode: conference
+    rounds: 3
+
+  quick-check:
+    description: "Fast 2-model sanity check"
+    participants:
+      - cli: claude
+        model: sonnet
+      - cli: openrouter
+        model: google/gemini-2.5-flash
+    mode: quick
+    rounds: 1
+
+  code-review:
+    description: "Code quality and correctness review"
+    participants:
+      - cli: claude
+        model: sonnet
+      - cli: openrouter
+        model: google/gemini-2.5-flash
+      - cli: openrouter
+        model: qwen/qwen-2.5-72b-instruct
+    mode: conference
+    rounds: 2
+
+  deep-analysis:
+    description: "Thorough analysis with premium models"
+    participants:
+      - cli: claude
+        model: opus
+        reasoning_effort: high
+      - cli: openrouter
+        model: google/gemini-2.5-pro
+      - cli: openrouter
+        model: x-ai/grok-4
+    mode: conference
+    rounds: 3
