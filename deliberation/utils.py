@@ -7,7 +7,9 @@ _STOP_WORDS = frozenset({
     "review", "these", "the", "for", "and", "documents", "please", "can",
     "you", "should", "we", "is", "are", "what", "how", "do", "does", "this",
     "that", "with", "from", "about", "our", "my", "a", "an", "of", "in",
-    "on", "to", "or",
+    "on", "to", "or", "us", "it", "its", "them", "their", "me", "he", "she",
+    "be", "been", "being", "have", "has", "had", "would", "could", "will",
+    "just", "also", "so", "if", "but", "not", "no", "all", "any", "some",
 })
 
 _FALLBACK_SLUG = "deliberation"
