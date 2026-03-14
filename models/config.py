@@ -453,6 +453,15 @@ class DecisionGraphConfig(BaseModel):
         return str(path)
 
 
+class ResultsConfig(BaseModel):
+    """Configuration for results output behavior."""
+
+    auto_open_html: bool = Field(
+        default=True,
+        description="Automatically open HTML reports in the default browser after deliberation",
+    )
+
+
 class Config(BaseModel):
     """Root configuration model."""
 
@@ -472,6 +481,7 @@ class Config(BaseModel):
     storage: StorageConfig
     deliberation: DeliberationConfig
     decision_graph: Optional[DecisionGraphConfig] = None
+    results: Optional[ResultsConfig] = None
 
     def model_post_init(self, __context):
         """Post-initialization validation."""

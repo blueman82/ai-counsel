@@ -66,6 +66,18 @@ except Exception as e:
     logger.error(f"Failed to load config: {e}", exc_info=True)
     raise
 
+# Load panels configuration
+panels_config = {}
+panels_path = PROJECT_DIR / "panels.yaml"
+if panels_path.exists():
+    import yaml
+    with open(panels_path, "r", encoding="utf-8") as f:
+        panels_data = yaml.safe_load(f)
+    panels_config = panels_data.get("panels", {})
+    logger.info(f"Loaded {len(panels_config)} panels from panels.yaml")
+else:
+    logger.info("No panels.yaml found, panel feature disabled")
+
 
 model_registry = ModelRegistry(config)
 session_defaults: dict[str, str] = {}
@@ -308,8 +320,17 @@ async def list_tools() -> list[Tool]:
                     "type": "string",
                     "description": "Working directory for tool execution (tools resolve relative paths from here). Should be the client's current working directory.",
                 },
+                "files": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "File paths or glob patterns to include as context (resolved relative to working_directory). Example: ['docs/plans/*.md', 'TRACKING.md']",
+                },
+                "panel": {
+                    "type": "string",
+                    "description": f"Named panel preset (loads participants/mode/rounds from panels.yaml). Available: {', '.join(panels_config.keys()) if panels_config else 'none configured'}",
+                },
             },
-            "required": ["question", "participants", "working_directory"],
+            "required": ["question", "working_directory"],
         },
     )
 
@@ -464,6 +485,25 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
         raise ValueError(error_msg)
 
     try:
+        # Resolve panel if specified
+        if "panel" in arguments and arguments["panel"]:
+            panel_name = arguments["panel"]
+            if panel_name not in panels_config:
+                available = ", ".join(panels_config.keys())
+                raise ValueError(f"Unknown panel '{panel_name}'. Available panels: {available}")
+
+            panel = panels_config[panel_name]
+
+            # Panel provides defaults — inline values override
+            if "participants" not in arguments or not arguments["participants"]:
+                arguments["participants"] = panel["participants"]
+            if "mode" not in arguments:
+                arguments["mode"] = panel.get("mode", "quick")
+            if "rounds" not in arguments:
+                arguments["rounds"] = panel.get("rounds", 2)
+
+            logger.info(f"Using panel '{panel_name}': {len(arguments['participants'])} participants, mode={arguments.get('mode')}")
+
         # Validate and parse request
         logger.info("Validating request parameters...")
         try:
@@ -540,6 +580,15 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
                         f"Allowed models: {', '.join(allowed)}."
                     )
 
+        # Inject file contents into question
+        if request.files:
+            from deliberation.file_injector import inject_file_contents
+            request.question = inject_file_contents(
+                request.question,
+                request.files,
+                request.working_directory,
+            )
+
         # Execute deliberation
         result = await engine.execute(request)
         logger.info(
@@ -574,6 +623,13 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
             html_path = results_dir / f'{stem}.html'
             with open(html_path, 'w', encoding='utf-8') as f:
                 f.write(html_content)
+
+            # Auto-open HTML in browser if configured
+            auto_open = getattr(getattr(config, 'results', None), 'auto_open_html', True)
+            if auto_open:
+                import webbrowser
+                webbrowser.open(str(html_path.resolve()))
+                logger.info(f"Opened HTML report in browser: {html_path}")
 
             logger.info(f"Results saved: {json_path}, {html_path}")
         except Exception as save_err:

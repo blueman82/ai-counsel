@@ -624,3 +624,6 @@ decision_graph:
   # Keep for backward compatibility
   max_context_decisions: 3 # Maximum number of past decisions to inject as context
   compute_similarities: true # Compute edge similarities after storing deliberation
+
+results:
+  auto_open_html: true

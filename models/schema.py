@@ -63,6 +63,10 @@ class DeliberateRequest(BaseModel):
         ...,
         description="Working directory for tool execution (tools resolve relative paths from here). Required for deliberations using evidence-based tools."
     )
+    files: Optional[list[str]] = Field(
+        default=None,
+        description="File paths or glob patterns to include as context. Resolved relative to working_directory."
+    )
 
 
 class RoundResponse(BaseModel):
