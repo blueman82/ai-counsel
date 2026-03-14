@@ -558,7 +558,9 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
                 stem = Path(transcript).stem
             else:
                 from datetime import datetime as dt
-                stem = dt.now().strftime('%Y%m%d_%H%M%S_deliberation')
+                from deliberation.utils import generate_slug
+                slug = generate_slug(request.question)
+                stem = f"{dt.now().strftime('%Y%m%d_%H%M%S')}_{slug}"
 
             result_dict_for_save = result.model_dump()
 

@@ -304,11 +304,9 @@ class TranscriptManager:
         if filename is None:
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             # Create safe filename from question
-            safe_question = "".join(
-                c for c in question[:50] if c.isalnum() or c in (" ", "-", "_")
-            )
-            safe_question = safe_question.strip().replace(" ", "_")
-            filename = f"{timestamp}_{safe_question}.md"
+            from deliberation.utils import generate_slug
+            slug = generate_slug(question)
+            filename = f"{timestamp}_{slug}.md"
 
         # Ensure .md extension
         if not filename.endswith(".md"):
