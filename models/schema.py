@@ -67,6 +67,9 @@ class DeliberateRequest(BaseModel):
         default=None,
         description="File paths or glob patterns to include as context. Resolved relative to working_directory."
     )
+    panel: Optional[str] = Field(
+        default=None, description="Named panel preset from panels.yaml"
+    )
 
 
 class RoundResponse(BaseModel):
