@@ -1,0 +1,2036 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI Council Deliberation — Architecture Review</title>
+<style>
+  :root {
+    --bg: #0f172a;
+    --surface: #1e293b;
+    --surface-elevated: #334155;
+    --border: #475569;
+    --text: #e2e8f0;
+    --text-muted: #94a3b8;
+    --accent: #3b82f6;
+    --green: #22c55e;
+    --yellow: #eab308;
+    --red: #ef4444;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    padding: 2rem;
+    max-width: 1100px;
+    margin: 0 auto;
+  }
+  h1 { font-size: 1.75rem; margin-bottom: 0.5rem; }
+  h2 { font-size: 1.35rem; margin: 1.5rem 0 0.75rem; color: var(--accent); }
+  h3 { font-size: 1.15rem; margin: 1.25rem 0 0.5rem; }
+  h4 { font-size: 1rem; margin: 1rem 0 0.5rem; color: var(--text-muted); }
+  p { margin: 0.5rem 0; }
+  hr { border: none; border-top: 1px solid var(--border); margin: 1.5rem 0; }
+  ul { margin: 0.5rem 0 0.5rem 1.5rem; }
+  li { margin: 0.25rem 0; }
+  code {
+    background: var(--surface-elevated);
+    padding: 0.15rem 0.4rem;
+    border-radius: 3px;
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+    font-size: 0.85em;
+  }
+  pre {
+    background: var(--surface-elevated);
+    padding: 1rem;
+    border-radius: 6px;
+    overflow-x: auto;
+    margin: 0.75rem 0;
+  }
+  pre code { background: none; padding: 0; }
+  strong { color: #f1f5f9; }
+
+  .meta { color: var(--text-muted); font-size: 0.85rem; margin-bottom: 1.5rem; }
+  .summary-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1.25rem 1.5rem;
+    margin: 1rem 0;
+  }
+  .summary-box h2 { margin-top: 0; }
+  .vote-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 0.75rem;
+    margin: 1rem 0;
+  }
+  .vote-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 0.75rem 1rem;
+    border-left: 4px solid var(--accent);
+  }
+  .vote-card .participant { font-weight: 600; font-size: 0.9rem; }
+  .vote-card .option { font-size: 0.85rem; margin-top: 0.25rem; }
+  .vote-card .confidence { font-size: 0.8rem; color: var(--text-muted); }
+  .vote-card .rationale { font-size: 0.8rem; color: var(--text-muted); margin-top: 0.25rem; font-style: italic; }
+
+  .round-section {
+    margin: 1.5rem 0;
+  }
+  .participant-block {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    margin: 0.75rem 0;
+    overflow: hidden;
+  }
+  .participant-header {
+    background: var(--surface-elevated);
+    padding: 0.6rem 1rem;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    user-select: none;
+  }
+  .participant-header:hover { background: #3b4f6b; }
+  .participant-header .name { font-weight: 600; }
+  .participant-header .chars { font-size: 0.8rem; color: var(--text-muted); }
+  .participant-header .toggle { font-size: 0.8rem; color: var(--text-muted); }
+  .participant-body {
+    padding: 1rem 1.25rem;
+    display: none;
+  }
+  .participant-block.open .participant-body { display: block; }
+  .participant-block.open .toggle { transform: rotate(90deg); }
+
+  .convergence {
+    display: inline-block;
+    background: var(--surface-elevated);
+    padding: 0.25rem 0.6rem;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+  }
+  .tag {
+    display: inline-block;
+    padding: 0.15rem 0.5rem;
+    border-radius: 3px;
+    font-size: 0.75rem;
+    font-weight: 600;
+  }
+</style>
+</head>
+<body>
+<h1>AI Council Deliberation</h1>
+<div class="meta">
+  2026-03-15 13:03 &middot;
+  Mode: conference &middot;
+  Rounds: 3 &middot;
+  <span class="convergence">majority_decision</span>
+</div>
+
+<div class="summary-box">
+<h2>Consensus</h2>
+<p>All four models unanimously approved v3 of the monorepo architecture, with scores ranging from 8.5–8.8/10 (up from 7–7.5/10 in Round 1). The six original blocking issues have been substantively resolved; remaining issues are implementation-doc inconsistencies and operational gaps, not architectural flaws.</p>
+<h3>Key Agreements</h3><ul>
+<li>All 6 Round 1 blockers are correctly addressed: cx-* token retention, RLS via JWT claims, empty default `domain_visibility`, domain-scoped user feature tables, snapshot tests before UI extraction, and post-build content similarity detection</li>
+<li>The implementation plan still contains stale `generate-tokens` references that contradict the design doc&#x27;s &quot;validation not generation&quot; decision — this is the highest-risk doc inconsistency and must be fixed before execution starts</li>
+<li>The RLS SQL example in Section 3 uses `current_setting(&#x27;request.jwt.claims&#x27;, true)` while the document warns against it two paragraphs later; should use `auth.jwt()-&gt;&#x27;app_metadata&#x27;-&gt;&gt;&#x27;domain&#x27;` to match existing migration patterns</li>
+<li>A `domain_visibility` backfill is missing: adding `DEFAULT ARRAY[]` to existing tables will make all ~7,000 existing LA rows invisible until manually assigned</li>
+<li>TF-IDF cosine similarity will produce significant false positives on real estate pages where factual data (addresses, amenities, pricing) is inherently shared — needs editorial-region filtering or per-route-class thresholds before enforcement is tightened</li>
+</ul>
+<h3>Key Disagreements</h3><ul>
+<li>None significant. GPT and Gemini were slightly more emphatic about the JWT claim lifecycle being underspecified (how `app_metadata.domain` gets minted and refreshed across domains), while Opus and Grok treated it as medium-priority. All agreed it needs documentation before implementation.</li>
+</ul>
+<h3>Final Recommendation</h3>
+<p>Fix the three high-severity items before touching code — remove all `generate-tokens` references from the implementation plan, correct the RLS SQL example to use `auth.jwt()`, and add the `domain_visibility` backfill migrations. Then proceed to Phase 0 (Task 0.0: categorize the ~48 static data imports by type before migrating) while treating TF-IDF content similarity as an advisory MVP to be tuned in Phase 4 once real cross-domain content exists.</p>
+</div>
+<h2>Votes</h2>
+<div class="vote-grid">
+<div class="vote-card" style="border-left-color: #22c55e">
+  <div class="participant">opus@claude</div>
+  <div class="option" style="color: #22c55e">Approve with targeted fixes</div>
+  <div class="confidence">Confidence: 90%</div>
+  <div class="rationale">All 6 Round 1 blockers correctly resolved. Architecture is sound and executable. Two high-priority doc consistency issues (generate-tokens drift, RLS SQL self-contradiction) need 30 minutes of editing</div>
+</div>
+<div class="vote-card" style="border-left-color: #22c55e">
+  <div class="participant">openai/gpt-5.4@openrouter</div>
+  <div class="option" style="color: #22c55e">Approve with minor fixes</div>
+  <div class="confidence">Confidence: 93%</div>
+  <div class="rationale">v3 resolves the six Round 1 blockers and is now architecturally sound. Remaining issues are execution-level: token-plan drift, JWT claim lifecycle specification, a missing domain_visibility backfill, </div>
+</div>
+<div class="vote-card" style="border-left-color: #22c55e">
+  <div class="participant">google/gemini-3.1-pro-preview@openrouter</div>
+  <div class="option" style="color: #22c55e">Approve with specific documentation fixes</div>
+  <div class="confidence">Confidence: 95%</div>
+  <div class="rationale">Resolves all 6 prior blockers gracefully. The core architecture is fundamentally viable, safe, and scalable. The only lingering issues are copy-paste remnants, mathematical naivety in TF-IDF targeting</div>
+</div>
+</div>
+<div class="round-section">
+<h2>Round 1</h2>
+<div class="participant-block">
+  <div class="participant-header" onclick="this.parentElement.classList.toggle('open')">
+    <span class="name">opus@claude</span>
+    <span>
+      <span class="chars">11,985 chars</span>
+      <span class="toggle">&#9654;</span>
+    </span>
+  </div>
+  <div class="participant-body">
+    <p>Now I have strong evidence from the actual codebase. Here&#x27;s my full analysis.</p>
+<hr>
+<h3>Round 2 Review: v3 Monorepo Architecture</h3>
+<h4>1. Are the 6 Blocking Fixes Correctly Implemented?</h4>
+<p><strong>Fix 1 — cx-<em> token retention: Correct.</strong> Confirmed in the codebase: LA&#x27;s <code>globals.css</code> already defines <code>--color-cx-black</code>, <code>--color-cx-blue</code>, etc. inside a <code>@theme inline</code> block (line 32). The grep shows 921+ cx-</em> occurrences across 30 files just in the first page of results. Renaming these would have been a nightmare. The union-contract-with-CI-validation approach is the right call — it provides the same safety guarantee as generation without touching 5,891 references.</p>
+<p><strong>Fix 2 — RLS via JWT claims: Correct, with a nuance.</strong> The existing migrations already use <code>auth.jwt()-&gt;&#x27;app_metadata&#x27;-&gt;&gt;&#x27;role&#x27;</code> for role-based RLS (confirmed in <code>20260303000001_fix_user_role_app_metadata.sql</code> and <code>20260306000001_content_health_tables.sql</code>). The pattern is established. Adding <code>auth.jwt()-&gt;&#x27;app_metadata&#x27;-&gt;&gt;&#x27;domain&#x27;</code> follows the same idiom. The two-layer approach (application-layer filtering for service-role, JWT claims for authenticated) is sound because:</p>
+<ul>
+<li>Service-role bypasses RLS by definition, so application-layer <code>.contains()</code> is the only option there</li>
+<li>For authenticated users, JWT claims survive PgBouncer transaction mode (confirmed: <code>supabase/config.toml</code> exists, Supabase Cloud uses transaction mode by default)</li>
+<li>The design doc correctly identifies that <code>current_setting()</code> leaks — this is a real PgBouncer footgun</li>
+</ul>
+<p><strong>One gap:</strong> The RLS policy in Section 3 uses <code>current_setting(&#x27;request.jwt.claims&#x27;, true)::json-&gt;&gt;&#x27;domain&#x27;</code> — but Supabase already provides <code>auth.jwt()</code> as a helper that reads from the JWT without <code>current_setting</code>. The existing codebase uses <code>auth.jwt()</code> throughout (13 occurrences in migrations). The design doc&#x27;s SQL example should use <code>auth.jwt()-&gt;&#x27;app_metadata&#x27;-&gt;&gt;&#x27;domain&#x27;</code> to be consistent with the existing pattern. This isn&#x27;t blocking — the concept is right — but the SQL example is slightly misleading about mechanism.</p>
+<p><strong>Fix 3 — Empty default domain_visibility: Correct.</strong> <code>DEFAULT ARRAY[]</code> is the right call. Opt-in forces conscious curation and prevents the &quot;everything everywhere&quot; doorway page risk. The only operational burden is that someone must assign each listing to domains, but that&#x27;s a feature, not a bug.</p>
+<p><strong>Fix 4 — Domain-scoped user feature tables: Correct.</strong> The existing user tables (confirmed: <code>user_compare</code>, <code>user_recently_viewed</code> in migration <code>20260228000001</code>) don&#x27;t have a <code>domain</code> column. Adding one via <code>ALTER TABLE ... ADD COLUMN domain text NOT NULL</code> is clean. The <code>createDomainClient</code> factory automatically scoping user queries is the right pattern — it makes the domain filter impossible to forget.</p>
+<p><strong>Fix 5 — Snapshot tests before UI extraction: Correct.</strong> LA has ~1 test file. Extracting 60 components across 4 waves without snapshots is flying blind. Build passing ≠ rendering correctly. This is a proper prerequisite gate.</p>
+<p><strong>Fix 6 — Content similarity detection: Adequate with caveats.</strong> TF-IDF cosine similarity is a reasonable first pass. See question 4 for detailed analysis.</p>
+<h4>2. Did We Introduce New Problems?</h4>
+<p><strong>cx-* token union contract — Minor concern.</strong> The plan says &quot;Every brand must provide values for ALL union tokens. Brand-specific tokens get defaults.&quot; This means LA&#x27;s <code>globals.css</code> needs entries like <code>--color-cx-copper: var(--color-cx-gold)</code>. Currently LA&#x27;s globals.css has 18 color tokens (confirmed). Adding Lofts-only tokens with fallbacks is fine, but the union will grow with each new brand. With 4 brands you might have 40+ tokens where any given brand only uses 20. This isn&#x27;t blocking — it&#x27;s O(n) complexity that stays manageable — but document a &quot;token deprecation&quot; process for when tokens are no longer used by any brand.</p>
+<p><strong>Empty default visibility — Operational burden is real but acceptable.</strong> The grep shows <code>domain_visibility</code> doesn&#x27;t exist in any migrations yet (only in plan docs). When this column is added retroactively to ~7,000+ existing LA rows, you need a one-time backfill: <code>UPDATE apartments SET domain_visibility = ARRAY[&#x27;luxuryapartments&#x27;] WHERE domain_visibility = &#x27;{}&#x27;</code>. The plan doesn&#x27;t mention this backfill step. <strong>Add it to Task 1.5, Step 6.</strong> Without it, enabling domain_visibility filtering on existing data would make everything disappear.</p>
+<p><strong>contentSource field — No new problems.</strong> It&#x27;s metadata on the manifest, not runtime behavior. The validator using it to escalate warnings when two domains share template + data source is a sensible heuristic.</p>
+<p><strong>Named exports only — Correct, no issues.</strong> Default exports can&#x27;t be shadowed by barrel wildcard re-exports. This is a real ESM/Turbopack limitation that the plan correctly addresses.</p>
+<h4>3. E-E-A-T Enforcement: Is It Sufficient?</h4>
+<p>The Section 8 E-E-A-T framework is structurally solid. Separate GSC, separate analytics, separate editorial tables, content similarity CI check — these are the right architectural guardrails. Two gaps:</p>
+<p><strong>Gap 1: No E-E-A-T monitoring after launch.</strong> The plan enforces E-E-A-T at build time (content similarity) and at launch (editorial brief requirement). But E-E-A-T drift happens over time as content is added. The content health ops loop (already built for LA) should be extended to include cross-domain similarity checks on a schedule, not just at build time. This is a &quot;Phase 4+&quot; item, not a blocker.</p>
+<p><strong>Gap 2: Author entity disambiguation.</strong> The plan says &quot;Distinct author profiles per domain, even if the same human writes for multiple brands.&quot; Google&#x27;s entity understanding is sophisticated — if the same author byline appears on multiple domains with near-identical bio text, Google may connect them and treat the domains as a single entity. The plan should specify: different author names, different bios, different author page URLs. This is an editorial guideline, not an architecture issue, but it should be in the content strategy template (Task 5.2).</p>
+<p><strong>Overall assessment:</strong> E-E-A-T enforcement is 85% there. The missing 15% is operational (monitoring, author disambiguation) not architectural.</p>
+<h4>4. Content Similarity Detection: Is TF-IDF Sufficient?</h4>
+<p><strong>For most pages: yes. For real estate listings: marginal.</strong></p>
+<p>The problem: Two domains listing the same building at 100 Congress St, Boston will inevitably share factual text — address, unit count, amenity list, neighborhood name. TF-IDF will flag these as high-similarity even if the editorial framing is completely different. You&#x27;ll get false positives on every shared listing page.</p>
+<p><strong>Mitigations already in the plan:</strong></p>
+<ul>
+<li>The >60% threshold is a warning (not error) — allows review</li>
+<li>The manifest validator handles structural overlap (same template + same contentSource = hard fail)</li>
+<li>Per-domain editorial tables mean blog/guide content is already separated</li>
+</ul>
+<p><strong>What&#x27;s missing:</strong> The content similarity check should <strong>exclude factual structured data</strong> (address, price, amenity lists) and focus on <strong>editorial text</strong> (descriptions, headlines, prose sections). This can be done by: (a) stripping structured data sections before comparison (hero stats, amenity grids, factual sidebars), or (b) weighting editorial sections higher in the similarity calculation.</p>
+<p><strong>Recommendation:</strong> Add a <code>contentSimilarityExclude</code> field to manifest entries that identifies DOM selectors or section IDs to exclude from similarity comparison. Not blocking, but will save a lot of false positive noise.</p>
+<h4>5. Is the Plan Executable?</h4>
+<p><strong>Yes, with realistic timeline expectations.</strong></p>
+<p>The dependency chain is clean:</p>
+<ul>
+<li>Phase 0 (Lofts standalone) and Phase 1 (scaffold) can parallel — good</li>
+<li>Phase 1.8 (snapshots) correctly gates Phase 2 — good</li>
+<li>Phase 2 waves are sequential with build gates — good</li>
+<li>Feature freeze between Phase 0 and Phase 3 prevents drift — good</li>
+</ul>
+<p><strong>The real bottleneck is Task 0.0.</strong> The grep confirms 48 <code>@/data/</code> imports across 34 files. But many of these are in admin/CMS code (<code>lib/services/</code>, <code>lib/content/</code>, admin dashboard clients), not public-facing pages. The plan treats this as a flat list, but these files have very different complexity:</p>
+<ul>
+<li><code>lib/data/blog-server.ts</code> imports from <code>@/data/blog</code> — this is a <em>fallback</em> pattern (static data as backup for DB). Converting means removing the fallback, not rewriting logic.</li>
+<li><code>lib/content/registry.ts</code> has 7 imports from <code>@/data/</code> — this is the content health scanner's type system. It imports <em>types and data constants</em>, not just data-fetch patterns. Converting this requires more careful work.</li>
+<li><code>lib/services/buildings.service.ts</code> imports <em>types</em> from <code>@/data/buildingPages</code> — these are interface imports that may not need conversion (types can stay as local definitions).</li>
+</ul>
+<p><strong>Recommendation:</strong> Task 0.0 should distinguish between (a) data-fetch imports that need Supabase conversion, (b) type imports that can stay as local type definitions, and (c) constant/config imports that should move to a config file. The &quot;~48 imports&quot; number overstates the actual migration work.</p>
+<p><strong>Static data files:</strong> There are 47 <code>.ts</code> files in <code>app/src/data/</code>. Many of these are NOT imported by the 48 references — they may be orphaned from the earlier static-to-Supabase migration. A cleanup pass (what&#x27;s still imported vs. what&#x27;s dead) would clarify scope.</p>
+<h4>6. Updated Score</h4>
+<p>Round 1 consensus: 7-7.5/10 with 6 blockers.</p>
+<p><strong>v3 score: 8.5/10.</strong></p>
+<p>All 6 blockers are addressed correctly. The architecture is sound, the implementation plan has realistic phases with proper gates, and the new additions (E-E-A-T section, content similarity, snapshot tests, editorial brief requirements) show genuine architectural maturity.</p>
+<p>The 1.5 points deducted are for:</p>
+<ul>
+<li>Missing domain_visibility backfill step for existing data (-0.5)</li>
+<li>Content similarity false positives on factual real estate data (-0.3)</li>
+<li>No post-launch E-E-A-T monitoring (-0.2)</li>
+<li>Task 0.0 scope overestimation (type imports ≠ data imports) (-0.2)</li>
+<li>Author entity disambiguation gap in E-E-A-T (-0.1)</li>
+<li>No token deprecation process for the growing union (-0.1)</li>
+</ul>
+<h4>7. What&#x27;s Left? (Ranked by Severity)</h4>
+<p><strong>Medium — Should fix before Phase 1.5 execution:</strong></p>
+<ul>
+<li><strong>Add domain_visibility backfill step</strong> to Task 1.5. When the column is added with <code>DEFAULT ARRAY[]</code>, existing rows get empty arrays. Without a backfill, everything disappears from all domains. Add: <code>UPDATE apartments SET domain_visibility = ARRAY['luxuryapartments']; UPDATE buildings SET domain_visibility = ARRAY['luxuryapartments'];</code> etc.</li>
+</ul>
+<ul>
+<li><strong>Refine Task 0.0 scope.</strong> Separate the 48 imports into: data-fetch conversions (~15-20), type-only imports (~15-20, need type extraction not DB migration), and dead code (~10-15, need deletion not conversion).</li>
+</ul>
+<ul>
+<li><strong>Content similarity: add structured data exclusion.</strong> Without it, every shared listing page will flag as high-similarity false positive, training the team to ignore warnings.</li>
+</ul>
+<p><strong>Low — Fix before Phase 4, not blocking:</strong></p>
+<ul>
+<li><strong>RLS SQL example consistency.</strong> Use <code>auth.jwt()->'app_metadata'->>'domain'</code> instead of <code>current_setting('request.jwt.claims', true)::json->>'domain'</code> to match existing codebase patterns.</li>
+</ul>
+<ul>
+<li><strong>E-E-A-T monitoring:</strong> Extend content health cron to include cross-domain similarity checks post-launch.</li>
+</ul>
+<ul>
+<li><strong>Author disambiguation:</strong> Add to Task 5.2's content strategy template: different author names, different bios, different author page URLs across domains.</li>
+</ul>
+<ul>
+<li><strong>Token deprecation process:</strong> Document how to remove a cx-* token when no brand uses it anymore.</li>
+</ul>
+<p><strong>None of these are blocking.</strong> They&#x27;re all improvements that make an already-solid plan more operationally robust.</p>
+<hr>
+  </div>
+</div>
+<div class="participant-block">
+  <div class="participant-header" onclick="this.parentElement.classList.toggle('open')">
+    <span class="name">openai/gpt-5.4@openrouter</span>
+    <span>
+      <span class="chars">17,515 chars</span>
+      <span class="toggle">&#9654;</span>
+    </span>
+  </div>
+  <div class="participant-body">
+    <p>TOOL_REQUEST: {&quot;name&quot;:&quot;read_file&quot;,&quot;arguments&quot;:{&quot;path&quot;:&quot;docs/plans/2026-03-12-monorepo-templating-design-v3.md&quot;}}TOOL_REQUEST: {&quot;name&quot;:&quot;read_file&quot;,&quot;arguments&quot;:{&quot;path&quot;:&quot;docs/plans/2026-03-12-monorepo-implementation-plan-v3.md&quot;}}</p>
+<p>v3 is a substantial improvement over v2. The 6 blockers were not just acknowledged; they were mostly corrected in the right direction. I would no longer call the plan “blocked” on the original Round 1 issues.</p>
+<p>That said, a few nontrivial gaps remain—mostly around <strong>RLS claim issuance/enforcement</strong>, <strong>how content similarity is sampled and interpreted for factual pages</strong>, and <strong>some plan/design drift in the implementation doc</strong>. None of those change the architectural decision, but they do matter for execution quality.</p>
+<h3>1. Are the 6 blocking fixes correctly implemented?</h3>
+<h4>1) cx-* token retention</h4>
+<p><strong>Verdict: yes, mostly correctly fixed.</strong></p>
+<p>This is the right correction. Keeping existing <code>cx-*</code> tokens and defining the union as the contract is pragmatic and low-risk. The prior semantic rename was unnecessary churn.</p>
+<p><strong>What’s good:</strong></p>
+<ul>
+<li>Preserves thousands of existing references.</li>
+<li>Makes brand portability a validation problem, not a migration problem.</li>
+<li>Matches how Tailwind v4 <code>@theme</code> is actually useful in practice.</li>
+</ul>
+<p><strong>Residual concern:</strong></p>
+<ul>
+<li>The implementation plan still contains stale references to token generation in a few places:</li>
+<li>Root scripts still mention <code>generate-tokens</code></li>
+<li>Some steps still imply importing generated CSS from <code>@luxurydomains/design-tokens/*.css</code></li>
+<li>That conflicts with the revised design, which says <strong>validate CSS completeness</strong>, not generate CSS from TS.</li>
+</ul>
+<p>So the <strong>design fix is correct</strong>, but the <strong>implementation plan needs cleanup</strong> to avoid engineers building the wrong system.</p>
+<h4>2) RLS via JWT claims instead of session variables</h4>
+<p><strong>Verdict: directionally correct, but incomplete in one important operational detail.</strong></p>
+<p>The core fix is right:</p>
+<ul>
+<li>Avoiding session variables / <code>SET</code> state for domain context under PgBouncer transaction pooling is correct.</li>
+<li>Using app-layer filtering for service-role queries and JWT claims for authenticated RLS is the right pattern.</li>
+</ul>
+<p><strong>What’s sound:</strong></p>
+<ul>
+<li><code>createDomainClient(..., domain)</code> baking in domain avoids missed filters in shared-table access.</li>
+<li>RLS based on <code>request.jwt.claims</code> is the right primitive for Supabase.</li>
+<li>Explicit statement that service-role bypasses RLS and therefore must rely on app-layer filtering is accurate.</li>
+</ul>
+<p><strong>What’s still missing:</strong></p>
+<p>The docs do not sufficiently specify <strong>how the <code>domain</code> claim gets minted and refreshed</strong>.</p>
+<p>For JWT-based RLS to work safely, you need an explicit answer to:</p>
+<ul>
+<li>Where does <code>app_metadata.domain</code> come from?</li>
+<li>Is it a single current-domain claim or an allowed-domain list?</li>
+<li>When a user signs in on LA then visits Lofts, who updates the token?</li>
+<li>Are you forcing token refresh on domain switch?</li>
+<li>What prevents a stale LA-token from making Lofts requests incorrectly fail or, worse, behave inconsistently?</li>
+</ul>
+<p>In a multi-domain setup with the same auth backend, this is not theoretical. You need one of:</p>
+<ul>
+<li>per-domain login/session issuance,</li>
+<li>a custom auth hook that updates app metadata and refreshes token on each domain,</li>
+<li>or RLS using an allowed-domains array claim rather than a single domain claim.</li>
+</ul>
+<p>As written, the <strong>RLS primitive is fixed</strong>, but the <strong>claim lifecycle is underspecified</strong>. That is no longer a blocker to architecture approval, but it is still a design gap that should be closed before implementation.</p>
+<h4>3) Default `domain_visibility = ARRAY[]`</h4>
+<p><strong>Verdict: yes, correct fix.</strong></p>
+<p>This is a strong improvement. Empty-by-default is exactly right for avoiding accidental cross-domain content sprawl.</p>
+<p><strong>Tradeoff introduced:</strong></p>
+<ul>
+<li>Operational burden increases: content ops must explicitly assign visibility.</li>
+<li>If tooling is weak, content silently disappears from domains.</li>
+</ul>
+<p>So this fix is correct, but it now requires:</p>
+<ul>
+<li>admin UI or scripts to manage visibility,</li>
+<li>reporting for “orphaned” content with no domains assigned.</li>
+</ul>
+<p>Not a blocker; just make sure ops tooling exists.</p>
+<h4>4) Domain-scoped user feature tables</h4>
+<p><strong>Verdict: yes, correct and necessary.</strong></p>
+<p>This is a proper fix. Favorites, saved searches, compare, recently viewed absolutely should not bleed across brands.</p>
+<p><strong>One nuance still missing:</strong></p>
+<p>The docs say the same user can exist across domains, but feature tables are domain-scoped. Good. But the product implications should be explicit:</p>
+<ul>
+<li>Is auth identity shared across domains?</li>
+<li>If so, does the account dashboard show cross-domain profile data but domain-filtered activity?</li>
+<li>If not, do users effectively maintain independent profiles?</li>
+</ul>
+<p>This is more product/data modeling than architecture, but it affects UX and support.</p>
+<h4>5) Snapshot tests before UI extraction</h4>
+<p><strong>Verdict: helpful fix, but only partially sufficient.</strong></p>
+<p>Good addition. This materially reduces extraction risk.</p>
+<p><strong>However:</strong></p>
+<ul>
+<li>Snapshot tests alone are brittle and can miss meaningful regressions while also approving noisy markup changes.</li>
+<li>For 60 components, this is a decent baseline, but a few critical route-driving components should also get targeted behavioral assertions or story-level visual baselines.</li>
+</ul>
+<p>Still, as a prerequisite, this is a good and practical improvement. Not a blocker.</p>
+<h4>6) Post-build content similarity detection</h4>
+<p><strong>Verdict: good addition, but not sufficient on its own.</strong></p>
+<p>Adding a post-build check is a real improvement and directly addresses the structural blind spot from v2.</p>
+<p><strong>What’s good:</strong></p>
+<ul>
+<li>It catches “different layout, same text” scenarios.</li>
+<li>The warning/error thresholds establish review pressure.</li>
+<li>Pairwise route comparison across brands is the right idea.</li>
+</ul>
+<p><strong>Where it’s weak:</strong></p>
+<ul>
+<li>TF-IDF cosine on extracted text will over-flag factual overlap and under-flag templated paraphrase in some cases.</li>
+<li>Sampling only 20 routes per domain may miss systematic issues if the risk is in long-tail city/building pages.</li>
+<li>“matching route patterns” needs clearer definition: slug-aligned? canonical-entity aligned? random sample? Without entity alignment, results will be noisy.</li>
+</ul>
+<p>So: <strong>good enough as a first safety layer</strong>, not enough to be the sole safeguard.</p>
+<hr>
+<h3>2. Did v3 introduce new problems?</h3>
+<h4>A) cx-* union contract</h4>
+<p><strong>New issue introduced: token contract can bloat and ossify.</strong></p>
+<p>This is acceptable, but it creates a “lowest-common-denominator plus leftovers” contract. Over time:</p>
+<ul>
+<li>every one-off token becomes part of the forever-union,</li>
+<li>brands inherit irrelevant tokens,</li>
+<li>the contract gets noisy.</li>
+</ul>
+<p>That’s manageable if you define tiers:</p>
+<ul>
+<li><strong>required shared tokens</strong></li>
+<li><strong>optional extension tokens</strong></li>
+<li><strong>deprecated tokens</strong></li>
+</ul>
+<p>Right now the docs say “union of all tokens across all brands,” which works short-term, but long-term needs lifecycle rules. Otherwise token sprawl becomes permanent.</p>
+<h4>B) Empty default visibility</h4>
+<p><strong>New issue introduced: hidden-content failure mode.</strong></p>
+<p>As noted above, content can silently fail to appear anywhere. This is much better than accidental overexposure, but you need:</p>
+<ul>
+<li>dashboards for zero-visibility records,</li>
+<li>CI or admin warnings on published-but-unassigned content.</li>
+</ul>
+<p>This is an operational problem, not an architectural flaw.</p>
+<h4>C) `contentSource` in manifest</h4>
+<p><strong>Mostly beneficial, but risks false confidence.</strong></p>
+<p>Adding <code>contentSource</code> improves validator intelligence. Good move.</p>
+<p>But it could lead teams to think:</p>
+<ul>
+<li>different <code>contentSource</code> = safe</li>
+<li>same <code>contentSource</code> = dangerous</li>
+</ul>
+<p>Reality is more nuanced. Two domains can use different tables yet still produce nearly identical pages, and two domains can use the same source but add sufficiently distinct editorial framing.</p>
+<p>So <code>contentSource</code> is a useful signal, not a semantic guarantee. The docs mostly treat it that way, which is good.</p>
+<h4>D) Design/implementation drift</h4>
+<p>This is the biggest new practical issue in v3.</p>
+<p>The design doc says:</p>
+<ul>
+<li>no generated token pipeline,</li>
+<li>CI validation of CSS tokens,</li>
+<li>source-consumed packages,</li>
+<li><code>brand.config.ts</code> validation,</li>
+<li>one architecture.</li>
+</ul>
+<p>The implementation plan still contains remnants of the old approach:</p>
+<ul>
+<li><code>generate-tokens</code> turbo task,</li>
+<li>imports of generated token CSS,</li>
+<li>references to <code>packages/design-tokens</code> generation flow.</li>
+</ul>
+<p>This inconsistency will slow execution. A small team needs one unambiguous path.</p>
+<hr>
+<h3>3. E-E-A-T enforcement: is it sufficient?</h3>
+<p><strong>Short answer: improved and serious, but not fully sufficient for a 4-domain same-vertical portfolio.</strong></p>
+<p>The new Section 8 is one of the strongest parts of v3. It correctly recognizes that E-E-A-T is not solved by code. The plan now includes:</p>
+<ul>
+<li>domain separation,</li>
+<li>separate GSC/GA4 properties,</li>
+<li>transparent portfolio ownership,</li>
+<li>per-domain editorial tables,</li>
+<li>content-similarity enforcement,</li>
+<li>launch sequencing,</li>
+<li>required editorial briefs.</li>
+</ul>
+<p>That is all good.</p>
+<h4>What’s still missing</h4>
+<p>#### 1) Author/entity modeling</p>
+<p>If domains are going to establish separate expertise, you need explicit support for:</p>
+<ul>
+<li>per-domain author profile pages,</li>
+<li>bios with verifiable expertise,</li>
+<li>structured data for authors and organizations,</li>
+<li>editorial review metadata (“reviewed by”, “updated on”, methodology).</li>
+</ul>
+<p>The docs mention distinct author profiles, but the architecture doesn’t yet specify where this lives or how it’s rendered consistently.</p>
+<p>#### 2) Editorial policy / methodology surfaces</p>
+<p>For a real-estate portfolio, E-E-A-T is strengthened by:</p>
+<ul>
+<li>methodology pages,</li>
+<li>data-source transparency,</li>
+<li>update cadence disclosure,</li>
+<li>correction policy,</li>
+<li>contact / editorial standards pages.</li>
+</ul>
+<p>These should probably be Tier 1 or semi-shared templates with domain-owned content. The current docs imply this culturally but don’t operationalize it.</p>
+<p>#### 3) Entity-level originality strategy</p>
+<p>For shared entities like the same building or neighborhood, content cannot just differ in layout or tone. It needs some domain-specific interpretation:</p>
+<ul>
+<li>luxury/service angle,</li>
+<li>loft/architecture angle,</li>
+<li>investor/data angle,</li>
+<li>neighborhood lifestyle angle.</li>
+</ul>
+<p>The editorial brief requirement helps, but I’d still want a <strong>content differentiation rubric</strong> per shared-entity page type.</p>
+<p>#### 4) Reputation and off-site signals</p>
+<p>Architecture can’t create backlinks or brand searches, but for four domains in one vertical, you should explicitly plan:</p>
+<ul>
+<li>PR / citations,</li>
+<li>local partnerships,</li>
+<li>domain-specific social/entity references,</li>
+<li>review acquisition.</li>
+</ul>
+<p>Not a code issue, but it’s still part of whether the strategy is likely to succeed.</p>
+<p>So: <strong>E-E-A-T treatment is now respectable</strong>, but still depends heavily on process discipline. That is probably unavoidable.</p>
+<hr>
+<h3>4. Is TF-IDF cosine sufficient?</h3>
+<p><strong>No, not by itself. Yes, as a first-pass heuristic.</strong></p>
+<p>For real estate pages, factual overlap is inherently high:</p>
+<ul>
+<li>same address,</li>
+<li>same amenity lists,</li>
+<li>same unit counts,</li>
+<li>same nearby transit,</li>
+<li>same school/score data.</li>
+</ul>
+<p>A pure TF-IDF cosine approach on raw extracted text will misclassify some pages.</p>
+<h4>What I’d recommend</h4>
+<p>Use TF-IDF cosine as <strong>one signal in a composite detector</strong>:</p>
+<p>#### Signal 1: Boilerplate-stripped textual similarity</p>
+<p>Before vectorization, strip or downweight:</p>
+<ul>
+<li>nav/footer/legal boilerplate,</li>
+<li>repeated CTA sections,</li>
+<li>structured facts blocks,</li>
+<li>amenity label lists,</li>
+<li>map/transit widgets.</li>
+</ul>
+<p>If possible, compare the main-content region only.</p>
+<p>#### Signal 2: Section-level similarity</p>
+<p>Compare by section type:</p>
+<ul>
+<li>intro/editorial paragraph,</li>
+<li>FAQ block,</li>
+<li>neighborhood narrative,</li>
+<li>building summary,</li>
+<li>CTA copy.</li>
+</ul>
+<p>This helps distinguish “same facts, different interpretation” from “same page wrapped differently.”</p>
+<p>#### Signal 3: Entity-aware editorial field comparison</p>
+<p>For pages generated from the same entity (same city/building/neighborhood), compare only the editorial fields that are expected to differ:</p>
+<ul>
+<li>intro,</li>
+<li>summary,</li>
+<li>recommendations,</li>
+<li>narrative sections.</li>
+</ul>
+<p>That’s far more meaningful than comparing the whole page.</p>
+<p>#### Signal 4: Threshold exceptions by route class</p>
+<p>Thresholds should vary:</p>
+<ul>
+<li>building detail factual pages: higher tolerance</li>
+<li>blog posts / guides / comparisons: much lower tolerance</li>
+<li>neighborhood/city landings: medium tolerance</li>
+</ul>
+<p>A single <code>60/80</code> rule for all indexed routes is too blunt.</p>
+<p>So the current TF-IDF approach is a solid MVP, but I would not call it “sufficient” in final form.</p>
+<hr>
+<h3>5. Is the plan now executable for a small team?</h3>
+<p><strong>Yes, with caveats. It is now executable, but still ambitious.</strong></p>
+<p>v3 is much more executable than v2 because it now acknowledges real prerequisites:</p>
+<ul>
+<li>finish LA static data migration first,</li>
+<li>add snapshot safety before component extraction,</li>
+<li>freeze Lofts feature development during monorepo transition,</li>
+<li>require content strategy before new-domain indexing.</li>
+</ul>
+<p>That’s mature sequencing.</p>
+<h4>Why it is executable</h4>
+<ul>
+<li>Phases are decomposed reasonably.</li>
+<li>Gates are explicit.</li>
+<li>The “extract first, refactor later” discipline is correct.</li>
+<li>The shared-package boundaries are coherent.</li>
+</ul>
+<h4>What could still get the team stuck</h4>
+<p>#### 1) Phase 0 is larger than it looks</p>
+<p>Lofts data migration + parity verification + feature-table porting + missing API routes is a lot of work before the monorepo even pays off. Small teams can get trapped here.</p>
+<p>#### 2) UI extraction is still risky despite snapshots</p>
+<p>Sixty components across four waves is doable, but only if engineers resist refactoring temptations and accept some temporary awkwardness.</p>
+<p>#### 3) Tooling work may balloon</p>
+<p>Manifest validator + brand validator + content similarity detector + add-page skill integration is real platform engineering work. For a small team, this can compete with product delivery.</p>
+<p>#### 4) Plan inconsistency will waste time</p>
+<p>As mentioned, the token system still has stale “generation” references. Resolve those first or the team will build and then undo infrastructure.</p>
+<h4>Practical execution recommendation</h4>
+<p>If I were guiding the team, I’d say:</p>
+<ul>
+<li>Clean the plan/design mismatch first.</li>
+<li>Narrow Phase 4 tooling to minimum viable validator behavior.</li>
+<li>Treat content similarity as advisory at first, not as an aggressive hard blocker on many route types.</li>
+<li>Keep D3 out of scope until LA + Lofts are stable inside the monorepo.</li>
+</ul>
+<p>So yes: <strong>executable</strong>, but only with strong prioritization and anti-scope-creep discipline.</p>
+<hr>
+<h3>6. Updated score</h3>
+<p>Round 1 was 7–7.5/10 due to six blockers. Those blockers are now mostly addressed.</p>
+<h4>My updated score: **8.6/10**</h4>
+<p>Why not 9+?</p>
+<ul>
+<li>JWT-claim lifecycle is still underspecified.</li>
+<li>Content similarity approach is still a heuristic MVP, not a mature enforcement system.</li>
+<li>There is design/implementation doc drift around token generation vs validation.</li>
+<li>E-E-A-T process still relies on non-technical discipline that the architecture can only partially enforce.</li>
+</ul>
+<p>Why not lower?</p>
+<ul>
+<li>The major architectural risks from v2 have been meaningfully corrected.</li>
+<li>v3 shows real responsiveness, not cosmetic edits.</li>
+<li>The plan is now thoughtful about SEO risk, content differentiation, and migration safety.</li>
+</ul>
+<hr>
+<h3>7. What’s left? Ranked by severity</h3>
+<h4>1. **High severity: define JWT claim lifecycle for domain-aware RLS**</h4>
+<p>Not a blocker to approving the design, but close to it for implementation.</p>
+<p>You need explicit answers for:</p>
+<ul>
+<li>how domain claim is set,</li>
+<li>how it refreshes across domains,</li>
+<li>whether it should be single-domain or allowed-domains array,</li>
+<li>what happens on cross-domain session reuse.</li>
+</ul>
+<h4>2. **High severity: resolve token-system plan drift**</h4>
+<p>The implementation doc still includes old token-generation concepts that conflict with the approved design.</p>
+<p>This is highly likely to cause wasted effort.</p>
+<p>Fix the plan before execution starts.</p>
+<h4>3. **Medium severity: make content similarity route-class aware**</h4>
+<p>Current TF-IDF approach is acceptable as MVP, but if enforced bluntly it will create noise and distrust.</p>
+<p>Add per-route-type thresholds and compare editorial regions, not whole-page text.</p>
+<h4>4. **Medium severity: add ops tooling for empty `domain_visibility`**</h4>
+<p>Need a way to detect and report records visible on zero domains.</p>
+<p>Otherwise content ops errors become invisible.</p>
+<h4>5. **Medium severity: formalize author/editorial entity support**</h4>
+<p>Add explicit data model/templates for:</p>
+<ul>
+<li>author profiles,</li>
+<li>reviewed-by fields,</li>
+<li>methodology pages,</li>
+<li>editorial policy surfaces.</li>
+</ul>
+<h4>6. **Low severity: token union lifecycle management**</h4>
+<p>Add categories like required/optional/deprecated so the union doesn’t become an endless junk drawer.</p>
+<h4>7. **Low severity: snapshots should be supplemented for critical components**</h4>
+<p>Not blocking, but a few critical components should get behavior assertions or visual regression coverage later.</p>
+<hr>
+<h3>Bottom line</h3>
+<p><strong>Yes — v3 adequately addresses the Round 1 feedback.</strong>  </p>
+<p>The original six blockers are no longer blockers.</p>
+<p>The strongest improvements are:</p>
+<ul>
+<li>abandoning semantic token renaming,</li>
+<li>fixing the PgBouncer/session-variable issue,</li>
+<li>making domain visibility opt-in,</li>
+<li>scoping user features by domain,</li>
+<li>adding extraction safety via snapshots,</li>
+<li>adding content-similarity checks and launch sequencing.</li>
+</ul>
+<p>The remaining issues are real, but they are now <strong>implementation refinements</strong>, not signs that the core design is unsound.</p>
+<p>So my judgment is: <strong>approve with targeted follow-up actions</strong>, not “back to the drawing board.”</p>
+  </div>
+</div>
+<div class="participant-block">
+  <div class="participant-header" onclick="this.parentElement.classList.toggle('open')">
+    <span class="name">google/gemini-3.1-pro-preview@openrouter</span>
+    <span>
+      <span class="chars">6,161 chars</span>
+      <span class="toggle">&#9654;</span>
+    </span>
+  </div>
+  <div class="participant-body">
+    <p>Let&#x27;s gather some quick evidence from the workspace to contextualize our review. I&#x27;ll check if any of the shared packages or the specific v3 documents have been scaffolded yet, or if this is purely a pre-implementation review.</p>
+<pre><code class="language-json">
+TOOL_REQUEST: {&quot;name&quot;: &quot;list_files&quot;, &quot;arguments&quot;: {&quot;pattern&quot;: &quot;packages/**/*&quot;}}
+</code></pre>
+<pre><code class="language-json">
+TOOL_REQUEST: {&quot;name&quot;: &quot;search_code&quot;, &quot;arguments&quot;: {&quot;pattern&quot;: &quot;createDomainClient&quot;, &quot;path&quot;: &quot;.&quot;}}
+</code></pre>
+<pre><code class="language-json">
+TOOL_REQUEST: {&quot;name&quot;: &quot;list_files&quot;, &quot;arguments&quot;: {&quot;pattern&quot;: &quot;docs/plans/*v3*.md&quot;}}
+</code></pre>
+<p><strong>(Self-Correction/Internal State):</strong> The system already provided the full v3 documents in the prompt. I will proceed with my architectural analysis based on the comprehensive text provided, focusing directly on the 7 questions outlined for this Round 2 review.</p>
+<hr>
+<h4>Analysis &amp; Deliberation: Round 2 Architecture Review (v3)</h4>
+<p>The jump from v2 to v3 is substantial. The previous version had fatal flaws regarding connection pooling and scaling aesthetics that would have created enormous operational friction. This v3 iteration is drastically more pragmatic, defensively engineered, and grounded in production realities.</p>
+<p>Here are the direct answers to the 7 questions:</p>
+<p>#### 1. Are the 6 blocking fixes correctly implemented?</p>
+<p><strong>Yes, exceptionally well.</strong></p>
+<ul>
+<li>  <strong>RLS via JWT claims:</strong> This is the most critical fix. Using <code>request.jwt.claims->>'domain'</code> directly bypasses the stateful leakage of <code>current_setting()</code> when Postgres is running behind PgBouncer in transaction mode (Supabase's default). This ensures thread-safe domain isolation.</li>
+<li>  <strong>cx-* token retention:</strong> Aborting the semantic rename (5,891 references) in favor of a union contract was the right choice. It saves weeks of migration pain and reduces the risk of regression to zero.</li>
+<li>  <strong>Empty default visibility:</strong> <code>DEFAULT ARRAY[]</code> forces a conscious "publish to domain" action. This structurally prevents the mass proliferation of doorway pages upon import.</li>
+<li>  <strong>Snapshot tests:</strong> Adding DOM snapshots (Task 1.8) <em>before</em> extracting the 60 UI components transforms Phase 2 from a high-wire act into a safe, mechanical refactor.</li>
+<li>  <strong>Domain-scoped user features & Content similarity:</strong> Both are smartly implemented guardrails.</li>
+</ul>
+<p>#### 2. Did we introduce new problems?</p>
+<p>Minor ones, mostly related to process scaling:</p>
+<ul>
+<li>  <strong>Token Union Bloat:</strong> If D3 introduces 10 new custom colors, LA and Lofts must define fallbacks for them in their <code>globals.css</code> to satisfy the union contract. With 4 brands, this is easily manageable. Beyond 10 brands, this file will become messy, but CSS variables are cheap. It's an acceptable trade-off.</li>
+<li>  <strong>Empty View on Import:</strong> Because <code>domain_visibility</code> defaults to empty, a backend script or data entry person who adds a building and forgets to assign it will result in the building appearing nowhere. This requires UI tooling in Supabase Studio or the Admin portal to make domain assignment a required field on creation.</li>
+</ul>
+<p>#### 3. E-E-A-T enforcement: is it sufficient?</p>
+<p>The new Section 8 is highly mature. By formalizing that &quot;E-E-A-T is ultimately a content and editorial discipline — not a code problem,&quot; the architecture avoids overstepping. The structural enforcement (separate GSC/GA4, independent domains) combined with the pre-launch requirement of an <strong>Editorial Brief (Task 5.2)</strong> correctly places the burden of authoritativeness on the content and SEO teams, while giving them the tools to execute it.</p>
+<p>#### 4. Content similarity detection: is TF-IDF cosine sufficient?</p>
+<p><strong>No, an adjustment is needed here.</strong> TF-IDF cosine similarity across raw extracted text will produce <strong>massive false positives</strong> on real estate pages because of the underlying factual data.</p>
+<p>If Domain A and Domain B list the exact same building, the amenity lists (&quot;Stainless steel appliances, in-unit washer/dryer, fitness center, 24/7 concierge&quot;), addresses, and pricing tables will be identical. Even if the editorial descriptions are completely different, the overlap in factual tokens will easily push the similarity score above 60% or even 80%. </p>
+<p><em>Fix needed:</em> The text extraction step must logically exclude standard data blocks, JSON-LD, and amenity lists, running the TF-IDF <em>only</em> on the editorial description blocks and reviews.</p>
+<p>#### 5. Is the plan now executable?</p>
+<p><strong>Yes.</strong> The dependency chain in Phase 0 (Task 0.0 to clean up LA&#x27;s static imports first) guarantees that Phase 1 won&#x27;t extract code that isn&#x27;t functionally identical. The explicit feature freeze between Phase 0 and Phase 3 is a painful but necessary operational boundary that will save the team from merge conflicts and doubled work. The wave-based extraction (Task 2.2 - 2.5) breaks the riskiest phase into digestible, testable chunks.</p>
+<p>#### 6. What&#x27;s the updated score?</p>
+<p><strong>9/10.</strong> (Up from 7-7.5/10). The architecture is now practically bulletproof. It leverages Turborepo and Next.js exactly as they were designed to be used, embraces Supabase&#x27;s edge cases rather than fighting them, and imposes strict CI safety rails.</p>
+<p>#### 7. What&#x27;s left? (Remaining Issues Ranked)</p>
+<p>None of these are hard blockers like we saw in Round 1, but they should be patched:</p>
+<ul>
+<li><strong>Severity - Moderate (CI Friction):</strong> Un-tuned TF-IDF will block deployments with false positives. Update Phase 4 (Task 4.6) to strip data-heavy DOM nodes (tables, <code>.amenities-list</code>, etc.) before vectorization.</li>
+<li><strong>Severity - Low (Data Ops):</strong> Ensure the admin/import tools prompt for <code>domain_visibility</code>. If a script bulk-imports 1,000 listings into the shared database, they will all be orphaned/invisible until explicitly tagged.</li>
+<li><strong>Severity - Low (Tooling):</strong> The plan still relies on DOM snapshot tests for safety. Given that most brand overrides will be visual (CSS), a visual regression tool like Percy or Chromatic should be bumped up in priority for Phase 4, rather than left as a "future" consideration.</li>
+</ul>
+<p>v3 firmly addresses and remedies Round 1 feedback. It is ready for execution.</p>
+  </div>
+</div>
+<div class="participant-block">
+  <div class="participant-header" onclick="this.parentElement.classList.toggle('open')">
+    <span class="name">x-ai/grok-4.20-beta@openrouter</span>
+    <span>
+      <span class="chars">5,454 chars</span>
+      <span class="toggle">&#9654;</span>
+    </span>
+  </div>
+  <div class="participant-body">
+    <p><strong>VOTE:</strong> {&quot;option&quot;: &quot;Approve v3&quot;, &quot;confidence&quot;: 0.82, &quot;rationale&quot;: &quot;All 6 Round 1 blockers are properly resolved; new mechanisms are sound; remaining risks are manageable&quot;}</p>
+<h4>1. Are the 6 blocking fixes correctly implemented?</h4>
+<p><strong>Yes.</strong></p>
+<ul>
+<li><strong>cx-* retention</strong>: Correct reversal. The union-of-tokens + CI validation approach is far simpler and lower-risk than the semantic rename. The validator script reading each app’s <code>@theme</code> block is the right enforcement mechanism.</li>
+<li><strong>RLS via JWT claims</strong>: This is the correct technical fix. Using application-layer <code>.contains('domain_visibility', [domain])</code> for service-role/ISR queries + JWT <code>app_metadata.domain</code> claims for authenticated RLS properly sidesteps PgBouncer transaction-mode session variable leakage. The explicit avoidance of <code>current_setting()</code> and <code>SET</code> commands is exactly what was needed.</li>
+<li><strong>Empty default <code>domain_visibility</code></strong>: Strong improvement. <code>DEFAULT ARRAY[]</code> + conscious opt-in prevents accidental doorway-page creation. This is a meaningful process guard.</li>
+<li><strong>Domain-scoped user feature tables</strong>: Necessary and correctly specified. A user’s LA favorites must not leak to Lofts.</li>
+<li><strong>Snapshot tests before UI extraction</strong>: Excellent addition as a Phase 2 gate. The 60-component snapshot suite is the right lightweight safety net.</li>
+<li><strong>Post-build content similarity detection</strong>: Good complement to the structural validator. TF-IDF cosine on extracted text from indexed routes catches what manifest + <code>contentSource</code> misses.</li>
+</ul>
+<p>All six blockers have been addressed substantively.</p>
+<h4>2. Did we introduce new problems?</h4>
+<p>Minor concerns, none fatal:</p>
+<ul>
+<li><strong>cx-* union contract</strong>: Forces every brand to define tokens it doesn’t visually use. This is acceptable (defaults are trivial). The validator makes it mechanical.</li>
+<li><strong>Empty default visibility</strong>: Slightly more operational overhead (must explicitly assign listings to domains). This is a <em>feature</em>, not a bug.</li>
+<li><strong>contentSource field</strong>: Useful for the validator, but requires discipline. If editorial teams abuse <code>override: true</code>, the value degrades. Still net positive.</li>
+</ul>
+<p>No major new architectural problems.</p>
+<h4>3. E-E-A-T enforcement: is it sufficient?</h4>
+<p><strong>Mostly sufficient structurally; the weakest part remains process.</strong></p>
+<p>The architecture now does what it can:</p>
+<ul>
+<li>Forces per-domain indexed content by default</li>
+<li>Blocks identical indexed pages via manifest + validator</li>
+<li>Adds content-similarity CI check</li>
+<li>Requires documented editorial brief per domain (Task 5.2)</li>
+<li>Transparent portfolio footer + separate GSC/GA4 properties</li>
+</ul>
+<p><strong>Remaining gap</strong>: Google’s E-E-A-T judgment for 4 sites in the identical vertical from the same company is ultimately a <em>content strategy and link-building</em> problem, not a code problem. The architecture removes the easy sins (duplicate pages, doorway pages, hidden ownership) but cannot guarantee that the editorial teams will actually produce sufficiently distinct, authoritative content at scale (28k+ pages). The launch sequencing advice in Section 8 is good but should be treated as non-negotiable.</p>
+<h4>4. Is TF-IDF cosine sufficient for content similarity?</h4>
+<p>It is <em>good enough</em> for a CI gate. Real estate pages do share a lot of factual data (addresses, prices, amenities), so raw cosine similarity will naturally be somewhat high. The 60%/80% thresholds with human override capability strikes a reasonable balance. More sophisticated approaches (LLM semantic diff, entity-level comparison) would be nice-to-have but are overkill for an initial implementation and would add significant complexity.</p>
+<h4>5. Is the plan now executable?</h4>
+<p><strong>Yes — much more so than v2.</strong></p>
+<p>The new prerequisites and explicit feature-freeze rule are critical:</p>
+<ul>
+<li>Task 0.0 (finish LA static data migration) removes a major source of future pain.</li>
+<li>Task 1.8 (snapshot tests) protects the risky UI extraction phase.</li>
+<li>Task 5.2 (D3 content strategy before launch) prevents premature SEO disaster.</li>
+</ul>
+<p>The dependency chain is clear. A small team (or even one very disciplined engineer) can execute this if they follow the &quot;extract first, refactor later&quot;, &quot;mechanical diffs&quot;, and &quot;all apps must build&quot; rules religiously. The risk of getting stuck has been significantly reduced.</p>
+<h4>6. Updated score</h4>
+<p><strong>8.7/10</strong> (was 7–7.5/10).</p>
+<p>This is now a strong, production-viable architecture for a luxury real estate portfolio. The remaining points are not architectural flaws but inherent domain challenges: multi-brand SEO in the same vertical is <em>always</em> risky, and perfect E-E-A-T differentiation at this page scale requires ongoing editorial discipline that no code can fully enforce.</p>
+<h4>7. What’s left? (Ranked by severity)</h4>
+<p><strong>Non-blocking (nice-to-have):</strong></p>
+<ul>
+<li>Consider splitting the barrel into <code>@/lib/ui/primitives</code> and <code>@/lib/ui/compositions</code> <em>only if</em> bundle analysis shows real problems.</li>
+<li>Add optional per-brand dark mode support in the token system.</li>
+<li>Long-term: explore moving some Tier-2 templates into a shared templating layer that consumes the composition manifest more declaratively (nice future evolution, not required now).</li>
+<li>LLM-assisted content differentiation scoring as an enhancement to the similarity detector.</li>
+</ul>
+<p><strong>Nothing here is blocking.</strong> v3 is ready to implement.</p>
+<p><strong>Conclusion</strong>: The AI council feedback from Round 1 has been properly incorporated. The architecture is now significantly safer and more executable. Approve v3 and proceed with implementation following the task order and build gates strictly.</p>
+  </div>
+</div>
+</div>
+<div class="round-section">
+<h2>Round 2</h2>
+<div class="participant-block">
+  <div class="participant-header" onclick="this.parentElement.classList.toggle('open')">
+    <span class="name">opus@claude</span>
+    <span>
+      <span class="chars">10,787 chars</span>
+      <span class="toggle">&#9654;</span>
+    </span>
+  </div>
+  <div class="participant-body">
+    <p>Now I have concrete evidence. Here&#x27;s my full analysis:</p>
+<hr>
+<h3>Round 2 Review: v3 Monorepo Architecture</h3>
+<h4>1. Are the 6 Blocking Fixes Correctly Implemented?</h4>
+<p><strong>All 6 are correctly addressed. One has a real inconsistency that needs cleanup.</strong></p>
+<p><strong>Fix 1 — cx-* token retention: Correct.</strong> Confirmed: LA&#x27;s <code>globals.css</code> defines <code>--color-cx-black</code>, <code>--color-cx-blue</code>, etc. in the <code>@theme inline</code> block (lines 36-53). The union-contract approach is vastly simpler than renaming 5,891+ references.</p>
+<p><strong>Fix 2 — RLS via JWT claims: Conceptually correct, but the design doc&#x27;s SQL example contradicts the codebase pattern.</strong> The existing migrations uniformly use <code>auth.jwt()-&gt;&#x27;app_metadata&#x27;-&gt;&gt;&#x27;role&#x27;</code> (confirmed in 13 occurrences across migrations). But the design doc Section 3 writes:</p>
+<pre><code class="language-sql">
+current_setting(&#x27;request.jwt.claims&#x27;, true)::json-&gt;&gt;&#x27;domain&#x27;
+</code></pre>
+<p>This is the exact pattern the design doc itself says to avoid (PgBouncer leaks <code>current_setting</code>). The Supabase <code>auth.jwt()</code> function internally reads the JWT from the request context <em>without</em> <code>current_setting</code> — it&#x27;s specifically designed for transaction-mode safety. The correct SQL should be:</p>
+<pre><code class="language-sql">
+auth.jwt()-&gt;&#x27;app_metadata&#x27;-&gt;&gt;&#x27;domain&#x27;
+</code></pre>
+<p>The concept is right, the application-layer filtering in <code>createDomainClient</code> is right, but the one SQL example is using the wrong mechanism. This is exactly the kind of thing that gets copy-pasted into a real migration. <strong>Fix before implementation.</strong></p>
+<p><strong>Fix 3 — Empty default: Correct.</strong> <code>DEFAULT ARRAY[]</code> is the right call.</p>
+<p><strong>Fix 4 — Domain-scoped user features: Correct.</strong> Adding <code>domain text NOT NULL</code> to user feature tables is clean.</p>
+<p><strong>Fix 5 — Snapshot tests: Correct and necessary.</strong> Task 1.8 as Phase 2 prerequisite is the right sequencing.</p>
+<p><strong>Fix 6 — Content similarity: Adequate as MVP.</strong> See question 4 for detailed analysis.</p>
+<h4>2. Did We Introduce New Problems?</h4>
+<p><strong>One real problem: <code>generate-tokens</code> is a ghost in the implementation plan.</strong></p>
+<p>The design doc (v3) clearly says: &quot;Validation (CI, not generation)&quot; and &quot;This is simpler than the v2 generation pipeline (4 layers → 1 layer).&quot; But the implementation plan (v3) still contains:</p>
+<ul>
+<li><code>"generate-tokens": "turbo generate-tokens"</code> in root <code>package.json</code> (line 454)</li>
+<li><code>"generate-tokens"</code> as a Turborepo task (line 471)</li>
+<li><code>"dependsOn": ["generate-tokens"]</code> on typecheck, build, and test tasks (lines 479, 486, 491)</li>
+<li>Task 5.5: "Run <code>generate-tokens</code> to produce CSS" (line 1445)</li>
+</ul>
+<p>The design doc says validate tokens. The implementation plan says generate tokens. These are fundamentally different operations. If an engineer follows the implementation plan literally, they&#x27;ll build a generation pipeline that the design doc says is unnecessary. <strong>This is the same issue GPT-5.4 flagged, and I agree it&#x27;s the highest-risk implementation gap.</strong> It&#x27;s not an architecture problem — it&#x27;s a plan consistency problem that will waste real engineering time.</p>
+<p><strong>Other minor concerns are acceptable:</strong></p>
+<ul>
+<li>Token union bloat: manageable at 4 brands, document a deprecation process later</li>
+<li>Empty visibility operational burden: solvable with admin tooling, not architectural</li>
+<li><code>contentSource</code> field: useful signal, not over-relied upon</li>
+</ul>
+<h4>3. E-E-A-T Enforcement: Is It Sufficient?</h4>
+<p><strong>Structurally strong. Process-dependent in the right places.</strong></p>
+<p>Section 8 is genuinely mature. The graduated launch sequencing, separate GSC/GA4, content similarity CI check, and editorial brief requirement are the right architectural guardrails. The plan correctly identifies that &quot;E-E-A-T is ultimately a content and editorial discipline — not a code problem.&quot;</p>
+<p><strong>Two gaps worth noting:</strong></p>
+<ul>
+<li><strong>Author entity modeling is underspecified.</strong> The plan says "Distinct author profiles per domain, even if the same human writes for multiple brands." Good principle. But there's no data model for it. Where do author profiles live? Per-domain editorial tables (<code>la_authors</code>, <code>ll_authors</code>)? A shared <code>authors</code> table with <code>domain_visibility</code>? This matters because Google connects author entities across domains via structured data. If two domains share the same Schema.org <code>Person</code> entity with the same <code>sameAs</code> URLs, Google may treat them as one editorial voice, undermining the separate-authority signal.</li>
+</ul>
+<ul>
+<li><strong>No post-launch cross-domain monitoring.</strong> The content similarity check runs at build time. But content changes over time — new blog posts, updated city pages, seasonal editorial. The existing content health ops loop (cron + admin dashboard, already built for LA per MEMORY.md) should eventually include cross-domain similarity checks. This is Phase 4+ work, not a blocker.</li>
+</ul>
+<h4>4. Content Similarity Detection: Is TF-IDF Sufficient?</h4>
+<p><strong>Sufficient as a first-pass CI gate. Will produce false positives on listing pages that need tuning.</strong></p>
+<p>The core problem: two domains listing the same building at 100 Congress St will share address, amenity lists, unit counts, pricing ranges, neighborhood name, and transit info. TF-IDF on raw extracted text will flag these as high-similarity even with completely different editorial framing.</p>
+<p><strong>What works:</strong> The 60%/80% thresholds with human override are pragmatic. The warning-not-error at 60% creates review pressure without blocking legitimate shared-factual-data pages.</p>
+<p><strong>What needs refinement:</strong></p>
+<ul>
+<li>Compare editorial text regions only, not factual data blocks (amenity lists, address, pricing tables, transit info)</li>
+<li>Or: set per-route-class thresholds — building detail pages get higher tolerance than blog posts</li>
+<li>Both approaches are straightforward to add in Phase 4 without changing the architecture</li>
+</ul>
+<p><strong>Bottom line:</strong> The architecture supports refinement. TF-IDF is the right starting point. Don&#x27;t over-engineer the detector before you have real cross-domain content to test it on.</p>
+<h4>5. Is the Plan Now Executable?</h4>
+<p><strong>Yes — significantly more so than v2.</strong></p>
+<p>The dependency chain is clean and the gates are explicit. Three observations on execution realism:</p>
+<p><strong>Task 0.0 scope is better than the plan suggests.</strong> The grep confirms 48 occurrences across 34 files, but examining the actual imports:</p>
+<ul>
+<li><strong>12 files in <code>app/src/app/</code></strong> — all admin dashboard/CMS components. These import types and data constants for form rendering and content management.</li>
+<li><strong>22 files in <code>app/src/lib/</code></strong> — services, data providers, content health scanner. Mix of type imports, static data fallbacks, and actual data references.</li>
+</ul>
+<p>The plan treats these as uniform &quot;replace with Supabase server query&quot; conversions. In reality:</p>
+<ul>
+<li>~8 files import only <strong>types</strong> (<code>import type { ... } from '@/data/...'</code>) — these need type extraction, not DB migration</li>
+<li>~6 files are <strong>static data fallbacks</strong> (<code>blog-server.ts</code>, <code>reports-server.ts</code>, <code>comparisons-server.ts</code>) — remove fallback, keep DB query</li>
+<li>~8 files are <strong>admin/CMS</strong> that import static data for form dropdowns, board metadata, etc. — these need client-side Supabase queries or props from server parents</li>
+<li>~6 files import <strong>types + data</strong> from building pages, which are the most complex to convert</li>
+</ul>
+<p>This isn&#x27;t blocking, but the implementation plan should categorize these to avoid a team member spending a day converting a type import into a database query.</p>
+<p><strong>Feature freeze is essential and correctly placed.</strong> Without it, Phase 3 (port Lofts) doubles work.</p>
+<p><strong>Phase 2 wave structure is sound.</strong> Four waves of ~15 components each, with build gates between them, is the right granularity for one engineer.</p>
+<h4>6. Updated Score</h4>
+<p><strong>8.5/10</strong> (up from 7-7.5/10 in Round 1).</p>
+<p>All 6 blockers resolved correctly. Architecture is sound, implementation plan is executable with proper gates and prerequisites.</p>
+<p>Deductions:</p>
+<ul>
+<li><code>generate-tokens</code> / <code>validate-tokens</code> inconsistency between design doc and implementation plan (-0.5). This will cause wasted engineering effort if not fixed.</li>
+<li>RLS SQL example uses <code>current_setting</code> when it should use <code>auth.jwt()</code> (-0.3). Copy-paste hazard for migrations.</li>
+<li>Missing <code>domain_visibility</code> backfill step for existing data (-0.3). Without it, enabling filtering makes everything disappear.</li>
+<li>Content similarity false positives on factual data (-0.2). Refineable but worth noting.</li>
+<li>Author entity data model gap (-0.2). Needs specification before D3 launch.</li>
+</ul>
+<h4>7. What&#x27;s Left? Ranked by Severity</h4>
+<p><strong>High — Fix before implementation starts:</strong></p>
+<ul>
+<li><strong>Resolve <code>generate-tokens</code> vs <code>validate-tokens</code> drift.</strong> The implementation plan's <code>turbo.json</code>, root <code>package.json</code>, and Task 5.5 all reference a generation pipeline that the design doc explicitly eliminates. Change all <code>generate-tokens</code> references to <code>validate-tokens</code> in the implementation plan. Remove <code>dependsOn: ["generate-tokens"]</code> from tasks that should depend on <code>validate-tokens</code>. This is a find-and-replace, not a redesign.</li>
+</ul>
+<ul>
+<li><strong>Fix the RLS SQL example.</strong> In design doc Section 3, replace <code>current_setting('request.jwt.claims', true)::json->>'domain'</code> with <code>auth.jwt()->'app_metadata'->>'domain'</code>. This matches the existing migration patterns (13 confirmed uses of <code>auth.jwt()</code>) and avoids the exact PgBouncer leak the section warns about.</li>
+</ul>
+<p><strong>Medium — Fix before Phase 1.5 execution:</strong></p>
+<ul>
+<li><strong>Add <code>domain_visibility</code> backfill step.</strong> When the column is added with <code>DEFAULT ARRAY[]</code>, all existing rows get empty arrays. Add to Task 1.5, Step 6: <code>UPDATE apartments SET domain_visibility = ARRAY['luxuryapartments'] WHERE domain_visibility = '{}';</code> (and similar for buildings, neighborhoods, cities, blog_posts).</li>
+</ul>
+<ul>
+<li><strong>Categorize Task 0.0 imports.</strong> Split the 48 imports into: type-only imports (~8, need type extraction), static fallbacks (~6, remove fallback), admin/CMS data (~8, need client queries or server props), type+data imports (~6, need careful conversion). This right-sizes the work.</li>
+</ul>
+<p><strong>Low — Fix before Phase 4/5, not blocking:</strong></p>
+<ul>
+<li><strong>Content similarity: add editorial region extraction.</strong> Strip factual data blocks before TF-IDF comparison. Or use per-route-class thresholds.</li>
+</ul>
+<ul>
+<li><strong>Author entity data model.</strong> Decide: per-domain tables or shared table with <code>domain_visibility</code>? Specify Schema.org <code>Person</code> differentiation strategy.</li>
+</ul>
+<ul>
+<li><strong>E-E-A-T monitoring.</strong> Extend content health cron with cross-domain similarity checks post-launch.</li>
+</ul>
+<ul>
+<li><strong>Token union lifecycle.</strong> Document required/optional/deprecated tiers for when the union grows.</li>
+</ul>
+<p><strong>None of these are architectural blockers.</strong> Items 1-2 are plan consistency fixes (30 minutes of editing). Items 3-4 are implementation refinements. Items 5-8 are future improvements.</p>
+<hr>
+  </div>
+</div>
+<div class="participant-block">
+  <div class="participant-header" onclick="this.parentElement.classList.toggle('open')">
+    <span class="name">openai/gpt-5.4@openrouter</span>
+    <span>
+      <span class="chars">15,586 chars</span>
+      <span class="toggle">&#9654;</span>
+    </span>
+  </div>
+  <div class="participant-body">
+    <p>v3 is materially better and, in my view, it <strong>does adequately address the Round 1 blockers</strong>. I would not hold the architecture itself open any longer on the original six issues.</p>
+<p>That said, there are still a few execution-level inconsistencies and one or two operational design gaps that should be tightened before implementation starts in earnest.</p>
+<h3>1. Are the 6 blocking fixes correctly implemented?</h3>
+<h4>1) cx-* token retention</h4>
+<p><strong>Yes in principle, but the implementation plan still has stale contradictions.</strong></p>
+<p>The design doc is now correct:</p>
+<ul>
+<li>keep existing <code>cx-*</code> tokens</li>
+<li>define the union as the contract</li>
+<li>validate completeness via CI</li>
+<li>avoid mass renaming churn</li>
+</ul>
+<p>That is the right fix.</p>
+<p>However, the implementation plan still says things like:</p>
+<ul>
+<li>“Tailwind v4 <code>@theme</code> CSS generated from TypeScript brand configs”</li>
+<li>root scripts include <code>generate-tokens</code></li>
+<li><code>turbo.json</code> still depends on <code>generate-tokens</code></li>
+<li>app <code>globals.css</code> examples import generated CSS like <code>@luxurydomains/design-tokens/luxury-apartments.css</code></li>
+<li>Task 5.5 says “Run <code>generate-tokens</code> to produce CSS”</li>
+</ul>
+<p>Those are leftovers from the v2 model and conflict with the design doc’s v3 decision: <strong>validation, not generation</strong>.</p>
+<p>So:</p>
+<ul>
+<li><strong>architectural fix: correct</strong></li>
+<li><strong>implementation docs: not fully cleaned up</strong></li>
+</ul>
+<p>This is one of the biggest remaining doc-level issues because it can cause real wasted work.</p>
+<h4>2) RLS via JWT claims instead of session variables</h4>
+<p><strong>Mostly yes, but the SQL example should be fixed and the claim lifecycle is still underspecified.</strong></p>
+<p>The important architectural correction is correct:</p>
+<ul>
+<li>no session variables / <code>SET</code></li>
+<li>no reliance on per-connection state behind PgBouncer transaction pooling</li>
+<li>service-role queries use application-layer filtering</li>
+<li>authenticated queries use JWT claims</li>
+</ul>
+<p>That part is sound.</p>
+<p>But there are two problems:</p>
+<p>#### a) The SQL example still uses <code>current_setting(&#x27;request.jwt.claims&#x27;, true)</code></p>
+<p>The design doc says:</p>
+<pre><code class="language-sql">
+current_setting(&#x27;request.jwt.claims&#x27;, true)::json-&gt;&gt;&#x27;domain&#x27;
+</code></pre>
+<p>That may work in some PostgREST contexts, but the codebase already uses <code>auth.jwt()</code> in existing migrations, and that is the cleaner Supabase-native pattern. Since the repo already established that idiom, the example should match it.</p>
+<p>It should be more like:</p>
+<pre><code class="language-sql">
+auth.jwt()-&gt;&#x27;app_metadata&#x27;-&gt;&gt;&#x27;domain&#x27;
+</code></pre>
+<p>or an allowed-domains form if you go that route.</p>
+<p>#### b) The JWT claim lifecycle is still not specified enough</p>
+<p>This is the more important gap.</p>
+<p>For JWT-based domain RLS to work cleanly, you need to define:</p>
+<ul>
+<li>where <code>app_metadata.domain</code> comes from</li>
+<li>whether it is a <strong>single current domain</strong> or a <strong>list of allowed domains</strong></li>
+<li>how a token is refreshed when a user moves from LA to Lofts</li>
+<li>whether cross-domain reuse of a stale token is expected to fail or refresh</li>
+<li>whether domain claims are set at sign-in, via auth hook, or via app metadata mutation + forced refresh</li>
+</ul>
+<p>The architecture is still correct, but the <strong>operational auth flow</strong> is underspecified.</p>
+<p>So:</p>
+<ul>
+<li><strong>RLS strategy: correct</strong></li>
+<li><strong>RLS example/mechanics: partly drifted</strong></li>
+<li><strong>claim issuance/refresh: still needs explicit design</strong></li>
+</ul>
+<h4>3) Empty default `domain_visibility = ARRAY[]`</h4>
+<p><strong>Yes, correct.</strong></p>
+<p>This is the right default. It prevents accidental cross-domain exposure and forces intentional curation.</p>
+<p>But there is one concrete implementation gap:</p>
+<ul>
+<li>the plan adds the column with an empty default</li>
+<li>the plan does <strong>not</strong> include a clear backfill for existing LA data</li>
+</ul>
+<p>If existing rows get <code>[]</code>, then enabling domain filtering will make them disappear everywhere until manually assigned.</p>
+<p>You need an explicit migration/backfill step such as:</p>
+<pre><code class="language-sql">
+UPDATE apartments SET domain_visibility = ARRAY[&#x27;luxuryapartments&#x27;] WHERE domain_visibility = &#x27;{}&#x27;;
+UPDATE buildings SET domain_visibility = ARRAY[&#x27;luxuryapartments&#x27;] WHERE domain_visibility = &#x27;{}&#x27;;
+UPDATE neighborhoods SET domain_visibility = ARRAY[&#x27;luxuryapartments&#x27;] WHERE domain_visibility = &#x27;{}&#x27;;
+UPDATE cities SET domain_visibility = ARRAY[&#x27;luxuryapartments&#x27;] WHERE domain_visibility = &#x27;{}&#x27;;
+</code></pre>
+<p>So:</p>
+<ul>
+<li><strong>default choice: correct</strong></li>
+<li><strong>migration/backfill plan: incomplete</strong></li>
+</ul>
+<h4>4) Domain-scoped user feature tables</h4>
+<p><strong>Yes, correct and necessary.</strong></p>
+<p>This was a good fix. Favorites, compare, saved items, recently viewed all need domain scope.</p>
+<p>No architectural issue here. My only note is product clarity:</p>
+<ul>
+<li>if auth identity is shared across domains, then profile identity is shared while activity is domain-filtered</li>
+<li>that should be stated explicitly for support and UX consistency</li>
+</ul>
+<p>But the table-level fix itself is correct.</p>
+<h4>5) Snapshot tests before UI extraction</h4>
+<p><strong>Yes, correct as a prerequisite.</strong></p>
+<p>This was a strong addition. Given the weak current test coverage, extracting ~60 components without snapshots would be risky.</p>
+<p>I agree with the plan’s role for snapshots:</p>
+<ul>
+<li>they are not perfect</li>
+<li>but they are the right precondition for safe mechanical extraction</li>
+</ul>
+<p>I would still want a few critical route-driving components to eventually get better tests than snapshots alone, but this is no longer a blocker.</p>
+<h4>6) Post-build content similarity detection</h4>
+<p><strong>Good addition, but only sufficient as an MVP guardrail.</strong></p>
+<p>It absolutely improves the design. It catches a real class of problem that structural manifest validation cannot detect.</p>
+<p>But by itself, TF-IDF on extracted page text is not enough for a real-estate portfolio unless tuned carefully. More on that below.</p>
+<p>So:</p>
+<ul>
+<li><strong>as a first safeguard: yes</strong></li>
+<li><strong>as a final mature enforcement system: no</strong></li>
+</ul>
+<hr>
+<h3>2. Did v3 introduce new problems?</h3>
+<h4>A) Token union contract</h4>
+<p><strong>Minor long-term governance problem, not a blocker.</strong></p>
+<p>A pure union contract means token count can steadily grow as each new brand contributes one-off tokens. Over time this can become messy.</p>
+<p>I’d define token categories:</p>
+<ul>
+<li>required shared tokens</li>
+<li>optional extension tokens</li>
+<li>deprecated tokens</li>
+</ul>
+<p>Right now the docs imply one undifferentiated forever-union. That works for 4 brands, but it should get lifecycle rules.</p>
+<h4>B) Empty default visibility</h4>
+<p><strong>Good tradeoff, but creates a hidden-content failure mode.</strong></p>
+<p>This is still the right choice. But now you need operational safeguards:</p>
+<ul>
+<li>admin UI must require domain assignment</li>
+<li>report/query for published records with zero visibility</li>
+<li>possibly CI/admin warnings for orphaned content</li>
+</ul>
+<p>Otherwise content can silently vanish instead of silently overpublishing.</p>
+<h4>C) `contentSource` field</h4>
+<p><strong>Useful, but should be treated strictly as a heuristic.</strong></p>
+<p>This is a helpful signal for the validator. But it is not a semantic guarantee.</p>
+<ul>
+<li>same <code>contentSource</code> does not automatically mean dangerous duplication</li>
+<li>different <code>contentSource</code> does not automatically mean safe differentiation</li>
+</ul>
+<p>The docs mostly use it as a signal, which is good. Just don’t let teams overinterpret it.</p>
+<h4>D) Design/implementation drift</h4>
+<p><strong>This is the main new practical problem.</strong></p>
+<p>The design doc and implementation plan are not fully aligned on:</p>
+<ul>
+<li>token generation vs validation</li>
+<li>generated CSS imports vs app-owned <code>globals.css @theme</code></li>
+<li>some details of the design-tokens package role</li>
+</ul>
+<p>This is not an architectural flaw, but it is the most likely source of execution thrash.</p>
+<hr>
+<h3>3. E-E-A-T enforcement: is it sufficient?</h3>
+<p><strong>It is structurally strong now, but still only partially sufficient.</strong></p>
+<p>The new Section 8 is a significant improvement. It correctly frames E-E-A-T as partly architectural and mostly editorial/operational.</p>
+<p>What the architecture now does well:</p>
+<ul>
+<li>separate domains</li>
+<li>separate GSC/GA4</li>
+<li>transparent ownership</li>
+<li>per-domain editorial tables</li>
+<li>content similarity checks</li>
+<li>domain-specific launch sequencing</li>
+<li>required editorial brief before indexed launch</li>
+</ul>
+<p>That is good. It closes the biggest structural loopholes.</p>
+<h4>What is still missing</h4>
+<p>#### 1) Author/editor entity operationalization</p>
+<p>The design mentions distinct author profiles, but it does not really specify:</p>
+<ul>
+<li>where author entities live</li>
+<li>how bios are stored/rendered</li>
+<li>whether there is <code>reviewedBy</code> support</li>
+<li>whether schema markup is standardized across domains</li>
+</ul>
+<p>For same-vertical multi-domain publishing, author/entity separation matters.</p>
+<p>#### 2) Editorial policy / methodology surfaces</p>
+<p>For trust and expertise, you likely want reusable templates for:</p>
+<ul>
+<li>editorial standards</li>
+<li>methodology / how data is sourced</li>
+<li>correction policy</li>
+<li>contact / about the team</li>
+<li>market-data methodology pages</li>
+</ul>
+<p>These should probably be tier-1 or tier-2 domain-owned pages with shared template support.</p>
+<p>#### 3) Ongoing monitoring, not just pre-launch controls</p>
+<p>The plan has build-time checks and launch-time briefs, but not much around post-launch drift.</p>
+<p>You likely need:</p>
+<ul>
+<li>scheduled similarity scans</li>
+<li>periodic audits of indexed route overlap</li>
+<li>reports on thin/orphaned pages</li>
+<li>review of author/entity duplication across domains</li>
+</ul>
+<p>#### 4) Explicit differentiation rubric for shared entity pages</p>
+<p>For the same city/building/neighborhood across domains, “different layout” is not enough. You need a repeatable editorial rubric:</p>
+<ul>
+<li>LA angle</li>
+<li>Lofts angle</li>
+<li>D3 angle</li>
+<li>D4 angle</li>
+</ul>
+<p>The brief requirement helps, but I would still want examples by route class.</p>
+<p>So overall:</p>
+<ul>
+<li><strong>structural E-E-A-T support: good</strong></li>
+<li><strong>fully sufficient for a 4-domain same-vertical strategy: not entirely</strong></li>
+<li><strong>remaining gaps are mostly process/data-model, not architecture blockers</strong></li>
+</ul>
+<hr>
+<h3>4. Is TF-IDF cosine sufficient?</h3>
+<p><strong>Not by itself. It is fine as a first-pass heuristic.</strong></p>
+<p>This is the area where I most agree with the other reviewers’ caution.</p>
+<p>Real estate pages naturally share:</p>
+<ul>
+<li>addresses</li>
+<li>amenity names</li>
+<li>building facts</li>
+<li>neighborhood labels</li>
+<li>transit names</li>
+<li>pricing language</li>
+<li>boilerplate CTA text</li>
+</ul>
+<p>If you compare whole-page extracted text, TF-IDF will produce:</p>
+<ul>
+<li>false positives on factual listing/building pages</li>
+<li>possibly false negatives on aggressively paraphrased but semantically redundant editorial pages</li>
+</ul>
+<h4>What I’d change</h4>
+<p>Use TF-IDF as the MVP, but narrow what it compares:</p>
+<p>#### Minimum needed improvements</p>
+<ul>
+<li><strong>Exclude or downweight structured factual blocks</strong></li>
+<li>amenity lists</li>
+<li>stats tables</li>
+<li>address blocks</li>
+<li>repeated CTA sections</li>
+<li>nav/footer/legal boilerplate</li>
+<li>JSON-LD/script text</li>
+</ul>
+<ul>
+<li><strong>Compare editorial regions only when possible</strong></li>
+</ul>
+<p>   For shared entity pages, compare:</p>
+<ul>
+<li>intro copy</li>
+<li>summary paragraphs</li>
+<li>neighborhood narrative</li>
+<li>recommendation/analysis sections</li>
+</ul>
+<ul>
+<li><strong>Use route-class-specific thresholds</strong></li>
+</ul>
+<p>   Not every route type should use the same 60/80 thresholds.</p>
+<ul>
+<li>blog/guides/comparisons: stricter</li>
+<li>listing/building pages: more tolerant</li>
+<li>city/neighborhood pages: medium</li>
+</ul>
+<ul>
+<li><strong>Align by entity, not just route pattern</strong></li>
+</ul>
+<p>   <code>/cities/boston</code> vs <code>/cities/boston</code> is good.</p>
+<p>   But route sampling should be entity-aware, not just randomly sampled by pattern.</p>
+<p>So:</p>
+<ul>
+<li><strong>TF-IDF alone: insufficient</strong></li>
+<li><strong>TF-IDF plus content-region filtering and route-class thresholds: acceptable MVP</strong></li>
+</ul>
+<p>I would not block approval over this, but I would definitely refine Task 4.6 before enforcement gets too strict.</p>
+<hr>
+<h3>5. Is the plan now executable?</h3>
+<p><strong>Yes, with some cleanup.</strong></p>
+<p>Compared to v2, this is much more executable because it now respects real prerequisites:</p>
+<ul>
+<li>finish LA static-data migration first</li>
+<li>add snapshot safety before component extraction</li>
+<li>freeze Lofts feature work during transition</li>
+<li>require domain content strategy before indexed launch</li>
+</ul>
+<p>That sequencing is good.</p>
+<h4>What makes it executable</h4>
+<ul>
+<li>phases are coherent</li>
+<li>gates are explicit</li>
+<li>“extract first, refactor later” is the right discipline</li>
+<li>the package boundaries are reasonable</li>
+<li>the validator/tooling work is staged after the second app is in place</li>
+</ul>
+<h4>What still threatens execution</h4>
+<p>#### 1) Task 0.0 scope is slightly overstated</p>
+<p>The plan treats all <code>@/data/</code> imports like equal migration work. In reality:</p>
+<ul>
+<li>some are data-fetch imports that need real migration</li>
+<li>some are type imports that need extraction/relocation</li>
+<li>some are constants/config</li>
+<li>some may be dead code</li>
+</ul>
+<p>This should be triaged before estimating work.</p>
+<p>#### 2) Token-plan inconsistency will waste time</p>
+<p>If engineers follow the implementation plan literally, they may build a token-generation pipeline that v3 explicitly no longer wants.</p>
+<p>This should be cleaned up before implementation.</p>
+<p>#### 3) Tooling scope can grow</p>
+<p>Manifest validator + brand validator + content similarity + scaffolder integration is meaningful platform work. A small team can do it, but only if it stays MVP-sized.</p>
+<p>#### 4) Phase 0 is still substantial</p>
+<p>Lofts migration plus feature parity plus user feature tables plus missing APIs is a lot before monorepo value really materializes.</p>
+<p>Still, none of this makes it non-executable. It just means prioritization discipline is essential.</p>
+<hr>
+<h3>6. Updated score</h3>
+<p>My updated score is <strong>8.5/10</strong>.</p>
+<p>Why it went up:</p>
+<ul>
+<li>the six blockers are no longer blockers</li>
+<li>the biggest architectural risks from Round 1 were corrected properly</li>
+<li>the plan now has meaningful safeguards around migration safety and SEO risk</li>
+</ul>
+<p>Why it is not 9+:</p>
+<ul>
+<li>token plan/design drift still exists</li>
+<li>JWT claim lifecycle is underspecified</li>
+<li><code>domain_visibility</code> backfill is missing</li>
+<li>content similarity is still too blunt in current wording</li>
+<li>E-E-A-T operationalization still depends on process more than enforceable system design</li>
+</ul>
+<hr>
+<h3>7. What’s left? Ranked by severity</h3>
+<h4>High / should fix before implementation starts</h4>
+<p>#### 1) Resolve token-system doc drift</p>
+<p>Pick one model and remove the other.</p>
+<p>Right now the docs still contain both:</p>
+<ul>
+<li>validate app-owned CSS tokens</li>
+<li>generate CSS from TS config</li>
+</ul>
+<p>That ambiguity will cause real rework.</p>
+<p>#### 2) Specify JWT claim issuance/refresh lifecycle</p>
+<p>Document:</p>
+<ul>
+<li>claim shape</li>
+<li>when it is set</li>
+<li>how it refreshes on domain switch</li>
+<li>whether single-domain or allowed-domains array is used</li>
+</ul>
+<p>Without this, RLS implementation will be fragile.</p>
+<p>#### 3) Add <code>domain_visibility</code> backfill for existing rows</p>
+<p>This is operationally important. Without it, existing content can disappear when filtering turns on.</p>
+<h4>Medium / should fix before Phase 4 enforcement</h4>
+<p>#### 4) Refine content similarity detection</p>
+<p>Add:</p>
+<ul>
+<li>structured data exclusion</li>
+<li>route-class thresholds</li>
+<li>entity-aligned comparison</li>
+<li>likely warning-only mode for factual pages initially</li>
+</ul>
+<p>#### 5) Clarify Task 0.0 scope</p>
+<p>Separate:</p>
+<ul>
+<li>true static-data migrations</li>
+<li>type extraction</li>
+<li>constants/config</li>
+<li>dead imports</li>
+</ul>
+<p>That will improve execution realism.</p>
+<p>#### 6) Add orphaned-content reporting</p>
+<p>If visibility defaults to empty, you need visibility audits/admin reporting.</p>
+<h4>Low / important but not blocking</h4>
+<p>#### 7) Add token lifecycle rules</p>
+<p>Required / optional / deprecated tiers.</p>
+<p>#### 8) Formalize author/editor entities and methodology pages</p>
+<p>Helpful for E-E-A-T, but not a blocker to the architecture itself.</p>
+<p>#### 9) Supplement snapshots later for critical components</p>
+<p>Not urgent, but eventually worth adding visual or behavioral regression coverage.</p>
+<hr>
+<h3>Bottom line</h3>
+<p><strong>Yes — v3 adequately addresses the Round 1 feedback.</strong>  </p>
+<p>The six prior blockers are no longer blockers.</p>
+<p>The remaining issues are mostly:</p>
+<ul>
+<li>implementation-plan cleanup</li>
+<li>auth claim lifecycle specification</li>
+<li>a few operational safeguards</li>
+</ul>
+<p>So my position is:</p>
+<p><strong>Approve v3 with minor but important follow-up fixes before implementation.</strong></p>
+  </div>
+</div>
+<div class="participant-block">
+  <div class="participant-header" onclick="this.parentElement.classList.toggle('open')">
+    <span class="name">google/gemini-3.1-pro-preview@openrouter</span>
+    <span>
+      <span class="chars">6,292 chars</span>
+      <span class="toggle">&#9654;</span>
+    </span>
+  </div>
+  <div class="participant-body">
+    <p>Here is a direct and comprehensive analysis of the v3 architecture and implementation plan, focusing specifically on the 7 questions outlined.</p>
+<h4>1. Are the 6 blocking fixes correctly implemented?</h4>
+<p><strong>Yes, they address the structural flaws of v2, though slightly underspecified in execution.</strong></p>
+<ul>
+<li>  <strong>cx-* token retention:</strong> Correct. Renaming 5,891 instances would have derailed the team for weeks. The union-of-tokens contract verified by CI is simple and bulletproof.</li>
+<li>  <strong>RLS via JWT claims:</strong> Correct technical primitive. Using <code>app_metadata.domain</code> directly bypasses the connection-pool leakage of <code>current_setting()</code>. <strong>Gap:</strong> The docs don't specify the auth lifecycle. How does <code>app_metadata.domain</code> get minted or updated when a user logs in to Lofts vs. LA? You need a hook or trigger on user creation/login to stamp the JWT.</li>
+<li>  <strong>Empty default domain_visibility:</strong> Correct. Opt-in is the only way to avoid accidental doorway pages.</li>
+<li>  <strong>Domain-scoped user feature tables:</strong> Correct. Scoping favorites, compares, and histories per site is essential for product isolation.</li>
+<li>  <strong>Snapshot tests before UI extraction:</strong> Excellent process guardrail. This shifts UI extraction from a high-wire act to a mechanical refactor.</li>
+<li>  <strong>Post-build content similarity detection:</strong> A solid catch-all, but computationally naive as proposed (see #4).</li>
+</ul>
+<h4>2. Did we introduce new problems?</h4>
+<p><strong>Yes, minor operational issues and documentation drift.</strong></p>
+<ul>
+<li>  <strong>Documentation Drift:</strong> The design document (Section 5) gracefully abandons the TS-to-CSS generation pipeline for simple CI validation. However, the implementation plan (<strong>Task 1.1</strong>) still configures <code>turbo.json</code> with a <code>generate-tokens</code> task and outputs to <code>packages/design-tokens/generated/**</code>. This will confuse the executing engineer immediately.</li>
+<li>  <strong>Missing Data Backfill:</strong> Adding <code>domain_visibility</code> with <code>DEFAULT ARRAY[]</code> (Task 1.5) means all ~7,000 existing LA listings will instantly become invisible. A one-time backfill (<code>UPDATE apartments SET domain_visibility = ARRAY['luxuryapartments']</code>) must be added to the implementation plan.</li>
+<li>  <strong>Union Bloat:</strong> Over time, the cx-* token union could become a graveyard of deprecated variables. You'll need a way to purge unused tokens safely later, but it's acceptable for now.</li>
+</ul>
+<h4>3. E-E-A-T enforcement: is it sufficient?</h4>
+<p><strong>Structurally, yes. Operationally, it requires ongoing discipline.</strong></p>
+<p>The architecture does what code <em>can</em> do: distinct web properties, separate analytics/GSC, build-time domain content splits, and a required editorial brief. </p>
+<p><strong>Pending gaps:</strong></p>
+<ul>
+<li>  <strong>Author Entity Modeling:</strong> Google’s NLP groups authors across the web. If "Jane Doe" has the same bio and photo on LA and D3, Google merges the entities, weakening the separation. The specs need to mandate distinct author schemas, distinct names/roles, or specialized bios per domain.</li>
+<li>  <strong>Methodology & Trust Pages:</strong> High-value real estate sites need editorial methodology pages (e.g., "How we rate neighborhoods", "Where our data comes from"). Standardizing a Tier-2 template for this would bolster E-E-A-T.</li>
+</ul>
+<h4>4. Content similarity detection: is TF-IDF cosine sufficient?</h4>
+<p><strong>No. For real estate pages, it will flag false positives constantly.</strong></p>
+<p>If Lofts and LA both list &quot;100 Main St,&quot; they share addresses, unit counts, coordinates, pricing grids, and 30+ identical amenity strings (&quot;Stainless steel appliances,&quot; &quot;24/7 Concierge&quot;). When TF-IDF processes the raw text extracted from the page, this structural overlap will easily surpass the 60% warning or 80% error thresholds, even if the primary editorial descriptions are entirely unique to the brand.</p>
+<p><strong>The Fix:</strong> Update Task 4.6 to apply TF-IDF <strong>only to editorial DOM nodes</strong> (e.g., main article body, neighborhood reviews) while stripping structured factual data arrays and footers before vectorization.</p>
+<h4>5. Is the plan now executable?</h4>
+<p><strong>Yes, highly executable.</strong></p>
+<p>v3 introduces a much tighter, more realistic prerequisite chain. Requiring the migration of static JSON to Supabase (Task 0.0) and enforcing a feature freeze before extraction prevents a massive merging disaster. The &quot;all apps must build&quot; CI gate guarantees nothing is blindly broken. </p>
+<p>The small team can execute this piece-by-piece, pausing at safe checkpoints if product emergencies arise. </p>
+<h4>6. What&#x27;s the updated score?</h4>
+<p><strong>8.8/10.</strong> (Up from 7/10).</p>
+<p>The architecture successfully embraces the realities of building in Next.js + Turborepo when using Supabase behind PgBouncer. It mitigates SEO doorway risks aggressively and replaces complex aesthetic engineering (semantic tokens) with pragmatic CI guardrails. </p>
+<h4>7. What&#x27;s left? (Remaining Issues Ranked by Severity)</h4>
+<p><strong>High Severity (Must fix before Day 1 execution):</strong></p>
+<ul>
+<li><strong>Resolve Implementation Drift:</strong> Remove all remnants of the <code>generate-tokens</code> task from <code>turbo.json</code> and <code>package.json</code> in the implementation plan to match the approved v3 design.</li>
+<li><strong>Add <code>domain_visibility</code> Backfill:</strong> Add an explicit SQL update step in Task 1.5 to default existing LA datasets to <code>ARRAY['luxuryapartments']</code>, otherwise the LA app goes blank upon transition.</li>
+<li><strong>Specify JWT Claim Lifecycle:</strong> Define exactly how <code>app_metadata.domain</code> is minted into the JWT upon user authentication.</li>
+</ul>
+<p><strong>Medium Severity (Fix before Phase 4 tooling):</strong></p>
+<ul>
+<li><strong>Refine TF-IDF Targeting:</strong> Modify Task 4.6 to strip factual data structures (amenities, tables, boilerplates) prior to running the similarity comparisons.</li>
+<li><strong>Admin UI Defaults:</strong> Ensure that whatever tool/script is used to import new listings explicitly requires setting a domain visibility flag, to offset the new <code>DEFAULT ARRAY[]</code> requirement.</li>
+</ul>
+<p><strong>Low Severity (Nice to have):</strong></p>
+<ul>
+<li><strong>Token Deprecation Strategy:</strong> Note in <code>CONTRIBUTING.md</code> how unused CSS union tokens can be pruned.</li>
+<li><strong>E-E-A-T Entity Differentiation:</strong> Add author isolation requirements to the Content Strategy Brief (Task 5.2).</li>
+</ul>
+<p>v3 represents a deeply pragmatic pivot from v2. You&#x27;re ready to build.</p>
+<p><em>*</em></p>
+  </div>
+</div>
+<div class="participant-block">
+  <div class="participant-header" onclick="this.parentElement.classList.toggle('open')">
+    <span class="name">x-ai/grok-4.20-beta@openrouter</span>
+    <span>
+      <span class="chars">7,623 chars</span>
+      <span class="toggle">&#9654;</span>
+    </span>
+  </div>
+  <div class="participant-body">
+    <p><strong>VOTE:</strong> {&quot;option&quot;: &quot;Approve with minor fixes&quot;, &quot;confidence&quot;: 0.91, &quot;rationale&quot;: &quot;All 6 Round 1 blockers are substantively resolved with pragmatic, production-aware choices. Remaining gaps are operational/refinement issues, not architectural flaws. Score: 8.8/10.&quot;}</p>
+<hr>
+<h4>1. Are the 6 blocking fixes correctly implemented?</h4>
+<p><strong>Yes, all six are correctly addressed.</strong></p>
+<ul>
+<li><strong>cx-* token retention + union contract via CI validation</strong>: This is the correct reversal. The v2 semantic rename was architectural overreach. Reading each app’s <code>globals.css</code> <code>@theme</code> block in a validator (as described in both documents) gives the same safety guarantee without touching thousands of references. The design doc’s validator script and the implementation plan’s Task 1.4 are aligned.</li>
+</ul>
+<ul>
+<li><strong>RLS via JWT claims instead of session variables</strong>: Correct and well-specified. The two-layer approach (application-layer <code>.contains('domain_visibility', [domain])</code> for service-role/ISR + JWT <code>app_metadata.domain</code> for authenticated RLS) properly respects PgBouncer transaction mode. The design document correctly calls out why <code>current_setting()</code> leaks and why the factory pattern prevents missed filters. One very small nit: the example RLS policy in the design doc still shows the <code>current_setting</code> fallback. It should be cleaned to use only <code>auth.jwt()->'app_metadata'->>'domain'</code> to match the existing codebase pattern noted by other reviewers, but this is documentation hygiene, not a functional flaw.</li>
+</ul>
+<ul>
+<li><strong>Empty default <code>domain_visibility = ARRAY[]</code></strong>: Excellent fix. Opt-in is the right default for preventing doorway-page proliferation. The operational burden is real but acceptable and explicitly acknowledged.</li>
+</ul>
+<ul>
+<li><strong>Domain-scoped user feature tables</strong>: Correctly implemented. Adding the <code>domain</code> column and baking scoping into <code>createDomainClient</code> prevents cross-brand leakage of user data (favorites, compare, etc.).</li>
+</ul>
+<ul>
+<li><strong>Snapshot tests before UI extraction</strong>: Strongly improved. Making Task 1.8 a hard prerequisite before the 4-wave extraction (Task 2.x) transforms the highest-risk phase from dangerous to mechanical. This was one of the better additions in v3.</li>
+</ul>
+<ul>
+<li><strong>Post-build content similarity detection</strong>: Good addition. The TF-IDF cosine check on indexed routes complements the structural manifest validator.</li>
+</ul>
+<p>All original blockers from Round 1 have been resolved in the right direction.</p>
+<hr>
+<h4>2. Did we introduce new problems?</h4>
+<p><strong>Only minor, manageable ones:</strong></p>
+<ul>
+<li><strong>cx-* union bloat</strong>: Real but acceptable. The contract will grow with each new brand. The plan correctly says brand-specific tokens get defaults in other brands’ <code>globals.css</code>. We should add a “token deprecation” note to the design doc (as other reviewers suggested), but this is not blocking.</li>
+</ul>
+<ul>
+<li><strong>Empty default visibility operational burden</strong>: Content can disappear if not explicitly assigned. The plan should include the one-time backfill step for existing ~7,000 LA rows (as noted in previous reviews). This belongs in Task 1.5 Step 6. Not architectural, but important.</li>
+</ul>
+<ul>
+<li><strong>contentSource field</strong>: Useful heuristic for the validator. The risk of false confidence (“different contentSource = safe”) is acknowledged in the design doc.</li>
+</ul>
+<ul>
+<li><strong>Minor plan/design doc drift</strong>: The implementation plan still contains some stale references to <code>generate-tokens</code> and generated CSS files even though v3 correctly moved to a validation-only approach. This should be cleaned before execution starts, but it is not a design flaw.</li>
+</ul>
+<p>No fatal new problems.</p>
+<hr>
+<h4>3. E-E-A-T enforcement: is it sufficient?</h4>
+<p><strong>Structurally strong, process-dependent.</strong></p>
+<p>Section 8 is one of v3’s strongest additions. Separate GSC/GA4 properties, transparent portfolio footer, per-domain editorial tables, content similarity CI, and the mandatory editorial brief (Task 5.2) are the right architectural and procedural controls.</p>
+<p><strong>Remaining gaps (non-blocking):</strong></p>
+<ul>
+<li>Post-launch drift monitoring (extend content health cron to run cross-domain similarity periodically).</li>
+<li>Stronger author entity disambiguation guidance (different names, bios, and author page URLs if the same human writes for multiple brands).</li>
+<li>Explicit methodology/correction-policy pages as Tier 1 or semi-shared templates.</li>
+</ul>
+<p>These are editorial/operational, not architectural failures. The architecture now does what code reasonably can.</p>
+<hr>
+<h4>4. Content similarity detection: is TF-IDF cosine sufficient?</h4>
+<p><strong>Adequate as a first-pass CI gate, but noisy for real estate.</strong></p>
+<p>Factual overlap on buildings, amenities, addresses, etc. will generate many false positives on shared listings. The plan’s mitigations (&gt;60% = warning, not error; manifest <code>contentSource</code> + template checks; human <code>override: true</code>) make this workable.</p>
+<p><strong>Recommended refinement (non-blocking):</strong> Add a <code>contentSimilarityExclude</code> field or section whitelist to the manifest so the extractor can skip factual blocks (amenity lists, hero stats, JSON-LD, etc.) and compare only editorial prose. This would dramatically reduce noise without adding much complexity.</p>
+<p>TF-IDF is good enough to ship. We can iterate in Phase 4+.</p>
+<hr>
+<h4>5. Is the plan now executable?</h4>
+<p><strong>Yes — significantly more so than v2.</strong></p>
+<p>The new prerequisites and gates are mature:</p>
+<ul>
+<li>Task 0.0 (finish LA static data migration) before monorepo move</li>
+<li>Task 1.8 (snapshots) before UI extraction</li>
+<li>Feature freeze between Phase 0 and Phase 3</li>
+<li>Explicit “all apps must build” CI gate</li>
+<li>Clear wave-based extraction with build gates after each wave</li>
+</ul>
+<p>The dependency chain is clean. A small team following the “extract first, refactor later” and “mechanical diffs” rules should not get stuck. The main risks are now operational (backfill script, cleaning stale plan references, scope of Task 0.0) rather than architectural.</p>
+<hr>
+<h4>6. Updated score</h4>
+<p><strong>Round 1: 7–7.5/10 with 6 blockers.</strong>  </p>
+<p><strong>v3: 8.8/10.</strong></p>
+<p>The 1.2-point increase reflects that all six original blockers were addressed substantively and the new sections (E-E-A-T, content similarity, snapshot gating, editorial brief requirement) show real architectural maturity. Deductions are for:</p>
+<ul>
+<li>Missing backfill step for <code>domain_visibility</code> (-0.4)</li>
+<li>TF-IDF false-positive risk on factual real estate data (-0.3)</li>
+<li>Minor plan/design doc drift around token generation (-0.2)</li>
+<li>Lack of post-launch E-E-A-T monitoring and author disambiguation guidance (-0.2)</li>
+<li>Token union lifecycle not yet documented (-0.1)</li>
+</ul>
+<hr>
+<h4>7. What’s left? (Ranked by severity)</h4>
+<p><strong>Medium severity — fix before Phase 1 execution:</strong></p>
+<ul>
+<li><strong>Add domain_visibility backfill</strong> to Task 1.5 Step 6. Existing LA data will be invisible without <code>UPDATE ... SET domain_visibility = ARRAY['luxuryapartments']</code>.</li>
+<li><strong>Clean plan/design doc drift</strong> on token system (remove <code>generate-tokens</code> references).</li>
+<li><strong>Refine Task 0.0 scope</strong> — the ~48 static imports include type-only imports and dead code. Split the work explicitly.</li>
+</ul>
+<p><strong>Low severity — Phase 4 or later:</strong></p>
+<ul>
+<li>Update example RLS policy to use only <code>auth.jwt()</code> for consistency.</li>
+<li>Add <code>contentSimilarityExclude</code> or section-based comparison to reduce false positives.</li>
+<li>Document token deprecation process for the growing union.</li>
+<li>Add post-launch similarity monitoring and stronger author disambiguation to the editorial brief template.</li>
+</ul>
+<p><strong>None of these are blockers.</strong> They are refinements on an already solid plan.</p>
+<hr>
+<p><strong>Conclusion:</strong> v3 successfully incorporates Round 1 feedback. The architecture is sound, the migration plan is executable with proper discipline, and the SEO/E-E-A-T risks are addressed as well as code can address them. <strong>Approve with the three medium-severity operational fixes listed above.</strong></p>
+  </div>
+</div>
+</div>
+<div class="round-section">
+<h2>Round 3</h2>
+<div class="participant-block open">
+  <div class="participant-header" onclick="this.parentElement.classList.toggle('open')">
+    <span class="name">opus@claude</span>
+    <span>
+      <span class="chars">11,012 chars</span>
+      <span class="toggle">&#9654;</span>
+    </span>
+  </div>
+  <div class="participant-body">
+    <p>Now I have the evidence I need. Here&#x27;s my full analysis.</p>
+<hr>
+<h3>Round 2 Review: v3 Monorepo Architecture</h3>
+<h4>1. Are the 6 Blocking Fixes Correctly Implemented?</h4>
+<p><strong>All 6 are addressed. One has a concrete internal contradiction that must be fixed.</strong></p>
+<p><strong>Fix 1 — cx-* token retention: Correct.</strong> Confirmed in <code>globals.css</code> lines 36-53: <code>--color-cx-black</code>, <code>--color-cx-blue</code>, etc. are already defined inside the <code>@theme inline</code> block. The union-contract-with-CI-validation approach is the right call. The design doc (Section 5) correctly specifies validation, not generation.</p>
+<p><strong>Fix 2 — RLS via JWT claims: Correct concept, wrong SQL example.</strong> The codebase exclusively uses <code>auth.jwt()</code> for RLS (13 occurrences across 6 migration files, confirmed). The pattern is consistent: <code>auth.jwt()-&gt;&#x27;app_metadata&#x27;-&gt;&gt;&#x27;role&#x27;</code> for role checks, <code>auth.jwt()-&gt;&gt;&#x27;email&#x27;</code> for user identity. The only <code>current_setting</code> uses in the codebase are for <code>supabase.service_role_key</code> in cron/edge function contexts — which is a completely different use case (fetching a server secret, not a per-request claim).</p>
+<p><strong>The design doc&#x27;s RLS example is self-contradictory.</strong> Section 3 says &quot;Why not session variables: Supabase uses PgBouncer in transaction mode. <code>SET</code> commands (used by <code>current_setting</code>) are session-level and leak between connections.&quot; Then two paragraphs earlier, the actual policy uses:</p>
+<pre><code class="language-sql">
+current_setting(&#x27;request.jwt.claims&#x27;, true)::json-&gt;&gt;&#x27;domain&#x27;
+</code></pre>
+<p>This is using the exact mechanism the section warns against. The fix is simple: replace with <code>auth.jwt()-&gt;&#x27;app_metadata&#x27;-&gt;&gt;&#x27;domain&#x27;</code> to match the 13 existing migration patterns. This is a 1-minute edit that prevents a copy-paste footgun.</p>
+<p><strong>Fix 3 — Empty default: Correct.</strong> <code>DEFAULT ARRAY[]</code> forces opt-in. No <code>domain_visibility</code> column exists yet in any migration (confirmed: zero grep hits in <code>supabase/</code>). The column addition is purely forward-looking.</p>
+<p><strong>Fix 4 — Domain-scoped user features: Correct.</strong> Adding <code>domain text NOT NULL</code> to user feature tables is clean.</p>
+<p><strong>Fix 5 — Snapshot tests: Correct.</strong> Task 1.8 as Phase 2 prerequisite is the right gate.</p>
+<p><strong>Fix 6 — Content similarity: Adequate as MVP.</strong> See question 4.</p>
+<h4>2. Did We Introduce New Problems?</h4>
+<p><strong>One real problem: <code>generate-tokens</code> ghost in the implementation plan.</strong></p>
+<p>The design doc (Section 5) says: <em>&quot;Validation (CI, not generation)&quot;</em> and <em>&quot;This is simpler than the v2 generation pipeline.&quot;</em></p>
+<p>The implementation plan contradicts this in <strong>7 places</strong> (confirmed via grep):</p>
+<ul>
+<li>Line 454: <code>"generate-tokens": "turbo generate-tokens"</code> in root <code>package.json</code></li>
+<li>Line 471: <code>"generate-tokens"</code> as a Turborepo task with <code>outputs: ["packages/design-tokens/generated/**"]</code></li>
+<li>Lines 479, 483, 486, 491: <code>dependsOn: ["generate-tokens"]</code> on typecheck, validate-brand, build, and test</li>
+<li>Line 1445 (Task 5.5): <em>"Run <code>generate-tokens</code> to produce CSS"</em></li>
+</ul>
+<p>Meanwhile, the implementation plan only mentions <code>validate-tokens</code> twice (lines 733, 738), both inside the Task 1.4 validator code block. The turbo.json and package.json scripts never reference <code>validate-tokens</code>.</p>
+<p><strong>This is the highest-risk doc inconsistency.</strong> An engineer following the implementation plan will build a generation pipeline. An engineer reading the design doc will build a validation script. They will conflict.</p>
+<p><strong>The fix is mechanical</strong> (find-replace <code>generate-tokens</code> → <code>validate-tokens</code>, remove <code>outputs</code> from the turbo task, update <code>dependsOn</code> references), but it must happen before implementation starts.</p>
+<p><strong>Other minor concerns (not blocking):</strong></p>
+<ul>
+<li>Token union will grow — document a deprecation process later</li>
+<li>Empty visibility needs a backfill step for existing data (see below)</li>
+</ul>
+<h4>3. E-E-A-T Enforcement: Is It Sufficient?</h4>
+<p><strong>Structurally strong. The weakest link is author entity modeling.</strong></p>
+<p>Section 8 is one of v3&#x27;s best additions. Separate GSC/GA4, transparent portfolio footer, per-domain editorial tables, content similarity CI, and the editorial brief requirement (Task 5.2) are the right guardrails.</p>
+<p><strong>What&#x27;s still missing:</strong></p>
+<ul>
+<li><strong>Author entity disambiguation.</strong> The plan says "Distinct author profiles per domain, even if the same human writes for multiple brands." Good principle. But there's no data model specification. If the same person publishes as "Sarah Chen" on both LA and Lofts with the same headshot and similar bio, Google's entity understanding will link them and potentially treat the domains as one editorial voice. The content strategy template (Task 5.2) should mandate: different author names OR meaningfully different bios, headshots, and Schema.org <code>Person</code> markup per domain.</li>
+</ul>
+<ul>
+<li><strong>No post-launch E-E-A-T monitoring.</strong> The content similarity check runs at build time. Content drifts over time. The existing content health ops loop (cron + admin dashboard, already built) should eventually include cross-domain similarity scans. Phase 4+ work, not blocking.</li>
+</ul>
+<p><strong>Overall E-E-A-T assessment: 85% there.</strong> The missing 15% is process/editorial, not architectural.</p>
+<h4>4. Content Similarity Detection: Is TF-IDF Sufficient?</h4>
+<p><strong>Sufficient as a first-pass CI gate. Will produce false positives on factual listing pages.</strong></p>
+<p>The problem is well-understood by all reviewers: two domains listing the same building will share address, amenity names, unit counts, pricing, transit info. TF-IDF on raw extracted text will flag these as high-similarity even with completely different editorial framing.</p>
+<p><strong>The 60%/80% thresholds with human override are pragmatic.</strong> The warning-not-error at 60% creates review pressure without blocking legitimate factual overlap.</p>
+<p><strong>Concrete refinement needed (not blocking but saves significant noise):</strong> The text extraction step should strip factual data blocks (amenity lists, stats tables, address blocks, JSON-LD, nav/footer boilerplate) before vectorization. Compare editorial regions only. Alternatively, use per-route-class thresholds: building detail pages get higher tolerance (~75/90) than blog posts (~40/60).</p>
+<p>I agree with the consensus: ship TF-IDF as MVP, refine in Phase 4 after you have real cross-domain content to calibrate against.</p>
+<h4>5. Is the Plan Now Executable?</h4>
+<p><strong>Yes — significantly more so than v2.</strong></p>
+<p>The dependency chain is clean, the gates are explicit, and the new prerequisites (Task 0.0, Task 1.8, Task 5.2, feature freeze) address the real bottlenecks.</p>
+<p><strong>Key insight from evidence: Task 0.0 scope is overstated.</strong></p>
+<p>The grep reveals the 48 <code>@/data/</code> imports break down into distinct categories:</p>
+<ul>
+<li><strong>~23 are <code>import type</code> only</strong> — these import TypeScript interfaces (<code>BlogPost</code>, <code>CityData</code>, <code>Neighborhood</code>, <code>StateData</code>, <code>BuildingPageProfile</code>, etc.) from static data files. They don't import data. They need <strong>type extraction</strong> (move the interface definitions to a shared types file or <code>packages/data/src/types/results.ts</code>), not database migration.</li>
+</ul>
+<ul>
+<li><strong>~7 are in <code>lib/content/</code> and <code>lib/data/*-server.ts</code></strong> — these are the content health scanner and static data fallbacks. <code>registry.ts</code> alone has 7 imports but mixes types with actual data constants (<code>blogPosts</code>, <code>statesData</code>, <code>comparisons</code>, <code>bestOfPages</code>, <code>amenityPages</code>, <code>pricePages</code>). These need the most careful conversion.</li>
+</ul>
+<ul>
+<li><strong>~8 are in <code>lib/services/</code></strong> — <code>states.service.ts</code> imports actual data + functions (<code>statesData</code>, <code>getStateStats</code>, <code>getCitiesForState</code>). <code>buildings.service.ts</code> and <code>building-data-provider.ts</code> import both types and data/functions from <code>buildingPages</code>. These need real conversion.</li>
+</ul>
+<ul>
+<li><strong>~10 are admin dashboard components</strong> — forms and clients that import types and sometimes data constants. Lower priority since admin is noindexed.</li>
+</ul>
+<p><strong>The plan should categorize these.</strong> Treating 23 type-only imports the same as 7 data-import-with-fallback conversions wastes time and creates confusion.</p>
+<h4>6. Updated Score</h4>
+<p><strong>8.5/10</strong> (up from 7-7.5/10).</p>
+<p>All 6 blockers are resolved correctly. The architecture is sound and executable.</p>
+<p>Deductions:</p>
+<ul>
+<li><code>generate-tokens</code> vs <code>validate-tokens</code> drift in implementation plan (-0.5) — highest risk of wasted engineering effort</li>
+<li>RLS SQL example uses <code>current_setting</code> while warning against it (-0.3) — copy-paste hazard</li>
+<li>Missing <code>domain_visibility</code> backfill for existing data (-0.3) — enabling filtering on existing rows would make everything disappear</li>
+<li>TF-IDF false positives on factual real estate data (-0.2) — refineable</li>
+<li>Author entity data model gap (-0.1) — needs specification before D3</li>
+<li>Task 0.0 scope undifferentiated (-0.1) — type imports ≠ data migrations</li>
+</ul>
+<h4>7. What&#x27;s Left? Ranked by Severity</h4>
+<p><strong>High — Fix before implementation starts (30 minutes of editing):</strong></p>
+<ul>
+<li><strong>Resolve <code>generate-tokens</code> → <code>validate-tokens</code> drift.</strong> 7 occurrences in the implementation plan contradict the design doc. Find-replace: change <code>generate-tokens</code> to <code>validate-tokens</code>, remove <code>outputs: ["packages/design-tokens/generated/**"]</code> from the turbo task definition, update Task 5.5 text.</li>
+</ul>
+<ul>
+<li><strong>Fix the RLS SQL example.</strong> In design doc Section 3, replace <code>current_setting('request.jwt.claims', true)::json->>'domain'</code> with <code>auth.jwt()->'app_metadata'->>'domain'</code>. The design doc literally warns against <code>current_setting</code> two paragraphs below the policy that uses it.</li>
+</ul>
+<p><strong>Medium — Fix before Phase 1.5 execution:</strong></p>
+<ul>
+<li><strong>Add <code>domain_visibility</code> backfill step.</strong> When the column is added with <code>DEFAULT ARRAY[]</code>, existing rows get empty arrays. Without a backfill, enabling domain filtering makes everything disappear. Add to Task 1.5 Step 6:</li>
+<pre><code class="language-sql">
+   UPDATE apartments SET domain_visibility = ARRAY[&#x27;luxuryapartments&#x27;] WHERE domain_visibility = &#x27;{}&#x27;;
+   -- Same for buildings, neighborhoods, cities, blog_posts
+</code></pre>
+</ul>
+<ul>
+<li><strong>Categorize Task 0.0 imports.</strong> The 48 imports are: ~23 type-only (need type extraction), ~7 content/fallback (need careful conversion), ~8 services (need real DB migration), ~10 admin (lower priority). This right-sizes the work and prevents confusion.</li>
+</ul>
+<p><strong>Low — Fix before Phase 4, not blocking:</strong></p>
+<ul>
+<li><strong>Content similarity: add editorial region extraction.</strong> Strip factual data blocks before TF-IDF. Or use per-route-class thresholds.</li>
+</ul>
+<ul>
+<li><strong>Author entity disambiguation.</strong> Add to Task 5.2: different author names/bios/headshots per domain. Add Schema.org <code>Person</code> differentiation requirement.</li>
+</ul>
+<ul>
+<li><strong>E-E-A-T monitoring.</strong> Extend content health cron with cross-domain similarity post-launch.</li>
+</ul>
+<ul>
+<li><strong>Token union lifecycle.</strong> Document how to deprecate tokens no longer used by any brand.</li>
+</ul>
+<p><strong>None of these are architectural blockers.</strong> Items 1-2 are documentation fixes. Items 3-4 are implementation refinements. Items 5-8 are future improvements.</p>
+<hr>
+  </div>
+</div>
+<div class="participant-block open">
+  <div class="participant-header" onclick="this.parentElement.classList.toggle('open')">
+    <span class="name">openai/gpt-5.4@openrouter</span>
+    <span>
+      <span class="chars">9,309 chars</span>
+      <span class="toggle">&#9654;</span>
+    </span>
+  </div>
+  <div class="participant-body">
+    <p>v3 adequately addresses the Round 1 blockers. I would approve the architecture now, with a short list of implementation-doc corrections before execution starts.</p>
+<h3>1. Are the 6 blocking fixes correctly implemented?</h3>
+<h4>1) cx-* token retention</h4>
+<p><strong>Yes, conceptually correct.</strong>  </p>
+<p>The design doc now clearly chooses the right approach: keep existing <code>cx-*</code> names, define the union as the contract, validate via CI. That is the pragmatic fix.</p>
+<p><strong>But there is still doc drift in the implementation plan.</strong> The implementation plan still says:</p>
+<ul>
+<li>“Tailwind v4 <code>@theme</code> CSS generated from TypeScript brand configs”</li>
+<li>root script <code>generate-tokens</code></li>
+<li><code>turbo.json</code> task <code>generate-tokens</code></li>
+<li>imports like <code>@luxurydomains/design-tokens/luxury-apartments.css</code></li>
+<li>Task 5.5 says to run <code>generate-tokens</code></li>
+</ul>
+<p>That conflicts with the design doc’s v3 decision: <strong>validation, not generation</strong>.  </p>
+<p>So the fix is correct architecturally, but the implementation plan is not fully cleaned up.</p>
+<h4>2) RLS via JWT claims</h4>
+<p><strong>Mostly correct, but one example is wrong and the claim lifecycle is still underspecified.</strong></p>
+<p>The architectural move is correct:</p>
+<ul>
+<li>no session variables</li>
+<li>no <code>SET</code></li>
+<li>app-layer filtering for service-role queries</li>
+<li>JWT claim-based RLS for authenticated requests</li>
+</ul>
+<p>That is the right PgBouncer-safe pattern.</p>
+<p>However, the design doc’s SQL example still uses:</p>
+<pre><code class="language-sql">
+current_setting(&#x27;request.jwt.claims&#x27;, true)::json-&gt;&gt;&#x27;domain&#x27;
+</code></pre>
+<p>Given the repo already uses <code>auth.jwt()</code> patterns in migrations, the example should be:</p>
+<pre><code class="language-sql">
+auth.jwt()-&gt;&#x27;app_metadata&#x27;-&gt;&gt;&#x27;domain&#x27;
+</code></pre>
+<p>This matters because people copy examples directly into migrations.</p>
+<p>Also still underspecified:</p>
+<ul>
+<li>where <code>app_metadata.domain</code> is minted</li>
+<li>whether it is single-domain or allowed-domains array</li>
+<li>how tokens refresh when a user moves between domains</li>
+<li>what happens with stale cross-domain sessions</li>
+</ul>
+<p>So the <strong>RLS strategy is fixed</strong>, but the <strong>auth claim lifecycle needs explicit design</strong>.</p>
+<h4>3) Empty default `domain_visibility`</h4>
+<p><strong>Yes, correct.</strong>  </p>
+<p>This is the right default and a real improvement over v2.</p>
+<p>But the implementation plan is missing the obvious backfill for existing LA content. If you add <code>DEFAULT ARRAY[]</code> to existing tables and then start filtering, old records disappear.</p>
+<p>You need explicit updates like:</p>
+<pre><code class="language-sql">
+UPDATE apartments SET domain_visibility = ARRAY[&#x27;luxuryapartments&#x27;] WHERE domain_visibility = &#x27;{}&#x27;;
+UPDATE buildings SET domain_visibility = ARRAY[&#x27;luxuryapartments&#x27;] WHERE domain_visibility = &#x27;{}&#x27;;
+UPDATE neighborhoods SET domain_visibility = ARRAY[&#x27;luxuryapartments&#x27;] WHERE domain_visibility = &#x27;{}&#x27;;
+UPDATE cities SET domain_visibility = ARRAY[&#x27;luxuryapartments&#x27;] WHERE domain_visibility = &#x27;{}&#x27;;
+</code></pre>
+<h4>4) Domain-scoped user feature tables</h4>
+<p><strong>Yes, correct and necessary.</strong>  </p>
+<p>No real issue here. This is the right fix.</p>
+<h4>5) Snapshot tests before UI extraction</h4>
+<p><strong>Yes, correct.</strong>  </p>
+<p>This is a strong process improvement and the right prerequisite for a low-test codebase.</p>
+<h4>6) Content similarity detection</h4>
+<p><strong>Good MVP fix, but not sufficient in raw form.</strong>  </p>
+<p>As a first guardrail, yes. As a mature final system, no. It needs tuning for factual real-estate pages.</p>
+<hr>
+<h3>2. Did we introduce new problems?</h3>
+<h4>A) Token union contract</h4>
+<p><strong>Minor long-term governance issue, not blocking.</strong>  </p>
+<p>A pure union grows over time and can become noisy. Fine for 4 brands, but eventually you want:</p>
+<ul>
+<li>required shared tokens</li>
+<li>optional extension tokens</li>
+<li>deprecated tokens</li>
+</ul>
+<h4>B) Empty default visibility</h4>
+<p><strong>Good tradeoff, but creates hidden-content failure risk.</strong>  </p>
+<p>This is better than accidental overpublishing, but now you need:</p>
+<ul>
+<li>admin UI requiring visibility assignment</li>
+<li>reporting for zero-visibility published records</li>
+<li>backfill for existing rows</li>
+</ul>
+<h4>C) `contentSource`</h4>
+<p><strong>Useful signal, but heuristic only.</strong>  </p>
+<p>No major new problem, just don’t treat it as proof of safety.</p>
+<h4>D) Design/implementation drift</h4>
+<p><strong>This is the biggest practical issue introduced in v3.</strong>  </p>
+<p>The design doc and implementation plan disagree on token generation vs token validation. That will waste real time if not fixed immediately.</p>
+<hr>
+<h3>3. E-E-A-T enforcement: is it sufficient?</h3>
+<p><strong>Structurally good, but not fully sufficient by itself.</strong></p>
+<p>Section 8 is a serious improvement. The architecture now does the right structural things:</p>
+<ul>
+<li>separate domains</li>
+<li>separate GSC/GA4</li>
+<li>transparent ownership</li>
+<li>per-domain editorial data</li>
+<li>content similarity checks</li>
+<li>required editorial brief</li>
+<li>launch sequencing</li>
+</ul>
+<p>That is strong.</p>
+<p>What’s still missing:</p>
+<h4>1) Author/entity operationalization</h4>
+<p>The plan mentions distinct author profiles, but does not specify:</p>
+<ul>
+<li>where author records live</li>
+<li>how author schema is rendered</li>
+<li>whether <code>reviewedBy</code> exists</li>
+<li>how the same human is differentiated across domains</li>
+</ul>
+<p>For a 4-site same-vertical portfolio, that matters.</p>
+<h4>2) Methodology / editorial policy surfaces</h4>
+<p>You probably want reusable templates for:</p>
+<ul>
+<li>editorial standards</li>
+<li>methodology</li>
+<li>correction policy</li>
+<li>about the team</li>
+<li>data sourcing pages</li>
+</ul>
+<h4>3) Post-launch monitoring</h4>
+<p>The plan is mostly build-time / launch-time. You also need periodic cross-domain audits after launch.</p>
+<h4>4) Shared-entity differentiation rubric</h4>
+<p>For the same city/building/neighborhood across multiple domains, editorial teams need a repeatable differentiation framework, not just “be different.”</p>
+<p>So: <strong>sufficient architecturally, not fully sufficient operationally</strong>. That’s acceptable, because some of this is inherently process-driven.</p>
+<hr>
+<h3>4. Is TF-IDF cosine sufficient?</h3>
+<p><strong>No, not by itself. Yes, as an MVP heuristic.</strong></p>
+<p>Real estate pages naturally share:</p>
+<ul>
+<li>address</li>
+<li>amenities</li>
+<li>pricing ranges</li>
+<li>transit references</li>
+<li>building facts</li>
+</ul>
+<p>Whole-page TF-IDF will create false positives.</p>
+<p>Minimum needed improvements:</p>
+<ul>
+<li>Exclude/downweight factual blocks:</li>
+<li>amenity lists</li>
+<li>stats tables</li>
+<li>address/meta blocks</li>
+<li>repeated CTAs</li>
+<li>nav/footer/legal</li>
+<li>Compare editorial regions where possible</li>
+<li>Use route-class-specific thresholds:</li>
+<li>blog/guides: stricter</li>
+<li>building/listing pages: more tolerant</li>
+<li>city/neighborhood pages: medium</li>
+<li>Align by entity, not just loose route pattern</li>
+</ul>
+<p>So the current approach is acceptable as a <strong>Phase 4 MVP</strong>, but should not remain naive if enforcement gets strict.</p>
+<hr>
+<h3>5. Is the plan now executable?</h3>
+<p><strong>Yes, with doc cleanup.</strong></p>
+<p>The sequencing is much better now:</p>
+<ul>
+<li>finish LA static migration first</li>
+<li>add snapshots before extraction</li>
+<li>freeze Lofts feature work during migration</li>
+<li>require content strategy before D3 indexed launch</li>
+</ul>
+<p>That makes the plan realistically executable for a small team.</p>
+<p>Main execution risks:</p>
+<ul>
+<li><strong>Task 0.0 is overstated</strong> — some <code>@/data/</code> imports are types or constants, not real data migrations</li>
+<li><strong>Token drift in docs</strong> — team may build the wrong system</li>
+<li><strong>Phase 0 is still large</strong> — Lofts migration is substantial before monorepo payoff appears</li>
+<li><strong>Tooling could expand</strong> — manifest validator + similarity detector + brand validator should stay MVP-sized</li>
+</ul>
+<p>Still, overall: yes, executable.</p>
+<hr>
+<h3>6. Updated score</h3>
+<p><strong>8.6/10</strong></p>
+<p>Up materially from 7–7.5/10.</p>
+<p>Why:</p>
+<ul>
+<li>the six blockers are no longer blockers</li>
+<li>the biggest technical risks were actually fixed</li>
+<li>migration safety and SEO risk handling are much better</li>
+</ul>
+<p>Why not 9+:</p>
+<ul>
+<li>token plan drift remains</li>
+<li>JWT claim lifecycle is underspecified</li>
+<li>backfill step is missing</li>
+<li>content similarity is still too blunt as written</li>
+<li>E-E-A-T operationalization still depends heavily on process</li>
+</ul>
+<hr>
+<h3>7. What’s left? Ranked by severity</h3>
+<h4>High — fix before implementation starts</h4>
+<ul>
+<li><strong>Resolve token-system drift</strong></li>
+</ul>
+<p>   Remove <code>generate-tokens</code> and generated CSS references from the implementation plan if v3 is truly validation-only.</p>
+<ul>
+<li><strong>Specify JWT claim lifecycle</strong></li>
+</ul>
+<p>   Define claim shape, issuance, refresh, and cross-domain session behavior.</p>
+<ul>
+<li><strong>Fix RLS SQL example</strong></li>
+</ul>
+<p>   Use <code>auth.jwt()-&gt;&#x27;app_metadata&#x27;-&gt;&gt;&#x27;domain&#x27;</code> instead of <code>current_setting(...)</code>.</p>
+<h4>Medium — fix before Phase 1.5 / enforcement</h4>
+<ul>
+<li><strong>Add <code>domain_visibility</code> backfill</strong></li>
+</ul>
+<p>   Existing LA rows need explicit assignment.</p>
+<ul>
+<li><strong>Refine content similarity detection</strong></li>
+</ul>
+<p>   Strip factual sections / use route-specific thresholds.</p>
+<ul>
+<li><strong>Clarify Task 0.0 scope</strong></li>
+</ul>
+<p>   Separate true data migrations from type extraction / constants / dead imports.</p>
+<ul>
+<li><strong>Add orphaned-content reporting</strong></li>
+</ul>
+<p>   Empty visibility requires operational detection.</p>
+<h4>Low — later improvements</h4>
+<ul>
+<li><strong>Token lifecycle rules</strong></li>
+</ul>
+<p>   Required / optional / deprecated tiers.</p>
+<ul>
+<li><strong>Formalize author/editor entities and methodology pages</strong></li>
+</ul>
+<ul>
+<li><strong>Add post-launch cross-domain similarity monitoring</strong></li>
+</ul>
+<ul>
+<li><strong>Supplement snapshots later with visual/behavioral tests</strong></li>
+</ul>
+<h3>Bottom line</h3>
+<p><strong>Yes, v3 adequately addresses the Round 1 feedback.</strong>  </p>
+<p>The core architectural blockers are resolved. What remains is mostly:</p>
+<ul>
+<li>implementation-plan cleanup</li>
+<li>auth lifecycle specification</li>
+<li>a few operational safeguards</li>
+</ul>
+<p>So my judgment is: <strong>approve with minor fixes before implementation begins</strong>.</p>
+  </div>
+</div>
+<div class="participant-block open">
+  <div class="participant-header" onclick="this.parentElement.classList.toggle('open')">
+    <span class="name">google/gemini-3.1-pro-preview@openrouter</span>
+    <span>
+      <span class="chars">6,366 chars</span>
+      <span class="toggle">&#9654;</span>
+    </span>
+  </div>
+  <div class="participant-body">
+    <p>This v3 iteration constitutes a massive upgrade. The architecture has moved from &quot;computationally naive and structurally risky&quot; (v2) to a mature, defensively engineered, production-ready framework. You have successfully abandoned the aesthetic distractions (token renaming) and addressed the true platform risks.</p>
+<p>However, as the other AI reviewers have highlighted, while the <em>design</em> is now structurally sound, the <em>implementation plan docs</em> have drifted and missed a few crucial operational realities. </p>
+<p>Here is my direct analysis of the 7 questions:</p>
+<h4>1. Are the 6 blocking fixes correctly implemented?</h4>
+<p><strong>Yes, mostly, but with an SQL syntax inconsistency and lifecycle gap.</strong></p>
+<ul>
+<li>  <strong>cx-* token retention:</strong> <strong>Correct.</strong> Halting the renaming of 5,891 occurrences avoids monumental merge conflicts. The "union contract" validated via CI is pragmatic.</li>
+<li>  <strong>RLS via JWT claims:</strong> <strong>Correct strategy, flawed snippet.</strong> Avoiding PgBouncer transaction-mode leakage is critical, but your SQL snippet in Section 3 still references <code>current_setting('request.jwt.claims', true)</code>. While PostgREST does seed this, Supabase provides the <code>auth.jwt()</code> function expressly to avoid session-variable leakage cleanly. Change the snippet to <code>auth.jwt()->'app_metadata'->>'domain'</code>. Additionally, you lack a definition of the <strong>JWT claim lifecycle</strong> (e.g., does an auth hook or trigger stamp <code>app_metadata.domain</code> upon sign-in?).</li>
+<li>  <strong>Empty default <code>domain_visibility</code>:</strong> <strong>Correct.</strong> <code>DEFAULT ARRAY[]</code> prevents accidental doorway-page sprawl.</li>
+<li>  <strong>Domain-scoped user features:</strong> <strong>Correct.</strong></li>
+<li>  <strong>Snapshot tests:</strong> <strong>Correct and highly necessary.</strong> Shifting UI extraction from an untestable guess to a deterministic refactor.</li>
+<li>  <strong>Content similarity:</strong> <strong>Good initiative, but flawed mathematically</strong> (see #4).</li>
+</ul>
+<h4>2. Did we introduce new problems?</h4>
+<p><strong>Yes. We introduced a documentation clash and a blank-slate data bug.</strong></p>
+<ul>
+<li>  <strong>Implementation Doc Drift:</strong> Design doc Section 5 clearly says "Validation (CI, not generation)" and ditches the v2 TS-to-CSS pipeline. Yet, the Implementation Plan (<code>turbo.json</code>, <code>package.json</code>, and Task 5.5) remains full of <code>generate-tokens</code> tasks and depends on outputting generated CSS. This will cause an engineer to immediately build the very thing you told them not to build.</li>
+<li>  <strong>The "Invisible Data" Bug:</strong> In Task 1.5, Step 6, you add <code>domain_visibility text[] DEFAULT ARRAY[]</code>. Because existing database rows (all ~7,000 LA listings) will be assigned an empty array, turning on the domain filter will result in an empty LA website. You <strong>must</strong> include an <code>UPDATE</code> backfill query to set existing data to <code>ARRAY['luxuryapartments']</code>.</li>
+</ul>
+<h4>3. E-E-A-T enforcement: is it sufficient?</h4>
+<p><strong>Structurally sound, but entity disambiguation is missing.</strong></p>
+<p>Section 8 properly acknowledges that code can&#x27;t write authoritative content. Requiring an Editorial Brief (Task 5.2) before launch is the perfect gate. </p>
+<p><em>Missing link:</em> <strong>Authorship Entities.</strong> If identical Schema.org profiles (same author, same bio, same image) publish across four domains, Google will fold the domains into a single topical entity. E-E-A-T rules for multi-domain outposts MUST include author name differentiation or role isolation (e.g., Jane Doe is &quot;Senior Analyst&quot; on Lofts, &quot;Lead Concierge&quot; on LA). </p>
+<h4>4. Content similarity detection: is TF-IDF cosine sufficient?</h4>
+<p><strong>No. It will blanket-fail real estate listings.</strong></p>
+<p>The identical building at &quot;100 Congress St.&quot; will share the same address, square footages, geographical coordinates, unit counts, and 30+ identical amenity substrings (&quot;Stainless steel appliances&quot;, &quot;24/7 Concierge&quot;). A native TF-IDF string comparison of the raw DOM will inherently hit 70-80% similarity based strictly on formatting and factual nouns, generating hundreds of false alarms.</p>
+<p><em>Solution:</em> Task 4.6 must be modified to use DOM scraping that explicitly excludes <code>&lt;footer&gt;</code>, <code>&lt;nav&gt;</code>, <code>&lt;ul class=&quot;amenities&quot;&gt;</code>, and <code>&lt;table class=&quot;pricing&quot;&gt;</code> nodes. You must only run TF-IDF on <code>&lt;article&gt;</code>, <code>&lt;div class=&quot;editorial-description&quot;&gt;</code>, and review properties. </p>
+<h4>5. Is the plan now executable?</h4>
+<p><strong>Yes, highly executable.</strong> </p>
+<p>The staging is realistic. Forcing Task 0.0 (the static data LA migration) and enforcing a feature freeze on Lofts protects the team from entering the monorepo dragging technical debt. Splitting the UI extraction into 4 logical snapshot-gated waves is easily workable by a solo senior engineer.</p>
+<h4>6. What&#x27;s the updated score?</h4>
+<p><strong>8.8/10 (up from 7/10).</strong></p>
+<p>The original v2 plan was risky and fundamentally misunderstood Next.js and Supabase guardrails. v3 successfully remedies all 6 blockers and provides a highly modular, professional-grade Turborepo blueprint. The point offsets are entirely due to the implementation doc drift and the missing data backfill.</p>
+<h4>7. What&#x27;s left? (Remaining Issues Ranked by Severity)</h4>
+<p>These are not structural redesigns. They are literal find-and-replace text edits before you hand this to the engineering team.</p>
+<p><strong>High Severity (Fix before Day 1 execution):</strong></p>
+<ul>
+<li><strong>Purge <code>generate-tokens</code>:</strong> Remove all traces of it from <code>package.json</code>, <code>turbo.json</code>, and Task 5.5 in the Implementation Plan. Replace with <code>validate-tokens</code>.</li>
+<li><strong>Add Data Backfill:</strong> Add <code>UPDATE apartments SET domain_visibility = ARRAY['luxuryapartments'] WHERE domain_visibility = '{}';</code> to Task 1.5, Step 6. (Repeat for buildings, neighborhoods, etc.)</li>
+</ul>
+<p><strong>Medium Severity (Fix before Phase 3 / Phase 4):</strong></p>
+<ul>
+<li><strong>Correct the SQL Snapshot:</strong> Change the RLS doc example in Section 3 to rely exclusively on <code>auth.jwt()->'app_metadata'->>'domain'</code>.</li>
+<li><strong>Define JWT Auth Minting:</strong> Write one sentence detailing how/when the user's domain is actually stamped into their JWT <code>app_metadata</code> (e.g., via a Supabase Auth Hook upon login).</li>
+<li><strong>Refine TF-IDF Node Selector:</strong> Update Task 4.6 to specify stripping structured data nodes prior to textual similarity checks.</li>
+</ul>
+<p>You have a winning architecture. Make these 5 quick documentation updates and approve the plan for immediate rollout.</p>
+<p><em>*</em></p>
+  </div>
+</div>
+<div class="participant-block open">
+  <div class="participant-header" onclick="this.parentElement.classList.toggle('open')">
+    <span class="name">x-ai/grok-4.20-beta@openrouter</span>
+    <span>
+      <span class="chars">8,073 chars</span>
+      <span class="toggle">&#9654;</span>
+    </span>
+  </div>
+  <div class="participant-body">
+    <p><strong>VOTE:</strong> {&quot;option&quot;: &quot;Approve with minor fixes&quot;, &quot;confidence&quot;: 0.89, &quot;rationale&quot;: &quot;All 6 Round 1 blockers substantively resolved with pragmatic, production-aware solutions. Architecture is now sound and executable. Remaining gaps are limited to plan consistency, operational backfills, and content-similarity tuning—none are architectural blockers. Score: 8.7/10.&quot;}</p>
+<hr>
+<h4>1. Are the 6 blocking fixes correctly implemented?</h4>
+<p><strong>Yes, all six are correctly addressed in principle.</strong></p>
+<ul>
+<li><strong>cx-<em> token retention + union contract via CI validation</strong>: Correct reversal. Keeping the existing <code>cx-</em></code> names and validating completeness via a script that reads each app’s <code>globals.css</code> <code>@theme</code> block is the right pragmatic choice. It avoids touching 5,891 references. The validator in <code>packages/tooling/brand-validator/validate-tokens.ts</code> and the <code>REQUIRED_TOKENS</code> list give the same safety guarantee as generation without the complexity.</li>
+</ul>
+<ul>
+<li><strong>RLS via JWT claims instead of session variables</strong>: Conceptually correct and the most important fix. The two-layer approach (application-layer <code>.contains('domain_visibility', [domain])</code> for service-role/ISR + JWT <code>app_metadata.domain</code> for authenticated RLS) properly respects PgBouncer transaction-mode pooling. The design doc correctly calls out why <code>current_setting()</code> leaks. However, the SQL example in Section 3 still shows the <code>current_setting</code> fallback pattern the document itself warns against. It should be cleaned to use only <code>auth.jwt()->'app_metadata'->>'domain'</code> to match the existing codebase (13 uses of <code>auth.jwt()</code> in migrations). This is documentation hygiene, not a functional flaw.</li>
+</ul>
+<ul>
+<li><strong>Empty default <code>domain_visibility = ARRAY[]</code></strong>: Correct and strong improvement. Opt-in forces conscious curation and prevents the “everything everywhere” doorway-page risk that v2 created.</li>
+</ul>
+<ul>
+<li><strong>Domain-scoped user feature tables</strong>: Correct and necessary. Adding the <code>domain</code> column to favorites, compare, etc., and baking scoping into <code>createDomainClient</code> prevents cross-brand leakage of user data.</li>
+</ul>
+<ul>
+<li><strong>Snapshot tests before UI extraction</strong>: Excellent addition. Making Task 1.8 a hard prerequisite before the 4-wave extraction turns the highest-risk phase from dangerous to mechanical. This was one of v3’s best improvements.</li>
+</ul>
+<ul>
+<li><strong>Post-build content similarity detection</strong>: Good complement to the structural validator. TF-IDF cosine on extracted text from sampled indexed routes catches what the manifest misses.</li>
+</ul>
+<p>All original blockers have been resolved in the right direction.</p>
+<h4>2. Did we introduce new problems?</h4>
+<p>Mostly minor and manageable:</p>
+<ul>
+<li><strong>cx-* union bloat</strong>: Real but acceptable at 4 brands. The contract will grow, but CSS variables are cheap. A “token deprecation” note should be added later.</li>
+</ul>
+<ul>
+<li><strong>Empty default visibility</strong>: Creates a “content disappears” failure mode for new or migrated records. The plan is missing the one-time backfill step for existing ~7,000 LA rows. This belongs in Task 1.5 Step 6 (<code>UPDATE ... SET domain_visibility = ARRAY['luxuryapartments'] WHERE domain_visibility = '{}';</code>). Operational, not architectural.</li>
+</ul>
+<ul>
+<li><strong>contentSource field</strong>: Useful heuristic for the validator. The risk of false confidence is acknowledged in the design doc.</li>
+</ul>
+<ul>
+<li><strong>Design/implementation plan drift (most serious new issue)</strong>: The design doc correctly moved to <em>validation only</em> (no generation pipeline). But the implementation plan (Task 1.1, turbo.json, root package.json, Task 5.5) still contains <code>generate-tokens</code>, <code>"dependsOn": ["generate-tokens"]</code>, and references to generated CSS. This is the exact inconsistency multiple reviewers flagged. It must be cleaned before implementation or engineers will build the wrong thing.</li>
+</ul>
+<p>No fatal new architectural problems.</p>
+<h4>3. E-E-A-T enforcement: is it sufficient?</h4>
+<p><strong>Structurally strong; process-dependent in the right way.</strong></p>
+<p>Section 8 is a mature addition. Separate GSC/GA4, transparent portfolio footer, per-domain editorial tables, content similarity CI, and the mandatory editorial brief (Task 5.2) close the biggest structural loopholes.</p>
+<p><strong>Remaining gaps (non-blocking):</strong></p>
+<ul>
+<li>Post-launch drift monitoring (extend content health cron with cross-domain similarity checks).</li>
+<li>Stronger author entity disambiguation (distinct names, bios, and Schema.org <code>Person</code> entities if the same human writes across brands).</li>
+<li>Explicit methodology/correction-policy pages as Tier-1 or semi-shared templates.</li>
+</ul>
+<p>These are editorial/operational, not code problems. The architecture now does what it reasonably can.</p>
+<h4>4. Content similarity detection: is TF-IDF cosine sufficient?</h4>
+<p><strong>Adequate as a first-pass CI gate, but noisy for real estate.</strong></p>
+<p>Factual overlap (addresses, amenity lists, unit counts, neighborhood names) will generate many false positives on shared building/city pages. The plan’s mitigations (&gt;60% = warning, manifest <code>contentSource</code> checks, human <code>override: true</code>) make it workable.</p>
+<p><strong>Recommended refinement (non-blocking):</strong> Add support for excluding factual blocks (amenity lists, hero stats, JSON-LD, tables) or per-route-class thresholds. This can be added in Phase 4 without changing the architecture. TF-IDF is good enough to ship; we can iterate once we have real cross-domain content.</p>
+<h4>5. Is the plan now executable?</h4>
+<p><strong>Yes — significantly more executable than v2.</strong></p>
+<p>The new prerequisites and gates show real maturity:</p>
+<ul>
+<li>Task 0.0 (LA static data migration) removes a major source of future pain.</li>
+<li>Task 1.8 (snapshots) protects the risky UI extraction phase.</li>
+<li>Feature freeze between Phase 0 and Phase 3 prevents doubled work.</li>
+<li>Explicit “all apps must build” CI gate and wave-based extraction with build gates between them.</li>
+</ul>
+<p>A small team following “extract first, refactor later” and the mechanical-diff rules should not get stuck. The main remaining risks are plan consistency (token drift) and operational gaps (backfill, Task 0.0 scoping). These are fixable before execution starts.</p>
+<h4>6. Updated score</h4>
+<p><strong>Round 1: 7–7.5/10 with 6 blockers.</strong>  </p>
+<p><strong>v3: 8.7/10.</strong></p>
+<p>The increase reflects that all six blockers were substantively addressed and the new sections (E-E-A-T, content similarity, snapshot gating, editorial brief) demonstrate architectural maturity.</p>
+<p>Deductions are for:</p>
+<ul>
+<li>Token system plan/design doc drift (-0.4)</li>
+<li>Missing <code>domain_visibility</code> backfill step (-0.3)</li>
+<li>RLS SQL example still using <code>current_setting</code> (-0.2)</li>
+<li>TF-IDF false-positive risk on factual pages (-0.2)</li>
+<li>Minor gaps in author entity modeling and post-launch monitoring (-0.2)</li>
+</ul>
+<h4>7. What’s left? (Ranked by severity)</h4>
+<p><strong>High severity — fix before implementation starts (30-60 minutes of work):</strong></p>
+<ul>
+<li><strong>Resolve token-system drift</strong>: Remove all <code>generate-tokens</code> references from the implementation plan, <code>turbo.json</code>, root <code>package.json</code>, and Task 5.5. Align everything to the design doc’s validation-only approach.</li>
+<li><strong>Fix RLS SQL example</strong>: Update Section 3 to use only <code>auth.jwt()->'app_metadata'->>'domain'</code> to match existing codebase patterns.</li>
+<li><strong>Add domain_visibility backfill</strong>: Include the <code>UPDATE ... SET domain_visibility = ARRAY['luxuryapartments']</code> statements in Task 1.5 Step 6.</li>
+</ul>
+<p><strong>Medium severity — fix before Phase 4:</strong></p>
+<ul>
+<li><strong>Refine Task 0.0 scope</strong>: The ~48 imports include type-only imports, static fallbacks, and admin code. Categorize them so work estimates are realistic.</li>
+<li><strong>Tune content similarity</strong>: Add structured-data exclusion or route-class thresholds to reduce noise on factual real-estate pages.</li>
+</ul>
+<p><strong>Low severity — nice-to-have:</strong></p>
+<ul>
+<li>Document token deprecation process for the growing union.</li>
+<li>Add post-launch E-E-A-T monitoring to the content health cron.</li>
+<li>Strengthen author entity disambiguation guidance in Task 5.2’s editorial brief template.</li>
+</ul>
+<p><strong>None of these are architectural blockers.</strong> Items 1–3 are plan-consistency and operational fixes. The core v3 architecture is sound.</p>
+<p><strong>Conclusion:</strong> v3 adequately addresses all Round 1 feedback. The remaining issues are implementation refinements, not signs the design is unsound. Approve with the three high-severity plan-cleanup items fixed first. The team can now proceed.</p>
+  </div>
+</div>
+</div>
+
+<hr>
+<div class="meta">
+  Generated by <strong>ai-counsel</strong> &middot;
+  Participants: opus@claude, openai/gpt-5.4@openrouter, google/gemini-3.1-pro-preview@openrouter, x-ai/grok-4.20-beta@openrouter
+</div>
+</body>
+</html>

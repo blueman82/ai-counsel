@@ -1,0 +1,75 @@
+{
+  "status": "complete",
+  "mode": "quick",
+  "rounds_completed": 1,
+  "participants": [
+    "google/gemma-3-27b-it:free@openrouter",
+    "mistralai/mistral-small-3.1-24b-instruct:free@openrouter"
+  ],
+  "summary": {
+    "consensus": "No clear consensus reached \u2014 both participants failed with 429 rate limit errors and provided no substantive responses.",
+    "key_agreements": [
+      "None (no responses were generated)"
+    ],
+    "key_disagreements": [
+      "None (no responses were generated)"
+    ],
+    "final_recommendation": "The deliberation produced no usable output due to OpenRouter rate limiting on both models. Retry with rate limit backoff, use different models, or switch to a non-rate-limited endpoint to get an actual answer on Turborepo suitability."
+  },
+  "transcript_path": "c:\\Dev\\ai-counsel\\transcripts\\20260315_113345_turborepo-right-choice-4domain-real.md",
+  "full_debate": [
+    {
+      "round": 1,
+      "participant": "google/gemma-3-27b-it:free@openrouter",
+      "response": "[ERROR: HTTPStatusError: Client error '429 Too Many Requests' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/429]",
+      "timestamp": "2026-03-15T11:33:33.199680"
+    },
+    {
+      "round": 1,
+      "participant": "mistralai/mistral-small-3.1-24b-instruct:free@openrouter",
+      "response": "[ERROR: HTTPStatusError: Client error '429 Too Many Requests' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/429]",
+      "timestamp": "2026-03-15T11:33:33.199790"
+    }
+  ],
+  "convergence_info": {
+    "detected": true,
+    "detection_round": 1,
+    "final_similarity": 0.0,
+    "status": "unanimous_consensus",
+    "scores_by_round": [],
+    "per_participant_similarity": {}
+  },
+  "voting_result": {
+    "final_tally": {
+      "ABSTAIN": 2
+    },
+    "votes_by_round": [
+      {
+        "round": 1,
+        "participant": "google/gemma-3-27b-it:free@openrouter",
+        "vote": {
+          "option": "ABSTAIN",
+          "confidence": 0.0,
+          "rationale": "[Auto-generated] Response was too short to include a vote",
+          "continue_debate": true
+        },
+        "timestamp": "2026-03-15T11:33:33.199680"
+      },
+      {
+        "round": 1,
+        "participant": "mistralai/mistral-small-3.1-24b-instruct:free@openrouter",
+        "vote": {
+          "option": "ABSTAIN",
+          "confidence": 0.0,
+          "rationale": "[Auto-generated] Response was too short to include a vote",
+          "continue_debate": true
+        },
+        "timestamp": "2026-03-15T11:33:33.199790"
+      }
+    ],
+    "consensus_reached": true,
+    "winning_option": "ABSTAIN"
+  },
+  "graph_context_summary": null,
+  "tool_executions": []
+}

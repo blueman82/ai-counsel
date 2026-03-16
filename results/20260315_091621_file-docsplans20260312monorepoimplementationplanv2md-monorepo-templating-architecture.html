@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI Council Deliberation — Architecture Review</title>
+<style>
+  :root {
+    --bg: #0f172a;
+    --surface: #1e293b;
+    --surface-elevated: #334155;
+    --border: #475569;
+    --text: #e2e8f0;
+    --text-muted: #94a3b8;
+    --accent: #3b82f6;
+    --green: #22c55e;
+    --yellow: #eab308;
+    --red: #ef4444;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    padding: 2rem;
+    max-width: 1100px;
+    margin: 0 auto;
+  }
+  h1 { font-size: 1.75rem; margin-bottom: 0.5rem; }
+  h2 { font-size: 1.35rem; margin: 1.5rem 0 0.75rem; color: var(--accent); }
+  h3 { font-size: 1.15rem; margin: 1.25rem 0 0.5rem; }
+  h4 { font-size: 1rem; margin: 1rem 0 0.5rem; color: var(--text-muted); }
+  p { margin: 0.5rem 0; }
+  hr { border: none; border-top: 1px solid var(--border); margin: 1.5rem 0; }
+  ul { margin: 0.5rem 0 0.5rem 1.5rem; }
+  li { margin: 0.25rem 0; }
+  code {
+    background: var(--surface-elevated);
+    padding: 0.15rem 0.4rem;
+    border-radius: 3px;
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+    font-size: 0.85em;
+  }
+  pre {
+    background: var(--surface-elevated);
+    padding: 1rem;
+    border-radius: 6px;
+    overflow-x: auto;
+    margin: 0.75rem 0;
+  }
+  pre code { background: none; padding: 0; }
+  strong { color: #f1f5f9; }
+
+  .meta { color: var(--text-muted); font-size: 0.85rem; margin-bottom: 1.5rem; }
+  .summary-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1.25rem 1.5rem;
+    margin: 1rem 0;
+  }
+  .summary-box h2 { margin-top: 0; }
+  .vote-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 0.75rem;
+    margin: 1rem 0;
+  }
+  .vote-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 0.75rem 1rem;
+    border-left: 4px solid var(--accent);
+  }
+  .vote-card .participant { font-weight: 600; font-size: 0.9rem; }
+  .vote-card .option { font-size: 0.85rem; margin-top: 0.25rem; }
+  .vote-card .confidence { font-size: 0.8rem; color: var(--text-muted); }
+  .vote-card .rationale { font-size: 0.8rem; color: var(--text-muted); margin-top: 0.25rem; font-style: italic; }
+
+  .round-section {
+    margin: 1.5rem 0;
+  }
+  .participant-block {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    margin: 0.75rem 0;
+    overflow: hidden;
+  }
+  .participant-header {
+    background: var(--surface-elevated);
+    padding: 0.6rem 1rem;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    user-select: none;
+  }
+  .participant-header:hover { background: #3b4f6b; }
+  .participant-header .name { font-weight: 600; }
+  .participant-header .chars { font-size: 0.8rem; color: var(--text-muted); }
+  .participant-header .toggle { font-size: 0.8rem; color: var(--text-muted); }
+  .participant-body {
+    padding: 1rem 1.25rem;
+    display: none;
+  }
+  .participant-block.open .participant-body { display: block; }
+  .participant-block.open .toggle { transform: rotate(90deg); }
+
+  .convergence {
+    display: inline-block;
+    background: var(--surface-elevated);
+    padding: 0.25rem 0.6rem;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+  }
+  .tag {
+    display: inline-block;
+    padding: 0.15rem 0.5rem;
+    border-radius: 3px;
+    font-size: 0.75rem;
+    font-weight: 600;
+  }
+</style>
+</head>
+<body>
+<h1>AI Council Deliberation</h1>
+<div class="meta">
+  2026-03-15 09:16 &middot;
+  Mode: conference &middot;
+  Rounds: 3 &middot;
+  <span class="convergence">majority_decision</span>
+</div>
+
+<div class="summary-box">
+<h2>Consensus</h2>
+<p>Only one participant (opus@claude) provided substantive analysis due to errors from the other two models. No multi-model consensus was reached, but the single valid response was internally consistent.</p>
+<h3>Key Agreements</h3><ul>
+<li>Turborepo + separate apps + shared packages is the correct architecture for a 4-domain luxury real estate portfolio; no fundamental alternative was suggested</li>
+<li>Phase 0 (launch Lofts standalone) before monorepo is the right sequencing, but Phase 1 should NOT start in parallel — wait until Phase 0.1B data parity is verified</li>
+<li>The 3-tier composition manifest + build-time validator is justified for SEO protection; doorway page risk is real and structural enforcement is necessary</li>
+<li>Barrel file re-export pattern will work with Turbopack/RSC, but requires ESLint rules at the package level and barrel files must never carry `&quot;use client&quot;`</li>
+<li>`createDomainClient` factory pattern is correct; raw Supabase queries scattered through app code would be a guaranteed bug source</li>
+</ul>
+<h3>Key Disagreements</h3><ul>
+<li>None (single respondent)</li>
+</ul>
+<h3>Final Recommendation</h3>
+<p>Approve the architecture with five conditions: (1) add basic test coverage to LA before Phase 2 component extraction, (2) add visual regression testing (screenshot diffs) to each Phase 2 wave, (3) specify `domain_visibility` defaults per table type (all-domain for listings, inserting-domain for neighborhoods/cities), (4) add content similarity checking to the Phase 4 manifest validator, and (5) define a staggered deployment strategy where LA deploys first as a canary before other apps follow. The core design is sound; the gaps are operational safety nets, not architectural mistakes. Overall readiness: 7.5/10 architecture, 6/10 execution.</p>
+</div>
+<h2>Votes</h2>
+<div class="vote-grid">
+<div class="vote-card" style="border-left-color: #22c55e">
+  <div class="participant">opus@claude</div>
+  <div class="option" style="color: #22c55e">Approve with conditions</div>
+  <div class="confidence">Confidence: 82%</div>
+  <div class="rationale">Architecture is sound — right decisions on Turborepo, separate apps, shared packages, composition manifest, barrel files. Approve on condition that: (1) LA gets basic test coverage before Phase 2 extr</div>
+</div>
+</div>
+<div class="round-section">
+<h2>Round 1</h2>
+<div class="participant-block">
+  <div class="participant-header" onclick="this.parentElement.classList.toggle('open')">
+    <span class="name">opus@claude</span>
+    <span>
+      <span class="chars">58 chars</span>
+      <span class="toggle">&#9654;</span>
+    </span>
+  </div>
+  <div class="participant-body">
+    <p style="color: var(--red)">[ERROR: TimeoutError: CLI invocation timed out after 300s]</p>
+  </div>
+</div>
+<div class="participant-block">
+  <div class="participant-header" onclick="this.parentElement.classList.toggle('open')">
+    <span class="name">gpt-5.3-codex@codex</span>
+    <span>
+      <span class="chars">82 chars</span>
+      <span class="toggle">&#9654;</span>
+    </span>
+  </div>
+  <div class="participant-body">
+    <p style="color: var(--red)">[ERROR: FileNotFoundError: [WinError 2] The system cannot find the file specified]</p>
+  </div>
+</div>
+<div class="participant-block">
+  <div class="participant-header" onclick="this.parentElement.classList.toggle('open')">
+    <span class="name">gemini-2.5-pro@gemini</span>
+    <span>
+      <span class="chars">82 chars</span>
+      <span class="toggle">&#9654;</span>
+    </span>
+  </div>
+  <div class="participant-body">
+    <p style="color: var(--red)">[ERROR: FileNotFoundError: [WinError 2] The system cannot find the file specified]</p>
+  </div>
+</div>
+</div>
+<div class="round-section">
+<h2>Round 2</h2>
+<div class="participant-block">
+  <div class="participant-header" onclick="this.parentElement.classList.toggle('open')">
+    <span class="name">opus@claude</span>
+    <span>
+      <span class="chars">17,290 chars</span>
+      <span class="toggle">&#9654;</span>
+    </span>
+  </div>
+  <div class="participant-body">
+    <p>Now I have a solid evidence base. Here&#x27;s my full analysis:</p>
+<hr>
+<h2>Monorepo Architecture Review — Brutally Honest Assessment</h2>
+<h3>1. ARCHITECTURE VALIDATION</h3>
+<p><strong>Verdict: Right call, with caveats.</strong></p>
+<p>Turborepo + separate apps + shared packages is the correct architecture for this scenario. The evidence confirms it:</p>
+<ul>
+<li>LA has 137 top-level components, Lofts has 135. The diff shows only ~15 components differ between them. That's ~89% identical at the component level.</li>
+<li>Both repos maintain parallel copies of <code>email.ts</code>, <code>rate-limit.ts</code>, <code>auth-client.ts</code>, <code>analytics.ts</code>, <code>seo.ts</code> — textbook extraction candidates.</li>
+<li>Both already use Tailwind v4 with identical <code>@theme inline</code> blocks, just different color values. The token generation approach is natural.</li>
+</ul>
+<p><strong>What I&#x27;d do differently:</strong> Nothing fundamental. The hybrid Turborepo approach (not multi-tenant, not npm packages) is correct for this exact situation. Multi-tenant single-app would be a nightmare for SEO isolation. Published npm packages would add version management overhead for a team of ~1-2 people.</p>
+<p><strong>One concern:</strong> The plan says &quot;packages consumed as source&quot; (no <code>dist/</code> build step, Turbopack compiles). This is elegant for DX but creates a hard coupling to Turbopack. If you ever need to use a package outside Next.js (a CLI tool, an Edge Function, a test runner without Turbopack), you&#x27;ll need to retrofit a build step. For now this is fine — just be aware of the ceiling.</p>
+<h3>2. SEO AND E-E-A-T ASSESSMENT</h3>
+<p><strong>Verdict: Strong, but with one structural gap.</strong></p>
+<p>The 3-tier composition system is well-designed. The build-time validator that fails on identical <code>layout + sections</code> for indexed routes is the right guardrail. The per-domain Analytics/GSC/PostHog/Sentry split is correct (CoStar model).</p>
+<p><strong>Remaining risks:</strong></p>
+<ul>
+<li><strong><code>domain_visibility</code> is opt-out, not opt-in.</strong> The default is <code>ARRAY['luxuryapartments','lofts','d3','d4']</code> — meaning every listing appears on every domain by default. This is correct for coverage but means two domains could serve near-identical search/city/neighborhood pages with 95% overlapping listings. The composition manifest catches layout differences but NOT data overlap. If LA's <code>/cities/boston</code> and Lofts' <code>/cities/boston</code> both serve the same 200 apartments with only different CSS, Google sees them as thin doorway variants. <strong>Mitigation needed:</strong> Each domain should have meaningfully different listing curation, not just different paint. The plan doesn't address content differentiation at the data layer.</li>
+</ul>
+<ul>
+<li><strong>Per-domain blog tables are correct</strong> (<code>la_blog_posts</code>, <code>ll_blog_posts</code>). But the plan doesn't prevent copy-paste of actual blog content between domains. See question 9.</li>
+</ul>
+<ul>
+<li><strong>Tier 2 "configurable" pages are the highest risk surface.</strong> The validator checks <code>layout + sections</code> identity, but two domains could have different section <em>names</em> mapping to identical <em>content</em>. E.g., <code>sections: ['hero', 'stats', 'neighborhoods']</code> vs <code>sections: ['hero-banner', 'market-data', 'areas']</code> — different labels, identical output.</li>
+</ul>
+<p><strong>What&#x27;s adequate:</strong> Separate GSC properties, separate GA4, footer cross-links (transparent portfolio), <code>isProductionDomain</code> per app, separate Vercel projects. The robots/sitemap/noindex layer is already battle-tested on LA.</p>
+<h3>3. TOP 3 RISKS</h3>
+<h4>Risk 1: Phase 2 UI extraction breaks things silently</h4>
+<p>Moving 60+ components across 4 waves, with import path rewrites across 900+ files, is the highest-risk operation in the entire plan. The &quot;build gate&quot; (does it compile?) catches type errors but NOT visual regressions. You have zero tests on LA and 209 on Lofts. A component that renders differently after extraction — wrong CSS var resolution, missing Tailwind <code>@source</code> path, broken relative import — won&#x27;t be caught by the build.</p>
+<p><strong>Missing mitigation:</strong> Visual regression testing. The plan mentions &quot;future: Chromatic or Percy&quot; in Phase 4 — but Phase 2 is where you need it. At minimum, screenshot 20 critical pages before and after each wave and diff them.</p>
+<h4>Risk 2: Lofts data migration (Phase 0) is higher-effort than scoped</h4>
+<p>Lofts has 185,000 lines of static JSON data that needs to migrate to Supabase. The plan says &quot;write a seed script using idempotent upserts&quot; — but Lofts&#x27; current <code>apartments-server.ts</code> is a hybrid static+MLS layer with a 60-line <code>transformRow</code> function mapping between different schemas. The static data shape and Supabase schema may not be 1:1. This is a data mapping exercise, not just a bulk insert.</p>
+<p><strong>Missing mitigation:</strong> A schema comparison step between Lofts&#x27; static data shape and LA&#x27;s Supabase schema before writing the seed script. The plan assumes they match.</p>
+<h4>Risk 3: Single-person bus factor with 4 Vercel projects, 1 Supabase DB, shared packages</h4>
+<p>A bad migration to the shared Supabase DB takes down 4 sites simultaneously. A broken shared package change (even with <code>pnpm build:all</code>) could ship if the CI gate has a timing window. The plan says &quot;rollback: revert the commit&quot; — but with 4 Vercel projects auto-deploying on main push, you need coordinated rollback across all 4.</p>
+<p><strong>Missing mitigation:</strong> A deployment strategy that doesn&#x27;t auto-deploy all 4 apps simultaneously. Stagger deploys. Have a &quot;canary app&quot; (probably LA since it&#x27;s the most mature) that deploys first, with a 30-minute soak time before others follow.</p>
+<h3>4. SEQUENCING</h3>
+<p><strong>Verdict: Phase 0 first is the right call.</strong></p>
+<p>Evidence supports this strongly:</p>
+<ul>
+<li>Lofts has 49 <code>"use client"</code> pages that need conversion (their TRACKING.md lists it as "biggest perf win")</li>
+<li>Lofts is still on 185K lines of static JSON — it can't share the <code>packages/data/</code> layer until it's on Supabase</li>
+<li>Lofts has 209 tests; LA has zero. Extracting into shared packages without tests is dangerous.</li>
+</ul>
+<p>Launching Lofts standalone first means:</p>
+<ul>
+<li>Lofts gets to production faster (revenue)</li>
+<li>The data migration is validated on a real deployment</li>
+<li>The 209 tests provide a regression safety net when packages are later extracted</li>
+<li>Phase 3 (porting Lofts into monorepo) is simpler because Lofts is already on Supabase</li>
+</ul>
+<p><strong>One adjustment:</strong> Phase 1 (scaffold monorepo) should NOT start &quot;in parallel with Phase 0&quot; as the dependency diagram suggests. Start it after Phase 0.1B (data parity verified). Otherwise you&#x27;re scaffolding a monorepo while the data layer of one app is in flux — and you&#x27;ll end up extracting into <code>packages/data/</code> twice (once for static, once for Supabase).</p>
+<h3>5. MISSING CONCERNS</h3>
+<p><strong>Developer experience:</strong> The plan is solid here — source consumption (no <code>dist/</code>), Turbopack hot reload across packages, ESLint enforcement. What&#x27;s missing: how do you develop locally against a shared Supabase DB? If LA and Lofts both point at the same Supabase project during development, test data from one pollutes the other. The plan should specify: one Supabase project per environment (dev/staging/prod), or Supabase branching for isolated dev.</p>
+<p><strong>Content workflow:</strong> Biggest gap. Who writes blog content for each domain? How do they know what&#x27;s unique to their domain vs. shared? The plan has structural separation (per-domain blog tables) but no editorial workflow. For a 1-person team this is fine. For 4 domains it will break.</p>
+<p><strong>Feature flagging:</strong> Not addressed. When a shared component gets a new feature, it appears on all 4 domains simultaneously. This is fine for a portfolio under single ownership — but if you later bring on domain-specific editors or content teams, you&#x27;ll need feature flags. Low priority now.</p>
+<p><strong>Performance budgets:</strong> Not addressed. A shared component that loads a 200KB charting library becomes a bundle tax on all 4 apps. The plan mentions &quot;any new dependency affects all apps&#x27; bundle sizes&quot; and requires a PR comment — but no hard budget. Consider per-app Lighthouse CI budgets.</p>
+<p><strong>Cross-domain user journeys:</strong> Not addressed. If a user signs up on LA and then visits Lofts, do they see their favorites? The shared <code>users</code> table suggests yes — but the UX of cross-domain authentication isn&#x27;t designed. This is a post-launch concern but worth noting.</p>
+<p><strong>Monitoring/incident response:</strong> Sentry is shared (1 project, domain tags). What happens when shared-package code throws in production? Who gets paged? The plan needs a runbook for &quot;shared package causes errors in 1 of 4 apps.&quot;</p>
+<h3>6. OVERCOMPLEXITY CHECK</h3>
+<p><strong>Composition manifest + 3-tier system:</strong> Justified. Without it, you have no structural guard against doorway pages. The alternative (manual discipline) doesn&#x27;t scale.</p>
+<p><strong>Build-time validator:</strong> Justified but could be simpler. Three levels (hard fail, warning, human override) is fine. But don&#x27;t build this until you actually have 2+ apps in the monorepo (Phase 3+). Building it in Phase 4 as planned is correct.</p>
+<p><strong>Token pipeline (TS → CSS generation):</strong> Slightly over-engineered for 4 domains. Both apps already use CSS custom properties in <code>globals.css</code>. The generation script adds a layer of indirection that doesn&#x27;t provide proportional value until you have 6+ brands or non-developer brand authors. <strong>However</strong> — the <code>satisfies BrandTokens</code> TypeScript contract IS valuable. It catches missing tokens at compile time. Keep the contract, simplify the generation. You could just maintain the CSS files directly and use the TS schema as a validation-only check.</p>
+<p><strong><code>createDomainClient</code> factory with RLS:</strong> Justified. The alternative (raw Supabase queries with manual <code>domain_visibility</code> filters scattered through app code) is a guaranteed source of bugs. Centralizing this is correct. BUT — the RLS via <code>set_domain_context</code> + session variable is complex. Since you&#x27;re using the service role key for ISR (which bypasses RLS), the RLS is a safety net for anon/authenticated queries only. Document this dual-path clearly.</p>
+<p><strong>ESLint rule blocking direct <code>@luxurydomains/ui</code> imports:</strong> Smart and cheap. Keep it.</p>
+<h3>7. BARREL FILE PATTERN</h3>
+<p><strong>Will it work?</strong> Yes, with known limitations.</p>
+<p>The barrel file pattern (<code>export * from &#x27;@luxurydomains/ui&#x27;; export { Hero } from &#x27;../components/Hero&#x27;;</code>) works because:</p>
+<ul>
+<li>TypeScript/Turbopack resolve named exports deterministically (later export wins for conflicts)</li>
+<li>Tailwind v4's <code>@source</code> directive handles CSS scanning across package boundaries</li>
+<li>React Server Components don't care about re-exports — they follow the module graph</li>
+</ul>
+<p><strong>Known gotchas:</strong></p>
+<ul>
+<li><strong>Tree-shaking at scale.</strong> <code>export *</code> re-exports everything from the UI package even if the app only uses 20 components. Turbopack handles this fine in development (no bundling). In production builds, Next.js uses SWC which does tree-shake — but you should verify bundle sizes after Phase 2.</li>
+</ul>
+<ul>
+<li><strong>Circular dependency risk.</strong> If a shared UI component imports from <code>@luxurydomains/data</code>, and an app's override component also imports from <code>@luxurydomains/data</code>, and the data package somehow references UI types — you get circular resolution. The plan's package boundaries (shared = zero React, UI = zero Supabase, data = zero React) prevent this. <strong>Enforce these boundaries with ESLint <code>no-restricted-imports</code> at the package level, not just the app level.</strong></li>
+</ul>
+<ul>
+<li><strong><code>@source</code> path in Tailwind.</strong> The plan shows <code>@source "../../../packages/ui/src"</code> in <code>globals.css</code>. This works but is fragile — if you reorganize the directory structure, all apps' CSS breaks. Consider using a Tailwind <code>@source</code> alias configured in <code>postcss.config.ts</code>.</li>
+</ul>
+<ul>
+<li><strong>React Server Components + barrel files.</strong> If the barrel file re-exports a client component and a server page imports it, Next.js handles the boundary correctly. BUT: if you add <code>"use client"</code> to the barrel file itself (which some developers do by mistake), it forces all re-exported components to be client components. <strong>Add a lint rule: barrel files must never have <code>"use client"</code> directive.</strong></li>
+</ul>
+<h3>8. DATABASE DESIGN</h3>
+<p><strong>Verdict: Right hybrid, with one gap.</strong></p>
+<p>Shared tables with <code>domain_visibility text[] + GIN index</code> for listings/buildings/neighborhoods is correct. Per-domain tables for blog/editorial/leads is correct. The <code>createDomainClient</code> factory baking in the domain filter is the right abstraction.</p>
+<p><strong>The gap:</strong> The <code>domain_visibility</code> column defaults to all domains. This means new data automatically appears on every domain. For listings, this might be fine (more coverage). For neighborhoods and cities, it&#x27;s problematic — you probably don&#x27;t want <code>luxuryapartments.com/neighborhoods/williamsburg</code> and <code>lofts.com/neighborhoods/williamsburg</code> to both index with the same neighborhood description. <strong>The plan should specify which tables default to all-domain visibility vs. which default to the inserting domain only.</strong></p>
+<p>Recommended:</p>
+<ul>
+<li><code>apartments</code>, <code>buildings</code>: default all domains (coverage maximizer)</li>
+<li><code>neighborhoods</code>, <code>cities</code>: default to inserting domain only (content differentiation)</li>
+<li><code>states</code>: default all domains (structural, low SEO risk)</li>
+</ul>
+<p><strong>Migration concern:</strong> The plan calls for a single <code>supabase/</code> at the monorepo root. This is correct. But the &quot;append-only, timestamp-ordered&quot; convention needs enforcement. Supabase CLI&#x27;s <code>db diff</code> generates migration files — if two developers create migrations simultaneously with close timestamps, ordering conflicts occur. For a 1-person team, this is fine. For a team, use Supabase&#x27;s branching feature.</p>
+<h3>9. CONTENT STRATEGY ENFORCEMENT</h3>
+<p><strong>Verdict: Structural separation is necessary but not sufficient.</strong></p>
+<p>The plan separates blog tables per domain (<code>la_blog_posts</code>, <code>ll_blog_posts</code>). But nothing prevents:</p>
+<ul>
+<li>Copying a blog post's markdown from LA's table to Lofts' table with s/luxury apartments/lofts/g</li>
+<li>Reusing the same guide content across domains with minor rewording</li>
+<li>Publishing the same "Boston Rental Market Guide" on all 4 domains with different CSS</li>
+</ul>
+<p><strong>What would actually prevent this:</strong></p>
+<ul>
+<li><strong>Content fingerprinting in CI.</strong> Hash the text content of indexed pages across domains. If similarity > 70% for equivalent routes, warn. This is computationally cheap (simhash/minhash) and catches copy-paste.</li>
+</ul>
+<ul>
+<li><strong>Editorial calendar per domain.</strong> Not a code solution — an operational one. Each domain needs a distinct content strategy: LA covers luxury market segment, Lofts covers industrial/loft conversions, D3 covers whatever its niche is. Content can reference the same data (listings, neighborhoods) but the angle must differ.</li>
+</ul>
+<ul>
+<li><strong>The composition manifest validator already handles the structural layer.</strong> For the content layer, add a text-similarity check as a Level 2 warning (doesn't block builds, but reports in CI).</li>
+</ul>
+<p>This isn&#x27;t in the plan and it should be, even as a future Phase 4 item.</p>
+<h3>10. HONEST OVERALL ASSESSMENT</h3>
+<p><strong>Score: 7.5/10 for architecture quality. 6/10 for execution readiness.</strong></p>
+<p><strong>Why 7.5 for architecture:</strong></p>
+<ul>
+<li>The core decisions are all correct (separate apps, shared packages, composition manifest, barrel files, token system)</li>
+<li>The database hybrid design is sound</li>
+<li>The SEO protection layers are thorough</li>
+<li>Package boundaries are well-defined with clear rules</li>
+</ul>
+<p><strong>Why 6 for execution readiness:</strong></p>
+<ul>
+<li>Zero tests on LA (the reference app that everything gets extracted from)</li>
+<li>No visual regression testing plan for Phase 2 (highest-risk phase)</li>
+<li>Phase 0 data migration effort is underestimated (hybrid static+MLS schema mapping)</li>
+<li>No staggered deployment strategy for multi-app production</li>
+<li>Content duplication prevention is structural only — needs content-layer enforcement</li>
+<li>Single-person execution of 5 phases with 30+ tasks across 3 repos is ambitious</li>
+</ul>
+<p><strong>What would move it to 9/10:</strong></p>
+<ul>
+<li><strong>Add tests to LA before extraction.</strong> Even 50 critical-path tests (matching what Lofts has) would make Phase 2 dramatically safer. This should be Phase 0.5.</li>
+</ul>
+<ul>
+<li><strong>Add visual regression to Phase 2.</strong> Screenshot-diff 20 pages before/after each wave. Non-negotiable for a 60-component extraction.</li>
+</ul>
+<ul>
+<li><strong>Add content similarity checking</strong> to the manifest validator (Phase 4).</li>
+</ul>
+<ul>
+<li><strong>Simplify the token pipeline.</strong> Maintain CSS directly, use TS schema as validation-only. Remove the generation step.</li>
+</ul>
+<ul>
+<li><strong>Specify deployment order.</strong> LA deploys first as canary. 30-min soak. Then others. For shared package changes.</li>
+</ul>
+<ul>
+<li><strong>Specify <code>domain_visibility</code> defaults</strong> per table type (all-domain for listings, inserting-domain for editorial content).</li>
+</ul>
+<ul>
+<li><strong>Don't start Phase 1 in parallel with Phase 0.</strong> Wait until 0.1B (data parity) is verified.</li>
+</ul>
+<p>The plan is thorough, well-structured, and demonstrates genuine understanding of the risks (doorway pages, import discipline, migration safety). The guiding principles are excellent — especially &quot;extract first, refactor later&quot; and &quot;file structure resolves brand differences, never conditionals.&quot; The main gap is operational safety nets (tests, visual regression, deployment strategy) rather than architectural mistakes.</p>
+<hr>
+  </div>
+</div>
+<div class="participant-block">
+  <div class="participant-header" onclick="this.parentElement.classList.toggle('open')">
+    <span class="name">gpt-5.3-codex@codex</span>
+    <span>
+      <span class="chars">82 chars</span>
+      <span class="toggle">&#9654;</span>
+    </span>
+  </div>
+  <div class="participant-body">
+    <p style="color: var(--red)">[ERROR: FileNotFoundError: [WinError 2] The system cannot find the file specified]</p>
+  </div>
+</div>
+<div class="participant-block">
+  <div class="participant-header" onclick="this.parentElement.classList.toggle('open')">
+    <span class="name">gemini-2.5-pro@gemini</span>
+    <span>
+      <span class="chars">82 chars</span>
+      <span class="toggle">&#9654;</span>
+    </span>
+  </div>
+  <div class="participant-body">
+    <p style="color: var(--red)">[ERROR: FileNotFoundError: [WinError 2] The system cannot find the file specified]</p>
+  </div>
+</div>
+</div>
+<div class="round-section">
+<h2>Round 3</h2>
+<div class="participant-block open">
+  <div class="participant-header" onclick="this.parentElement.classList.toggle('open')">
+    <span class="name">opus@claude</span>
+    <span>
+      <span class="chars">58 chars</span>
+      <span class="toggle">&#9654;</span>
+    </span>
+  </div>
+  <div class="participant-body">
+    <p style="color: var(--red)">[ERROR: TimeoutError: CLI invocation timed out after 300s]</p>
+  </div>
+</div>
+<div class="participant-block open">
+  <div class="participant-header" onclick="this.parentElement.classList.toggle('open')">
+    <span class="name">gpt-5.3-codex@codex</span>
+    <span>
+      <span class="chars">82 chars</span>
+      <span class="toggle">&#9654;</span>
+    </span>
+  </div>
+  <div class="participant-body">
+    <p style="color: var(--red)">[ERROR: FileNotFoundError: [WinError 2] The system cannot find the file specified]</p>
+  </div>
+</div>
+<div class="participant-block open">
+  <div class="participant-header" onclick="this.parentElement.classList.toggle('open')">
+    <span class="name">gemini-2.5-pro@gemini</span>
+    <span>
+      <span class="chars">82 chars</span>
+      <span class="toggle">&#9654;</span>
+    </span>
+  </div>
+  <div class="participant-body">
+    <p style="color: var(--red)">[ERROR: FileNotFoundError: [WinError 2] The system cannot find the file specified]</p>
+  </div>
+</div>
+</div>
+
+<hr>
+<div class="meta">
+  Generated by <strong>ai-counsel</strong> &middot;
+  Participants: opus@claude, gpt-5.3-codex@codex, gemini-2.5-pro@gemini
+</div>
+</body>
+</html>

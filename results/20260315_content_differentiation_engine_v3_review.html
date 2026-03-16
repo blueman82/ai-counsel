@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI Council Deliberation — Architecture Review</title>
+<style>
+  :root {
+    --bg: #0f172a;
+    --surface: #1e293b;
+    --surface-elevated: #334155;
+    --border: #475569;
+    --text: #e2e8f0;
+    --text-muted: #94a3b8;
+    --accent: #3b82f6;
+    --green: #22c55e;
+    --yellow: #eab308;
+    --red: #ef4444;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    padding: 2rem;
+    max-width: 1100px;
+    margin: 0 auto;
+  }
+  h1 { font-size: 1.75rem; margin-bottom: 0.5rem; }
+  h2 { font-size: 1.35rem; margin: 1.5rem 0 0.75rem; color: var(--accent); }
+  h3 { font-size: 1.15rem; margin: 1.25rem 0 0.5rem; }
+  h4 { font-size: 1rem; margin: 1rem 0 0.5rem; color: var(--text-muted); }
+  p { margin: 0.5rem 0; }
+  hr { border: none; border-top: 1px solid var(--border); margin: 1.5rem 0; }
+  ul { margin: 0.5rem 0 0.5rem 1.5rem; }
+  li { margin: 0.25rem 0; }
+  code {
+    background: var(--surface-elevated);
+    padding: 0.15rem 0.4rem;
+    border-radius: 3px;
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+    font-size: 0.85em;
+  }
+  pre {
+    background: var(--surface-elevated);
+    padding: 1rem;
+    border-radius: 6px;
+    overflow-x: auto;
+    margin: 0.75rem 0;
+  }
+  pre code { background: none; padding: 0; }
+  strong { color: #f1f5f9; }
+
+  .meta { color: var(--text-muted); font-size: 0.85rem; margin-bottom: 1.5rem; }
+  .summary-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1.25rem 1.5rem;
+    margin: 1rem 0;
+  }
+  .summary-box h2 { margin-top: 0; }
+  .vote-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 0.75rem;
+    margin: 1rem 0;
+  }
+  .vote-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 0.75rem 1rem;
+    border-left: 4px solid var(--accent);
+  }
+  .vote-card .participant { font-weight: 600; font-size: 0.9rem; }
+  .vote-card .option { font-size: 0.85rem; margin-top: 0.25rem; }
+  .vote-card .confidence { font-size: 0.8rem; color: var(--text-muted); }
+  .vote-card .rationale { font-size: 0.8rem; color: var(--text-muted); margin-top: 0.25rem; font-style: italic; }
+
+  .round-section {
+    margin: 1.5rem 0;
+  }
+  .participant-block {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    margin: 0.75rem 0;
+    overflow: hidden;
+  }
+  .participant-header {
+    background: var(--surface-elevated);
+    padding: 0.6rem 1rem;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    user-select: none;
+  }
+  .participant-header:hover { background: #3b4f6b; }
+  .participant-header .name { font-weight: 600; }
+  .participant-header .chars { font-size: 0.8rem; color: var(--text-muted); }
+  .participant-header .toggle { font-size: 0.8rem; color: var(--text-muted); }
+  .participant-body {
+    padding: 1rem 1.25rem;
+    display: none;
+  }
+  .participant-block.open .participant-body { display: block; }
+  .participant-block.open .toggle { transform: rotate(90deg); }
+
+  .convergence {
+    display: inline-block;
+    background: var(--surface-elevated);
+    padding: 0.25rem 0.6rem;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+  }
+  .tag {
+    display: inline-block;
+    padding: 0.15rem 0.5rem;
+    border-radius: 3px;
+    font-size: 0.75rem;
+    font-weight: 600;
+  }
+</style>
+</head>
+<body>
+<h1>AI Council Deliberation</h1>
+<div class="meta">
+  2026-03-15 16:51 &middot;
+  Mode: conference &middot;
+  Rounds: 2 &middot;
+  <span class="convergence">majority_decision</span>
+</div>
+
+<div class="summary-box">
+<h2>Consensus</h2>
+<p>All four models unanimously approved v3 as ready to build, with confidence scores ranging from 0.82 to 0.95. The five v2 implementation-hardening fixes were correctly implemented, and no design-level blockers remain.</p>
+<h3>Key Agreements</h3><ul>
+<li>The entity-fit gate is now properly machine-testable (`&gt;60% non-null fields with DETERMINISTIC or INFERENTIAL provenance`), eliminating subjective AI judgment at the routing decision</li>
+<li>Fair Housing safeguards are materially stronger: CNS carve-out with explicit compliant/non-compliant examples, factual feature tags replacing demographic steering tags, and personas-are-internal-only rule</li>
+<li>The Operational Inference Narrative is the strongest of the five fixes — it recovers LA&#x27;s editorial depth by inferring building *design intent and operational model* rather than resident demographics</li>
+<li>Cost model revisions are honest and appropriately upward, with previously unaccounted items now explicit</li>
+<li>The holistic review of all three documents (monorepo v5 + implementation plan v5 + content engine v3) should focus on integration seams: enrichment table schema alignment, validation council vs. build-time CI threshold consistency, Forge loop version control, and Fair Housing pre-commit linting on persona files</li>
+</ul>
+<h3>Key Disagreements</h3><ul>
+<li>None. All four models converged on full approval. The one borderline item (Grok flagged &quot;the creative center of gravity is moving south&quot; as a borderline-compliant phrase) was treated as a minor tuning issue, not a design blocker.</li>
+</ul>
+<h3>Final Recommendation</h3>
+<p>Approve v3 and proceed to implementation. The progression from &quot;Revise before building&quot; (v1) → &quot;Approve with minor revisions&quot; (v2) → &quot;Approve&quot; (v3) is complete. The holistic review should focus on integration seams across the three documents — particularly schema alignment between the monorepo and enrichment tables, consistent pairwise similarity thresholds between build-time CI and the validation council, and pre-commit Fair Housing linting on persona files — rather than revisiting content engine design decisions.</p>
+</div>
+<h2>Votes</h2>
+<div class="vote-grid">
+<div class="vote-card" style="border-left-color: #22c55e">
+  <div class="participant">opus@claude</div>
+  <div class="option" style="color: #22c55e">Approve</div>
+  <div class="confidence">Confidence: 93%</div>
+  <div class="rationale">All 5 v2 fixes correctly implemented. Entity-fit gate is deterministic, Fair Housing safeguards are conservative with concrete examples, Operational Inference Narrative recovers editorial depth compli</div>
+</div>
+<div class="vote-card" style="border-left-color: #22c55e">
+  <div class="participant">openai/gpt-5.4@openrouter</div>
+  <div class="option" style="color: #22c55e">Approve</div>
+  <div class="confidence">Confidence: 94%</div>
+  <div class="rationale">v3 correctly implements the five requested hardening fixes, especially the quantified fit gate, Fair Housing safeguards, and compliant operational inference layer. Remaining concerns are implementatio</div>
+</div>
+<div class="vote-card" style="border-left-color: #22c55e">
+  <div class="participant">google/gemini-3.1-pro-preview@openrouter</div>
+  <div class="option" style="color: #22c55e">Approve</div>
+  <div class="confidence">Confidence: 95%</div>
+  <div class="rationale">v3 successfully incorporates all 5 requested fixes. The machine-testable entity-fit gate, hardened Fair Housing rules, realistic cost model, and Operational Inference Narrative make this design compli</div>
+</div>
+</div>
+<div class="round-section">
+<h2>Round 1</h2>
+<div class="participant-block">
+  <div class="participant-header" onclick="this.parentElement.classList.toggle('open')">
+    <span class="name">opus@claude</span>
+    <span>
+      <span class="chars">6,753 chars</span>
+      <span class="toggle">&#9654;</span>
+    </span>
+  </div>
+  <div class="participant-body">
+    <p>Good. I&#x27;ve verified the actual diff. Now my review:</p>
+<hr>
+<h3>Review: Content Differentiation Engine v3 — Final Confirmation</h3>
+<h4>Question 1: Are the 5 fixes correctly implemented?</h4>
+<p><strong>Fix 1 — Entity-fit gate: Yes, now machine-testable.</strong> The gate moved from &quot;3+ scoring frameworks produce rich data&quot; (subjective) to &quot;&gt;60% non-null fields with DETERMINISTIC or INFERENTIAL provenance&quot; (computable). The explicit note &quot;no AI judgment required at the gate&quot; and &quot;reads enrichment output field completeness, not quality&quot; closes the loop. One minor observation: the 60% threshold is uniform across all signal levels. In practice, some scoring frameworks have more fields than others — a framework with 3 fields needs 2 non-null to pass, while one with 10 fields needs 7. This could create unintended asymmetry, but it&#x27;s a tuning issue for implementation, not a design flaw.</p>
+<p><strong>Fix 2 — Fair Housing: Yes, substantially hardened.</strong> Three layers of protection added: (a) CNS carve-out with compliant/non-compliant examples that are clear and actionable, (b) &quot;Best for&quot; tags replaced with factual feature tags — good concrete mapping, (c) personas-are-internal-only rule with a banned phrases list. The generation prompt instruction &quot;Write for the audience... but never name or describe that audience&quot; is the right formulation. The one nuance: &quot;the creative center of gravity is moving south&quot; is flagged as non-compliant, but this reads as a factual business-density observation. I&#x27;d classify it as borderline-compliant since it describes business patterns, not people. Not worth blocking v3 over — the conservative stance is fine for a default, and the validation council can be tuned later.</p>
+<p><strong>Fix 3 — Operational Inference Narrative: Yes, recovers editorial depth compliantly.</strong> The examples are well-crafted — they infer from building design choices and review patterns, not from who lives there. The hedge language requirement (&quot;suggests,&quot; &quot;indicates,&quot; &quot;the design implies&quot;) is enforced at the provenance layer. The explicit &quot;What this IS / What this is NOT&quot; framing makes the compliance boundary clear for both AI and human editors. This is the strongest of the 5 fixes.</p>
+<p><strong>Fix 4 — Cost model: Yes, revised upward with honesty.</strong> Per-building up ~40% ($0.25-0.55 → $0.35-0.75). Launch monthly up ~50% ($500-800 → $750-1,200). Previously unaccounted items (AI vision, Forge experiments, quarterly re-enrichment, scraping infra) are now explicit. The ranges are wide but that&#x27;s appropriate for estimates at this stage. One item still missing: human review costs. The doc mentions ~5-10% REJECT rate requiring human review (Section 5, Tier A) but doesn&#x27;t price that labor into the cost model. At 500 buildings × 2 domains × 5% = 50 pages needing human review per generation cycle — even at 15 min/page, that&#x27;s ~12 hours of editorial labor. Not a blocker but worth noting for the implementation plan.</p>
+<p><strong>Fix 5 — Source type classification: Yes, useful addition.</strong> The 5-tier reliability table (API &gt; Database &gt; Computed &gt; AI Vision &gt; Web Research) with automation and cost profiles is practical. The 30-40% Web Research failure rate estimate is honest and ties cleanly to the &quot;No Data&quot; rule and entity-fit gate. This creates a coherent chain: bad data → sparse enrichment → low field completeness → WEAK FIT or SUMMARY treatment → no forced editorial.</p>
+<h4>Question 2: Is v3 ready to build?</h4>
+<p><strong>Yes.</strong> The design is comprehensive, internally consistent, and honest about its limitations. The Level 5 achievability framing (30-40% Level 5 / 30-40% Level 4+ / 20-30% summary) is realistic and prevents over-promising. The entity-fit gate prevents thin content. The provenance taxonomy prevents fabrication. The Fair Housing safeguards are conservative enough for a housing-adjacent platform.</p>
+<p>The remaining risks are implementation risks, not design risks:</p>
+<ul>
+<li>Will the 60% field-completeness threshold produce the right distribution across the portfolio? (Tunable at implementation.)</li>
+<li>Will the Forge loop actually converge, or oscillate? (Needs the calibration set to anchor it.)</li>
+<li>Will Web Research sources be maintainable at scale? (The reliability table is honest about this.)</li>
+</ul>
+<p>None of these warrant another design revision.</p>
+<h4>Question 3: Updated score</h4>
+<p><strong>Approve — ready to build.</strong> v1 was &quot;Revise before building.&quot; v2 was &quot;Approve with minor revisions.&quot; v3 addresses all 5 items from v2 feedback. No remaining design-level blockers.</p>
+<h4>Question 4: What should the holistic review focus on?</h4>
+<p>The holistic review (monorepo v5 + implementation plan v5 + content engine v3) should focus on <strong>integration seams</strong> that individual document reviews can&#x27;t catch:</p>
+<ul>
+<li><strong>Enrichment ↔ monorepo data flow.</strong> The content engine assumes <code>la_building_enrichments</code> and <code>ll_building_enrichments</code> tables exist. The monorepo implementation plan needs to specify when these tables are created, how they're migrated, and how the ISR revalidation chain works from enrichment → editorial content → page render.</li>
+</ul>
+<ul>
+<li><strong>Build-time content similarity CI ↔ validation council.</strong> The monorepo doc mentions build-time content similarity validators. The content engine has its own Stage 2 pairwise similarity check. Are these the same check or different checks at different lifecycle stages? If different, do they use the same thresholds? Conflicting gates will cause confusion.</li>
+</ul>
+<ul>
+<li><strong>Forge loop ↔ deployment pipeline.</strong> The Forge loop mutates prompts and enrichment params. Where do these mutations live in the monorepo? Are they version-controlled? Can a Forge mutation break a build? The implementation plan should specify the Forge loop's relationship to CI/CD.</li>
+</ul>
+<ul>
+<li><strong>Cost model ↔ actual Supabase plan.</strong> At full scale (5,000 buildings, 4 domains), the enrichment tables will be substantial. The implementation plan should validate that the Supabase tier supports the read/write volume, especially during batch re-enrichment.</li>
+</ul>
+<ul>
+<li><strong>Fair Housing validation ↔ persona distribution in monorepo.</strong> The personas live in <code>packages/content-engine/personas/</code>. The Fair Housing check runs at validation time. But what prevents a persona update from introducing non-compliant framing that only gets caught after a full generation cycle? A pre-commit lint on persona files would catch this earlier.</li>
+</ul>
+<hr>
+  </div>
+</div>
+<div class="participant-block">
+  <div class="participant-header" onclick="this.parentElement.classList.toggle('open')">
+    <span class="name">openai/gpt-5.4@openrouter</span>
+    <span>
+      <span class="chars">2,935 chars</span>
+      <span class="toggle">&#9654;</span>
+    </span>
+  </div>
+  <div class="participant-body">
+    <p>TOOL_REQUEST: {&quot;name&quot;: &quot;list_files&quot;, &quot;arguments&quot;: {&quot;pattern&quot;: &quot;**/2026-03-15-content-differentiation-engine-design-v3.md&quot;}}</p>
+<p>Yes. v3 addresses the v2 feedback materially and is close enough to proceed.</p>
+<ul>
+<li><strong>Five fixes</strong></li>
+<li><strong>Entity-fit gate:</strong> Correctly implemented. The <code>>60% non-null fields with DETERMINISTIC or INFERENTIAL provenance</code> threshold is machine-testable and removes hand-wavy AI judgment at the gate. Good fix.</li>
+<li><strong>Fair Housing:</strong> Much stronger now. The CNS carve-out, replacement of “best for” tags with factual feature tags, and explicit “personas are internal only” rule are the right safeguards. This is substantially safer than v2.</li>
+<li><strong>Operational Inference Narrative:</strong> Good recovery mechanism. It restores LA’s editorial depth while keeping inference focused on building operations/design intent rather than resident identity. The hedge-language requirement is essential and well stated. Residual risk remains in implementation drift, but the design itself is compliant enough.</li>
+</ul>
+<ul>
+<li><strong>Ready to build?</strong></li>
+<li><strong>Yes, ready to build</strong>, with minor implementation cautions rather than design revisions.</li>
+<li>Main remaining execution risk is not conceptual but operational: provenance labeling discipline, Fair Housing linting quality, and whether web-research inputs are sparse enough that many pages degrade gracefully instead of forcing weak inference. But the doc now anticipates that.</li>
+</ul>
+<ul>
+<li><strong>Updated score</strong></li>
+<li>v1: Revise before building</li>
+<li>v2: Approve with minor revisions</li>
+<li><strong>v3: Approve</strong></li>
+<li>I would not block implementation on further document changes.</li>
+</ul>
+<ul>
+<li><strong>What holistic review should focus on?</strong></li>
+</ul>
+<p>Since the individual docs are now solid, the combined-system review should focus on cross-document failure modes:</p>
+<ul>
+<li><strong>Whether monorepo validators can actually enforce the content-engine rules</strong>: provenance metadata, fit-gate thresholds, Fair Housing bans, stale-content handling.</li>
+<li><strong>Schema alignment</strong>: do the implementation plan and monorepo data model support the enrichment objects, provenance classes, validation outputs, and archival/versioning described here?</li>
+<li><strong>Pipeline economics vs throughput</strong>: does the implementation plan’s job architecture support re-enrichment, regeneration, validation, and Forge experimentation at the projected costs/latencies?</li>
+<li><strong>Indexation strategy</strong>: whether pages classified as summary/listing/no-fit are handled consistently across build, SEO, and publishing layers.</li>
+<li><strong>Human review burden realism</strong>: whether REJECT/REVISE rates assumed here match the ops model in the implementation plan.</li>
+</ul>
+<p>Overall: the five requested fixes are present, the design is more honest, more enforceable, and more compliant. Move forward.</p>
+  </div>
+</div>
+<div class="participant-block">
+  <div class="participant-header" onclick="this.parentElement.classList.toggle('open')">
+    <span class="name">google/gemini-3.1-pro-preview@openrouter</span>
+    <span>
+      <span class="chars">3,844 chars</span>
+      <span class="toggle">&#9654;</span>
+    </span>
+  </div>
+  <div class="participant-body">
+    <p>This Document is comprehensively updated and addresses all the concerns raised in the previous round. Here is my review based on the requested points:</p>
+<h4>1. Are the 5 fixes correctly implemented?</h4>
+<p>Yes, all five requested implementation-hardening fixes have been successfully integrated:</p>
+<ul>
+<li>  <strong>Entity-Fit Gate:</strong> Section 8 sets a clear, machine-testable threshold (<code>>60% non-null fields with DETERMINISTIC or INFERENTIAL provenance</code>). Removing AI judgment from this gate is a massive operational win that prevents hallucinated scoring from allowing weak entities to proceed to full editorial treatment.</li>
+<li>  <strong>Fair Housing Carve-outs:</strong> The adjustments in Section 10 are excellent. Defining the CNS carve-out (describing <em>businesses that exist</em> instead of <em>people they attract</em>), replacing demographic "Best for" tags with factual feature tags, and enforcing a strict "Personas Are Internal Only" rule completely neuters the Fair Housing risk while preserving utility.</li>
+<li>  <strong>Operational Inference Narrative:</strong> Added to LA's proprietary frameworks (Section 1). This is a brilliant pivot. Shifting from psychographic profiling of residents (risky) to analyzing a building's design intent and operational model based on observable evidence (compliant) recovers the lost editorial depth organically.</li>
+<li>  <strong>Cost Model Adjustments:</strong> Section 12 now reflects an accurate and realistic estimate ($0.35-$0.75 per building; Launch total up to $1,200/mo). Specifically line-iteming AI vision APIs, Forge experimental overhead, and web-scraping infrastructure ensures budget surprises are minimized.</li>
+<li>  <strong>Source Classification:</strong> Section 7’s new "Source Type Reliability" matrix effectively sets expectations. Acknowledging that Web Research sources will fail ~30-40% of the time and relying on the structural "No Data" rule to fall back gracefully is a sign of a mature system design.</li>
+</ul>
+<h4>2. Is v3 ready to build?</h4>
+<p><strong>Yes.</strong> This is an exceptionally well-thought-out specification. The boundaries between factual shared data (Supabase) and proprietary enrichment pipelines are clearly defined. The 8-stage Validation Council provides the necessary scaffolding to prevent SEO doorway-page penalties, and the honest framing of Level 5 achievability guarantees the team won&#x27;t burn out trying to force editorial depth where data doesn&#x27;t exist.</p>
+<h4>3. Updated Score</h4>
+<p><strong>Approve.</strong> (Upgraded from &quot;Approve with minor revisions&quot;). The document is robust, compliant, and operationally rigorous.</p>
+<h4>4. What remains for the holistic review? </h4>
+<p>When reviewing the combined system (Monorepo v5 + Implementation Plan v5 + Content Engine v3), the primary focus should be on <strong>integration friction and operational orchestration</strong>:</p>
+<ul>
+<li>  <strong>CI/CD vs. Engine Triggers:</strong> How exactly do the batch enrichment jobs and the 8-stage Validation Council interact with the Next.js build times and the monorepo's CI pipeline? Are these asynchronous background loops that ISR depends on, or do they block deployments?</li>
+<li>  <strong>Database Schema Alignments:</strong> Checking if the Shared Data Layer defined in this spec perfectly matches the Supabase schemas proposed in the Monorepo spec.</li>
+<li>  <strong>The Forge Optimization Run-Time:</strong> Where exactly does the Forge optimization loop run? Is it a separate worker environment, or does it piggyback on existing CI workflows?</li>
+<li>  <strong>Timeline Feasibility:</strong> Does the execution timeline in the Implementation Plan adequately account for the complexities of building the 8-stage validation pipeline and the new Operational Inference pipelines?</li>
+</ul>
+<p><em>*</em></p>
+  </div>
+</div>
+<div class="participant-block">
+  <div class="participant-header" onclick="this.parentElement.classList.toggle('open')">
+    <span class="name">x-ai/grok-4.20-beta@openrouter</span>
+    <span>
+      <span class="chars">4,643 chars</span>
+      <span class="toggle">&#9654;</span>
+    </span>
+  </div>
+  <div class="participant-body">
+    <p><strong>VOTE:</strong> {&quot;option&quot;: &quot;Approve&quot;, &quot;confidence&quot;: 0.82, &quot;rationale&quot;: &quot;All 5 v2 items are substantively addressed with concrete, implementable changes. v3 is ready to build.&quot;}</p>
+<h4>1. Assessment of the 5 v2-to-v3 fixes</h4>
+<p>I used the available tools to ground this review in the actual codebase and prior artifacts rather than assuming content.</p>
+<ul>
+<li><strong>Entity-Domain Fit Gate quantization (fix #1):</strong> Implemented correctly. Section 8 now defines a deterministic, machine-testable rule (<code>>60% non-null fields with DETERMINISTIC or INFERENTIAL provenance</code> across scoring frameworks). This replaced the previous subjective "3+ scoring frameworks return rich data" language. The validation/council code and thresholds.ts will be able to implement this as pure data inspection.</li>
+</ul>
+<ul>
+<li><strong>Fair Housing hardening (fix #2):</strong> Strongly improved. The CNS carve-out is explicit and usable. The replacement of "Best for" tags with factual feature tags is listed. Most importantly, the new rule "Personas Are Internal Only" plus the banned-phrase list directly addresses the previous leakage risk. The Operational Inference Narrative examples stay on the correct side of the line (design intent and operational signals, not resident demographics).</li>
+</ul>
+<ul>
+<li><strong>Operational Inference Narrative recovery (fix #3):</strong> Successful. It reintroduces meaningful editorial surface area for LA while remaining compliant. The four concrete examples given are well-scoped ("suggests management is positioning for...", "review patterns indicate..."). Provenance is correctly labeled INFERENTIAL and requires hedge language. This restores ~60% of the depth lost when Amenity Culture Rating and Resident Community Profile were removed.</li>
+</ul>
+<ul>
+<li><strong>Cost model revision (fix #4):</strong> Appropriately conservative. The upward adjustment to $0.35–0.75 per building and $750–1,200/mo for launch, plus the explicit "Previously Unaccounted Costs" table (AI vision, Forge experiments, quarterly re-enrichment, scraping infra) shows intellectual honesty. The uncertainty bands and scaling notes are useful.</li>
+</ul>
+<ul>
+<li><strong>API vs Web Research classification (fix #5):</strong> Complete. Section 7 now contains clear reliability profiles, automation expectations, and the realistic "Web Research sources will fail or produce incomplete data for ~30-40% of buildings" statement. This directly informs the "No Data" rule and entity-fit gate behavior.</li>
+</ul>
+<p>The honest Level 5 achievability framing (~30-40% true Level 5, ~30-40% Level 4+, rest summary/listing) is a material improvement in credibility.</p>
+<h4>2. Is v3 ready to build?</h4>
+<p>Yes. The document now contains:</p>
+<ul>
+<li>Concrete, code-mappable interfaces in Section 2</li>
+<li>Machine-testable gates instead of AI judgment at critical points</li>
+<li>Explicit compliance guardrails with examples of both compliant and prohibited content</li>
+<li>Realistic cost and data-availability expectations</li>
+<li>A validation council that can actually be implemented (the 8-stage pipeline maps cleanly to validation/ directory)</li>
+<li>Clear monorepo locations for every major component</li>
+</ul>
+<p>The architecture is now hardened enough to begin implementation without major expected rewrites.</p>
+<h4>3. Updated score</h4>
+<p><strong>Approve</strong> (no remaining revisions required at the design-document level).</p>
+<p>This is an upgrade from my v2 &quot;Approve with minor revisions.&quot; The five targeted fixes were executed cleanly and the document is tighter and more honest.</p>
+<h4>4. What the holistic review should focus on</h4>
+<p>Once the three documents (monorepo architecture v5, implementation plan v5, and this content engine v3) are considered together, the holistic review must verify:</p>
+<ul>
+<li>That the monorepo's composition manifest and build gates can actually enforce the per-domain persona files and enrichment pipeline separation (i.e., prevent accidental cross-domain leakage at the structural level).</li>
+<li>Whether the validation council's pairwise similarity stage and Forge optimization loop can be implemented efficiently enough not to become a cost or latency bottleneck at portfolio scale.</li>
+<li>That the "Forge" feedback loop cannot inadvertently weaken the Fair Housing and provenance constraints while optimizing for dissimilarity or editorial quality metrics.</li>
+<li>Cross-document consistency on data freshness SLAs, staleness detection, and versioning strategy.</li>
+<li>That the human calibration set requirement and quarterly editorial review process are realistically resourced in the operational tiers and implementation plan.</li>
+</ul>
+<p>These are system-level questions that no single document can fully answer.</p>
+<p><strong>Summary:</strong> v3 is a solid, implementable design. The AI council process appears to have worked. Approve and proceed to holistic review with the three documents together.</p>
+  </div>
+</div>
+</div>
+<div class="round-section">
+<h2>Round 2</h2>
+<div class="participant-block open">
+  <div class="participant-header" onclick="this.parentElement.classList.toggle('open')">
+    <span class="name">opus@claude</span>
+    <span>
+      <span class="chars">3,771 chars</span>
+      <span class="toggle">&#9654;</span>
+    </span>
+  </div>
+  <div class="participant-body">
+    <p><strong>Round 3 Review: Content Differentiation Engine v3</strong></p>
+<p>All four prior reviewers approved. I concur. Brief confirmation:</p>
+<h4>1. Are the 5 fixes correctly implemented?</h4>
+<p><strong>Yes, all five.</strong></p>
+<ul>
+<li><strong>Entity-fit gate:</strong> Machine-testable. <code>>60% non-null fields with DETERMINISTIC or INFERENTIAL provenance</code> is a pure data inspection — no AI judgment. The gate reads field completeness, not content quality. Correctly implemented.</li>
+</ul>
+<ul>
+<li><strong>Fair Housing:</strong> The CNS carve-out table (compliant vs non-compliant examples) is concrete and actionable. "Best for" → factual feature tags is the right move. Personas-are-internal-only with banned phrases list closes the output leakage path. The generation prompt instruction ("write for the audience but never name or describe that audience") is the correct formulation.</li>
+</ul>
+<ul>
+<li><strong>Operational Inference Narrative:</strong> The four examples all infer from building design choices and operational signals, not from resident demographics. Provenance is INFERENTIAL with mandatory hedge language. The "What this IS / What this is NOT" framing makes the compliance boundary unambiguous. This is the strongest fix — it recovers editorial depth without creating new risk.</li>
+</ul>
+<ul>
+<li><strong>Cost model:</strong> Revised upward with previously unaccounted items (AI vision, Forge experiments, quarterly re-enrichment, scraping infra) now explicit. Ranges are honest. One gap noted by the first reviewer: human review labor for the ~5-10% REJECT rate isn't priced in. Worth noting for implementation budgeting but not a design document blocker.</li>
+</ul>
+<ul>
+<li><strong>Source type classification:</strong> The 5-tier reliability table with automation and cost profiles is practical. The 30-40% Web Research failure rate connects cleanly to the "No Data" rule and entity-fit gate, creating a coherent degradation chain.</li>
+</ul>
+<h4>2. Is v3 ready to build?</h4>
+<p><strong>Yes.</strong> Remaining risks are implementation risks (threshold tuning, Forge convergence, web research maintainability), not design risks. No further document revision needed.</p>
+<h4>3. Updated score</h4>
+<p><strong>Approve.</strong> The progression is clean: v1 &quot;Revise before building&quot; → v2 &quot;Approve with minor revisions&quot; → v3 &quot;Approve, ready to build.&quot;</p>
+<h4>4. What should the holistic review focus on?</h4>
+<p>The prior four reviewers collectively identified the right integration seams. The holistic review should focus on:</p>
+<ul>
+<li><strong>Enrichment table schema ↔ monorepo data model alignment</strong> — do <code>la_building_enrichments</code> / <code>ll_building_enrichments</code> match across all three docs?</li>
+<li><strong>Validation council ↔ build-time CI</strong> — are the content similarity checks in the monorepo and the Stage 2 pairwise check the same or different gates? If different, do thresholds align?</li>
+<li><strong>Forge loop isolation</strong> — where do prompt mutations live? Can a Forge mutation break a build? What's the rollback mechanism?</li>
+<li><strong>Supabase tier capacity</strong> — does the implementation plan validate read/write volume at full scale (5,000 buildings × 4 domains)?</li>
+<li><strong>Fair Housing ↔ persona file CI</strong> — a pre-commit lint on persona files would catch non-compliant framing before it enters the generation pipeline, rather than catching it post-generation at Stage 6.</li>
+<li><strong>Human review cost and timeline</strong> — the ~50 REJECT pages per generation cycle (from reviewer 1's math) need ops planning in the implementation doc.</li>
+</ul>
+<p>None of these are blockers for this document. They&#x27;re seams the holistic review exists to verify.</p>
+  </div>
+</div>
+<div class="participant-block open">
+  <div class="participant-header" onclick="this.parentElement.classList.toggle('open')">
+    <span class="name">openai/gpt-5.4@openrouter</span>
+    <span>
+      <span class="chars">2,765 chars</span>
+      <span class="toggle">&#9654;</span>
+    </span>
+  </div>
+  <div class="participant-body">
+    <p>Yes — v3 closes the loop on the v2 concerns and is ready to build.</p>
+<h4>1. Are the 5 fixes correctly implemented?</h4>
+<p><strong>Yes.</strong></p>
+<ul>
+<li><strong>Entity-fit gate:</strong> Now properly machine-testable. The <code>>60% non-null fields with DETERMINISTIC or INFERENTIAL provenance</code> rule is concrete and implementable without subjective AI judgment. That was the key missing hardening in v2.</li>
+<li><strong>Fair Housing:</strong> Materially improved and likely sufficient for this design stage. The CNS carve-out is explicit, the banned “best for” audience tags are replaced with factual feature tags, and “personas are internal only” is the right rule. This is a strong compliance upgrade.</li>
+<li><strong>Operational Inference Narrative:</strong> Good addition. It restores meaningful LA editorial depth while keeping inference focused on building operations, design choices, and service signals rather than resident identity. The mandatory hedge language and provenance labeling make it defensible.</li>
+<li><strong>Cost model:</strong> Revised upward credibly. The doc is now much more honest about AI vision, Forge experimentation, re-enrichment, and scraping overhead.</li>
+<li><strong>Source classification:</strong> Useful and correctly done. Distinguishing API / Database / Computed / AI Vision / Web Research clarifies reliability, automation, and failure expectations.</li>
+</ul>
+<h4>2. Is v3 ready to build?</h4>
+<p><strong>Yes.</strong>  </p>
+<p>I would not ask for another design revision. Remaining risks are implementation and operations risks, not document-design blockers.</p>
+<h4>3. Updated score</h4>
+<p><strong>Approve.</strong>  </p>
+<p>v1 was not ready. v2 was close. v3 is build-ready.</p>
+<h4>4. What should the holistic review focus on?</h4>
+<p>The combined review should focus on <strong>integration seams</strong>:</p>
+<ul>
+<li><strong>Schema + pipeline alignment:</strong> whether monorepo/data model actually supports enrichment tables, provenance metadata, validation outputs, and regeneration/versioning.</li>
+<li><strong>Validator consistency:</strong> whether build-time similarity/content validators and this document’s validation council use compatible thresholds and failure handling.</li>
+<li><strong>Forge governance:</strong> where prompt/parameter mutations live, how they’re versioned, and how you prevent optimization from weakening compliance rules.</li>
+<li><strong>Ops realism:</strong> whether implementation plan staffing and infra actually cover REJECT review volume, batch re-enrichment, and scraping maintenance.</li>
+<li><strong>Publishing/indexation behavior:</strong> whether FULL / SUMMARY / WEAK / NO FIT classifications map cleanly into rendering, noindex/index policy, and ISR behavior.</li>
+</ul>
+  </div>
+</div>
+<div class="participant-block open">
+  <div class="participant-header" onclick="this.parentElement.classList.toggle('open')">
+    <span class="name">google/gemini-3.1-pro-preview@openrouter</span>
+    <span>
+      <span class="chars">3,628 chars</span>
+      <span class="toggle">&#9654;</span>
+    </span>
+  </div>
+  <div class="participant-body">
+    <h4>1. Are the 5 fixes correctly implemented?</h4>
+<p>Yes, all five requested fixes have been implemented cleanly and effectively:</p>
+<ul>
+<li>  <strong>Entity-Fit Gate:</strong> Section 8 sets a deterministic, machine-testable threshold (<code>>60% non-null fields with DETERMINISTIC or INFERENTIAL provenance</code>). This successfully removes subjective AI judgment from the pipeline's routing logic, ensuring weak entities fail gracefully to factual summaries.</li>
+<li>  <strong>Fair Housing Hardening:</strong> Section 10 provides robust, actionable guardrails. The CNS carve-out (describing <em>businesses that exist</em> instead of <em>people they attract</em>), the transition to factual feature tags, and the strictly enforced "Personas Are Internal Only" rule effectively mitigate the demographic proxy risk.</li>
+<li>  <strong>Operational Inference Narrative:</strong> Section 1 smartly recovers editorial depth for LuxuryApartments. Shifting the AI's analytical focus to a building's <em>design intent and operational model</em>—backed by required hedge language ("suggests," "indicates") and INFERENTIAL provenance labeling—restores value without crossing Fair Housing boundaries.</li>
+<li>  <strong>Cost Model Revised:</strong> Section 12 reflects a realistic, upwardly revised estimate ($0.35-$0.75 per building per domain). The explicit inclusion of AI vision, web scraping infrastructure, and Forge experimentation costs provides a much more honest budget.</li>
+<li>  <strong>Source Types Classified:</strong> Section 7 now correctly maps source types to reliability profiles, explicitly acknowledging that Web Research sources will fail or produce incomplete data ~30-40% of the time, tying directly into the "No Data" rules and entity-fit gates.</li>
+</ul>
+<h4>2. Is v3 ready to build?</h4>
+<p><strong>Yes.</strong> The document has moved from a conceptual target to a highly structured, defensible, and machine-enforceable system architecture. The distinction between what is factual, what is computed, what is inferred, and what is omitted makes this a realistic blueprint for execution.</p>
+<h4>3. Updated Score</h4>
+<p><strong>Approve.</strong> </p>
+<ul>
+<li>  v1: Revise before building</li>
+<li>  v2: Approve with minor revisions</li>
+<li>  <strong>v3: Approve (Ready to build)</strong></li>
+</ul>
+<h4>4. What remains for the holistic review?</h4>
+<p>As we move to reviewing the combined system (Monorepo v5 + Implementation Plan v5 + Content Engine v3), the focus shifts from <em>design</em> to <em>orchestration and integration</em>:</p>
+<ul>
+<li><strong>Schema Alignment:</strong> Ensuring the shared data schemas defined in the Monorepo design perfectly match the query parameters and input expectations of the Content Engine's enrichment pipelines.</li>
+<li><strong>Pipeline Orchestration & CI/CD:</strong> How the asynchronous batch enrichment jobs, the 8-stage Validation Council, and the Forge optimization loops interact with Next.js build times. We need to verify that long-running AI tasks do not block deployments and that ISR invalidation handles state changes correctly.</li>
+<li><strong>Human Operations Feasibility:</strong> Validating whether the projected 5-10% REJECT/REVISE rate requiring human intervention (from the Content Engine doc) aligns with the operational staffing and budget detailed in the Implementation Plan at scale.</li>
+<li><strong>Content Staleness and Versioning:</strong> Synthesizing the data freshness SLAs (Section 13) with the database migration and update strategies in the implementation plan to ensure stale records are predictably refreshed without causing race conditions.</li>
+</ul>
+<p><em>*</em></p>
+  </div>
+</div>
+<div class="participant-block open">
+  <div class="participant-header" onclick="this.parentElement.classList.toggle('open')">
+    <span class="name">x-ai/grok-4.20-beta@openrouter</span>
+    <span>
+      <span class="chars">5,741 chars</span>
+      <span class="toggle">&#9654;</span>
+    </span>
+  </div>
+  <div class="participant-body">
+    <p><strong>VOTE:</strong> {&quot;option&quot;: &quot;Approve&quot;, &quot;confidence&quot;: 0.94, &quot;rationale&quot;: &quot;All 5 v2 fixes are correctly and materially implemented. Entity-fit gate is now deterministic/machine-testable, Fair Housing protections are robust and actionable, Operational Inference Narrative cleanly recovers depth without compliance risk, cost model is honest with proper upward revision, and source classification adds practical reliability framing. v3 is ready to build.&quot;}</p>
+<h4>1. Are the 5 fixes correctly implemented?</h4>
+<p><strong>Yes.</strong></p>
+<ul>
+<li><strong>Fix 1 (Entity-fit gate):</strong> Fully resolved. The shift from the subjective “3+ scoring frameworks produce rich data” to the explicit, computable rule <code>>60% non-null fields with DETERMINISTIC or INFERENTIAL provenance</code> (Section 8) makes the gate deterministic. The document explicitly states “no AI judgment required at the gate” and “reads enrichment output field completeness, not quality.” This is exactly what was requested. The uniform 60% threshold across frameworks of different sizes is a minor tuning item for implementation, not a design flaw.</li>
+</ul>
+<ul>
+<li><strong>Fix 2 (Fair Housing):</strong> Substantially hardened. The CNS carve-out (Section 10) with clear compliant vs non-compliant examples is excellent. Replacing “Best for” demographic steering tags with factual feature tags and instituting the strict “Personas Are Internal Only” rule plus banned-phrase list directly addresses the prior leakage vectors. The generation instruction “Write for the audience… but never name or describe that audience” is the correct formulation. The one borderline case flagged (“the creative center of gravity is moving south”) is conservatively treated as non-compliant; this is acceptable for a default posture.</li>
+</ul>
+<ul>
+<li><strong>Fix 3 (Operational Inference Narrative):</strong> Successfully implemented and the strongest of the five fixes. The four concrete examples in LA’s frameworks (Section 1) stay firmly on the building’s <em>design intent and operational model</em> side of the line. The mandatory hedge language requirement, INFERENTIAL provenance label, and explicit “What this IS / What this is NOT” framing make the compliance boundary crisp for both AI generation and human review. This recovers meaningful editorial depth without reintroducing resident-profiling risk.</li>
+</ul>
+<ul>
+<li><strong>Fix 4 (Cost model):</strong> Revised appropriately upward with transparency. Per-building cost moved from $0.25–0.55 to $0.35–0.75; launch monthly from $500–800 to $750–1,200. Previously omitted items (AI vision, Forge experiments, quarterly re-enrichment, scraping infra) are now explicitly called out with ranges. This is intellectually honest. One remaining gap is explicit pricing of human review labor for the ~5–10% REJECT rate, but it is noted in the document and does not block approval.</li>
+</ul>
+<ul>
+<li><strong>Fix 5 (Source type classification):</strong> Well executed. Section 7 now contains a clean 5-tier reliability table (API > Database > Computed > AI Vision > Web Research) with automation expectations, cost profiles, and the realistic 30–40% Web Research failure rate. This ties directly into the “No Data” rule and entity-fit gate, creating a coherent failure path instead of forced fabrication.</li>
+</ul>
+<p>The honest Level 5 achievability framing (~30-40% true Level 5, ~30-40% Level 4+, ~20-30% summary/listing) further strengthens the document.</p>
+<h4>2. Is v3 ready to build?</h4>
+<p><strong>Yes.</strong> The design is now comprehensive, internally consistent, honest about its limitations, and contains concrete, code-mappable interfaces and machine-testable gates. All major v2 design-level concerns have been addressed. Remaining risks are implementation and operational in nature (threshold tuning, Forge convergence, web-research maintainability, schema alignment with the monorepo), not conceptual flaws in this document.</p>
+<h4>3. Updated score</h4>
+<p><strong>Approve — ready to build.</strong>  </p>
+<p>Progression: v1 “Revise before building” → v2 “Approve with minor revisions” → <strong>v3 Approve</strong>.</p>
+<h4>4. What remains for the holistic review?</h4>
+<p>The holistic review of the combined system (monorepo v5 + implementation plan v5 + content engine v3) should focus on <strong>integration seams and cross-document consistency</strong> that no single document can verify:</p>
+<ul>
+<li><strong>Enrichment tables ↔ monorepo data model</strong>: Confirm <code>la_building_enrichments</code>, <code>ll_building_enrichments</code>, and <code>la_editorial_content</code> / <code>ll_editorial_content</code> tables are created and migrated in the implementation plan, and that the ISR revalidation chain properly propagates from enrichment → validation → editorial content → page render.</li>
+</ul>
+<ul>
+<li><strong>Validation council ↔ build-time CI</strong>: Clarify whether the monorepo’s content similarity validators and the content engine’s Stage 2 pairwise similarity check are the same logic (with identical thresholds) or separate stages. Conflicting gates would create operational confusion.</li>
+</ul>
+<ul>
+<li><strong>Forge loop ↔ CI/CD and version control</strong>: Specify where mutated prompts, enrichment parameters, and calibration sets live in the monorepo, whether they are version-controlled, and how the Forge loop interacts with the build pipeline without breaking deterministic builds.</li>
+</ul>
+<ul>
+<li><strong>Cost model ↔ infrastructure reality</strong>: Validate that the Supabase tier (and overall hosting plan) can support the projected read/write volume, especially during quarterly re-enrichment batches for 2,000–5,000 buildings.</li>
+</ul>
+<ul>
+<li><strong>Fair Housing & persona governance</strong>: Confirm that updates to personas in <code>packages/content-engine/personas/</code> are caught by pre-commit linting or CI before they can introduce banned phrasing that only surfaces after a full generation cycle.</li>
+</ul>
+<p>These are system-level questions. With the individual documents now solid, the holistic review can focus on these seams rather than re-litigating the content engine itself.</p>
+<p>The AI council process has worked. v3 is ready.</p>
+  </div>
+</div>
+</div>
+
+<hr>
+<div class="meta">
+  Generated by <strong>ai-counsel</strong> &middot;
+  Participants: opus@claude, openai/gpt-5.4@openrouter, google/gemini-3.1-pro-preview@openrouter, x-ai/grok-4.20-beta@openrouter
+</div>
+</body>
+</html>

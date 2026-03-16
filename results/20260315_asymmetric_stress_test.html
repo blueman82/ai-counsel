@@ -1,0 +1,1330 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI Council Deliberation — Architecture Review</title>
+<style>
+  :root {
+    --bg: #0f172a;
+    --surface: #1e293b;
+    --surface-elevated: #334155;
+    --border: #475569;
+    --text: #e2e8f0;
+    --text-muted: #94a3b8;
+    --accent: #3b82f6;
+    --green: #22c55e;
+    --yellow: #eab308;
+    --red: #ef4444;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    padding: 2rem;
+    max-width: 1100px;
+    margin: 0 auto;
+  }
+  h1 { font-size: 1.75rem; margin-bottom: 0.5rem; }
+  h2 { font-size: 1.35rem; margin: 1.5rem 0 0.75rem; color: var(--accent); }
+  h3 { font-size: 1.15rem; margin: 1.25rem 0 0.5rem; }
+  h4 { font-size: 1rem; margin: 1rem 0 0.5rem; color: var(--text-muted); }
+  p { margin: 0.5rem 0; }
+  hr { border: none; border-top: 1px solid var(--border); margin: 1.5rem 0; }
+  ul { margin: 0.5rem 0 0.5rem 1.5rem; }
+  li { margin: 0.25rem 0; }
+  code {
+    background: var(--surface-elevated);
+    padding: 0.15rem 0.4rem;
+    border-radius: 3px;
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+    font-size: 0.85em;
+  }
+  pre {
+    background: var(--surface-elevated);
+    padding: 1rem;
+    border-radius: 6px;
+    overflow-x: auto;
+    margin: 0.75rem 0;
+  }
+  pre code { background: none; padding: 0; }
+  strong { color: #f1f5f9; }
+
+  .meta { color: var(--text-muted); font-size: 0.85rem; margin-bottom: 1.5rem; }
+  .summary-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1.25rem 1.5rem;
+    margin: 1rem 0;
+  }
+  .summary-box h2 { margin-top: 0; }
+  .vote-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 0.75rem;
+    margin: 1rem 0;
+  }
+  .vote-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 0.75rem 1rem;
+    border-left: 4px solid var(--accent);
+  }
+  .vote-card .participant { font-weight: 600; font-size: 0.9rem; }
+  .vote-card .option { font-size: 0.85rem; margin-top: 0.25rem; }
+  .vote-card .confidence { font-size: 0.8rem; color: var(--text-muted); }
+  .vote-card .rationale { font-size: 0.8rem; color: var(--text-muted); margin-top: 0.25rem; font-style: italic; }
+
+  .round-section {
+    margin: 1.5rem 0;
+  }
+  .participant-block {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    margin: 0.75rem 0;
+    overflow: hidden;
+  }
+  .participant-header {
+    background: var(--surface-elevated);
+    padding: 0.6rem 1rem;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    user-select: none;
+  }
+  .participant-header:hover { background: #3b4f6b; }
+  .participant-header .name { font-weight: 600; }
+  .participant-header .chars { font-size: 0.8rem; color: var(--text-muted); }
+  .participant-header .toggle { font-size: 0.8rem; color: var(--text-muted); }
+  .participant-body {
+    padding: 1rem 1.25rem;
+    display: none;
+  }
+  .participant-block.open .participant-body { display: block; }
+  .participant-block.open .toggle { transform: rotate(90deg); }
+
+  .convergence {
+    display: inline-block;
+    background: var(--surface-elevated);
+    padding: 0.25rem 0.6rem;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+  }
+  .tag {
+    display: inline-block;
+    padding: 0.15rem 0.5rem;
+    border-radius: 3px;
+    font-size: 0.75rem;
+    font-weight: 600;
+  }
+</style>
+</head>
+<body>
+<h1>AI Council Deliberation</h1>
+<div class="meta">
+  2026-03-15 20:52 &middot;
+  Mode: conference &middot;
+  Rounds: 2 &middot;
+  <span class="convergence">tie</span>
+</div>
+
+<div class="summary-box">
+<h2>Consensus</h2>
+<p>The engine successfully handles asymmetric editorial coverage in both directions — producing quality domain-specific content when fit is strong and correctly declining to generate thin content when fit is absent. All four participants voted Approve with high confidence (0.88–0.95).</p>
+<h3>Key Agreements</h3><ul>
+<li>Both entity-fit gate decisions are correct: Lofts&#x27; NO_FIT rejection of The Benjamin and LA&#x27;s WEAK_FIT limitation on Boott Mills are principled calls that protect brand identity rather than force thin editorial</li>
+<li>Coverage asymmetry strengthens SEO differentiation — three buildings producing three distinct coverage patterns (both domains, LA-only, Lofts-only) creates genuine topical authority separation that a doorway page network would not</li>
+<li>The Boott Mills (Lofts) page is the strongest output across all three sausage tests (8.5–9/10), validating the principle that authentic source material produces better editorial</li>
+<li>Per-field provenance citations (`_source` with confidence scores, method descriptions, data counts) are a material credibility improvement over the 360 Newbury test</li>
+<li>The noise analysis in the Benjamin page constitutes genuine editorial synthesis — it transforms review signal into a structural diagnosis (design-level trade-off, not fixable by management)</li>
+</ul>
+<h3>Key Disagreements</h3><ul>
+<li>Minor scoring variance on the Benjamin (LA) page: Opus scored it 7.5/10, GPT-5.4 and Grok scored it 8/10, Gemini 8/10 — small spread with no substantive disagreement on quality</li>
+<li>One implementation note with no disagreement on substance: the `light_profile_applicable: true` boolean in the Benjamin gate is misleading (marked applicable but treated as insufficient), and reviewers agreed it should be `false` with qualitative notes</li>
+</ul>
+<h3>Final Recommendation</h3>
+<p>Ship both editorial pages and the entity-fit gate logic as validated. Address the shared execution gaps before production scale — most critically: acoustic analysis for Boott Mills (15-ft timber ceilings create specific resonance characteristics), $/sqft pricing context for The Benjamin, and anonymized review quotes to ground the noise and operational inference claims. The &quot;what the other domain would say if forced&quot; meta-commentary sections are test artifacts and should be removed from production pages, as no real publication would include them.</p>
+</div>
+<h2>Votes</h2>
+<div class="vote-grid">
+<div class="vote-card" style="border-left-color: #22c55e">
+  <div class="participant">opus@claude</div>
+  <div class="option" style="color: #22c55e">Approve — engine handles asymmetry</div>
+  <div class="confidence">Confidence: 89%</div>
+  <div class="rationale">Both entity-fit gates make correct, spec-compliant calls. Both editorial pages stand on their own. Coverage asymmetry creates genuine differentiation signal. The Boott Mills page (8.5/10) is the stron</div>
+</div>
+<div class="vote-card" style="border-left-color: #22c55e">
+  <div class="participant">openai/gpt-5.4@openrouter</div>
+  <div class="option" style="color: #22c55e">Approve</div>
+  <div class="confidence">Confidence: 94%</div>
+  <div class="rationale">The asymmetric tests show the engine can produce substantive domain-specific editorial when fit is strong and decline thin coverage when fit is weak. Both gate decisions are correct, provenance materi</div>
+</div>
+<div class="vote-card" style="border-left-color: #22c55e">
+  <div class="participant">google/gemini-3.1-pro-preview@openrouter</div>
+  <div class="option" style="color: #22c55e">Approve</div>
+  <div class="confidence">Confidence: 95%</div>
+  <div class="rationale">Both entity-fit gates effectively block out-of-band content. The asymmetric coverage builds distinct, defensible brand identities, and the newly implemented provenance citations elevate the output fro</div>
+</div>
+</div>
+<div class="round-section">
+<h2>Round 1</h2>
+<div class="participant-block">
+  <div class="participant-header" onclick="this.parentElement.classList.toggle('open')">
+    <span class="name">opus@claude</span>
+    <span>
+      <span class="chars">19,900 chars</span>
+      <span class="toggle">&#9654;</span>
+    </span>
+  </div>
+  <div class="participant-body">
+    <p>Now I have full context. Let me deliver a comprehensive evaluation.</p>
+<hr>
+<h3>Asymmetric Sausage Test — Full Evaluation</h3>
+<h4>TEST A: The Benjamin Seaport (LA editorial page)</h4>
+<p><strong>Q1: Does LA&#x27;s editorial page stand on its own?</strong></p>
+<p>Yes, and it&#x27;s the best demonstration yet of what LA&#x27;s analytical framework actually does. Without a Lofts counterpart, the page has to carry itself entirely on service analysis, amenity evaluation, and operational intelligence — and it does. The noise-from-entertainment-venues angle, the elevator congestion math (354 units, predictable bottleneck), the distinction between the building gym and on-site Equinox as competing fitness options — these are genuinely useful to someone deciding whether to sign a $4,295/month lease.</p>
+<p>The page&#x27;s strongest moment is the operational inference section: &quot;Management chose tenants (bars, bowling, movie theater) that make the building feel vibrant and attract a younger demographic. The same tenants generate the noise complaints.&quot; That&#x27;s a structural trade-off analysis that no listing site surfaces. It justifies the page&#x27;s existence.</p>
+<p><strong>Q2: Is the entity-fit gate rejection correct?</strong></p>
+<p>Yes, unambiguously. The gate identified that only 2 of 6 Lofts frameworks could produce data (Light Profile and CNS), and neither alone justifies a full editorial page. The CNS of 28 would produce embarrassingly thin content. The &quot;what Lofts would say if forced&quot; paragraph is the proof — it reads like an apology, not an editorial. Correct call.</p>
+<p>One minor quibble: the gate says <code>light_profile_applicable: true</code> but then correctly notes that &quot;without architectural character to contextualize, a light profile alone doesn&#x27;t justify a full editorial page.&quot; This is the right reasoning, but the gate should probably return <code>false</code> with a note rather than <code>true</code> with a caveat. The logic is correct; the boolean is misleading.</p>
+<p><strong>Q3: Does enrichment provenance add credibility?</strong></p>
+<p>Substantially. The CQS citation — &quot;167 Google Reviews, NLP sentiment, confidence 0.85&quot; — is the strongest provenance in either test. 167 data points is a large enough corpus that the 0.85 confidence feels earned. Compare to 360 Newbury&#x27;s CQS from 23 reviews (confidence 0.72 in the addendum spec). The provenance isn&#x27;t just transparent — it&#x27;s actively building trust by showing when data is robust.</p>
+<p>The Lifestyle Radius provenance (&quot;24 venues verified via Google Places API within 0.5-mile isochrone&quot;) is clean and verifiable. The Operational Inference provenance (&quot;LLM_GENERATED — editorial analysis, not data-backed. Read as editorial observation, not fact.&quot;) is honest about its limits.</p>
+<p><strong>Q4: Is the noise analysis genuine insight or AI restating reviews?</strong></p>
+<p>Both, and that&#x27;s fine. The raw insight (entertainment venues generate noise) comes from the reviews. The editorial value is in the structural framing: this isn&#x27;t a fixable maintenance issue — it&#x27;s a design choice baked into the building&#x27;s DNA that can&#x27;t be resolved without soundproofing investment. That&#x27;s the delta between a review aggregator and an editorial product. The page takes review signal and produces an architectural-operational interpretation. That&#x27;s what editorial means.</p>
+<p>The weakness: the page doesn&#x27;t cite specific reviews or quote specific language. It says &quot;multiple reviews mention bass and crowd noise on weekend evenings&quot; but doesn&#x27;t show receipts. A stronger version would include 2-3 anonymized review excerpts.</p>
+<p><strong>Q5: Does the cadence feel structurally different from 360 Newbury Lofts?</strong></p>
+<p>Yes. LA&#x27;s verdict → experience → scored metrics → inference → comparisons → specs is a fundamentally different reading shape than Lofts&#x27; hook → biography → character deconstruction → preservation critique → light profile → creative ecosystem → comparisons → specs. LA leads with judgment and works toward data. Lofts leads with history and works toward editorial assessment. The cadence fix from the addendum is working.</p>
+<p><strong>Q6: Score and justification.</strong></p>
+<p><strong>LA&#x27;s Benjamin page: 7.5/10.</strong></p>
+<p>Strong analytical framework, genuine insight on the noise trade-off, robust provenance. Loses points for: (a) the comparisons section is thin — &quot;Watermark is the quieter Seaport alternative&quot; doesn&#x27;t give enough differentiation data to be actionable, (b) no price-per-square-foot analysis, which would be the most useful metric for the reader, (c) the editorial verdict in the opening, while punchy, could be sharper — &quot;luxury lifestyle machine&quot; is close to marketing language.</p>
+<p>Does it justify its existence? Yes. This page tells a prospective renter something they can&#x27;t learn from Apartments.com, Zillow, or the building&#x27;s own website: the noise/convenience trade-off is structural and the management can&#x27;t fix it. That&#x27;s worth publishing.</p>
+<p><strong>Q7: What&#x27;s missing?</strong></p>
+<ul>
+<li><strong>Price-per-square-foot</strong> — at $4,295+ for a 1BR, what's the $/sqft vs. comparable Seaport buildings? This is the most decision-relevant metric missing.</li>
+<li><strong>Sound/noise data</strong> — the page claims noise from entertainment venues but doesn't try to quantify it. Even "reviews mentioning noise: 23 of 167 (14%)" would add rigor.</li>
+<li><strong>Vacancy/turnover signal</strong> — 354 units is a large building. Turnover rates or vacancy signals from listing frequency would be genuinely useful.</li>
+<li><strong>Review excerpt quotes</strong> — "Multiple reviews mention bass" is weaker than showing an actual quote.</li>
+<li><strong>Seasonal variation</strong> — the pool, rooftop, and outdoor entertainment likely create different noise patterns summer vs. winter.</li>
+</ul>
+<p><strong>Q8: Does this test prove the engine handles the hard case?</strong></p>
+<p>For the LA side, yes. The Benjamin is the hardest building type for Lofts (zero character) and a perfect LA specimen (maxed amenity stack, lots of review data, genuine operational tensions). The engine correctly identifies where it can and can&#x27;t produce value, and produces quality editorial where it can.</p>
+<hr>
+<h4>TEST B: Boott Mills (Lofts editorial page)</h4>
+<p><strong>Q1: Does Lofts&#x27; page stand on its own?</strong></p>
+<p>This is the best page the engine has produced across all three tests. The building biography section is genuinely compelling — the smokestack archival brick restoration detail is the kind of thing that separates editorial from aggregation. The Character Index breakdown at 94 is well-defended: the interior materials score (95) is justified by the fact that the timber beams are structural, not decorative. The page makes you want to visit this building, and more importantly, it makes you understand what it would feel like to live there.</p>
+<p>The page&#x27;s best moment: &quot;The brick IS the wall. The timber beams aren&#x27;t decorative — they&#x27;re holding the building up.&quot; That&#x27;s a clear, specific distinction that exposes the fraud in most &quot;loft-style&quot; marketing.</p>
+<p><strong>Q2: Is the entity-fit gate for LA correct?</strong></p>
+<p>Yes. Boott Mills at $2,250/month with no concierge, no doorman, and a 7/20 amenity score is clearly outside LA&#x27;s framework. The gate&#x27;s reasoning is clean: &quot;The building is extraordinary — but it&#x27;s extraordinary on dimensions LA doesn&#x27;t measure.&quot; That&#x27;s an honest limitation statement, not a quality judgment.</p>
+<p>The only argument for a full LA page would be if LA expanded into a &quot;value luxury&quot; or &quot;character-forward&quot; segment — but that would dilute the brand. Correct call.</p>
+<p><strong>Q3: Compare to 360 Newbury Lofts page.</strong></p>
+<p>Boott Mills is stronger. The Character Index delta (94 vs 82) is well-defended: 360 Newbury&#x27;s interior materials scored 30 because the original Wurlitzer showroom finishes were entirely replaced with generic luxury marble. Boott Mills scores 95 because the mill&#x27;s industrial materials ARE the interior. When the authentic material survives, the editorial has more to work with.</p>
+<p>The Building Biography is also richer — 123 years of operation vs. Wurlitzer → Gehry → Tower Records → apartments. Boott Mills has deeper historical significance (birthplace of American factory system) that gives the biography section genuine weight.</p>
+<p>The one area where 360 Newbury was stronger: the Gehry canopy intervention gave the Light Profile section a unique architectural feature to analyze. Boott Mills&#x27; light profile is strong (factory windows designed for textile workers) but less architecturally distinctive.</p>
+<p><strong>Q4: Does the CNS analysis add genuine value?</strong></p>
+<p>Yes, and this is where the page does something genuinely smart. The editorial argument — Lowell&#x27;s 52 is more meaningful than Back Bay&#x27;s 71 because it&#x27;s generative vs. curatorial — is defensible and specific. The Western Avenue Studios detail (200+ artist studios, largest in New England) is the kind of fact that contextualizes the score in a way the number alone can&#x27;t.</p>
+<p>Is it AI spin? Partially. The distinction between &quot;generative&quot; and &quot;curatorial&quot; creative ecosystems is a real framework that urban planners use, but the page applies it a bit too neatly. A more honest version would acknowledge that Lowell&#x27;s low chain penetration is also a function of economic weakness, not just creative authenticity. The independent-to-chain ratio is high partly because chains don&#x27;t see enough consumer demand to locate there.</p>
+<p>Still, the observation that &quot;artists here make work, in Back Bay people buy it&quot; is a legitimate editorial insight that serves the Lofts audience. It&#x27;s the kind of distinction a creative professional choosing between neighborhoods would actually care about.</p>
+<p><strong>Q5: Building Biography — genuine value or Wikipedia?</strong></p>
+<p>Genuine value. The key test: does the biography tell you something about the living experience? Yes. The detail about factory windows being designed to maximize light for textile workers — and that this engineering inheritance creates specific residential light conditions — directly connects history to present-day experience. The smokestack restoration detail (archival brick pattern research) tells you what kind of developer and management cares for this building. The &quot;123 years of operation&quot; framing gives you a sense of the building&#x27;s mass — temporal mass, not just physical.</p>
+<p>Where it tips toward Wikipedia: the first paragraph about Lowell being &quot;engineered from scratch to be America&#x27;s first planned industrial center&quot; is true and interesting but doesn&#x27;t inform the living decision. A tighter edit would start with the mill&#x27;s physical characteristics and weave in just enough history to explain why the spaces feel the way they do.</p>
+<p><strong>Q6: Score and justification.</strong></p>
+<p><strong>Lofts&#x27; Boott Mills page: 8.5/10.</strong></p>
+<p>The strongest editorial output across all three tests. The Character Index is well-defended, the preservation critique is specific (the &quot;what was lost&quot; section is as important as &quot;what was preserved&quot;), the light profile connects industrial design intent to residential experience, and the creative ecosystem analysis adds genuine insight.</p>
+<p>Loses points for: (a) the biography section could be tighter — some paragraphs serve history more than housing decisions, (b) no acoustic analysis (15-foot ceilings + exposed brick + timber beams = specific sound characteristics that would be highly relevant), (c) the comparisons section, while useful, doesn&#x27;t give enough detail on Fort Point pricing to make the &quot;comparable character at a fraction of the price&quot; claim actionable.</p>
+<p>Does it justify its existence? Absolutely. This page tells you something no other site will: what it feels like to live inside an 1835 textile mill where the industrial structure is the design, not a reference. For someone considering Boott Mills — or trying to understand what authentic adaptive reuse means vs. &quot;loft-style&quot; marketing — this page has no equivalent online.</p>
+<p><strong>Q7: What&#x27;s missing?</strong></p>
+<ul>
+<li><strong>Acoustics</strong> — 15-foot ceilings + exposed brick + timber beams create specific sound characteristics. This is a huge living-experience factor that the page entirely ignores.</li>
+<li><strong>Commute analysis</strong> — at 30 miles from Boston, the commuter rail reality (schedule, travel time, reliability) is critical context for anyone considering this vs. a Boston building.</li>
+<li><strong>Heating/energy</strong> — gas heat included in rent is mentioned in specs but not analyzed. Historic mill buildings have specific thermal characteristics (thick masonry = thermal mass, tall ceilings = heat stratification) that affect both comfort and cost.</li>
+<li><strong>Winter light</strong> — the light profile describes morning sun off the Merrimack but doesn't address Massachusetts winter reality: shorter days, lower sun angle, potential river fog.</li>
+<li><strong>Photography critique</strong> — Lofts' Character Index relies heavily on photo-derived assessments (API_DERIVED for window scale, interior materials, spatial flexibility) but never shows or critiques the photos themselves.</li>
+</ul>
+<p><strong>Q8: Is the Character Index ranking (94 vs 82) defensible?</strong></p>
+<p>Yes, with one reservation. The ranking is defensible because the scoring criteria are internally consistent: Boott Mills&#x27; interior materials are original and structural (95), while 360 Newbury&#x27;s interiors were entirely replaced (30). That 65-point gap on interior materials drives the 12-point overall gap. The logic is sound — a building where the historic material survives in the living space has more character than one where it&#x27;s been covered with marble.</p>
+<p>The reservation: &quot;character&quot; is doing a lot of work in the word &quot;Character Index.&quot; Boott Mills has more preserved industrial character. But 360 Newbury has a Gehry canopy — arguably more architectural distinction. The index weights industrial authenticity over architectural intervention. That&#x27;s a valid editorial choice, but it should be explicit. A reader might reasonably expect a Gehry building to score higher than a mill.</p>
+<hr>
+<h4>OVERALL QUESTIONS</h4>
+<p><strong>1. Do both entity-fit gate decisions look correct?</strong></p>
+<p>Yes. Lofts rejecting The Benjamin (NO_FIT) and LA limiting Boott Mills (WEAK_FIT) are both correct calls supported by clear, specific reasoning. The gates are correctly calibrated to their respective frameworks: Lofts measures architectural character, and The Benjamin has none. LA measures luxury service quality, and Boott Mills has none.</p>
+<p>The gates are also honest about edge cases: LA acknowledges that Boott Mills &quot;is extraordinary — but on dimensions LA doesn&#x27;t measure.&quot; That&#x27;s a quality statement, not a dismissal.</p>
+<p><strong>Gate scores: 9/10.</strong> One point deducted for the Light Profile boolean issue in The Benjamin&#x27;s gate (marked <code>true</code> but effectively treated as <code>false</code>).</p>
+<p><strong>2. Does coverage asymmetry strengthen or weaken SEO positioning?</strong></p>
+<p>Strengthens, and this is the test&#x27;s most important finding. Three buildings, three coverage patterns:</p>
+<p>| Building | LA | Lofts |</p>
+<p>|---|---|---|</p>
+<p>| 360 Newbury | Full page | Full page |</p>
+<p>| The Benjamin | Full page | Omitted |</p>
+<p>| Boott Mills | Listing only | Full page |</p>
+<p>Google sees genuinely different editorial decisions, not two sites mirroring each other with different CSS. The asymmetry IS the differentiation signal. A doorway page network would cover everything on both sites. These two sites cover different things — that&#x27;s what makes them distinct publications.</p>
+<p>The risk: if the omission pattern is too predictable (Lofts always omits new construction, LA always omits non-luxury), Google could eventually model the pattern as a single editorial decision expressed across two domains. But at portfolio scale with hundreds of buildings, the pattern will be noisy enough to look organic.</p>
+<p><strong>3. Do the two pages feel like different publications?</strong></p>
+<p>Yes, more convincingly than the 360 Newbury test. The cadence fix is working:</p>
+<ul>
+<li>LA's Benjamin page reads like a consumer intelligence report: verdict up front, scored metrics, operational trade-offs, actionable comparisons. The tone is analytical, slightly skeptical ("luxury lifestyle machine" — not pejorative but not celebratory).</li>
+<li>Lofts' Boott Mills page reads like architectural criticism for a residential audience: biography, character deconstruction, preservation judgment, spatial analysis. The tone is passionate about authenticity ("The brick IS the wall").</li>
+</ul>
+<p>The shared engine DNA still shows in two places: (a) both pages use the same provenance citation format (<code>[PROVENANCE: TYPE]</code>), which is technically consistent but editorially identical — different publications would format source attributions differently; (b) both pages have a &quot;what the other domain would say if forced&quot; section, which is meta-commentary that no real publication would include.</p>
+<p><strong>4. Do per-field source citations add credibility?</strong></p>
+<p>Yes, significantly. Compare:</p>
+<ul>
+<li><strong>360 Newbury (original):</strong> "Concierge Quality Score: 74/100" — no source, no confidence, no method.</li>
+<li><strong>Benjamin (this test):</strong> "CQS 81/100 — NLP sentiment on 167 Google Reviews. Confidence: 0.85. Method: keyword frequency + sentiment polarity."</li>
+</ul>
+<p>The improvement is substantial. A reader can now ask &quot;where did this number come from?&quot; and get an answer. The confidence scores are particularly valuable — they let the engine be honest about when it has strong data (167 reviews, 0.85) vs. weak data (would show lower confidence or suppress the score entirely per the addendum spec).</p>
+<p>The one provenance weakness: <code>LLM_GENERATED</code> sections still don&#x27;t cite which model produced them, what prompt was used, or whether the output was edited. &quot;AI editorial analysis&quot; is a category, not a source. But this may be intentional — over-specifying the AI process could undermine trust rather than build it.</p>
+<p><strong>5. Does the engine handle asymmetry?</strong></p>
+<p>Yes. This is the test&#x27;s core question and both directions answer it convincingly:</p>
+<ul>
+<li><strong>Direction A (strong LA, no Lofts):</strong> LA produces quality editorial from amenity data, review corpus, and operational analysis. Lofts correctly declines. The engine doesn't force thin content.</li>
+<li><strong>Direction B (strong Lofts, weak LA):</strong> Lofts produces its best editorial from authentic character, historical depth, and preservation quality. LA correctly limits to listing-only. The engine doesn't force luxury analysis on a non-luxury building.</li>
+</ul>
+<p>Combined with the 360 Newbury symmetric test, the engine has now demonstrated three coverage modes: both domains (360 Newbury), LA only (The Benjamin), and Lofts only (Boott Mills). That&#x27;s a complete proof that the entity-fit gate works in all directions.</p>
+<hr>
+<h4>SCORES SUMMARY</h4>
+<p>| Component | Score | Notes |</p>
+<p>|---|---|---|</p>
+<p>| LA editorial (The Benjamin) | 7.5/10 | Strong analytical framework, genuine noise insight, good provenance. Needs $/sqft, review quotes, seasonal variation. |</p>
+<p>| Lofts editorial (Boott Mills) | 8.5/10 | Best output across all tests. Authentic character produces passionate, specific editorial. Needs acoustics, commute analysis. |</p>
+<p>| Entity-fit gate (Lofts → Benjamin) | 9/10 | Correct NO_FIT. Minor boolean inconsistency on Light Profile. |</p>
+<p>| Entity-fit gate (LA → Boott Mills) | 9.5/10 | Correct WEAK_FIT. Clean reasoning, honest about LA&#x27;s limitations. |</p>
+<p>| Cadence differentiation | 8/10 | Structurally distinct. Provenance format and meta-commentary still create shared fingerprint. |</p>
+<p>| Provenance system | 8.5/10 | Major improvement over 360 Newbury. Confidence scores and method citations are strong. LLM_GENERATED sourcing still underdefined. |</p>
+<p>| Asymmetric differentiation (overall) | 8.5/10 | Engine handles both directions. Coverage pattern is the differentiation signal. |</p>
+<hr>
+  </div>
+</div>
+<div class="participant-block">
+  <div class="participant-header" onclick="this.parentElement.classList.toggle('open')">
+    <span class="name">openai/gpt-5.4@openrouter</span>
+    <span>
+      <span class="chars">13,633 chars</span>
+      <span class="toggle">&#9654;</span>
+    </span>
+  </div>
+  <div class="participant-body">
+    <p>These asymmetric tests are much more convincing than the original perfect-fit case, because they show restraint. The key question is not “can the engine write two differentiated pages when both domains have rich material?” It’s “can it refuse to fake expertise when one domain has none?” On that, the answer is mostly yes.</p>
+<h3>Test A: The Benjamin Seaport</h3>
+<h4>1. Does LA&#x27;s editorial page stand on its own?</h4>
+<p>Yes. It reads like a coherent luxury-rental editorial product even without any Lofts counterpart.</p>
+<p>Why it works:</p>
+<ul>
+<li>It has a clear thesis: <strong>amenity density and convenience are the product; noise is the trade-off.</strong></li>
+<li>It derives actual user value from operational signals rather than generic luxury copy.</li>
+<li>It uses the building’s retail integration and review patterns to create a specific identity: not “nice Seaport tower,” but <strong>self-contained lifestyle campus with predictable friction.</strong></li>
+</ul>
+<p>What keeps it from being empty brochure language is the tension:</p>
+<ul>
+<li>on-site entertainment as value</li>
+<li>on-site entertainment as noise source</li>
+<li>scale as convenience</li>
+<li>scale as elevator/package congestion</li>
+</ul>
+<p>That’s real editorial structure, not listing inflation.</p>
+<p>Weakness: parts of it still over-explain the framework instead of deepening the building. Some passages feel like “here is how our scoring system works” rather than “here is what living here is like.”</p>
+<h4>2. Is the Lofts rejection correct?</h4>
+<p>Yes, broadly correct.</p>
+<p>The Lofts gate logic is sound:</p>
+<ul>
+<li>no adaptive reuse</li>
+<li>no building biography</li>
+<li>no material/structural character in the Lofts sense</li>
+<li>weak creative ecosystem</li>
+<li>light profile alone not enough</li>
+</ul>
+<p>This is exactly the kind of building a character-led publication should skip. If Lofts publishes full pages on towers like this, it dilutes its identity immediately.</p>
+<p>Could there be a viable angle the gate missed? Maybe a very narrow one:</p>
+<ul>
+<li>“why Seaport luxury towers fail the loft test”</li>
+<li>a meta/editorial essay on placelessness, corporatized urbanism, or lifestyle-campus architecture</li>
+</ul>
+<p>But that is <strong>not</strong> a building page. That’s a thematic article. So for entity-level coverage, omission is the right call.</p>
+<h4>3. Does provenance add credibility?</h4>
+<p>Yes, materially.</p>
+<p>The page is much stronger because it distinguishes:</p>
+<ul>
+<li>structured data</li>
+<li>API-derived inference</li>
+<li>LLM editorial interpretation</li>
+</ul>
+<p>That helps in two ways:</p>
+<ul>
+<li>It signals intellectual honesty.</li>
+<li>It prevents the strongest claims from pretending to be hard fact.</li>
+</ul>
+<p>Especially effective:</p>
+<ul>
+<li>Concierge Quality Score with data volume and confidence</li>
+<li>Lifestyle Radius with named APIs and venue count</li>
+<li>Operational Inference explicitly labeled as editorial analysis, not fact</li>
+</ul>
+<p>That said, provenance only helps if the underlying metrics are defensible. “NLP sentiment on 167 reviews” sounds credible, but readers still need confidence that the score isn’t arbitrary. Transparency is better than opacity, but methodology summaries may still need tightening.</p>
+<h4>4. Is the noise analysis genuine insight or just AI inference?</h4>
+<p>It is both.</p>
+<p>The base signal comes from reviews, so the raw fact pattern is not original: residents complain about noise. But the page adds value by:</p>
+<ul>
+<li>tying that complaint to the building’s mixed-use design</li>
+<li>framing it as a <strong>structural trade-off</strong>, not just management failure</li>
+<li>integrating it into the building’s identity</li>
+</ul>
+<p>That is useful editorial synthesis. It becomes more than “some people said it’s loud.” It says: this building’s core value proposition and core weakness are the same decision.</p>
+<p>Where it risks overreach:</p>
+<ul>
+<li>“architectural co-location… structural trade-off that can't be resolved without soundproofing investment” is plausible, but a bit too definitive unless there’s stronger evidence.</li>
+<li>It should be phrased more cautiously: “appears to be a design-level issue rather than a purely operational one.”</li>
+</ul>
+<p>So: real editorial value, but should hedge slightly more.</p>
+<h4>5. Does the cadence feel different from Lofts?</h4>
+<p>Yes.</p>
+<p>LA cadence here feels:</p>
+<ul>
+<li>verdict-led</li>
+<li>consumer-practical</li>
+<li>operational</li>
+<li>service/amenity centric</li>
+</ul>
+<p>Lofts cadence in the Boott Mills piece feels:</p>
+<ul>
+<li>object-led</li>
+<li>historical</li>
+<li>material</li>
+<li>spatial/architectural</li>
+</ul>
+<p>They do feel like different publications. The shared engine DNA still shows in:</p>
+<ul>
+<li>similarly declarative intro hooks</li>
+<li>similar section architecture</li>
+<li>similar pattern of “thesis → framework section → interpretive summary”</li>
+<li>similar rhetorical confidence</li>
+</ul>
+<p>But they are distinct enough. Not perfectly disguised siblings, but clearly separate editorial products.</p>
+<h4>6. Score LA&#x27;s page</h4>
+<p><strong>8/10</strong></p>
+<p>Does it justify its existence? Yes.</p>
+<p>Why not higher:</p>
+<ul>
+<li>some framework exposition is too visible</li>
+<li>some claims are slightly overconfident relative to evidence</li>
+<li>comparison section is competent but not very original</li>
+<li>“luxury lifestyle machine” is a good line, but the page could use one more layer of specificity about who this building is actually for</li>
+</ul>
+<p>Still, it absolutely clears the threshold for useful internet content. It gives a renter something meaningfully sharper than a listing page or an amenities roundup.</p>
+<h4>7. What’s missing?</h4>
+<p>For strength, I’d want:</p>
+<ul>
+<li>more unit-level specificity: layouts, storage, kitchen quality, actual finish depth</li>
+<li>more floor/location granularity: are noise issues concentrated on lower floors or specific exposures?</li>
+<li>a clearer statement of resident archetype: who should choose this building and who should avoid it</li>
+<li>stronger comparative context on pricing/value vs nearby Seaport alternatives</li>
+<li>more direct distinction between building gym and Equinox access/relationship</li>
+</ul>
+<p>The biggest missing piece is <strong>consumer segmentation</strong>. The page says what the building is, but not sharply enough who it best serves.</p>
+<h4>8. Does this test prove the hard case?</h4>
+<p>Yes, substantially.</p>
+<p>The important success is not just that LA can say something intelligent. It’s that Lofts can say <strong>nothing</strong> and that “nothing” is principled. That is exactly the hard case.</p>
+<hr>
+<h3>Test B: Boott Mills</h3>
+<h4>1. Does Lofts&#x27; editorial page stand on its own?</h4>
+<p>Yes, strongly. More strongly than the Benjamin page.</p>
+<p>This is real editorial terrain for Lofts:</p>
+<ul>
+<li>authentic building biography</li>
+<li>preserved materials</li>
+<li>adaptive reuse critique</li>
+<li>light behavior tied to original industrial design</li>
+<li>neighborhood creativity framed as production rather than consumption</li>
+</ul>
+<p>It reads like a publication with an actual point of view.</p>
+<h4>2. Is LA’s weak-fit gate correct?</h4>
+<p>Yes.</p>
+<p>Boott Mills may be a wonderful place to live, but it is not meaningfully a luxury-service product. LA’s core frameworks:</p>
+<ul>
+<li>concierge/service</li>
+<li>amenity completeness</li>
+<li>luxury-lifestyle radius</li>
+<li>institutional operations in a luxury context</li>
+</ul>
+<p>do not map well.</p>
+<p>Could LA force a page? Sure, but it would be thin and awkward. The gate is doing its job.</p>
+<p>One caveat: if LA is meant to cover all “premium” apartments rather than strictly luxury-service inventory, there might be a niche angle around “design-rich non-luxury alternatives.” But as currently framed, listing-only is correct.</p>
+<h4>3. Compare to 360 Newbury Lofts</h4>
+<p>Boott Mills is almost certainly stronger.</p>
+<p>Why:</p>
+<ul>
+<li>richer historical biography</li>
+<li>more authentic preserved fabric</li>
+<li>more obvious relationship between building history and current living experience</li>
+<li>less dependence on interpretive inflation</li>
+</ul>
+<p>This supports the thesis that the engine performs best when the underlying building genuinely fits the publication’s editorial lens.</p>
+<h4>4. Does the Creative Neighborhood Score analysis add value?</h4>
+<p>Mostly yes.</p>
+<p>The key move—arguing that a lower-scoring Lowell ecosystem may be more meaningful for makers than a higher-scoring Back Bay scene—is insightful, not just spin. It recognizes that raw venue count is not the same as cultural function.</p>
+<p>That said, the line between insight and rationalization is thin. The page earns it because it names concrete anchors:</p>
+<ul>
+<li>Western Avenue Studios</li>
+<li>Brush Art Gallery</li>
+<li>Lowell Makes</li>
+<li>independent-to-chain ratio</li>
+</ul>
+<p>If it had only said “the score is low but actually meaningful,” it would sound like spin. With those examples, it works.</p>
+<h4>5. Is the Building Biography genuine editorial value?</h4>
+<p>Yes.</p>
+<p>This is not empty Wikipedia padding because it directly informs:</p>
+<ul>
+<li>why the windows are so large</li>
+<li>why the beams matter</li>
+<li>why the floor plates feel the way they do</li>
+<li>why the conversion quality matters</li>
+<li>why the surrounding district has the identity it does</li>
+</ul>
+<p>It connects historical origin to spatial experience. That’s exactly the right use of biography in architecture editorial.</p>
+<p>The only risk is overlength if every page gets this treatment. But for a building this significant, it is earned.</p>
+<h4>6. Score Lofts&#x27; page</h4>
+<p><strong>9/10</strong></p>
+<p>Does it justify its existence? Definitely yes.</p>
+<p>This is exactly the sort of page that can justify a niche publication:</p>
+<ul>
+<li>it has specific knowledge</li>
+<li>it frames material and space in a useful way</li>
+<li>it links preservation decisions to lived experience</li>
+<li>it offers context no commodity listing site would</li>
+</ul>
+<p>Why not 10:</p>
+<ul>
+<li>some prose is a touch too polished/performative</li>
+<li>the comparisons are slightly thinner than the rest</li>
+<li>a few claims still rely on confident inference from photos/listings</li>
+</ul>
+<p>But overall, this is strong.</p>
+<h4>7. Does the combined asymmetry test prove both directions?</h4>
+<p>Yes.</p>
+<p>The pair works because each domain has one building where it clearly has editorial right-to-speak and one where it clearly does not.</p>
+<p>That’s the important proof:</p>
+<ul>
+<li>LA can be valuable without character/history</li>
+<li>Lofts can be valuable without luxury</li>
+<li>both can decline coverage when their framework doesn’t apply</li>
+</ul>
+<p>That is much stronger than symmetric differentiation.</p>
+<h4>8. Is 94 vs 82 defensible?</h4>
+<p>Yes.</p>
+<p>If the Character Index is truly about authentic loft character rather than prestige or rent, Boott Mills should outrank 360 Newbury. The logic is straightforward:</p>
+<ul>
+<li>older and more historically significant</li>
+<li>stronger preservation integrity</li>
+<li>more original materials in active interior experience</li>
+<li>more archetypal industrial proportions</li>
+</ul>
+<p>So yes, defensible.</p>
+<hr>
+<h2>Overall Questions</h2>
+<h3>1. Do both entity-fit gate decisions look correct?</h3>
+<p>Yes.</p>
+<ul>
+<li><strong>Lofts rejecting The Benjamin:</strong> correct, strong decision</li>
+<li><strong>LA limiting Boott Mills:</strong> correct, slightly less absolute but still right</li>
+</ul>
+<p>Scores:</p>
+<ul>
+<li>Lofts gate on Benjamin: <strong>9.5/10</strong></li>
+<li>LA gate on Boott Mills: <strong>9/10</strong></li>
+</ul>
+<p>The Lofts rejection is especially important because it demonstrates brand discipline.</p>
+<h3>2. Does coverage asymmetry strengthen or weaken SEO positioning?</h3>
+<p>Mostly strengthen, if implemented carefully.</p>
+<p>Why it strengthens:</p>
+<ul>
+<li>reduces duplicate topical overlap</li>
+<li>creates clearer domain identity</li>
+<li>avoids thin “obligatory coverage”</li>
+<li>signals selective expertise rather than exhaustive commodity inventory</li>
+</ul>
+<p>Why it could weaken:</p>
+<ul>
+<li>if too many omissions create perceived thinness or coverage holes</li>
+<li>if users expect universal building coverage and don’t understand why some entries are listing-only or absent</li>
+<li>if the omitted domain has no alternative content strategy to explain its lens</li>
+</ul>
+<p>So asymmetry is a differentiation signal, not a liability—provided the sites clearly communicate editorial scope.</p>
+<h3>3. Do the two editorial pages feel like different publications?</h3>
+<p>Yes, though not perfectly.</p>
+<p>They differ in:</p>
+<ul>
+<li>object of attention</li>
+<li>section order</li>
+<li>value criteria</li>
+<li>rhetorical priorities</li>
+</ul>
+<p>Shared engine DNA still appears in:</p>
+<ul>
+<li>strong thesis-led intros</li>
+<li>similarly polished cadence</li>
+<li>repeated pattern of metric + interpretation</li>
+<li>comparable voice temperature</li>
+</ul>
+<p>So the answer is: <strong>different enough to work, similar enough that a close reader can sense shared production tooling.</strong> That’s acceptable, but worth continuing to refine.</p>
+<h3>4. Do per-field source citations add credibility?</h3>
+<p>Yes, significantly more than the prior test.</p>
+<p>They:</p>
+<ul>
+<li>improve trust</li>
+<li>distinguish fact from synthesis</li>
+<li>protect against overclaiming</li>
+<li>create a visible editorial epistemology</li>
+</ul>
+<p>This is one of the strongest improvements in the whole package.</p>
+<p>Best use case:</p>
+<ul>
+<li>where measured data and interpretive narrative are adjacent</li>
+</ul>
+<p>Main caution:</p>
+<ul>
+<li>source labels alone do not validate the metric design</li>
+<li>“confidence 0.85” can become pseudo-precision if not grounded in clear methodology</li>
+</ul>
+<p>Still, net positive by a lot.</p>
+<h3>5. Overall: does the engine handle asymmetry?</h3>
+<p>Yes.</p>
+<p>That is the main conclusion.</p>
+<p>The tests show the engine can do three critical things:</p>
+<ul>
+<li>generate substantive domain-specific editorial when fit is strong</li>
+<li>avoid forcing editorial when fit is weak or absent</li>
+<li>make that restraint legible rather than looking like failure</li>
+</ul>
+<p>That is exactly what the perfect-fit 360 Newbury case could not prove.</p>
+<hr>
+<h2>Final Scores</h2>
+<h3>Editorial Pages</h3>
+<ul>
+<li><strong>LA / The Benjamin Seaport:</strong> 8/10</li>
+<li><strong>Lofts / Boott Mills:</strong> 9/10</li>
+</ul>
+<h3>Entity-Fit Gates</h3>
+<ul>
+<li><strong>Lofts rejects Benjamin:</strong> 9.5/10</li>
+<li><strong>LA limits Boott Mills:</strong> 9/10</li>
+</ul>
+<h3>Portfolio-Level Asymmetry Handling</h3>
+<ul>
+<li><strong>Overall:</strong> 9/10</li>
+</ul>
+<hr>
+<h2>What would make the system stronger?</h2>
+<ul>
+<li>Sharper resident-fit language on LA pages: who is this for, who should avoid it.</li>
+<li>Slightly more hedging around inferred operational causality.</li>
+<li>More unit-level specificity where available.</li>
+<li>A visible public explanation of why some buildings are omitted or listing-only.</li>
+<li>Continued voice differentiation so the shared engine signature is less detectable.</li>
+</ul>
+<hr>
+  </div>
+</div>
+<div class="participant-block">
+  <div class="participant-header" onclick="this.parentElement.classList.toggle('open')">
+    <span class="name">google/gemini-3.1-pro-preview@openrouter</span>
+    <span>
+      <span class="chars">58 chars</span>
+      <span class="toggle">&#9654;</span>
+    </span>
+  </div>
+  <div class="participant-body">
+    <p style="color: var(--red)">[ERROR: TypeError: object of type &#x27;NoneType&#x27; has no len()]</p>
+  </div>
+</div>
+<div class="participant-block">
+  <div class="participant-header" onclick="this.parentElement.classList.toggle('open')">
+    <span class="name">x-ai/grok-4.20-beta@openrouter</span>
+    <span>
+      <span class="chars">5,558 chars</span>
+      <span class="toggle">&#9654;</span>
+    </span>
+  </div>
+  <div class="participant-body">
+    <p><strong>Yes, the engine handles asymmetry effectively. Both tests succeed.</strong></p>
+<h4>1. Do both entity-fit gate decisions look correct?</h4>
+<p><strong>Yes.</strong> </p>
+<ul>
+<li><strong>Lofts on Benjamin Seaport (NO FIT)</strong>: Correct. The building is 2017 glass-and-steel new construction on a parking lot with zero historical layer, zero adaptive reuse, and no architectural character. The gate's criteria (Character Index inapplicable, Adaptive Reuse inapplicable, Building Biography empty, CNS only 28, field completeness 0.20 < 0.60 threshold) are sound. Forcing Lofts to write about it would produce the exact thin, generic content the gate is designed to prevent. The "if forced" paragraph confirms this.</li>
+<li><strong>LA on Boott Mills (WEAK FIT → listing only)</strong>: Correct. 7/20 amenity completeness, no concierge/doorman, no luxury positioning, Lifestyle Radius framework has almost nothing to measure in Lowell. LA's frameworks (CQS, ACI, luxury Lifestyle Radius) are calibrated for a different product tier. The gate correctly avoids forcing luxury-service analysis onto a $2,250/month historic mill conversion.</li>
+</ul>
+<p>Both gates demonstrate disciplined restraint rather than over-generation. This is a strength.</p>
+<h4>2. Does coverage asymmetry strengthen or weaken the portfolio&#x27;s SEO positioning?</h4>
+<p><strong>Strengthens.</strong> </p>
+<p>This is genuine topical authority differentiation, not a gap. Google sees:</p>
+<ul>
+<li>Luxury amenity/operational analysis on modern high-amenity buildings (Benjamin on LA)</li>
+<li>Deep architectural history/character analysis on authentic conversions (Boott Mills on Lofts)</li>
+<li>Full treatment on perfect-fit buildings (360 Newbury on both)</li>
+</ul>
+<p>This creates two distinct editorial voices rather than two sites repackaging the same inventory with different templates. The &quot;coverage gap&quot; is the point — it signals expertise boundaries. Readers and algorithms can distinguish the publications by what they <em>choose not to</em> cover.</p>
+<h4>3. Compare the two editorial pages — do they feel like different publications?</h4>
+<p>They feel meaningfully different, though engine DNA is visible.</p>
+<ul>
+<li><strong>Benjamin (LA)</strong>: Verdict-first, consumer-facing, operational trade-off focused ("luxury lifestyle machine... noise trade-off"). Strong on metrics (CQS 81, ACI 18/20), lifestyle convenience vs. drawbacks, management performance. Reads like a smart apartment-hunting guide.</li>
+<li><strong>Boott Mills (Lofts)</strong>: History-first, almost reverential architectural tone. Deep on preservation details (smokestack brick research), physical experience of living inside industrial bones, light behavior as architectural phenomenon. Reads like an architectural journal crossed with a niche real estate publication.</li>
+</ul>
+<p>Different cadences help: LA&#x27;s &quot;verdict → experience → metrics → inference&quot; vs. Lofts&#x27; &quot;hook → biography → character deconstruction → preservation critique → light profile.&quot; The Benjamin page is more operational/consumer; Boott Mills is more cultural/historical. They do not feel like the same writer wearing different hats. The shared provenance system and analytical rigor show common parentage, but the <em>focus</em> and <em>voice</em> diverge appropriately.</p>
+<h4>4. Do per-field source citations add credibility?</h4>
+<p><strong>Yes — substantial improvement</strong> over the 360 Newbury test.</p>
+<p>The <code>_source</code> objects (API_DIRECT, API_DERIVED, LLM_GENERATED, MANUAL, COMPUTED) with method descriptions, dataPoints, confidence scores, and lastPulled dates make the pages far more trustworthy. Readers can see:</p>
+<ul>
+<li>Which claims come from 167 Google reviews vs. structured amenity lists vs. editorial synthesis</li>
+<li>When something is "LLM_GENERATED — editorial analysis, not data-backed"</li>
+<li>Exact provenance for the smokestack restoration detail (Architectural Team portfolio)</li>
+</ul>
+<p>This transparency reduces &quot;AI hallucination&quot; risk and gives the content journalistic weight. It is one of the strongest elements in both pages.</p>
+<h4>5. Overall: does the engine handle asymmetry?</h4>
+<p><strong>Yes.</strong> (Score: 9/10)</p>
+<p>The 360 Newbury test validated symmetric differentiation on a perfect-fit building. These two tests validate asymmetric handling — the harder case. The engine correctly:</p>
+<ul>
+<li>Generates strong editorial when rich signal exists in its domain</li>
+<li>Gates out weak/empty signal to prevent thin content</li>
+<li>Produces domain-distinct output even from the same shared data + engine</li>
+<li>Maintains provenance transparency across both</li>
+</ul>
+<p><strong>Page scores:</strong></p>
+<ul>
+<li>LA on Benjamin: <strong>8.5/10</strong> — stands on its own as quality consumer editorial. The noise analysis is genuine insight (pattern extraction from 167 reviews, not generic). Justifies existence. Minor weakness: somewhat checklist-y in places.</li>
+<li>Lofts on Boott Mills: <strong>9/10</strong> — excellent. The Character Index ranking (94 vs 360 Newbury's 82) is defensible: authentic structural materials + preservation rigor outweigh newer luxury finishes. The Creative Neighborhood Score analysis (52 but more "generative") is honest insight, not spin. The biography section adds living-experience value. This page absolutely justifies its existence.</li>
+</ul>
+<p><strong>Answers to per-file questions (summarized):</strong></p>
+<ul>
+<li>Both pages stand on their own.</li>
+<li>Both gates are correct; no major angles were missed.</li>
+<li>Provenance adds real credibility.</li>
+<li>Noise analysis and creative ecosystem analysis both provide editorial value.</li>
+<li>New cadences feel distinct.</li>
+<li>Asymmetric tests together prove the engine works on the hard case.</li>
+</ul>
+<p><strong>VOTE:</strong> {&quot;option&quot;: &quot;The engine successfully handles asymmetry&quot;, &quot;confidence&quot;: 0.88, &quot;rationale&quot;: &quot;Both gates make correct calls, pages feel like different publications with strong provenance, and asymmetry creates genuine differentiation rather than coverage gaps.&quot;}</p>
+  </div>
+</div>
+</div>
+<div class="round-section">
+<h2>Round 2</h2>
+<div class="participant-block open">
+  <div class="participant-header" onclick="this.parentElement.classList.toggle('open')">
+    <span class="name">opus@claude</span>
+    <span>
+      <span class="chars">19,483 chars</span>
+      <span class="toggle">&#9654;</span>
+    </span>
+  </div>
+  <div class="participant-body">
+    <p>Now I have the full design context. Let me deliver my evaluation.</p>
+<hr>
+<h3>Asymmetric Sausage Test — Independent Evaluation</h3>
+<p>I&#x27;ve read the engine spec (v3), the provenance addendum, and both test files against the design document&#x27;s stated goals. Here&#x27;s where I agree with, diverge from, and extend the three prior reviewers.</p>
+<hr>
+<h4>TEST A: The Benjamin Seaport (LA editorial)</h4>
+<p><strong>Q1: Does LA&#x27;s page stand on its own?</strong></p>
+<p>Yes. The page has a genuine thesis — amenity density creates a self-contained lifestyle campus, and the entertainment co-location that makes it vibrant also makes it loud. That&#x27;s a structural observation, not a description. The page earns its existence because it synthesizes 167 reviews into an actionable trade-off framework that neither Apartments.com nor the building&#x27;s marketing site would ever surface.</p>
+<p>But I disagree with all three prior reviewers on one point: the page is slightly <em>too long</em> for what it proves. The Management Track Record section repeats information already covered in the CQS section (both cite the same 167 reviews, same themes). The Lifestyle Radius and Living Experience sections also overlap — both explain that the building is a self-contained campus. A tighter page would merge these and gain credibility through concision.</p>
+<p><strong>Q2: Is the Lofts gate correct?</strong></p>
+<p>Yes. The gate&#x27;s field completeness (0.20) is well below the 0.60 threshold defined in the v3 spec. Only 2 of 6 frameworks produce data, and the spec requires 3. This is a clean, machine-testable rejection.</p>
+<p>One thing the other reviewers flagged but didn&#x27;t push hard enough: the <code>light_profile_applicable: true</code> boolean is misleading. The gate correctly treats it as insufficient, but the boolean should be <code>false</code> with qualitative notes, not <code>true</code> with a caveat. The v3 spec says field completeness is &quot;machine-testable&quot; — a boolean that says <code>true</code> but semantically means <code>false</code> breaks that contract. Minor, but worth fixing in the gate logic.</p>
+<p><strong>Q3: Provenance credibility?</strong></p>
+<p>The provenance system is the single biggest improvement from the 360 Newbury test. The CQS citation (167 reviews, confidence 0.85, NLP method) is genuinely useful — it lets a reader assess whether &quot;81/100&quot; is backed by real data or pulled from thin air. The confidence score differences between buildings (0.85 here vs. the addendum&#x27;s 0.72 for 360 Newbury&#x27;s 23 reviews) demonstrate the system is calibrated correctly: more data → higher confidence.</p>
+<p>Where it still falls short: the <code>LLM_GENERATED</code> provenance type is honest about being AI-produced but provides no reproducibility path. &quot;AI editorial analysis of amenity list, retail tenant mix, Google Reviews&quot; doesn&#x27;t tell you which model, what prompt, or whether output was edited. The other source types are traceable — you could re-run the Google Places query. You can&#x27;t re-run the editorial inference. This is an inherent limitation of the approach, but the transparency is better than pretending it&#x27;s empirical.</p>
+<p><strong>Q4: Noise analysis — insight or AI inference?</strong></p>
+<p>Both, and the &quot;both&quot; is what makes it editorial. The raw signal (noise from entertainment venues) comes from reviews. The editorial value is the causal framing: this is architectural co-location, not management failure. That distinction is genuinely useful for a prospective renter — it tells them the problem is unfixable by management, which changes the decision calculus.</p>
+<p>However, the page slightly overreaches. &quot;Architectural co-location... structural trade-off that can&#x27;t be resolved without soundproofing investment&quot; is stated as fact when it should be hedged as inference. The v3 spec explicitly requires hedge language for Operational Inference sections (&quot;suggests,&quot; &quot;indicates,&quot; &quot;the design implies&quot;). The page uses some hedging in the section header (&quot;read as editorial observation, not fact&quot;) but then drops into declarative statements within the text. This inconsistency between the provenance label and the prose register is a craft issue, not a structural one.</p>
+<p><strong>Q5: Cadence differentiation?</strong></p>
+<p>Yes, the cadence is structurally different from the Lofts page. LA&#x27;s verdict-first, metrics-heavy structure reads like a consumer intelligence report. Lofts&#x27; biography-first, character-driven structure reads like architectural criticism. These are genuinely different reading shapes.</p>
+<p>The shared engine DNA shows in two specific places the prior reviewers also identified: (a) the provenance citation format is identical across domains, and (b) both pages include &quot;what the other domain would say if forced&quot; sections — meta-commentary that no real independent publication would include. The second point is particularly telling: it&#x27;s a test artifact, not a production feature, but if it appeared on a live page it would immediately signal shared production.</p>
+<p><strong>Q6: Score</strong></p>
+<p><strong>LA&#x27;s Benjamin page: 7.5/10.</strong></p>
+<p>Justification: Strong thesis, genuine insight on the noise trade-off, robust provenance. Loses points for: redundancy between CQS and Management Track Record sections, thin comparisons (one-sentence characterizations aren&#x27;t actionable), no $/sqft analysis, and slight overreach in the operational inference section (declarative where it should hedge). But it clearly justifies its existence — this page provides decision-relevant information that doesn&#x27;t exist elsewhere.</p>
+<p><strong>Q7: What&#x27;s missing?</strong></p>
+<ul>
+<li><strong>Price-per-square-foot</strong> — at $4,295+ for a 1BR in the Seaport, how does this compare to Watermark, VIA, Echelon on $/sqft? This is the single most actionable metric for the LA audience.</li>
+<li><strong>Floor-level noise gradient</strong> — are noise complaints concentrated on lower floors? The 250K sqft of retail is at the base. Upper floors may be quiet. This distinction would transform a generic observation into spatial intelligence.</li>
+<li><strong>Resident archetype segmentation</strong> — who should choose this building vs. who should avoid it. The page describes the building but doesn't help the reader self-select.</li>
+<li><strong>Review excerpt quotes</strong> — "multiple reviews mention bass" is weaker evidence than showing 2-3 anonymized quotes. The 167-review corpus should have specific language worth citing.</li>
+<li><strong>Seasonal variation</strong> — rooftop, pool, and outdoor entertainment create different noise profiles by season.</li>
+</ul>
+<p><strong>Q8: Does this prove the hard case?</strong></p>
+<p>For the LA direction, yes. The engine produces substantive editorial from review data + amenity analysis without any architectural character input. That validates LA&#x27;s framework as independent from Lofts&#x27; framework.</p>
+<hr>
+<h4>TEST B: Boott Mills (Lofts editorial)</h4>
+<p><strong>Q1: Does Lofts&#x27; page stand on its own?</strong></p>
+<p>This is the strongest output across all three sausage tests. I agree with all three prior reviewers on this and I&#x27;d add a specific reason they didn&#x27;t emphasize enough: the page works because the building&#x27;s history directly explains its current spatial experience. The factory windows were designed to light textile workers → those same windows now create specific residential light conditions. The timber beams held up looms → those beams now define the ceiling character. Every historical detail in the biography does double duty as living-experience description. That&#x27;s not Wikipedia — it&#x27;s architectural analysis that happens to have a 190-year backstory.</p>
+<p>The page&#x27;s single best line: &quot;The brick IS the wall. The timber beams aren&#x27;t decorative — they&#x27;re holding the building up.&quot; This is the kind of sharp, specific distinction that separates editorial from aggregation.</p>
+<p><strong>Q2: Is LA&#x27;s weak-fit gate correct?</strong></p>
+<p>Yes. 7/20 amenity completeness, no concierge, no doorman, and Lowell&#x27;s Lifestyle Radius is empty for the luxury calibration. The v3 spec&#x27;s entity-fit gate requires 3+ frameworks with rich data; Boott Mills barely has 1 (management digest is technically applicable but thin).</p>
+<p>The gate&#x27;s reasoning is also precisely honest: &quot;The building is extraordinary — but it&#x27;s extraordinary on dimensions LA doesn&#x27;t measure.&quot; That&#x27;s not a quality dismissal — it&#x27;s a framework limitation statement. Correct call.</p>
+<p><strong>Q3: Compare to 360 Newbury</strong></p>
+<p>Boott Mills is stronger. The 12-point Character Index gap (94 vs. 82) is well-defended. The key driver: 360 Newbury&#x27;s interiors were entirely replaced with luxury marble (interior materials score: 30), while Boott Mills&#x27; interiors are the original structural timber and brick (score: 95). When the authentic material survives in the living space, the editorial has more to work with.</p>
+<p>The Building Biography is also richer — 123 years of textile manufacturing vs. the Wurlitzer → Gehry → Tower Records → apartments sequence. Both are interesting histories, but Boott Mills&#x27; significance is deeper (birthplace of American factory system) and the history-to-experience connection is more direct.</p>
+<p>One area where 360 Newbury was stronger: the Gehry canopy intervention gave the architectural analysis a specific modern intervention to evaluate. Boott Mills is all preservation — impressive, but less architecturally complex to critique.</p>
+<p><strong>Q4: CNS analysis — insight or spin?</strong></p>
+<p>The &quot;generative vs. curatorial&quot; distinction is real and defensible, specifically because it&#x27;s grounded in concrete anchors: Western Avenue Studios (200+ working artist studios), the independent-to-chain ratio (2.1:1), and the Brush Gallery on-site. These details prevent the argument from reading as rationalization.</p>
+<p>However — and this is where I push harder than the other reviewers — the page glosses over an important economic reality. Lowell&#x27;s high independent-to-chain ratio is partly because chains don&#x27;t see enough consumer demand to locate there. The &quot;generative, not curatorial&quot; framing is a real urban planning distinction, but it also romanticizes what is partly economic weakness. A more honest version would acknowledge: &quot;the creative ecosystem is genuine, and it&#x27;s affordable <em>because</em> the broader market hasn&#x27;t discovered it.&quot; That&#x27;s actually a stronger selling point for the Lofts audience — they&#x27;re the ones who find neighborhoods before they gentrify.</p>
+<p><strong>Q5: Building Biography — genuine value?</strong></p>
+<p>Genuine value. The test is: does the history explain something about the living experience? Yes, in multiple dimensions:</p>
+<ul>
+<li>Factory windows → residential light characteristics</li>
+<li>Smokestack archival brick repair → preservation quality signal about management/developer</li>
+<li>123 years of operation → temporal mass that shapes the building's atmosphere</li>
+<li>Canal system + Merrimack River → spatial context for orientation and views</li>
+</ul>
+<p>The first paragraph (Lowell as planned industrial center) is the weakest — it serves history more than housing decisions. But the remaining biography material consistently connects past to present.</p>
+<p><strong>Q6: Score</strong></p>
+<p><strong>Lofts&#x27; Boott Mills page: 8.5/10.</strong></p>
+<p>This is the engine&#x27;s best output. The Character Index is well-defended, the preservation critique is specific (the &quot;what was lost&quot; section is as important as &quot;what was preserved&quot;), the light profile connects industrial design to residential experience, and the creative ecosystem analysis provides genuine insight despite the slight romanticization issue.</p>
+<p>Loses points for: (a) no acoustic analysis — 15-foot ceilings + exposed brick + timber beams create very specific sound characteristics that would be highly relevant to prospective residents, (b) no commute reality check — 30 miles from Boston means commuter rail dependence, and the page should address schedule/reliability, (c) comparisons section, while useful, doesn&#x27;t give enough pricing detail to make the Fort Point &quot;comparable character at a fraction of the price&quot; claim actionable (what fraction? $2,250 vs. what?).</p>
+<p><strong>Q7: What&#x27;s missing?</strong></p>
+<ul>
+<li><strong>Acoustics</strong> — 15-foot ceilings + exposed brick + timber beams = specific sound behavior (echo, resonance, upstairs noise). This is a major living experience factor completely absent from the page.</li>
+<li><strong>Commute analysis</strong> — at 30 miles from Boston, the Lowell Line commuter rail is the lifeline. Schedule frequency, travel time (typically 45-50 min), reliability — this is critical for anyone considering Boott Mills vs. a Boston-based loft.</li>
+<li><strong>Heating/thermal</strong> — gas heat included in rent is mentioned in specs but not analyzed. Mill buildings with thick masonry have specific thermal properties (thermal mass = slow temperature response, tall ceilings = heat stratification). This affects both comfort and effective cost.</li>
+<li><strong>Winter light</strong> — the light profile describes morning sun off the Merrimack but doesn't address Massachusetts winter reality: shorter days, lower angle, potential river fog. The factory windows were designed for year-round light; the page should address whether they deliver it.</li>
+<li><strong>Pricing context</strong> — the Fort Point comparison claims "comparable character at a fraction of the price" but doesn't specify Fort Point pricing. "$2,250 vs. $3,500-4,500" would be more useful than "a fraction."</li>
+</ul>
+<p><strong>Q8: Is the 94 vs. 82 ranking defensible?</strong></p>
+<p>Yes, with a nuance. The scoring criteria are internally consistent: Boott Mills&#x27; interior materials are original and structural (95), while 360 Newbury&#x27;s interiors were entirely replaced (30). That 65-point gap on interior materials drives the 12-point overall gap. The logic is sound.</p>
+<p>The nuance: &quot;Character Index&quot; privileges preservation authenticity over architectural distinction. 360 Newbury has a Gehry canopy — arguably more architecturally notable than anything at Boott Mills. The index correctly weights what it measures (original material survival), but a reader might reasonably expect a Gehry building to score higher on &quot;character.&quot; This is an editorial design choice that should be explicit in the index documentation: Character Index measures <em>authentic material character</em>, not <em>architectural pedigree</em>.</p>
+<hr>
+<h4>OVERALL QUESTIONS</h4>
+<p><strong>1. Do both entity-fit gates look correct?</strong></p>
+<p>Yes. Both gates are well-calibrated against the v3 spec&#x27;s machine-testable thresholds. Lofts rejects Benjamin at 0.20 field completeness (threshold 0.60, 0 frameworks with rich data vs. 3 required). LA limits Boott Mills at 0.35 field completeness (below 0.60 threshold, 1 framework with data vs. 3 required). The decisions follow from the spec, which is the right relationship between design document and test output.</p>
+<p><strong>Gate scores: 9/10.</strong> One point for the Light Profile boolean inconsistency in the Benjamin gate (functionally correct, formally misleading).</p>
+<p><strong>2. Does coverage asymmetry strengthen or weaken SEO?</strong></p>
+<p>Strengthens. This is the test&#x27;s most important finding for the business case.</p>
+<p>Three buildings, three coverage patterns:</p>
+<p>| Building | LA | Lofts |</p>
+<p>|---|---|---|</p>
+<p>| 360 Newbury | Full editorial | Full editorial |</p>
+<p>| The Benjamin | Full editorial | Omitted |</p>
+<p>| Boott Mills | Listing only | Full editorial |</p>
+<p>A doorway page network covers everything on both sites with different CSS. These two sites cover <em>different things</em> — that&#x27;s what makes them distinct publications from Google&#x27;s perspective. The asymmetry IS the differentiation signal.</p>
+<p>The risk (which GPT-5.4 correctly flagged): if the omission pattern is too predictable (Lofts always omits new construction, LA always omits non-luxury), Google could model it as one editorial policy expressed across two domains. At portfolio scale with hundreds of buildings and varying signal strength, the pattern should be noisy enough to appear organic. But monitoring this at scale is important.</p>
+<p><strong>3. Do the pages feel like different publications?</strong></p>
+<p>Yes, more convincingly than the 360 Newbury test. The cadence fix from the addendum is working:</p>
+<ul>
+<li>LA reads like a consumer intelligence report: verdict up front, metrics in the middle, trade-offs analyzed.</li>
+<li>Lofts reads like architectural criticism for a residential audience: history first, character deconstruction, preservation judgment.</li>
+</ul>
+<p>Shared engine DNA is still visible in two places:</p>
+<ul>
+<li>Identical provenance citation format (<code>[PROVENANCE: TYPE]</code>) — different publications would format source attributions differently</li>
+<li>"What the other domain would say if forced" meta-commentary — no real publication would include this</li>
+</ul>
+<p>Both are fixable. The first is a production templating decision. The second is a test artifact that shouldn&#x27;t appear in production.</p>
+<p><strong>4. Do per-field citations add credibility?</strong></p>
+<p>Yes, substantially. The improvement from 360 Newbury (no field-level citations) to these tests (every field has a <code>_source</code> companion) is the most significant quality improvement in the test series. Specific examples:</p>
+<ul>
+<li>CQS: "167 Google Reviews, NLP sentiment, confidence 0.85" vs. previously just "74/100" with no source</li>
+<li>Lifestyle Radius: "24 venues via Google Places within 0.5mi isochrone" — verifiable, reproducible</li>
+<li>Smokestack detail: "Architectural Team portfolio" (MANUAL source) — traceable</li>
+<li>Editorial verdict: "LLM_GENERATED — editorial analysis, not data-backed" — honest about limits</li>
+</ul>
+<p>The confidence scaling (0.85 from 167 reviews vs. 0.72 from 23 reviews) demonstrates the system is properly calibrated — not just present but functional.</p>
+<p><strong>5. Does the engine handle asymmetry?</strong></p>
+<p>Yes. This is the core question and both tests answer it:</p>
+<ul>
+<li><strong>Direction A:</strong> LA produces quality editorial from amenity data + review corpus. Lofts correctly declines. Engine doesn't force thin content.</li>
+<li><strong>Direction B:</strong> Lofts produces its best editorial from authentic character + historical depth. LA correctly limits to listing-only. Engine doesn't force luxury analysis on non-luxury building.</li>
+<li><strong>360 Newbury (prior test):</strong> Both domains produce quality editorial from a perfect-fit building.</li>
+</ul>
+<p>Three coverage modes demonstrated. All three are correct. The entity-fit gate is the mechanism that enables asymmetry, and it works in both directions.</p>
+<hr>
+<h4>SCORES SUMMARY</h4>
+<p>| Component | Score | Key Observation |</p>
+<p>|---|---|---|</p>
+<p>| LA editorial (Benjamin) | 7.5/10 | Strong thesis, genuine noise insight, good provenance. Redundant sections, thin comparisons, missing $/sqft. |</p>
+<p>| Lofts editorial (Boott Mills) | 8.5/10 | Best output across all tests. Authentic materials produce passionate, specific editorial. Missing acoustics, commute analysis. |</p>
+<p>| Entity-fit gate (Lofts → Benjamin) | 9/10 | Correct NO_FIT. Clean machine-testable logic. Minor boolean inconsistency. |</p>
+<p>| Entity-fit gate (LA → Boott Mills) | 9.5/10 | Correct WEAK_FIT. Honest about LA&#x27;s limitations. Clean reasoning. |</p>
+<p>| Cadence differentiation | 8/10 | Structurally distinct. Shared provenance format and meta-commentary still create common fingerprint. |</p>
+<p>| Provenance system | 8.5/10 | Major improvement over 360 Newbury. Confidence scaling works. LLM_GENERATED sourcing still underdefined. |</p>
+<p>| Asymmetric handling (overall) | 8.5/10 | Engine correctly says &quot;yes&quot; and &quot;no&quot; in both directions. Coverage asymmetry creates genuine differentiation. |</p>
+<hr>
+  </div>
+</div>
+<div class="participant-block open">
+  <div class="participant-header" onclick="this.parentElement.classList.toggle('open')">
+    <span class="name">openai/gpt-5.4@openrouter</span>
+    <span>
+      <span class="chars">13,796 chars</span>
+      <span class="toggle">&#9654;</span>
+    </span>
+  </div>
+  <div class="participant-body">
+    <p>These two asymmetric tests are more probative than the original 360 Newbury case because they test restraint, not just differentiation. The important question is not whether the engine can produce two different pages from a rich, dual-fit building. It’s whether it can (a) produce strong editorial when only one domain has a real lens, and (b) decline to fake substance when the other domain doesn’t. On balance: yes.</p>
+<h3>TEST A — The Benjamin Seaport</h3>
+<h4>1. Does LA’s editorial page stand on its own?</h4>
+<p>Yes. It stands on its own as a legitimate luxury-rental editorial page.</p>
+<p>What makes it work:</p>
+<ul>
+<li>It has a real thesis: <strong>extreme convenience and amenity density are the product; noise and institutional friction are the trade-off.</strong></li>
+<li>It uses the building’s mixed-use base and review corpus to identify an actual operating tension.</li>
+<li>It gives the building a distinct identity beyond “new Seaport tower”: <strong>self-contained lifestyle campus</strong>.</li>
+</ul>
+<p>That’s enough to justify a page even with zero architectural history.</p>
+<p>The strongest sections are:</p>
+<ul>
+<li><strong>Living Experience</strong>: “building IS the neighborhood” is a useful framing for Seaport specifically.</li>
+<li><strong>CQS / Management / Operational Inference</strong>: these convert scattered review themes into a coherent explanation of how the building functions.</li>
+<li><strong>Lifestyle Radius</strong>: good distinction between integrated convenience and shallower cultural depth.</li>
+</ul>
+<p>Weaknesses:</p>
+<ul>
+<li>It occasionally slips into framework narration instead of reader value.</li>
+<li>Some phrasing is a bit too conclusive relative to the evidence.</li>
+<li>Comparisons are functional but not especially deep.</li>
+</ul>
+<p>Still: yes, this is publishable and useful.</p>
+<h4>2. Is the Lofts entity-fit rejection correct?</h4>
+<p>Yes. Correct call.</p>
+<p>The Benjamin has:</p>
+<ul>
+<li>no adaptive reuse</li>
+<li>no prior use</li>
+<li>no meaningful building biography</li>
+<li>no preserved materials</li>
+<li>no loft proportions in the relevant sense</li>
+<li>weak creative context for Lofts’ purposes</li>
+</ul>
+<p>The gate is doing exactly what it should do: refusing to invent character.</p>
+<p>The only possible missed angle would be a <strong>meta essay</strong> about why Seaport luxury towers fail a loft/character test. But that is not a building page. For an entity page, omission is correct.</p>
+<p>One implementation note: the gate marks <code>light_profile_applicable: true</code> even though the decision logic treats it as insufficient and effectively non-publishing. That boolean is slightly misleading. The reasoning is fine; the flagging could be cleaner.</p>
+<h4>3. Does the provenance add credibility?</h4>
+<p>Yes, materially.</p>
+<p>This is one of the biggest improvements over the earlier test. The page is much stronger because it distinguishes:</p>
+<ul>
+<li>direct structured data</li>
+<li>derived metrics from review/API analysis</li>
+<li>explicitly editorial LLM inference</li>
+</ul>
+<p>Best examples:</p>
+<ul>
+<li><strong>CQS:</strong> 167 reviews, confidence 0.85</li>
+<li><strong>Lifestyle Radius:</strong> named APIs, venue count, radius</li>
+<li><strong>Operational Inference:</strong> clearly labeled as editorial, not fact</li>
+</ul>
+<p>That gives the page a visible epistemology. It doesn’t make every metric automatically valid, but it makes the page feel substantially more honest and auditable.</p>
+<p>The caution is the usual one: confidence scores can become pseudo-precision if the methodology remains too high-level. But net effect: strongly positive.</p>
+<h4>4. Is the noise analysis genuine insight or AI restatement?</h4>
+<p>It is both, and that’s acceptable.</p>
+<p>The underlying signal comes from reviews, so the raw fact is not original. But the editorial step is meaningful:</p>
+<ul>
+<li>it ties noise to the mixed-use entertainment base</li>
+<li>it frames that as a <strong>design/product choice</strong>, not just random complaint noise</li>
+<li>it explains why the issue may be persistent rather than incidental</li>
+</ul>
+<p>That’s real synthesis.</p>
+<p>Where it should be a bit more careful:</p>
+<ul>
+<li>“can’t be resolved without soundproofing investment” is a stronger claim than the evidence clearly supports</li>
+<li>I’d prefer “appears structural/design-linked rather than purely operational”</li>
+</ul>
+<p>So: genuine value, slightly overconfident wording.</p>
+<h4>5. Does the cadence feel structurally different from Lofts?</h4>
+<p>Yes.</p>
+<p>LA here feels:</p>
+<ul>
+<li>verdict-first</li>
+<li>practical</li>
+<li>service/operations-focused</li>
+<li>consumer advisory in tone</li>
+</ul>
+<p>That is clearly different from Lofts’ history/material/space-driven structure in Boott Mills.</p>
+<p>Shared engine DNA still shows in:</p>
+<ul>
+<li>strong thesis-led intros</li>
+<li>polished, declarative voice</li>
+<li>metric → interpretation pattern</li>
+<li>common provenance formatting</li>
+</ul>
+<p>But the pages are sufficiently different to function as separate publications.</p>
+<h4>6. Score LA’s page</h4>
+<p><strong>8/10</strong></p>
+<p>Why:</p>
+<ul>
+<li>clear thesis</li>
+<li>useful operational insight</li>
+<li>good provenance</li>
+<li>strong fit for domain</li>
+</ul>
+<p>Why not higher:</p>
+<ul>
+<li>comparisons need more detail</li>
+<li>some causal language is too strong</li>
+<li>lacks sharper renter segmentation</li>
+<li>missing a few highly actionable consumer metrics</li>
+</ul>
+<p>Does it justify its existence? <strong>Yes.</strong> It tells a renter something more useful than a listing page: this building’s convenience and noise likely come from the same design decision.</p>
+<h4>7. What’s missing?</h4>
+<p>Most important additions:</p>
+<ul>
+<li><strong>Resident-fit segmentation</strong> — who should choose this building, who should avoid it.</li>
+<li><strong>Price/value context</strong> — ideally $/sqft versus Watermark/VIA/Echelon.</li>
+<li><strong>Noise specificity</strong> — lower floors? certain exposures? weekends only? percentage of reviews mentioning it?</li>
+<li><strong>Unit-level quality</strong> — kitchen depth, storage, layouts, finish quality beyond marketing adjectives.</li>
+<li><strong>Comparative rigor</strong> — more explicit differences vs alternatives.</li>
+</ul>
+<p>A small but meaningful upgrade would be <strong>quoted review snippets</strong> to ground the noise and operational claims.</p>
+<h4>8. Does this prove the hard case?</h4>
+<p>Yes, substantially.</p>
+<p>The key success is not merely that LA can write a page. It’s that Lofts can say <strong>“this is not ours”</strong> and be right. That is the hard case, and this test passes it.</p>
+<hr>
+<h3>TEST B — Boott Mills</h3>
+<h4>1. Does Lofts’ page stand on its own?</h4>
+<p>Yes, strongly. This is the best output of the set.</p>
+<p>Why it works:</p>
+<ul>
+<li>rich building biography</li>
+<li>preserved material reality, not decorative “loft-style” mimicry</li>
+<li>direct connection between history and lived experience</li>
+<li>strong preservation critique</li>
+<li>useful light analysis</li>
+<li>neighborhood creativity framed in a way relevant to likely readers</li>
+</ul>
+<p>This feels like a publication with an actual editorial point of view.</p>
+<p>The strongest line of reasoning is the simplest one: <strong>the structure is the design</strong>. That gives the whole page authority.</p>
+<h4>2. Is LA’s weak-fit gate correct?</h4>
+<p>Yes.</p>
+<p>Boott Mills may be excellent housing, but it is not a luxury-service product in LA’s sense:</p>
+<ul>
+<li>no concierge</li>
+<li>no doorman</li>
+<li>low amenity completeness for luxury</li>
+<li>no luxury-lifestyle radius in the Seaport/Back Bay sense</li>
+<li>management analysis has little luxury-service relevance</li>
+</ul>
+<p>Listing-only is the correct treatment.</p>
+<p>The only alternate path would be if LA were to broaden into “design-rich premium rentals,” but that would be a brand expansion, not a correction to this gate.</p>
+<h4>3. Compare to 360 Newbury Lofts page</h4>
+<p>Boott Mills is stronger.</p>
+<p>Why:</p>
+<ul>
+<li>more authentic preserved fabric</li>
+<li>richer historical significance</li>
+<li>more obvious continuity between original industrial use and current residential experience</li>
+<li>less dependence on interpretive inflation</li>
+</ul>
+<p>This supports the larger system claim: the engine performs best when the building truly matches the publication’s lens.</p>
+<h4>4. Does the Creative Neighborhood Score analysis add value?</h4>
+<p>Mostly yes.</p>
+<p>The “generative vs curatorial” distinction is the key editorial move, and it works because it is grounded in actual anchors:</p>
+<ul>
+<li>Western Avenue Studios</li>
+<li>Brush Art Gallery</li>
+<li>Lowell Makes</li>
+<li>high independent-to-chain ratio</li>
+</ul>
+<p>Without those specifics, it would read like rationalization. With them, it becomes a real argument.</p>
+<p>That said, the page could be slightly more honest that Lowell’s low chain penetration is not purely a creative virtue; it is also related to market conditions. Acknowledging that would make the section even stronger.</p>
+<h4>5. Is the Building Biography genuine editorial value?</h4>
+<p>Yes.</p>
+<p>It is not mere background because it explains:</p>
+<ul>
+<li>why the windows are large</li>
+<li>why the ceilings are high</li>
+<li>why the materials matter</li>
+<li>why the conversion quality matters</li>
+<li>why living there feels different from faux-loft inventory</li>
+</ul>
+<p>This is exactly the right use of biography: history in service of present-tense spatial understanding.</p>
+<p>A minor trim could tighten the opening paragraphs, but the section earns its place.</p>
+<h4>6. Score Lofts’ page</h4>
+<p><strong>9/10</strong></p>
+<p>Why:</p>
+<ul>
+<li>strong architectural/editorial voice</li>
+<li>specific preservation judgment</li>
+<li>real connection between history and daily experience</li>
+<li>excellent use of authentic source material</li>
+<li>clear sense of why this building matters</li>
+</ul>
+<p>Why not 10:</p>
+<ul>
+<li>some prose is slightly performative</li>
+<li>comparison section is thinner than the core sections</li>
+<li>a few claims rely on photo/listing inference rather than on-site evidence</li>
+</ul>
+<p>Does it justify its existence? <strong>Absolutely yes.</strong> This is exactly the kind of page that justifies a niche editorial real-estate publication.</p>
+<h4>7. What’s missing?</h4>
+<p>Most useful additions:</p>
+<ul>
+<li><strong>Acoustics</strong> — huge omission for a tall-ceiling, hard-surface industrial building.</li>
+<li><strong>Commute reality</strong> — Boston access via commuter rail is decision-critical.</li>
+<li><strong>Thermal/energy experience</strong> — masonry + tall ceilings + included gas heat deserves analysis.</li>
+<li><strong>Winter light / seasonality</strong> — especially for a New England riverfront mill.</li>
+<li><strong>More pricing context</strong> — Fort Point comparison needs more specifics to be actionable.</li>
+</ul>
+<h4>8. Is 94 vs 82 defensible?</h4>
+<p>Yes.</p>
+<p>If Character Index measures authentic preserved loft character rather than prestige, then Boott Mills should outrank 360 Newbury:</p>
+<ul>
+<li>stronger preservation integrity</li>
+<li>more original material in active living spaces</li>
+<li>more archetypal industrial proportions</li>
+<li>less replacement by generic luxury finishes</li>
+</ul>
+<p>That’s a defensible editorial choice.</p>
+<p>The one nuance: if readers interpret “character” more broadly to include singular architectural intervention, they may expect 360 Newbury’s Gehry element to matter more. So the publication should be explicit that the index privileges <strong>preserved industrial authenticity</strong> over signature contemporary intervention.</p>
+<hr>
+<h2>OVERALL QUESTIONS</h2>
+<h3>1. Do both entity-fit gate decisions look correct?</h3>
+<p>Yes.</p>
+<ul>
+<li><strong>Lofts rejecting The Benjamin:</strong> correct</li>
+<li><strong>LA limiting Boott Mills to listing-only:</strong> correct</li>
+</ul>
+<p>These are not just acceptable calls; they are strategically important calls. The system shows editorial discipline by refusing weak-fit coverage.</p>
+<p>Scores:</p>
+<ul>
+<li><strong>Lofts gate on Benjamin:</strong> 9/10</li>
+<li><strong>LA gate on Boott Mills:</strong> 9.5/10</li>
+</ul>
+<p>Deduction on the Lofts gate only because of the slightly confusing <code>light_profile_applicable</code> boolean.</p>
+<h3>2. Does coverage asymmetry strengthen or weaken SEO positioning?</h3>
+<p><strong>Strengthens</strong>, assuming the editorial scope is legible.</p>
+<p>Why it strengthens:</p>
+<ul>
+<li>reduces mirrored inventory patterns</li>
+<li>creates domain-specific topical authority</li>
+<li>demonstrates selective expertise rather than exhaustive commodity coverage</li>
+<li>avoids thin obligatory pages</li>
+</ul>
+<p>This is differentiation signal, not a weakness. In fact, the omission pattern is the point.</p>
+<p>Possible risk:</p>
+<ul>
+<li>if the sites do not explain their editorial lens, omissions may look like holes rather than curation</li>
+<li>if asymmetry becomes too mechanically predictable, common ownership/tooling may still be inferable</li>
+</ul>
+<p>But overall: asymmetry is a net SEO and brand advantage.</p>
+<h3>3. Do the two editorial pages feel like different publications?</h3>
+<p>Yes, though not perfectly.</p>
+<p><strong>Benjamin / LA</strong>:</p>
+<ul>
+<li>operational</li>
+<li>service-oriented</li>
+<li>convenience/trade-off framing</li>
+<li>consumer guidance</li>
+</ul>
+<p><strong>Boott Mills / Lofts</strong>:</p>
+<ul>
+<li>historical</li>
+<li>material</li>
+<li>spatial</li>
+<li>preservation-judgment driven</li>
+</ul>
+<p>That is enough distinction to work.</p>
+<p>The shared engine DNA still appears in:</p>
+<ul>
+<li>polished, confident cadence</li>
+<li>thesis-first openings</li>
+<li>consistent formatting logic</li>
+<li>same provenance syntax</li>
+</ul>
+<p>So the answer is: <strong>different enough to succeed, similar enough that a close reader could detect shared production infrastructure</strong>.</p>
+<h3>4. Do per-field source citations add credibility?</h3>
+<p>Yes, significantly.</p>
+<p>This is a major step up from the 360 Newbury test. The citations:</p>
+<ul>
+<li>clarify what is measured versus interpreted</li>
+<li>help contain hallucination concerns</li>
+<li>make scores feel less arbitrary</li>
+<li>create an editorial transparency layer</li>
+</ul>
+<p>They are one of the strongest system-level improvements shown here.</p>
+<p>The only caution is that labels and confidence scores should not substitute for methodology rigor. But the direction is clearly correct.</p>
+<h3>5. Overall: does the engine handle asymmetry?</h3>
+<p>Yes.</p>
+<p>These two tests prove the more important capability:</p>
+<ul>
+<li>strong output when fit is strong</li>
+<li>principled refusal when fit is weak</li>
+<li>asymmetric coverage as identity, not failure</li>
+</ul>
+<p>Together with 360 Newbury, the engine has now demonstrated:</p>
+<ul>
+<li><strong>both domains cover</strong> a dual-fit building</li>
+<li><strong>LA only</strong> covers a luxury-service tower</li>
+<li><strong>Lofts only</strong> covers a high-character non-luxury conversion</li>
+</ul>
+<p>That is the full matrix. It’s convincing.</p>
+<hr>
+<h2>Final Scores</h2>
+<h3>Editorial Pages</h3>
+<ul>
+<li><strong>LA / The Benjamin:</strong> 8/10</li>
+<li><strong>Lofts / Boott Mills:</strong> 9/10</li>
+</ul>
+<h3>Entity-Fit Gates</h3>
+<ul>
+<li><strong>Lofts rejects Benjamin:</strong> 9/10</li>
+<li><strong>LA limits Boott Mills:</strong> 9.5/10</li>
+</ul>
+<h3>System-Level Asymmetry Handling</h3>
+<ul>
+<li><strong>Overall:</strong> 9/10</li>
+</ul>
+<hr>
+<h2>Bottom line</h2>
+<p>Yes — the engine handles asymmetry well. The strongest evidence is not that both published pages are good; it’s that the non-pages are also good decisions. The system knows when not to speak.</p>
+  </div>
+</div>
+<div class="participant-block open">
+  <div class="participant-header" onclick="this.parentElement.classList.toggle('open')">
+    <span class="name">google/gemini-3.1-pro-preview@openrouter</span>
+    <span>
+      <span class="chars">8,266 chars</span>
+      <span class="toggle">&#9654;</span>
+    </span>
+  </div>
+  <div class="participant-body">
+    <p>Here is my comprehensive analysis of both asymmetric tests, answering the specific questions for each file and the overall portfolio-level questions.</p>
+<h4>TEST A: The Benjamin Seaport (LA)</h4>
+<p><strong>1. Does LA&#x27;s editorial page stand on its own?</strong></p>
+<p>Yes. It functions beautifully as a rigorous consumer review. For a renter evaluating a $4,300/month commitment, standard apartment listings provide zero operational intelligence. This page provides real value by framing the core tension of the building: the sheer density of its on-site amenities versus the predictable friction (noise, elevator delays) those exact amenities generate.</p>
+<p><strong>2. Is the entity-fit gate rejection correct?</strong></p>
+<p>Absolutely correct. If Lofts—a publication ostensibly dedicated to historic preservation, adaptive reuse, and architectural character—published a 1,500-word editorial on a 2017 glass-and-steel luxury box built on a parking lot, it would instantly expose the site as an AI-driven SEO farm. The <code>NO_FIT</code> gate is the engine&#x27;s most valuable feature here; restraint is what builds brand credibility.</p>
+<p><strong>3. Does the enrichment provenance add credibility?</strong></p>
+<p>Yes, significantly. Moving from floating numbers to specific citations (e.g., <code>API_DERIVED — NLP sentiment on 167 Google Reviews. Confidence: 0.85</code>) transforms the text from marketing fluff to a defensible data product. It signals to the reader that a methodology exists.</p>
+<p><strong>4. Is the noise analysis genuine insight or AI inference?</strong></p>
+<p>Both, and that is a positive. The baseline fact (it is loud on weekends) is extracted from reviews, but the <em>editorial synthesis</em>—identifying that the noise is a &quot;structural trade-off&quot; resulting from the developer&#x27;s choice to co-locate residential units with high-traffic entertainment venues—is a genuine value-add. It tells the reader that this isn&#x27;t a temporary issue a new property manager can fix; it&#x27;s baked into the building&#x27;s DNA.</p>
+<p><strong>5. Does the new cadence feel structurally different from the 360 Newbury Lofts page?</strong></p>
+<p>Yes. LA’s &quot;verdict → experience → scored metrics → operational inference&quot; flow is highly pragmatic and consumer-centric. It reads like a high-end buyer&#x27;s guide. Lofts reads like an architectural journal. The cadence separation successfully masks the shared engine.</p>
+<p><strong>6. Score LA&#x27;s page (1-10) on editorial quality &amp; justify existence.</strong></p>
+<p><strong>Score: 8/10</strong>. It firmly justifies its existence by telling renters what the leasing office will actively try to hide. </p>
+<p><strong>7. What&#x27;s missing that would make it stronger?</strong></p>
+<ul>
+<li>  <strong>Price Per Square Foot:</strong> Extremely relevant for luxury new-build comparisons.</li>
+<li>  <strong>Direct Review Snippets:</strong> The operational inference would hit harder if backed by 1-2 anonymized quotes from the analyzed reviews.</li>
+<li>  <strong>Unit Mechanics:</strong> How are the actual living spaces? (e.g., HVAC noise, closet practically).</li>
+</ul>
+<p><strong>8. Does this asymmetric test prove the engine handles the hard case?</strong></p>
+<p>Yes. It proves the engine doesn&#x27;t need 19th-century exposed brick to write a good article. It can synthesize operational friction and lifestyle metrics into compelling modern editorial. </p>
+<p><em>*</em></p>
+<h4>TEST B: Boott Mills (Lofts)</h4>
+<p><strong>1. Does Lofts&#x27; editorial page stand on its own?</strong></p>
+<p>Yes, impressively so. It is passionate, highly specific, and deeply grounded in physical and historical reality. It explains not just what the building looks like, but why it looks that way (e.g., 15-foot ceilings and massive windows were engineered to get sunlight to the looms before electric lighting). </p>
+<p><strong>2. Is the entity-fit gate result for LA correct?</strong></p>
+<p>Yes. A $2,250/month apartment in Lowell with no concierge, no luxury lifestyle radius, and a 7/20 amenity score simply does not fit a &quot;Luxury Apartments&quot; framework. Downgrading it to <code>WEAK_FIT</code> (listing only) maintains domain cohesion.</p>
+<p><strong>3. Compare this page to the 360 Newbury Lofts page. Which is stronger?</strong></p>
+<p>Boott Mills is stronger. 360 Newbury required a bit of interpretive gymnastics to balance its cool Gehry exterior with its gut-renovated, generic luxury interiors. Boott Mills is unapologetically authentic inside and out. The engine produces superior writing when the source material deeply aligns with the domain&#x27;s soul.</p>
+<p><strong>4. Does the Creative Neighborhood Score analysis add genuine value?</strong></p>
+<p>Yes, this is a brilliant piece of editorial framing. By contextualizing a mediocre absolute score (52) as a reflection of a &quot;generative vs. curatorial&quot; ecosystem, it directly appeals to the target psycho-demographic of a Lofts reader. Artists and makers looking for authentic lofts actually prefer a neighborhood with studio spaces over one saturated by Lululemon and Equinox. It&#x27;s honest, localized insight.</p>
+<p><strong>5. Is the Building Biography genuine editorial value, or Wikipedia-level history?</strong></p>
+<p>It crosses into genuine editorial value because the history is continually tied back to the physical reality of the apartment. Learning about the 200-foot lightning-damaged smokestack restoration tells the reader that the developer (WinnCompanies/The Architectural Team) cared deeply about preservation, which implies a higher quality of life inside the building.</p>
+<p><strong>6. Score Lofts&#x27; page (1-10) on editorial quality &amp; justify existence.</strong></p>
+<p><strong>Score: 9/10</strong>. It more than justifies its existence. Standard aggregation sites flat out do not produce content that respects architectural heritage like this. It carves out a highly defensible niche.</p>
+<p><strong>7. Does this asymmetric test prove the engine handles both directions of asymmetry?</strong></p>
+<p>Yes. It gracefully steps aside on modern luxury (LA&#x27;s territory) and leans heavily into historic preservation (Lofts&#x27; territory) without forcing either domain to publish out-of-character content.</p>
+<p><strong>8. Is 94 (Boott) vs 82 (360 Newbury) defensible?</strong></p>
+<p>Highly defensible. If the Character Index measures authentic, preserved industrial/historic fabric, Boott Mills—where the actual structural timbers are exposed in the living room—must outscore 360 Newbury, which essentially built a standard luxury apartment inside an old shell.</p>
+<p><em>*</em></p>
+<h4>OVERALL QUESTIONS</h4>
+<p><strong>1. Do both entity-fit gate decisions look correct?</strong></p>
+<p>Yes, they demonstrate the engine&#x27;s most vital asset: editorial restraint. Filtering out noise makes the remaining signal much stronger. If the AI hallucinates connections where none exist, trust collapses.</p>
+<p><strong>2. Does coverage asymmetry strengthen or weaken the portfolio&#x27;s SEO positioning?</strong></p>
+<p>It dramatically strengthens it. If LA and Lofts covered the exact same 500 buildings using different synonyms, Google’s Helpful Content Update algorithms would eventually flag them as a doorway page network. By creating distinct coverage maps—where properties are comprehensively reviewed only when they fit the domain&#x27;s specific topical authority—the sites signal high-expertise, distinct editorial mandates.</p>
+<p><strong>3. Compare the two editorial pages to each other.</strong></p>
+<p>They read like distinct publications. LA maintains a pragmatic, convenience-and-friction-obsessed tone (consumer report format). Lofts maintains a reverential, materiality-obsessed tone (architectural digest format). The shared engine DNA is only visible in the provenance tagging formatting, which readers won&#x27;t care about and search engines will view as structured data credibility.</p>
+<p><strong>4. Do the per-field source citations add credibility?</strong></p>
+<p>Massively. Transparency is the antidote to AI skepticism. Providing an epistemology for the claims (e.g., explicitly stating when a score comes from NLP on 167 reviews vs. when it is a computed light profile) gives the publication journalistic weight. It was the missing link in the 360 Newbury test.</p>
+<p><strong>5. Overall: does the engine handle asymmetry?</strong></p>
+<p>Yes. The asymmetric stress tests prove that the system can scale across a real-world, highly varied database without generating spam. The engine&#x27;s capacity to declare &quot;we have nothing to add here&quot; (and map to a bare listing or omission) is just as impressive and critical as its capacity to write a 1,500-word deep dive.</p>
+  </div>
+</div>
+<div class="participant-block open">
+  <div class="participant-header" onclick="this.parentElement.classList.toggle('open')">
+    <span class="name">x-ai/grok-4.20-beta@openrouter</span>
+    <span>
+      <span class="chars">6,587 chars</span>
+      <span class="toggle">&#9654;</span>
+    </span>
+  </div>
+  <div class="participant-body">
+    <p><strong>VOTE:</strong> {&quot;option&quot;: &quot;Approve — engine handles asymmetry&quot;, &quot;confidence&quot;: 0.91, &quot;rationale&quot;: &quot;Both gates are correct and principled. Both editorial pages stand strongly on their own and feel like distinct publications. Provenance is a clear upgrade. Asymmetry creates genuine differentiation rather than gaps. The engine succeeds on the hard case.&quot;}</p>
+<h4>1. Do both entity-fit gate decisions look correct?</h4>
+<p><strong>Yes, both are unambiguously correct.</strong></p>
+<ul>
+<li><strong>Lofts on The Benjamin (NO_FIT → OMIT):</strong> Perfect call. The gate’s criteria are precise and correctly triggered: Character Index inapplicable (new construction on parking lot), no adaptive reuse, no biography, CNS only 28, field completeness 0.20 << 0.60 threshold. The “if forced” paragraph is exactly the thin, generic, self-apologetic content that would damage the Lofts brand. Omitting is disciplined editorial hygiene, not laziness.</li>
+</ul>
+<ul>
+<li><strong>LA on Boott Mills (WEAK_FIT → listing only):</strong> Also correct. Amenity completeness 7/20, no concierge/doorman, Lifestyle Radius framework has almost nothing to measure in Lowell, and the building is not positioned as luxury service product. The gate’s language (“extraordinary — but on dimensions LA doesn’t measure”) is honest and brand-protecting. Forcing luxury-service analysis on a $2,250 mill conversion in Lowell would produce awkward, inauthentic content.</li>
+</ul>
+<p>Gate scores: Lofts→Benjamin <strong>9.5/10</strong>, LA→Boott Mills <strong>9.5/10</strong>. Minor deduction only for the slightly confusing <code>light_profile_applicable: true</code> boolean in the Benjamin gate (the prose correctly dismisses it, but the boolean should probably be false).</p>
+<h4>2. Does coverage asymmetry strengthen or weaken SEO positioning?</h4>
+<p><strong>It strengthens.</strong></p>
+<p>This produces three distinct coverage patterns across the portfolio:</p>
+<ul>
+<li>Symmetric full coverage (360 Newbury)</li>
+<li>LA-only full editorial (Benjamin)</li>
+<li>Lofts-only full editorial (Boott Mills)</li>
+</ul>
+<p>Google sees two publications making different editorial judgments about what is worth deep coverage. That is a stronger topical authority and differentiation signal than two sites mirroring each other. The risk of it being perceived as a coordinated doorway network is low precisely <em>because</em> the omissions are principled and the content when present is high-quality and substantively different. Coverage gaps that are explainable by clear editorial scope are features, not bugs.</p>
+<h4>3. Do the two editorial pages feel like different publications?</h4>
+<p><strong>Yes, convincingly so.</strong></p>
+<ul>
+<li><strong>LA Benjamin page</strong>: Verdict-first, consumer-intelligence tone. Operational trade-off analysis, scored metrics up front, practical comparisons. Reads like a smart rental-research newsletter or high-end apartment guide. Cadence (verdict → experience → metrics → inference → comparisons) works.</li>
+<li><strong>Lofts Boott Mills page</strong>: History-first, almost reverential architectural tone. Deep preservation critique, material authenticity obsession, light-as-architectural-phenomenon analysis. Reads like a niche architecture-and-place publication.</li>
+</ul>
+<p>The shared engine DNA is still visible in:</p>
+<ul>
+<li>Similar rhetorical confidence and declarative style</li>
+<li>Identical provenance citation format</li>
+<li>Occasional meta-commentary (“what the other site would say”)</li>
+</ul>
+<p>But the <em>focus</em>, <em>section architecture</em>, <em>value criteria</em>, and <em>emotional temperature</em> are different enough that a reader would not feel they are reading the same publication in different fonts. The cadence fix from the addendum is clearly helping.</p>
+<h4>4. Do per-field source citations add credibility?</h4>
+<p><strong>Yes — this is one of the strongest improvements.</strong></p>
+<p>Compared to the 360 Newbury test (which had almost no provenance), the difference is substantial. Seeing “NLP sentiment on 167 Google Reviews, confidence 0.85” vs “23 reviews, confidence 0.72” gives real calibration. The explicit <code>LLM_GENERATED — editorial analysis, not data-backed</code> disclaimers are intellectually honest. The smokestack archival brick research being tied to “Architectural Team portfolio” is credible.</p>
+<p>This transparency does three things:</p>
+<ul>
+<li>Builds reader trust</li>
+<li>Protects against hallucination accusations</li>
+<li>Gives Google clearer signals about original synthesis vs. aggregation</li>
+</ul>
+<p>The remaining weakness is that <code>LLM_GENERATED</code> still doesn’t name the model or prompt class, but that is probably the right trade-off for public-facing content.</p>
+<h4>5. Overall: does the engine handle asymmetry?</h4>
+<p><strong>Yes. These tests convincingly prove it.</strong></p>
+<p>The 360 Newbury test proved the engine could differentiate <em>when both domains had rich material</em>. These asymmetric tests prove the harder requirement: the engine can <em>refrain</em> from producing content when it has nothing meaningful to say, while still generating high-quality editorial in its strong domain.</p>
+<ul>
+<li>LA Benjamin page: <strong>8.0/10</strong>. Stands on its own. The noise-as-structural-tradeoff insight is genuine editorial value. The page tells a prospective renter something useful they won’t get from Zillow or the building’s marketing site. Loses points for slightly checklist-y prose in places and missing price-per-square-foot analysis.</li>
+<li>Lofts Boott Mills page: <strong>9.0/10</strong>. The strongest page across all tests so far. The Character Index 94 vs 82 is <em>defensible</em> (structural original materials beat replaced luxury finishes). The generative-vs-curatorial creative ecosystem distinction is real insight, not spin, because it is anchored in specific anchors (Western Avenue Studios, Brush Gallery, independent-to-chain ratio).</li>
+</ul>
+<p><strong>What’s missing (shared gaps):</strong></p>
+<ul>
+<li>Both pages could use 1-2 direct, anonymized review quotes as evidence.</li>
+<li>Benjamin lacks $/sqft and seasonal noise variation analysis.</li>
+<li>Boott Mills lacks acoustics analysis (15-ft ceilings + exposed brick = very live sound environment) and realistic commuter-rail experience.</li>
+</ul>
+<p>These are execution improvements, not structural failures.</p>
+<h4>Summary Scores</h4>
+<p>| Component                     | Score  | Notes |</p>
+<p>|-------------------------------|--------|-------|</p>
+<p>| LA Benjamin editorial         | 8.0/10 | Strong on operations and trade-offs |</p>
+<p>| Lofts Boott Mills editorial   | 9.0/10 | Best output yet; authentic material elevates quality |</p>
+<p>| Entity-fit gates (both)       | 9.5/10 | Principled restraint demonstrated |</p>
+<p>| Provenance system             | 9.0/10 | Major credibility upgrade |</p>
+<p>| Asymmetric differentiation    | 9.0/10 | The hard case is solved |</p>
+<p>The engine correctly says “yes” when it has something to say and “no” when it doesn’t. That combination of selectivity and quality is what separates a real editorial product from content spam. </p>
+<p>Approve. The asymmetric stress test passes.</p>
+  </div>
+</div>
+</div>
+
+<hr>
+<div class="meta">
+  Generated by <strong>ai-counsel</strong> &middot;
+  Participants: opus@claude, openai/gpt-5.4@openrouter, google/gemini-3.1-pro-preview@openrouter, x-ai/grok-4.20-beta@openrouter
+</div>
+</body>
+</html>

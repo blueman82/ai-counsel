@@ -1,0 +1,2815 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI Council Deliberation — Architecture Review</title>
+<style>
+  :root {
+    --bg: #0f172a;
+    --surface: #1e293b;
+    --surface-elevated: #334155;
+    --border: #475569;
+    --text: #e2e8f0;
+    --text-muted: #94a3b8;
+    --accent: #3b82f6;
+    --green: #22c55e;
+    --yellow: #eab308;
+    --red: #ef4444;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    padding: 2rem;
+    max-width: 1100px;
+    margin: 0 auto;
+  }
+  h1 { font-size: 1.75rem; margin-bottom: 0.5rem; }
+  h2 { font-size: 1.35rem; margin: 1.5rem 0 0.75rem; color: var(--accent); }
+  h3 { font-size: 1.15rem; margin: 1.25rem 0 0.5rem; }
+  h4 { font-size: 1rem; margin: 1rem 0 0.5rem; color: var(--text-muted); }
+  p { margin: 0.5rem 0; }
+  hr { border: none; border-top: 1px solid var(--border); margin: 1.5rem 0; }
+  ul { margin: 0.5rem 0 0.5rem 1.5rem; }
+  li { margin: 0.25rem 0; }
+  code {
+    background: var(--surface-elevated);
+    padding: 0.15rem 0.4rem;
+    border-radius: 3px;
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+    font-size: 0.85em;
+  }
+  pre {
+    background: var(--surface-elevated);
+    padding: 1rem;
+    border-radius: 6px;
+    overflow-x: auto;
+    margin: 0.75rem 0;
+  }
+  pre code { background: none; padding: 0; }
+  strong { color: #f1f5f9; }
+
+  .meta { color: var(--text-muted); font-size: 0.85rem; margin-bottom: 1.5rem; }
+  .summary-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1.25rem 1.5rem;
+    margin: 1rem 0;
+  }
+  .summary-box h2 { margin-top: 0; }
+  .vote-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 0.75rem;
+    margin: 1rem 0;
+  }
+  .vote-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 0.75rem 1rem;
+    border-left: 4px solid var(--accent);
+  }
+  .vote-card .participant { font-weight: 600; font-size: 0.9rem; }
+  .vote-card .option { font-size: 0.85rem; margin-top: 0.25rem; }
+  .vote-card .confidence { font-size: 0.8rem; color: var(--text-muted); }
+  .vote-card .rationale { font-size: 0.8rem; color: var(--text-muted); margin-top: 0.25rem; font-style: italic; }
+
+  .round-section {
+    margin: 1.5rem 0;
+  }
+  .participant-block {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    margin: 0.75rem 0;
+    overflow: hidden;
+  }
+  .participant-header {
+    background: var(--surface-elevated);
+    padding: 0.6rem 1rem;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    user-select: none;
+  }
+  .participant-header:hover { background: #3b4f6b; }
+  .participant-header .name { font-weight: 600; }
+  .participant-header .chars { font-size: 0.8rem; color: var(--text-muted); }
+  .participant-header .toggle { font-size: 0.8rem; color: var(--text-muted); }
+  .participant-body {
+    padding: 1rem 1.25rem;
+    display: none;
+  }
+  .participant-block.open .participant-body { display: block; }
+  .participant-block.open .toggle { transform: rotate(90deg); }
+
+  .convergence {
+    display: inline-block;
+    background: var(--surface-elevated);
+    padding: 0.25rem 0.6rem;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+  }
+  .tag {
+    display: inline-block;
+    padding: 0.15rem 0.5rem;
+    border-radius: 3px;
+    font-size: 0.75rem;
+    font-weight: 600;
+  }
+</style>
+</head>
+<body>
+<h1>AI Council Deliberation</h1>
+<div class="meta">
+  2026-03-15 17:11 &middot;
+  Mode: conference &middot;
+  Rounds: 3 &middot;
+  <span class="convergence">majority_decision</span>
+</div>
+
+<div class="summary-box">
+<h2>Consensus</h2>
+<p>**
+Strong consensus reached: the integrated system&#x27;s architecture is directionally sound and individually each document is high quality (8.5–9/10), but the system is not yet executable as written due to critical integration seams between the monorepo structural layer and the content engine substance layer. All four participating models voted &quot;Approve with integration revisions required.&quot;</p>
+<h3>Key Agreements</h3><ul>
+<li>The content engine (`packages/content-engine/`) is completely absent from the implementation plan&#x27;s 5 phases — the most significant planning gap, identified by all reviewers</li>
+<li>The Forge optimization loop writes directly to Supabase and bypasses the monorepo&#x27;s post-build rendered-page similarity CI, creating a dangerous temporal mismatch between validation layers (content engine validates pre-publish; CI validates post-build; runtime content changes trigger neither)</li>
+<li>The editorial/enrichment table schemas (`la_editorial_content`, `la_building_enrichments`, etc.) are never concretely defined — no SQL DDL, no TypeScript interfaces, no content publish state machine (`draft → validated → published → stale`)</li>
+<li>Fair Housing compliance exists only inside the content engine&#x27;s Stage 6; manual Supabase edits, admin copy changes, and seed scripts bypass it entirely</li>
+<li>The two validation systems (8-stage council + post-build similarity CI) provide useful defense-in-depth but have no explicit adjudication rule and no shared threshold config, risking drift</li>
+</ul>
+<h3>Key Disagreements</h3><ul>
+<li>Score range varied significantly: Grok scored 6.5/10 in Round 1 vs GPT-5.4 at 8.8/10 in Round 3. Claude Opus, with actual codebase access, anchored lower (7.5/10) by discovering the static data migration scope is 5× larger than the plan states (253 `@/data/` imports across 164 files, not &quot;~48&quot;), and that `data-factual`/`data-editorial` HTML attributes don&#x27;t exist anywhere in either codebase yet</li>
+<li>Minor disagreement on whether the `data-factual`/`data-editorial` HTML distinction and the DETERMINISTIC/INFERENTIAL/SPECULATIVE provenance taxonomy represent the same concept (consensus settled on: they are orthogonal and should coexist in the content block schema)</li>
+</ul>
+<h3>Final Recommendation</h3>
+<p>**
+Before implementation, close five critical seams in this order: (1) add a Phase 4.5 to the implementation plan with explicit tasks for the content engine, (2) define SQL DDL and TypeScript interfaces for all editorial/enrichment tables plus a publish state machine, (3) implement a staged-publish preview gate so Forge-regenerated content passes a rendered-page similarity check before going live, (4) correct the static data migration scope estimate and re-plan Task 0.0, and (5) add a lightweight Fair Housing gate at the DB publish-transition layer with a nightly audit. These five fixes would raise the integrated system from its current ~7.5–8.5/10 to production-ready (9+/10) without requiring any architectural changes.</p>
+</div>
+<h2>Votes</h2>
+<div class="vote-grid">
+<div class="vote-card" style="border-left-color: #22c55e">
+  <div class="participant">openai/gpt-5.4@openrouter</div>
+  <div class="option" style="color: #22c55e">Approve with integration-seam revisions</div>
+  <div class="confidence">Confidence: 94%</div>
+  <div class="rationale">The monorepo and content engine now align well on structural vs substantive responsibilities, but the integrated system still lacks the final operational contracts: explicit editorial schemas, a publi</div>
+</div>
+<div class="vote-card" style="border-left-color: #22c55e">
+  <div class="participant">google/gemini-3.1-pro-preview@openrouter</div>
+  <div class="option" style="color: #22c55e">Approve with severe integration patches required</div>
+  <div class="confidence">Confidence: 95%</div>
+  <div class="rationale">The foundational models are exceptionally well thought-out. However, without synchronizing the ISR revalidation, the CI/CD pipeline, and the staging environments, the monorepo and the engine will brea</div>
+</div>
+<div class="vote-card" style="border-left-color: #22c55e">
+  <div class="participant">x-ai/grok-4.20-beta@openrouter</div>
+  <div class="option" style="color: #22c55e">Approve with 7 critical integration gaps to close before implementation</div>
+  <div class="confidence">Confidence: 75%</div>
+  <div class="rationale">The documents form a coherent vision but have dangerous seams around data flow, validation synchronization, and operational triggers that would cause production failures if built as-written.</div>
+</div>
+<div class="vote-card" style="border-left-color: #22c55e">
+  <div class="participant">opus@claude</div>
+  <div class="option" style="color: #22c55e">Approve with integration revisions required before implementation</div>
+  <div class="confidence">Confidence: 90%</div>
+  <div class="rationale">Strong individual document quality (8.5-9/10 each), coherent architectural vision, but the integrated system has 5 critical seams (editorial schema, publish lifecycle, Forge-CI temporal mismatch, reva</div>
+</div>
+</div>
+<div class="round-section">
+<h2>Round 1</h2>
+<div class="participant-block">
+  <div class="participant-header" onclick="this.parentElement.classList.toggle('open')">
+    <span class="name">opus@claude</span>
+    <span>
+      <span class="chars">58 chars</span>
+      <span class="toggle">&#9654;</span>
+    </span>
+  </div>
+  <div class="participant-body">
+    <p style="color: var(--red)">[ERROR: TimeoutError: CLI invocation timed out after 300s]</p>
+  </div>
+</div>
+<div class="participant-block">
+  <div class="participant-header" onclick="this.parentElement.classList.toggle('open')">
+    <span class="name">openai/gpt-5.4@openrouter</span>
+    <span>
+      <span class="chars">25,344 chars</span>
+      <span class="toggle">&#9654;</span>
+    </span>
+  </div>
+  <div class="participant-body">
+    <p>TOOL_REQUEST: {&quot;name&quot;: &quot;list_files&quot;, &quot;arguments&quot;: {&quot;path&quot;: &quot;.&quot;, &quot;glob&quot;: &quot;<strong>/2026-03-12-monorepo-templating-design-v5.md&quot;}}TOOL_REQUEST: {&quot;name&quot;: &quot;list_files&quot;, &quot;arguments&quot;: {&quot;path&quot;: &quot;.&quot;, &quot;glob&quot;: &quot;</strong>/2026-03-12-monorepo-implementation-plan-v5.md&quot;}}</p>
+<p>Here’s my integrated-system review, focused on seams between the monorepo design, implementation plan, and content differentiation engine.</p>
+<h3>Bottom line</h3>
+<p>The <strong>architecture is conceptually strong</strong>, and the three documents are <strong>mostly compatible</strong>, but the integrated system is <strong>not yet fully production-specified</strong>. The biggest gaps are:</p>
+<ul>
+<li><strong>No explicit editorial-content schema contract</strong> between content engine output and monorepo data layer</li>
+<li><strong>No defined placement of the content engine in the implementation phases</strong></li>
+<li><strong>No clear regeneration/publish pipeline</strong> connecting Forge → validation council → Supabase → revalidation → CI policy</li>
+<li><strong>Fair Housing enforcement exists only in the engine, not at the DB/admin ingress layer</strong></li>
+<li><strong>The factual/editorial HTML distinction is not the same as provenance, and that mapping is currently underspecified</strong></li>
+</ul>
+<p>So: good design, incomplete operating system.</p>
+<hr>
+<h3>1. Does the content engine’s output connect to the monorepo’s data layer?</h3>
+<h4>Short answer</h4>
+<p><strong>Partially. Conceptually yes, operationally no.</strong></p>
+<h4>What aligns</h4>
+<p>The content engine clearly intends to write to per-domain tables:</p>
+<ul>
+<li><code>la_editorial_content</code></li>
+<li><code>ll_editorial_content</code></li>
+</ul>
+<p>The monorepo design explicitly says:</p>
+<ul>
+<li>editorial/guides/comparisons are <strong>per-domain tables</strong></li>
+<li>app-local data access should live in <code>apps/*/src/lib/data/</code></li>
+<li>shared tables go through <code>packages/data/createDomainClient</code></li>
+<li>ISR/tag revalidation is part of the delivery model</li>
+</ul>
+<p>That means the intended model is:</p>
+<ul>
+<li><strong>Shared entity data</strong> → <code>packages/data</code></li>
+<li><strong>Per-domain editorial content</strong> → app-local queries, not <code>createDomainClient</code></li>
+</ul>
+<p>That separation is consistent with the monorepo design.</p>
+<h4>What is missing</h4>
+<p>The actual <strong>schema contract is absent</strong>. I do not see a fully specified table shape for <code>la_editorial_content</code> / <code>ll_editorial_content</code>. At minimum, the integrated system needs fields like:</p>
+<ul>
+<li><code>id</code></li>
+<li><code>entity_type</code> (<code>building</code>, <code>city</code>, <code>neighborhood</code>, <code>blog</code>, etc.)</li>
+<li><code>entity_slug</code> or <code>entity_id</code></li>
+<li><code>route_pattern</code> or <code>route_key</code></li>
+<li><code>domain</code></li>
+<li><code>status</code> (<code>draft</code>, <code>validated</code>, <code>published</code>, <code>rejected</code>)</li>
+<li><code>content_json</code> or <code>mdx/body</code></li>
+<li><code>validation_report_json</code></li>
+<li><code>provenance_summary_json</code></li>
+<li><code>version</code></li>
+<li><code>generated_at</code></li>
+<li><code>published_at</code></li>
+<li><code>stale_at</code></li>
+<li><code>similarity_status</code></li>
+<li><code>fair_housing_status</code></li>
+</ul>
+<p>Without that, the engine output and the app rendering layer are hand-wavy.</p>
+<h4>Does `createDomainClient` know about editorial tables?</h4>
+<p><strong>No, and that is probably correct.</strong></p>
+<p><code>createDomainClient</code> is designed for <strong>shared tables with domain baked in</strong>. Editorial tables are described as <strong>per-domain</strong>, queried from app-local <code>src/lib/data/</code>. So editorial content should likely <strong>not</strong> live in <code>packages/data</code> unless you later unify them behind stable result interfaces.</p>
+<p>But the system still needs:</p>
+<ul>
+<li>a <strong>per-app editorial query layer</strong></li>
+<li>a <strong>shared interface definition</strong> for editorial content records, even if storage remains per-domain</li>
+</ul>
+<p>Right now, that contract is missing.</p>
+<h4>ISR revalidation when content is regenerated</h4>
+<p>This seam is <strong>underdesigned</strong>.</p>
+<p>Monorepo doc defines a revalidation pattern for <code>domain_visibility</code> changes using an Edge Function webhook to each app’s <code>/api/revalidate</code>.</p>
+<p>But content-engine regeneration is a different event:</p>
+<ul>
+<li>content changes in <code>la_editorial_content</code></li>
+<li>page must be revalidated in <strong>that domain only</strong></li>
+<li>maybe related aggregate pages too (<code>/cities</code>, <code>/blog</code>, <code>/neighborhoods</code>)</li>
+</ul>
+<p>This needs an explicit mechanism:</p>
+<ul>
+<li>engine publishes content</li>
+<li>engine emits a domain-specific revalidation event</li>
+<li>app invalidates tags such as:</li>
+<li><code>editorial-building-one-dalton-tower</code></li>
+<li><code>building-one-dalton-tower</code></li>
+<li><code>city-boston</code></li>
+<li>maybe also parent indexes</li>
+</ul>
+<p>As written, this is only implied, not specified.</p>
+<h4>Verdict</h4>
+<p><strong>The connection exists architecturally, but not as an implementation-ready contract.</strong>  </p>
+<p>Biggest missing item: <strong>editorial content schema + publish/revalidate protocol</strong>.</p>
+<hr>
+<h3>2. Do the two validation systems overlap or conflict?</h3>
+<h4>Short answer</h4>
+<p><strong>They overlap intentionally, but the boundary is blurry.</strong></p>
+<h4>The two systems</h4>
+<p>#### Monorepo validation</p>
+<ul>
+<li>structural manifest validation</li>
+<li>post-build content similarity CI</li>
+<li>route-class thresholds</li>
+<li>extracts editorial regions from built HTML</li>
+<li>advisory first, then enforce later</li>
+</ul>
+<p>#### Content engine validation council</p>
+<ul>
+<li>provenance</li>
+<li>entity fit</li>
+<li>pairwise similarity</li>
+<li>persona adherence</li>
+<li>unique value</li>
+<li>factual verification</li>
+<li>fair housing</li>
+<li>editorial quality</li>
+</ul>
+<h4>Are thresholds consistent?</h4>
+<p><strong>Not fully.</strong></p>
+<p>Monorepo similarity thresholds:</p>
+<ul>
+<li>blog: warn .40 / error .60</li>
+<li>city/neighborhood: warn .55 / error .75</li>
+<li>building/listing: warn .65 / error .85</li>
+<li>tool: warn .50 / error .70</li>
+</ul>
+<p>Content engine doesn’t give the same exact threshold table in the same operational form. It describes similarity as part of validation council and Forge dashboard, with dissimilarity floors and route-level checks, but not as a fully synchronized threshold config with the monorepo tool.</p>
+<p>That means yes, <strong>content can pass the council and fail CI</strong>.</p>
+<h4>Is that a bug?</h4>
+<p><strong>Not necessarily. Could be a useful defense-in-depth feature — if made explicit.</strong></p>
+<p>Why?</p>
+<ul>
+<li>The council validates <strong>generated content before publishing</strong></li>
+<li>The monorepo CI validates <strong>rendered output after composition/template/layout/chrome are applied</strong></li>
+</ul>
+<p>That means they are testing different artifacts:</p>
+<ul>
+<li>council: semantic substance</li>
+<li>CI: actual shipped HTML</li>
+</ul>
+<p>A page could pass semantic review but fail rendered-page similarity because:</p>
+<ul>
+<li>shared template chrome contributes too much duplicate text</li>
+<li>boilerplate intros/outros are too similar</li>
+<li>editorial regions are too thin relative to shared factual content</li>
+<li>extraction/classification errors distort the comparison</li>
+</ul>
+<p>That’s useful. But only if the system explicitly states:</p>
+<p>&gt; “Council pass is necessary but not sufficient. Post-build CI is final shipped-page validation.”</p>
+<p>Right now that hierarchy is implied, not codified.</p>
+<h4>The real risk</h4>
+<p>The two systems may produce <strong>operator confusion</strong>:</p>
+<ul>
+<li>“Why did validated content fail build?”</li>
+<li>“Which threshold is source of truth?”</li>
+<li>“Does council failure block publish or just queue revision?”</li>
+<li>“Does CI failure revert content already written to Supabase?”</li>
+</ul>
+<p>That workflow is not defined.</p>
+<h4>Recommendation</h4>
+<p>Define a clear precedence:</p>
+<ul>
+<li><strong>Validation council</strong> gates content from entering <code>published</code></li>
+<li><strong>Build/post-build similarity</strong> gates deployment/indexability of rendered routes</li>
+<li>If CI fails after council pass:</li>
+<li>content remains in DB as <code>validated_unshipped</code></li>
+<li>app route stays noindex or hidden until resolved</li>
+</ul>
+<h4>Verdict</h4>
+<p><strong>Overlap is good; unclear ownership is bad.</strong>  </p>
+<p>Right now it’s <strong>defense in depth without adjudication logic</strong>.</p>
+<hr>
+<h3>3. Where does the content engine fit in the monorepo’s Phase structure?</h3>
+<h4>Short answer</h4>
+<p><strong>It doesn’t. That’s a major planning gap.</strong></p>
+<p>The implementation plan has Phases 0–5:</p>
+<ul>
+<li>Lofts standalone</li>
+<li>monorepo scaffold</li>
+<li>UI extraction</li>
+<li>Lofts port</li>
+<li>testing/tooling</li>
+<li>D3 onboarding</li>
+</ul>
+<p>But the content engine — which is central to differentiated SEO content — is <strong>not integrated into those phases</strong>.</p>
+<h4>Where it should fit</h4>
+<p>My view:</p>
+<p>#### New Phase 4.5 or Phase 5.0</p>
+<p>After:</p>
+<ul>
+<li>monorepo exists</li>
+<li>LA + Lofts are both in repo</li>
+<li>shared data layer exists</li>
+<li>content similarity tool exists</li>
+<li>per-domain editorial tables exist</li>
+</ul>
+<p>Then build:</p>
+<ul>
+<li><code>packages/content-engine/</code></li>
+<li>per-domain enrichment pipelines</li>
+<li>validation council</li>
+<li>publish/revalidation jobs</li>
+<li>freshness lifecycle</li>
+</ul>
+<h4>Dependencies</h4>
+<p>The content engine depends on:</p>
+<ul>
+<li>shared schema stability</li>
+<li>per-domain editorial tables</li>
+<li>route classification/manifests</li>
+<li>HTML marking (<code>data-factual</code>, <code>data-editorial</code>)</li>
+<li>CI similarity pipeline</li>
+<li>app-level revalidation endpoints</li>
+<li>content strategy/persona source of truth</li>
+</ul>
+<p>So it absolutely should be <strong>after Phase 3</strong>, likely alongside Phase 4 tooling.</p>
+<h4>Missing from implementation plan</h4>
+<p>There should be explicit tasks like:</p>
+<ul>
+<li>Task 4.7: create editorial content schema + migrations</li>
+<li>Task 4.8: scaffold <code>packages/content-engine</code></li>
+<li>Task 4.9: implement LA enrichment for buildings/cities/neighborhoods</li>
+<li>Task 4.10: implement Lofts enrichment</li>
+<li>Task 4.11: implement validation council</li>
+<li>Task 4.12: implement publish/revalidate workflow</li>
+<li>Task 4.13: add editorial admin review surfaces</li>
+<li>Task 4.14: add freshness/re-enrichment cron</li>
+</ul>
+<h4>Verdict</h4>
+<p><strong>This is the biggest planning omission across the documents.</strong>  </p>
+<p>The system has a brain, but the implementation roadmap never schedules brain installation.</p>
+<hr>
+<h3>4. How does the Forge optimization loop interact with deployment?</h3>
+<h4>Short answer</h4>
+<p><strong>This is currently ambiguous and risky.</strong></p>
+<h4>Core issue</h4>
+<p>Forge mutates prompts weekly and regenerates content. That raises a crucial question:</p>
+<p>Does regenerated content:</p>
+<ul>
+<li>go straight into Supabase and immediately appear on production, or</li>
+<li>pass through a staging/publish/deploy workflow?</li>
+</ul>
+<h4>As written</h4>
+<p>The engine implies:</p>
+<ul>
+<li>enrichment/generation/validation happen</li>
+<li>content stored in editorial tables</li>
+<li>app renders via ISR</li>
+<li>regeneration updates content</li>
+</ul>
+<p>This suggests <strong>content changes can bypass code deploys</strong>, which is normal for CMS-style systems.</p>
+<h4>Problem</h4>
+<p>The monorepo’s similarity CI is <strong>build-time/post-build</strong>, not runtime. If Forge regenerates content directly in Supabase:</p>
+<ul>
+<li>no code commit</li>
+<li>no app build necessarily</li>
+<li>no guaranteed CI run</li>
+<li>production content could change without the final rendered similarity check</li>
+</ul>
+<p>That’s a critical seam.</p>
+<h4>Two possible models</h4>
+<p>#### Model A: CMS-style direct publish</p>
+<ul>
+<li>Forge validates content</li>
+<li>writes to DB</li>
+<li>triggers revalidation</li>
+<li>live immediately</li>
+</ul>
+<p>Pros: fast  </p>
+<p>Cons: bypasses rendered-page CI</p>
+<p>#### Model B: staged publish</p>
+<ul>
+<li>Forge writes <code>draft</code> or <code>validated</code></li>
+<li>a publish job renders sampled pages in preview/staging</li>
+<li>runs similarity + compliance + route checks</li>
+<li>then marks records <code>published</code></li>
+<li>triggers production revalidation</li>
+</ul>
+<p>Pros: aligned with CI philosophy  </p>
+<p>Cons: more complex</p>
+<h4>My recommendation</h4>
+<p>For this system, <strong>Model B is required</strong> for indexed content.</p>
+<p>Specifically:</p>
+<ul>
+<li>Tier-2 indexed editorial content should not publish direct-to-prod from Forge</li>
+<li>publish pipeline should:</li>
+<li>store candidate content</li>
+<li>run validation council</li>
+<li>run rendered similarity check in a content-preview environment</li>
+<li>only then publish + revalidate</li>
+</ul>
+<p>Tier-3/noindex/support content could be looser.</p>
+<h4>Verdict</h4>
+<p><strong>Forge/deployment interaction is currently the most operationally dangerous seam.</strong>  </p>
+<p>As written, Forge likely bypasses the monorepo’s final shipped-page validation.</p>
+<hr>
+<h3>5. Is Fair Housing compliance enforced at both layers?</h3>
+<h4>Short answer</h4>
+<p><strong>No. Only at the content-engine layer. That is insufficient.</strong></p>
+<h4>What exists</h4>
+<p>The content engine has:</p>
+<ul>
+<li>Stage 6 Fair Housing validation</li>
+<li>detailed prohibited patterns</li>
+<li>replacements for risky phrasing</li>
+<li>personas-are-internal-only rule</li>
+</ul>
+<p>This is excellent.</p>
+<h4>What is missing</h4>
+<p>The monorepo/application layer does not appear to have:</p>
+<ul>
+<li>DB-level content status constraints</li>
+<li>admin UI guardrails</li>
+<li>moderation workflow</li>
+<li>pre-publish validation for manually edited content</li>
+<li>linting/rules for seeded or hand-authored editorial content</li>
+<li>DB triggers / webhook validations</li>
+</ul>
+<h4>Why this matters</h4>
+<p>The engine is not the only content ingress. Real-world systems always get content through:</p>
+<ul>
+<li>manual admin edits</li>
+<li>direct Supabase edits</li>
+<li>seed scripts</li>
+<li>migrations</li>
+<li>imports</li>
+<li>emergency copy changes</li>
+</ul>
+<p>If someone edits <code>la_editorial_content</code> directly, Stage 6 is bypassed.</p>
+<h4>What should exist</h4>
+<p>At least one of:</p>
+<ul>
+<li><strong>Published-content gate in DB/application</strong></li>
+<li>only <code>published</code> rows may be served</li>
+<li>status can only become <code>published</code> if <code>fair_housing_status = pass</code></li>
+<li><strong>admin save pipeline</strong></li>
+<li>any manual content edit re-runs compliance validation</li>
+<li><strong>nightly compliance audit</strong></li>
+<li>scans all published editorial rows for prohibited phrases/patterns</li>
+<li><strong>optional DB trigger</strong></li>
+<li>harder operationally, but possible for certain fields/status transitions</li>
+</ul>
+<h4>Should monorepo have Fair Housing validation too?</h4>
+<p><strong>Yes, but not as a duplicate full judge.</strong></p>
+<p>It should have:</p>
+<ul>
+<li><strong>publish-time enforcement</strong></li>
+<li><strong>admin/manual-edit enforcement</strong></li>
+<li>maybe lightweight static checks for known banned phrases</li>
+</ul>
+<p>The content engine can remain the rich semantic judge; the app layer must be the final gatekeeper for anything displayed publicly.</p>
+<h4>Verdict</h4>
+<p><strong>Current system is compliant-by-convention, not compliant-by-control.</strong></p>
+<hr>
+<h3>6. Do `data-factual` / `data-editorial` HTML attributes align with the engine’s provenance taxonomy?</h3>
+<h4>Short answer</h4>
+<p><strong>No. They are related but not equivalent. This distinction must be made explicit.</strong></p>
+<h4>Current meanings</h4>
+<p>#### Monorepo HTML attributes</p>
+<ul>
+<li><code>data-factual</code>: strip from similarity comparison</li>
+<li><code>data-editorial</code>: include/prefer for similarity comparison</li>
+</ul>
+<p>This is a <strong>rendering/extraction classification</strong>.</p>
+<p>#### Engine provenance taxonomy</p>
+<ul>
+<li>DETERMINISTIC</li>
+<li>INFERENTIAL</li>
+<li>SPECULATIVE</li>
+<li>UNKNOWN</li>
+</ul>
+<p>This is a <strong>claim epistemology classification</strong>.</p>
+<h4>Why they don’t map 1:1</h4>
+<p>Examples:</p>
+<ul>
+<li>A paragraph saying “Our analysis suggests management responsiveness is above average” is <strong>editorial</strong> in HTML extraction terms, but <strong>inferential</strong> in provenance terms.</li>
+<li>A bulleted score breakdown could be <strong>factual</strong> in page-layout terms, but contain a mix of deterministic and inferential claims.</li>
+<li>A “Building Verdict” section is editorial, but may include deterministic facts plus speculative opinion.</li>
+</ul>
+<p>So:</p>
+<ul>
+<li>factual/editorial ≠ deterministic/inferential/speculative</li>
+</ul>
+<h4>Should they map?</h4>
+<p>Yes, but as <strong>orthogonal dimensions</strong>, not a single axis.</p>
+<p>A better model:</p>
+<ul>
+<li><code>data-content-type="factual|editorial|mixed"</code></li>
+<li><code>data-provenance="deterministic|inferential|speculative|mixed"</code></li>
+</ul>
+<p>Or at least internally in content JSON:</p>
+<ul>
+<li>blocks carry both <code>presentation_role</code> and <code>provenance_class</code></li>
+</ul>
+<p>Then the renderer can emit attributes accordingly.</p>
+<h4>Why this matters</h4>
+<p>Without mapping:</p>
+<ul>
+<li>similarity tool may overcount or undercount risky text</li>
+<li>provenance auditing lives only in generation layer, disappears at render layer</li>
+<li>no way to surface provenance badges in UI if desired</li>
+</ul>
+<h4>Recommendation</h4>
+<p>Define block schema like:</p>
+<pre><code class="language-ts">
+type ContentBlock = {
+  kind: &#x27;paragraph&#x27; | &#x27;score&#x27; | &#x27;quote&#x27; | &#x27;list&#x27;;
+  role: &#x27;editorial&#x27; | &#x27;factual&#x27; | &#x27;mixed&#x27;;
+  provenance: &#x27;deterministic&#x27; | &#x27;inferential&#x27; | &#x27;speculative&#x27; | &#x27;mixed&#x27;;
+  text: string;
+}
+</code></pre>
+<p>Renderers can then emit:</p>
+<ul>
+<li><code>data-editorial</code></li>
+<li><code>data-factual</code></li>
+<li>plus optional provenance annotations</li>
+</ul>
+<h4>Verdict</h4>
+<p><strong>They align conceptually but are not the same concept. Current docs blur them slightly.</strong></p>
+<hr>
+<h3>7. Is the editorial brief template consistent with the content engine’s persona documents?</h3>
+<h4>Short answer</h4>
+<p><strong>Mostly yes, but source-of-truth is unresolved.</strong></p>
+<h4>What’s consistent</h4>
+<p>The editorial brief template covers:</p>
+<ul>
+<li>brand identity</li>
+<li>target audience</li>
+<li>editorial angle</li>
+<li>route-class differentiation examples</li>
+<li>author strategy</li>
+<li>differentiation commitments</li>
+<li>UGC/experience signals</li>
+</ul>
+<p>That matches the intent of the persona documents.</p>
+<h4>Difference in role</h4>
+<p>The template is:</p>
+<ul>
+<li>a <strong>launch-gate planning artifact</strong></li>
+<li>designed for humans to fill in before a domain launches</li>
+</ul>
+<p>The persona docs are:</p>
+<ul>
+<li><strong>operational generation inputs</strong></li>
+<li>detailed system prompts/specs for the content engine</li>
+</ul>
+<p>So they are not redundant; they are layered.</p>
+<h4>The unresolved question</h4>
+<p>Which is canonical?</p>
+<p>As written, it feels like:</p>
+<ul>
+<li>implementation plan says fill out editorial brief template</li>
+<li>content engine says persona docs are source of truth for generation</li>
+</ul>
+<p>That creates drift risk.</p>
+<h4>Best interpretation</h4>
+<p>The editorial brief should be the <strong>drafting template</strong>, and the persona document should be the <strong>compiled operational artifact</strong>.</p>
+<p>In other words:</p>
+<ul>
+<li>human fills out brief</li>
+<li>brief is transformed into <code>packages/content-engine/personas/{domain}.md</code></li>
+<li>persona doc is source of truth for engine + validators</li>
+<li>brief may remain as planning record, but not canonical</li>
+</ul>
+<h4>Needed explicit rule</h4>
+<p>The system should state:</p>
+<p>&gt; “The editorial brief is the pre-launch input document. The persona file in <code>packages/content-engine/personas/</code> is the source of truth for all automated generation and validation.”</p>
+<p>Without that, future teams will update one but not the other.</p>
+<h4>Verdict</h4>
+<p><strong>Consistent in intent, inconsistent in document authority.</strong></p>
+<hr>
+<h3>8. What is the end-to-end flow for a new building?</h3>
+<p>Here is the full intended flow as I reconstruct it from the three documents, plus where it’s missing.</p>
+<h4>Step 1: Building enters shared data layer</h4>
+<p>Source:</p>
+<ul>
+<li>Supabase shared tables: <code>buildings</code>, <code>apartments</code>, etc.</li>
+<li><code>domain_visibility</code> defaults empty, then ops assigns domains</li>
+</ul>
+<p>From monorepo design:</p>
+<ul>
+<li>shared table</li>
+<li>domain visibility opt-in</li>
+<li><code>createDomainClient</code> filters by domain</li>
+</ul>
+<h4>Step 2: Shared app data becomes eligible per domain</h4>
+<p>If building gets:</p>
+<pre><code class="language-sql">
+domain_visibility = ARRAY[&#x27;luxuryapartments&#x27;, &#x27;lofts&#x27;]
+</code></pre>
+<p>then both domains may consider it.</p>
+<h4>Step 3: Enrichment pipeline runs per eligible domain</h4>
+<p>From content engine:</p>
+<ul>
+<li>LA enrichment computes:</li>
+<li>CQS</li>
+<li>amenity completeness</li>
+<li>lifestyle radius</li>
+<li>management digest</li>
+<li>event calendar</li>
+<li>operational inference</li>
+<li>Lofts enrichment computes:</li>
+<li>character index</li>
+<li>CNS</li>
+<li>adaptive reuse grade</li>
+<li>light profile</li>
+<li>building biography</li>
+</ul>
+<p>Output stored in:</p>
+<ul>
+<li><code>la_building_enrichments</code></li>
+<li><code>ll_building_enrichments</code></li>
+</ul>
+<p>or analogous per-domain enrichment tables</p>
+<h4>Step 4: Entity-domain fit gate runs</h4>
+<p>From content engine Section 8:</p>
+<ul>
+<li>STRONG / MODERATE / WEAK / NO FIT</li>
+</ul>
+<p>Outcome:</p>
+<ul>
+<li>FULL editorial</li>
+<li>SUMMARY</li>
+<li>factual listing only</li>
+<li>omit from domain</li>
+</ul>
+<h4>Step 5: Content generation runs</h4>
+<p>Per domain + route class:</p>
+<ul>
+<li>building page generator uses persona + shared data + enrichment data</li>
+<li>creates structured content</li>
+</ul>
+<p>Stored in:</p>
+<ul>
+<li><code>la_editorial_content</code></li>
+<li><code>ll_editorial_content</code></li>
+</ul>
+<h4>Step 6: Validation council runs</h4>
+<p>Stages:</p>
+<ul>
+<li>provenance</li>
+<li>fit</li>
+<li>pairwise similarity</li>
+<li>persona adherence</li>
+<li>unique value</li>
+<li>factual/provenance verification</li>
+<li>fair housing</li>
+<li>editorial quality</li>
+</ul>
+<p>Result:</p>
+<ul>
+<li>PASS / REVISE / REJECT</li>
+</ul>
+<h4>Step 7: Publish staging decision</h4>
+<p>This is where the docs are weak.</p>
+<p>Should be:</p>
+<ul>
+<li>content stored with status</li>
+<li>only <code>validated</code> content eligible for preview</li>
+<li>rendered-page similarity check runs</li>
+<li>then status becomes <code>published</code></li>
+</ul>
+<p>This step is not fully specified.</p>
+<h4>Step 8: App reads content</h4>
+<p>From monorepo:</p>
+<ul>
+<li>per-domain app queries local editorial table via <code>src/lib/data/</code></li>
+<li>shared entity data comes via <code>createDomainClient</code></li>
+<li>route template renders a mixture of:</li>
+<li>factual data blocks</li>
+<li>editorial content blocks</li>
+</ul>
+<h4>Step 9: Revalidation fires</h4>
+<p>Should occur after publish:</p>
+<ul>
+<li>domain-specific <code>/api/revalidate</code></li>
+<li>tags for route/entity/indexes invalidated</li>
+</ul>
+<p>Specified generically for shared data changes, but not explicitly for editorial regeneration.</p>
+<h4>Step 10: Build-time/post-build similarity check</h4>
+<p>For code/deploy-time builds:</p>
+<ul>
+<li><code>content-similarity</code> tooling extracts editorial HTML</li>
+<li>compares routes across domains</li>
+<li>warns/errors based on class thresholds</li>
+</ul>
+<p>But if content changes outside build, this only happens if there’s a content-preview build or scheduled validation run.</p>
+<h4>Step 11: Freshness lifecycle</h4>
+<p>From content engine:</p>
+<ul>
+<li>stale thresholds</li>
+<li>weekly cron</li>
+<li>re-enrichment</li>
+<li>regeneration</li>
+<li>archive prior version</li>
+<li>consistency check</li>
+</ul>
+<h4>Main missing steps in this flow</h4>
+<ul>
+<li>status transitions</li>
+<li>preview/staging environment for content publish</li>
+<li>exact schema for editorial/enrichment tables</li>
+<li>how route rendering composes structured engine output into React components</li>
+<li>revalidation trigger specifics</li>
+</ul>
+<hr>
+<h3>9. What is missing from the complete system?</h3>
+<p>Here are the biggest cross-document gaps.</p>
+<h4>A. Editorial content schema is not specified</h4>
+<p>This is the biggest concrete omission.</p>
+<p>Need exact tables for:</p>
+<ul>
+<li>enrichment</li>
+<li>editorial content</li>
+<li>validation reports</li>
+<li>version history</li>
+<li>status workflow</li>
+</ul>
+<h4>B. No content publish state machine</h4>
+<p>Need explicit lifecycle:</p>
+<ul>
+<li><code>generated</code></li>
+<li><code>validated</code></li>
+<li><code>rejected</code></li>
+<li><code>published</code></li>
+<li><code>stale</code></li>
+<li><code>archived</code></li>
+</ul>
+<p>Without this, operational control is weak.</p>
+<h4>C. Content engine missing from implementation plan</h4>
+<p>As noted, no phase/tasks for:</p>
+<ul>
+<li>packages/content-engine</li>
+<li>enrichment jobs</li>
+<li>validation council</li>
+<li>admin tooling</li>
+<li>freshness jobs</li>
+</ul>
+<h4>D. Forge bypass risk</h4>
+<p>No answer to whether mutated/regenerated content must pass rendered-page checks before going live.</p>
+<h4>E. No admin/editor workflow</h4>
+<p>Who reviews REJECTs?</p>
+<p>Where do they edit?</p>
+<p>How are manual edits validated?</p>
+<p>How is provenance shown to editors?</p>
+<p>The docs assume system behavior but not editor operations.</p>
+<h4>F. No explicit rendering contract from content engine to UI</h4>
+<p>Does engine output:</p>
+<ul>
+<li>markdown?</li>
+<li>MDX?</li>
+<li>JSON sections?</li>
+<li>typed blocks?</li>
+</ul>
+<p>Given the componentized monorepo, JSON block schema is probably right, but not specified.</p>
+<h4>G. No unified threshold/config source</h4>
+<p>Similarity thresholds appear in both systems conceptually, but there is no single config package/file referenced by both council and CI. Drift is likely.</p>
+<h4>H. No direct integration between provenance and UI</h4>
+<p>Provenance is central philosophically, but not represented in page rendering or storage schema enough to enforce downstream.</p>
+<h4>I. Fair Housing only enforced at generation layer</h4>
+<p>No safeguards for:</p>
+<ul>
+<li>manual DB edits</li>
+<li>imports</li>
+<li>admin copy changes</li>
+</ul>
+<h4>J. No job orchestration layer</h4>
+<p>Something must run:</p>
+<ul>
+<li>enrichment jobs</li>
+<li>generation jobs</li>
+<li>validation jobs</li>
+<li>freshness jobs</li>
+<li>publish/revalidation jobs</li>
+</ul>
+<p>Could be cron, queue workers, Supabase Edge Functions, GitHub Actions, or a separate worker app — but it isn’t defined.</p>
+<h4>K. No strategy for partial route publication</h4>
+<p>If building detail content is ready but neighborhood page regeneration is not, what happens? Need per-route publish semantics.</p>
+<h4>L. No content observability model</h4>
+<p>Need dashboards for:</p>
+<ul>
+<li>number of stale pages</li>
+<li>rejected validations</li>
+<li>similarity failures</li>
+<li>fair housing failures</li>
+<li>unpublished-but-generated backlog</li>
+</ul>
+<hr>
+<h3>10. Honest overall assessment</h3>
+<h4>Score</h4>
+<p><strong>7.5/10 as an integrated system design</strong></p>
+<h4>Why not higher</h4>
+<p>Because while each document is strong on its own, the end-to-end machine still has several unclosed seams:</p>
+<ul>
+<li>missing schema contracts</li>
+<li>missing lifecycle/status model</li>
+<li>missing implementation phase placement</li>
+<li>missing publish workflow</li>
+<li>missing operator/admin workflow</li>
+<li>unclear runtime vs build-time validation interaction</li>
+</ul>
+<h4>Why not lower</h4>
+<p>Because the underlying architectural decisions are mostly right:</p>
+<ul>
+<li>separate apps per domain</li>
+<li>shared data + per-domain editorial</li>
+<li>structural validator + semantic validator</li>
+<li>opt-in visibility</li>
+<li>route-class-aware similarity checks</li>
+<li>domain personas with strong differentiation logic</li>
+<li>fair housing awareness</li>
+<li>avoidance of fake multi-tenant abstraction</li>
+</ul>
+<p>This is much closer to a real system than most design docs get.</p>
+<h4>What would move it to 9/10+</h4>
+<ul>
+<li><strong>Specify editorial/enrichment schemas</strong></li>
+<li><strong>Add a content-engine phase to implementation plan</strong></li>
+<li><strong>Define publish pipeline with statuses and preview gate</strong></li>
+<li><strong>Create a single shared threshold/config source</strong></li>
+<li><strong>Add compliance enforcement for manual/admin content ingress</strong></li>
+<li><strong>Define block-based render contract including provenance metadata</strong></li>
+<li><strong>Specify job runner/orchestration architecture</strong></li>
+</ul>
+<hr>
+<h3>Direct answers, condensed</h3>
+<h4>1. Engine output ↔ monorepo data layer?</h4>
+<p>Conceptually yes, operationally incomplete. Shared/per-domain split is coherent; schema and revalidation contract are missing.</p>
+<h4>2. Validation overlap/conflict?</h4>
+<p>Yes, intentionally. Could pass council and fail CI. That’s acceptable if CI is explicitly final shipped-page validation.</p>
+<h4>3. Content engine in phase structure?</h4>
+<p>Nowhere. That’s a planning gap. It should be a post-Phase-3 / Phase-4 addition.</p>
+<h4>4. Forge ↔ deployment?</h4>
+<p>Underspecified. High risk that Forge bypasses rendered-page CI unless a staged publish flow is added.</p>
+<h4>5. Fair Housing at both layers?</h4>
+<p>No. Only engine layer currently. Needs app/admin/DB publish-gate enforcement too.</p>
+<h4>6. HTML attributes ↔ provenance taxonomy?</h4>
+<p>Related but not equivalent. One is presentation extraction; the other is epistemic claim class. Need orthogonal mapping.</p>
+<h4>7. Editorial brief ↔ persona docs?</h4>
+<p>Compatible, but source-of-truth needs explicit hierarchy. Persona docs should be canonical operational source.</p>
+<h4>8. End-to-end new building flow?</h4>
+<p>Mostly reconstructable, but breaks at publish-state, schema, rendering contract, and revalidation details.</p>
+<h4>9. What’s missing?</h4>
+<p>Schema, lifecycle, orchestration, publish workflow, manual-edit controls, implementation placement.</p>
+<h4>10. Overall?</h4>
+<p>Strong architecture, incomplete operating model. <strong>7.5/10</strong></p>
+  </div>
+</div>
+<div class="participant-block">
+  <div class="participant-header" onclick="this.parentElement.classList.toggle('open')">
+    <span class="name">google/gemini-3.1-pro-preview@openrouter</span>
+    <span>
+      <span class="chars">7,922 chars</span>
+      <span class="toggle">&#9654;</span>
+    </span>
+  </div>
+  <div class="participant-body">
+    <p>This is a sophisticated, highly considered architecture that successfully splits a massive problem into two manageable halves: the Monorepo handles <strong>structural enforcement</strong> (preventing doorway pages at the code/layout level), while the Content Engine handles <strong>substantive enforcement</strong> (generating unique value, data, and editorial lens).</p>
+<p>However, looking at the seams where these three documents touch, there are critical integration gaps—specifically regarding runtime vs. build-time lifecycles.</p>
+<p>Here is the holistic review of the integrated system end-to-end:</p>
+<h4>1. Does the content engine&#x27;s output connect to the monorepo&#x27;s data layer?</h4>
+<p><strong>Yes, but with an ISR cache invalidation gap.</strong></p>
+<p>The schema cleanly separates concerns. The monorepo uses <code>createDomainClient</code> for shared tables (<code>apartments</code>, <code>buildings</code>), while the Engine places its output in domain-specific tables (<code>la_editorial_content</code>). The integration design designates that individual Next.js apps read these local tables separately, keeping boundaries intact. </p>
+<p><em>The Gap:</em> The Monorepo Design (Section 3) specifies a Supabase Edge Function to hit Next.js <code>/api/revalidate</code> when <code>domain_visibility</code> changes, but the Content Engine forgets to do this. When the Engine outputs a newly generated article or regenerates a stale one, there is no webhook documented to break the Next.js ISR cache. The users will see stale content until a manual rebuild or interval expiration.</p>
+<h4>2. Do the two validation systems overlap or conflict?</h4>
+<p><strong>They overlap defensively, but they have a temporal misalignment.</strong></p>
+<p>The Content Engine Council validates <em>pre-publish</em> (during text generation). The Monorepo CI Content Similarity task validates <em>post-build</em> (inspecting rendered HTML). This defense-in-depth is functionally brilliant. The engine stops bad content going to the DB, and the CI stops bad human data entry or layout-driven duplication.</p>
+<p><em>The Conflict:</em> The engine compares pure editorial text, while the CI tool relies on <code>.next/server/</code> output and strips <code>data-factual</code>. Because they measure slightly different permutations of the copy at different stages, they could enforce misaligned thresholds, leading to a build passing the Engine but failing Monorepo CI.</p>
+<h4>3. Where does the content engine fit in the monorepo&#x27;s Phase structure?</h4>
+<p><strong>It is completely missing from the Implementation Plan.</strong></p>
+<p>The Monorepo Implementation Document schedules 5 phases but totally ignores the construction of the Content Engine. If a team executed the plan verbatim, they would reach Phase 5 (D3 Onboarding) entirely incapable of generating the requisite differentiated content for the new domain. The engine infrastructure (<code>packages/content-engine/</code>) must be bolted into the phased rollout—ideally in parallel with Phase 4 (SEO &amp; Tooling).</p>
+<h4>4. How does the Forge optimization loop interact with deployment?</h4>
+<p><strong>It introduces severe CI fragility.</strong></p>
+<p>Forge mutates prompts and writes newly optimized content straight to the Supabase database. It bypasses the Next.js CI pipeline. </p>
+<p>Because the Monorepo&#x27;s <code>content-similarity</code> CI task runs <em>at build time</em> and fetches data from the live database to check for doorway pages, a Forge generation process running on a Tuesday could inject overlapping content into the DB. On Wednesday, a UI developer submits a completely unrelated PR, triggers <code>pnpm build</code>, and the Vercel build fails because the <em>database content</em> now violates the similarity threshold. The content generation lifecycle and the CI lifecycle are fatally decoupled here.</p>
+<h4>5. Is Fair Housing compliance enforced at both layers?</h4>
+<p><strong>No. It is a one-sided safety net.</strong></p>
+<p>The 8-stage Validation Council meticulously scrubs AI output for Fair Housing violations. However, the monorepo implementation has zero compliance integration. If a human editor logs directly into the Supabase Studio or a CMS to author a blog post (or modify an AI draft), they completely bypass Stage 6. Human-authored content introduces massive liability if the compliance checks are strictly sequestered within the AI generation pipeline. </p>
+<h4>6. Do data-factual attribute tags align with the engine&#x27;s provenance taxonomy?</h4>
+<p><strong>They clash in narrative applications.</strong></p>
+<p>The monorepo applies <code>data-factual</code> to structured lists (amenities, prices) to strip them from CI similarity checks. The engine tags generated claims as DETERMINISTIC/INFERENTIAL/SPECULATIVE. </p>
+<p>The friction: The engine will take a DETERMINISTIC fact (e.g., &quot;12 independent galleries nearby&quot;) and weave it into a descriptive paragraph. The monorepo will wrap this paragraph in a <code>data-editorial</code> tag. Because deterministically factual claims are identical across properties, weaving them into editorial text will artificially inflate the post-build TF-IDF similarity score across domains.</p>
+<h4>7. Is the editorial brief template consistent with the persona documents?</h4>
+<p><strong>No, they are duplicated and split.</strong></p>
+<ul>
+<li>Monorepo Implementation Task 5.2 calls for an "Editorial Brief" saved at <code>apps/d3/docs/content-strategy.md</code>.</li>
+<li>Content Engine Section 6 calls for a "Persona Document" saved at <code>packages/content-engine/personas/d3.md</code>.</li>
+</ul>
+<p>The team will end up managing two conflicting sources of truth regarding voice and audience. The Persona Document should consume the Editorial Brief, unifying them into a single location that simultaneously guides humans and prompts AI.</p>
+<h4>8. What is the end-to-end flow for a new building?</h4>
+<ul>
+<li><strong>Entry:</strong> Operations adds a building to the shared Supabase <code>buildings</code> table.</li>
+<li><strong>Opt-in Visibility:</strong> <code>domain_visibility</code> array is set (e.g., <code>['luxuryapartments', 'lofts']</code>).</li>
+<li><strong>Detection:</strong> Content Engine cron job detects the new entity.</li>
+<li><strong>Fit Gate:</strong> Validation Stage 1 assesses if the building survives the threshold needed for full editorial on LA and Lofts.</li>
+<li><strong>Enrichment:</strong> Domain-specific APIs are triggered; output stored in <code>{domain}_building_enrichments</code>.</li>
+<li><strong>Generation:</strong> Engine drafts text pulling from Persona System Prompts + enrichments.</li>
+<li><strong>Council:</strong> Draft passes 8-stage text analysis (Similarity, Info Gain, Fair Housing, etc.).</li>
+<li><strong>Storage:</strong> Final copy writes to <code>{domain}_editorial_content</code>.</li>
+<li><strong>Final Mile (GAP):</strong> Engine triggers <code>/api/revalidate</code>. Next.js clears the cache and serves the new page.</li>
+</ul>
+<h4>9. What is missing from the complete system?</h4>
+<ul>
+<li><strong>Compute Infrastructure:</strong> The system clearly defines <code>{domain}</code> apps for Vercel, but never dictates where the Content Engine actually runs. Is it a long-running Node service? Trigger.dev/Inngest workers? Supabase Edge Functions?</li>
+<li><strong>Image Mapping Logistics:</strong> The engine promises domain-prioritized photo ordering saved in the enrichment payload, but the Monorepo design does not alter the frontend to consume <code>enrichments.photos</code> instead of the base <code>apartments.images</code> array.</li>
+<li><strong>Human Editing Loop:</strong> If a human needs to "Revise" content that failed validation 3 times, there is no UI/CMS for them to safely edit and pass it back through the Council.</li>
+</ul>
+<h4>10. Honest Overall Assessment</h4>
+<p><strong>Rating: 8.5/10 (Highly production-ready conceptually, requires pipeline glue).</strong></p>
+<p>This architecture solves the core problem of multitenant SEO (doorway pages) in a heavily automated way. It relies intelligently on deterministic evidence to seed automated narrative generation. To reach 10/10, you must:</p>
+<ul>
+<li>Schedule the Content Engine build in the Implementation Plan.</li>
+<li>Fix the CI fragility (run content similarity checks dynamically on cron schedules, not via PR build gates, ensuring bad DB entries alert content managers, not frontend engineers).</li>
+<li>Standardize the ISR cache invalidation between the Engine and the Monorepo.</li>
+</ul>
+  </div>
+</div>
+<div class="participant-block">
+  <div class="participant-header" onclick="this.parentElement.classList.toggle('open')">
+    <span class="name">x-ai/grok-4.20-beta@openrouter</span>
+    <span>
+      <span class="chars">6,684 chars</span>
+      <span class="toggle">&#9654;</span>
+    </span>
+  </div>
+  <div class="participant-body">
+    <p><strong>VOTE: {&quot;option&quot;: &quot;Approve with 7 critical integration gaps to close before implementation&quot;, &quot;confidence&quot;: 0.75, &quot;rationale&quot;: &quot;The documents form a coherent vision but have dangerous seams around data flow, validation synchronization, and operational triggers that would cause production failures if built as-written.&quot;}</strong></p>
+<h4>Holistic Integration Assessment (1-10 scale)</h4>
+<p><strong>Production readiness: 6.5/10.</strong> </p>
+<p>The architectural vision is excellent — a genuine attempt at Level 5 differentiation at portfolio scale instead of the usual &quot;copy-paste with different brand colors&quot; approach. However, the integration between the <strong>monorepo structural layer</strong> and the <strong>content engine substance layer</strong> has multiple sharp edges that would break in production.</p>
+<h4>Answers to the 10 Review Questions</h4>
+<p><strong>1. Data layer connection is underspecified (critical gap).</strong> </p>
+<p>The content engine correctly proposes <code>la_editorial_content</code> and <code>ll_editorial_content</code> tables, but:</p>
+<ul>
+<li><code>createDomainClient</code> in <code>packages/data/</code> is only documented for <em>shared</em> tables with <code>domain_visibility</code></li>
+<li>There is no documented pattern for per-domain editorial tables</li>
+<li>ISR revalidation trigger is mentioned vaguely ("Supabase Edge Function webhooks") but the monorepo design has a sophisticated manifest-based sitemap/robots system that doesn't know about dynamically generated editorial content</li>
+<li>No clear story for how the composition manifest's <code>contentSource</code> field maps to these new editorial tables</li>
+</ul>
+<p><strong>2. Validation systems will conflict.</strong></p>
+<p>This is the most dangerous seam. </p>
+<ul>
+<li>Monorepo CI uses <strong>post-build TF-IDF cosine similarity</strong> (>60% editorial overlap = error) using <code>data-editorial</code> attributes</li>
+<li>Content engine has an <strong>8-stage validation council</strong> before content hits Supabase</li>
+</ul>
+<p>These can easily desync. Content could pass the council (which uses claim provenance) but fail the build-time CI (which uses text overlap after rendering). The thresholds aren&#x27;t reconciled. The content similarity tool is specified to live in <code>packages/tooling/content-similarity/</code> and run after <code>build</code>, while the council runs before content is written to the database. This creates a circular dependency.</p>
+<p><strong>3. Content engine is completely missing from the Phase structure.</strong></p>
+<p>The implementation plan jumps from Phase 4 (manifest validator + content-similarity tool) to Phase 5 (D3 onboarding) with zero mention of <code>packages/content-engine/</code>. This is a massive planning failure. The content engine has more moving parts than the UI extraction.</p>
+<p><strong>4. Forge ↔ deployment interaction is undefined.</strong></p>
+<p>The Forge mutates prompts and runs weekly experiments. This creates several problems:</p>
+<ul>
+<li>Does prompt mutation require a new build (for snapshot tests)?</li>
+<li>Does regenerated content bypass the build-time manifest validator?</li>
+<li>The content engine stores content in Supabase while the monorepo's composition manifest is in code. These will drift.</li>
+</ul>
+<p><strong>5. Fair Housing compliance is only in the content engine.</strong></p>
+<p>The monorepo has no enforcement. If an editor manually edits content in Supabase (which will happen), or if someone adds a new page that bypasses the engine, there&#x27;s zero protection. The &quot;data-factual/data-editorial&quot; attributes help with similarity checking but don&#x27;t address legal compliance.</p>
+<p><strong>6. data-factual/data-editorial and provenance taxonomy are related but not mapped.</strong></p>
+<p>This is an <strong>integration seam that works</strong> — they are complementary. <code>data-factual</code> should strip DETERMINISTIC claims during similarity checking. <code>data-editorial</code> should contain INFERENTIAL + SPECULATIVE claims. They should be explicitly documented as mapping to each other.</p>
+<p><strong>7. Editorial brief template vs persona documents — source of truth conflict.</strong></p>
+<p>The implementation plan creates <code>packages/tooling/content-strategy-template.md</code> (fill-in-the-blank). The content engine creates rich persona documents in <code>packages/content-engine/personas/</code>. These should be the same thing. Currently they duplicate effort and will diverge.</p>
+<p><strong>8. End-to-end flow for a new building (the most important test)</strong></p>
+<p>Current system flow (as documented across three files):</p>
+<ul>
+<li>Building added to Supabase (shared table)</li>
+<li><code>domain_visibility</code> updated (monorepo design)</li>
+<li><strong>???</strong> — content engine enrichment not mentioned in monorepo phases</li>
+<li>Enrichment runs (content engine)</li>
+<li>Validation council runs (content engine)</li>
+<li>Content written to <code>la_editorial_content</code> (content engine)</li>
+<li><strong>???</strong> — composition manifest updated? (monorepo requires manifest entry)</li>
+<li>Build runs, content similarity checked (monorepo)</li>
+<li>ISR revalidation (vaguely mentioned)</li>
+</ul>
+<p>This is not a connected system. It&#x27;s two sophisticated systems with a gap in the middle.</p>
+<h4>Critical Gaps Missing from the Complete System</h4>
+<ul>
+<li><strong>Orchestration layer</strong> — nothing owns the end-to-end flow from "new building in Supabase" → "content published on all appropriate domains"</li>
+<li><strong>Content deployment contract</strong> — how does the content engine notify the monorepo that new routes need manifest entries?</li>
+<li><strong>Human override process</strong> — the content engine has a REVISE loop, but what happens when an editor wants to manually improve a page? Does it break the Forge optimization?</li>
+<li><strong>Testing strategy for generated content</strong> — the monorepo requires snapshot tests before UI extraction. There's no equivalent for content differentiation quality.</li>
+<li><strong>Monitoring</strong> — we have per-domain uptime and error monitoring, but no "differentiation quality over time" monitoring. How do we know if the Forge is actually improving things or just gaming the metrics?</li>
+</ul>
+<h4>Recommendations to Move to 9/10</h4>
+<ul>
+<li><strong>Add a Phase 4.5: Content Engine Implementation</strong> that explicitly depends on Phase 4's tooling packages</li>
+<li><strong>Create an orchestration service</strong> (<code>packages/content-engine/orchestrator/</code>) that owns the end-to-end building lifecycle</li>
+<li><strong>Reconcile the two validation systems</strong> — make the content similarity thresholds derive from the same config as the council's pairwise similarity stage</li>
+<li><strong>Make personas the source of truth</strong> — the fill-in-the-blank template should generate the structured persona document format</li>
+<li><strong>Add Fair Housing validation to the monorepo</strong> as a runtime check on all editorial content (defense-in-depth)</li>
+<li><strong>Define the content → code feedback loop</strong> — when content passes validation, it should update the composition manifest if needed</li>
+</ul>
+<p>The vision is strong. The individual documents are well thought-out. The <em>integration</em> is where this system would fall apart in production. Fix the 7 critical seams above and this becomes one of the more sophisticated multi-brand content architectures I&#x27;ve seen.</p>
+<p><strong>The machine has the right parts. The assembly instructions are incomplete.</strong></p>
+  </div>
+</div>
+</div>
+<div class="round-section">
+<h2>Round 2</h2>
+<div class="participant-block">
+  <div class="participant-header" onclick="this.parentElement.classList.toggle('open')">
+    <span class="name">opus@claude</span>
+    <span>
+      <span class="chars">16,833 chars</span>
+      <span class="toggle">&#9654;</span>
+    </span>
+  </div>
+  <div class="participant-body">
+    <p>Good — now I have concrete evidence. The monorepo doesn&#x27;t exist yet (<code>C:\Dev\LuxuryDomains\</code> has no files), <code>data-factual</code>/<code>data-editorial</code> attributes exist only in the design docs (not in any actual component), and the existing revalidation endpoint uses a whitelist of tags that doesn&#x27;t include editorial content. Let me provide my analysis.</p>
+<hr>
+<h3>Integrated System Review</h3>
+<p>I&#x27;ve read all three documents and examined the actual codebase. The monorepo (<code>C:\Dev\LuxuryDomains\</code>) doesn&#x27;t exist yet. The content engine is pure design. Here&#x27;s my assessment of the integration seams, grounded in what actually exists today.</p>
+<h4>1. Engine Output ↔ Monorepo Data Layer</h4>
+<p><strong>The connection is architecturally implied but not specified at the contract level.</strong></p>
+<p>The content engine writes to <code>la_editorial_content</code> / <code>ll_editorial_content</code>. The monorepo design says per-domain tables are queried from app-local <code>src/lib/data/</code>, NOT through <code>createDomainClient</code>. That&#x27;s the right separation — editorial content is domain-owned, not shared.</p>
+<p><strong>Three concrete gaps:</strong></p>
+<p><strong>A. No schema for editorial tables.</strong> The engine defines rich TypeScript interfaces (<code>LABuildingEnrichment</code>, <code>LoftsBuildingEnrichment</code>) but never translates them to SQL DDL. There&#x27;s no migration file, no column list, no indexes. The enrichment interfaces have nested objects (<code>lifestyleRadius.fineDining.names</code>) — how are these stored? JSONB columns? Normalized tables? This matters for query performance and ISR caching.</p>
+<p><strong>B. The existing revalidation endpoint doesn&#x27;t know about editorial content.</strong> I checked — <code>api/revalidate/route.ts</code> has a hardcoded <code>ALLOWED_TAGS</code> set: <code>mls-apartments</code>, <code>apartments</code>, <code>neighborhoods</code>, <code>cities</code>, <code>blog-posts</code>. There&#x27;s no <code>editorial-content</code> tag. When the engine regenerates content, it has no documented way to bust the ISR cache. The monorepo design&#x27;s revalidation section (Section 3) only discusses <code>domain_visibility</code> changes, not editorial content changes.</p>
+<p><strong>C. No rendering contract.</strong> The engine produces &quot;editorial page content&quot; but never specifies the format. Is it markdown? MDX? JSON blocks with typed sections? The monorepo&#x27;s tier-2 page files import <code>SearchTemplate</code>, <code>BuildingDetailTemplate</code> etc. — these templates need to consume the engine&#x27;s output, but there&#x27;s no interface connecting them. The engine&#x27;s route-class content strategy (Section 1) describes sections (&quot;Living experience narrative&quot;, &quot;CQS breakdown&quot;, &quot;Lifestyle Radius&quot;) but doesn&#x27;t define a data structure the template can consume.</p>
+<h4>2. Two Validation Systems: Overlap Analysis</h4>
+<p><strong>This is defense-in-depth, not duplication — but the seam is sharp.</strong></p>
+<p>The council validates <em>pre-publish generated text</em>. The CI validates <em>post-build rendered HTML</em>. These test different artifacts at different times. That&#x27;s good.</p>
+<p><strong>The real problem: they can produce contradictory results and there&#x27;s no adjudication.</strong></p>
+<p>Content passes council Stage 2 (pairwise similarity) using pure editorial text. Then it renders inside a shared template with shared Header, Footer, breadcrumbs, and factual data blocks. The CI tool strips <code>data-factual</code> regions but the template chrome (nav, footer, boilerplate sections like newsletter CTAs) is included in the comparison. A page could have genuinely unique editorial content but fail CI because the surrounding template contributes too much shared text.</p>
+<p>The thresholds are close but not identical:</p>
+<p>| Route class | Council (Stage 2) | CI tool |</p>
+<p>|---|---|---|</p>
+<p>| Blog | Not specified per-class | warn .40 / error .60 |</p>
+<p>| City/neighborhood | Not specified per-class | warn .55 / error .75 |</p>
+<p>| Building detail | Not specified per-class | warn .65 / error .85 |</p>
+<p>The engine doc says &quot;Strip factual data, compare editorial text&quot; at Stage 2 but doesn&#x27;t give route-class thresholds — it references the monorepo&#x27;s thresholds implicitly. If the council ever gets its own thresholds, drift is inevitable.</p>
+<p><strong>My recommendation:</strong> Make the CI tool&#x27;s <code>config.ts</code> the single source of truth. The council&#x27;s Stage 2 should import from the same config or explicitly defer to &quot;use the same thresholds as the post-build CI tool.&quot; One config, two consumers.</p>
+<h4>3. Content Engine in Phase Structure</h4>
+<p><strong>It&#x27;s completely absent. All three reviewers caught this. It&#x27;s the biggest planning gap.</strong></p>
+<p>The implementation plan has Phases 0-5. The content engine requires:</p>
+<ul>
+<li>Shared tables and enrichment tables (depends on Phase 1.5 data extraction)</li>
+<li>Per-domain editorial tables with migrations (new)</li>
+<li><code>packages/content-engine/</code> as a package (depends on Phase 1 monorepo scaffold)</li>
+<li>Integration with composition manifests for route-class mapping (depends on Phase 2-3)</li>
+<li>Validation council that references the content-similarity tool (depends on Phase 4.6)</li>
+<li>Forge loop that writes to Supabase and triggers revalidation (depends on revalidation endpoints)</li>
+</ul>
+<p>This should be a <strong>Phase 4.5</strong> with explicit tasks. The engine can&#x27;t run until Phase 4.6 (content-similarity tool) exists because the council&#x27;s Stage 2 needs it. But the enrichment pipeline and data sourcing can begin in parallel with Phase 3.</p>
+<h4>4. Forge ↔ Deployment</h4>
+<p><strong>This is the most dangerous seam. All three previous reviewers agree.</strong></p>
+<p>The Forge mutates prompts weekly and regenerates content. The regenerated content writes directly to Supabase editorial tables. The ISR cache serves whatever&#x27;s in the database. This means:</p>
+<ul>
+<li>Forge writes new content to <code>la_editorial_content</code></li>
+<li>ISR cache expires (3600s or triggered revalidation)</li>
+<li>Next request renders the new content</li>
+<li><strong>No code commit happened. No build happened. No post-build CI ran.</strong></li>
+</ul>
+<p>The monorepo&#x27;s content-similarity CI only runs in the Turborepo pipeline (<code>dependsOn: [&quot;build&quot;]</code>). If content changes without a code change, the CI never fires. A Forge mutation could push two domains&#x27; editorial content past the similarity threshold and nobody would know until the next unrelated PR triggers a build.</p>
+<p><strong>Two fixes needed:</strong></p>
+<p><strong>A. Scheduled content-similarity runs.</strong> Add a cron job (daily or weekly) that runs the content-similarity tool against live Supabase data, not just post-build HTML. This catches Forge-induced drift between builds.</p>
+<p><strong>B. Content publish state machine.</strong> The engine design mentions content goes from generation → validation → storage. But there&#x27;s no explicit status field. Add:</p>
+<pre><code class="language-sql">
+CREATE TYPE content_status AS ENUM (&#x27;draft&#x27;, &#x27;validated&#x27;, &#x27;published&#x27;, &#x27;stale&#x27;, &#x27;archived&#x27;);
+ALTER TABLE la_editorial_content ADD COLUMN status content_status DEFAULT &#x27;draft&#x27;;
+</code></pre>
+<p>The Forge writes <code>draft</code> → council promotes to <code>validated</code> → a publish job (which runs the content-similarity check against live data) promotes to <code>published</code> → ISR serves only <code>published</code> content. This prevents raw Forge output from appearing on the live site.</p>
+<h4>5. Fair Housing at Both Layers</h4>
+<p><strong>Single-layer enforcement is insufficient. The previous reviewers are right.</strong></p>
+<p>The engine&#x27;s Stage 6 catches AI-generated violations. But content enters the system through multiple paths:</p>
+<ul>
+<li>Engine generation (covered by Stage 6)</li>
+<li>Manual Supabase edits (NOT covered)</li>
+<li>Admin CMS edits (NOT covered)</li>
+<li>Seed scripts / migrations (NOT covered)</li>
+<li>Future human writers editing AI drafts (NOT covered)</li>
+</ul>
+<p><strong>Minimum viable defense-in-depth:</strong></p>
+<ul>
+<li><strong>Database-level constraint:</strong> A <code>fair_housing_status</code> column on editorial tables. Only rows where <code>fair_housing_status = 'pass'</code> can have <code>status = 'published'</code>. This is a CHECK constraint, not application logic.</li>
+</ul>
+<ul>
+<li><strong>Publish-time scan:</strong> Before any editorial content status transitions to <code>published</code> (whether from engine or manual edit), run a lightweight Fair Housing regex scan for the prohibited patterns listed in the engine doc (Section 10).</li>
+</ul>
+<ul>
+<li><strong>Nightly audit cron:</strong> Scan all <code>published</code> editorial content for prohibited patterns. Flag violations for human review.</li>
+</ul>
+<p>The engine&#x27;s rich 8-stage council is the right tool for AI-generated content. The app layer needs a simpler, faster gate for all other ingress paths.</p>
+<h4>6. data-factual/data-editorial vs Provenance Taxonomy</h4>
+<p><strong>These are orthogonal dimensions, not the same concept. The previous reviewers are correct.</strong></p>
+<p><code>data-factual</code> = &quot;strip this from similarity comparison&quot; (presentation concern)</p>
+<p><code>data-editorial</code> = &quot;include this in similarity comparison&quot; (presentation concern)</p>
+<p>DETERMINISTIC/INFERENTIAL/SPECULATIVE = &quot;how confident is this claim?&quot; (epistemic concern)</p>
+<p>A <code>data-editorial</code> paragraph can contain DETERMINISTIC facts (&quot;12 galleries within walking distance&quot;), INFERENTIAL analysis (&quot;management responsiveness appears above average&quot;), and SPECULATIVE opinion. The current system blurs this.</p>
+<p><strong>Practical impact:</strong> The content-similarity tool uses <code>data-factual</code>/<code>data-editorial</code> to decide what to compare. The provenance taxonomy tells the validation council how to judge claims. These serve different purposes and don&#x27;t need to map 1:1. But the engine should probably emit provenance metadata alongside the content so the app <em>could</em> surface it if desired (e.g., a small &quot;based on our analysis&quot; label on inferential claims).</p>
+<p><strong>No blocking issue here.</strong> The orthogonality is fine as long as it&#x27;s acknowledged. The current docs blur it slightly but it won&#x27;t cause production failures.</p>
+<h4>7. Editorial Brief Template vs Persona Documents</h4>
+<p><strong>Source of truth is clear in intent but not in process.</strong></p>
+<p>The implementation plan (Task 1.2, Step 8) creates <code>packages/tooling/content-strategy-template.md</code> — a fill-in-the-blank template. The engine doc puts full personas in <code>packages/content-engine/personas/</code>. The template is the input; the persona is the compiled operational artifact.</p>
+<p><strong>The gap:</strong> No process connects them. Who transforms the brief into the persona? Is it manual? Automated? The engine doc says persona docs are &quot;read by both humans (editorial direction) and AI (system prompts)&quot; — so they&#x27;re living documents that evolve via Forge quarterly reviews. The editorial brief template is a one-time launch-gate document.</p>
+<p><strong>Fix:</strong> Add one sentence to the engine doc: &quot;The editorial brief template (from the implementation plan) is the input document for new domain launch. The persona document in <code>packages/content-engine/personas/</code> is the canonical operational artifact compiled from the brief. The brief is archived after compilation; the persona is the living source of truth.&quot;</p>
+<h4>8. End-to-End Flow for a New Building</h4>
+<p>Walking through the system as specified:</p>
+<ul>
+<li><strong>Building added to Supabase <code>buildings</code> table.</strong> <code>domain_visibility = ARRAY[]</code> (empty default). ✅ Specified in monorepo design.</li>
+</ul>
+<ul>
+<li><strong>Ops assigns visibility:</strong> <code>UPDATE buildings SET domain_visibility = ARRAY['luxuryapartments', 'lofts']</code>. ✅ Specified.</li>
+</ul>
+<ul>
+<li><strong>Revalidation fires:</strong> Edge Function hits <code>/api/revalidate</code> for each domain. ✅ Specified in monorepo design Section 3. ⚠️ But the existing revalidation endpoint only accepts <code>ALLOWED_TAGS</code> — a new building wouldn't match any tag unless the tag scheme is updated.</li>
+</ul>
+<ul>
+<li><strong>Content engine detects new entity.</strong> ❌ <strong>NOT SPECIFIED.</strong> How? Cron polling <code>buildings</code> table for new rows? Supabase database webhook? Event from the admin UI? The engine doc says enrichment runs "when a building is added or updated" but doesn't specify the trigger mechanism.</li>
+</ul>
+<ul>
+<li><strong>Entity-domain fit gate runs.</strong> ✅ Specified in engine Section 8. Checks enrichment field completeness against thresholds (STRONG/MODERATE/WEAK/NO FIT).</li>
+</ul>
+<ul>
+<li><strong>Enrichment pipeline runs per domain.</strong> ✅ Well-specified. Calls external APIs, produces structured enrichment data. ⚠️ But where is enrichment stored? The engine mentions <code>la_building_enrichments</code> / <code>ll_building_enrichments</code> tables but no schema exists.</li>
+</ul>
+<ul>
+<li><strong>Content generation runs per domain.</strong> ✅ Specified. Uses persona + enrichment data + route-class template.</li>
+</ul>
+<ul>
+<li><strong>Validation council runs (8 stages).</strong> ✅ Well-specified. Produces PASS/REVISE/REJECT.</li>
+</ul>
+<ul>
+<li><strong>Content stored in editorial tables.</strong> ⚠️ Schema unspecified. Status lifecycle unspecified.</li>
+</ul>
+<ul>
+<li><strong>ISR revalidation triggers.</strong> ❌ <strong>NOT SPECIFIED.</strong> The engine doc says "ISR revalidation triggers when content is regenerated" but doesn't say how. The monorepo's revalidation webhook is for <code>domain_visibility</code> changes, not editorial content changes.</li>
+</ul>
+<ul>
+<li><strong>App renders the page.</strong> ❌ <strong>RENDERING CONTRACT MISSING.</strong> How does a tier-2 building detail page template consume the engine's output? The template expects structured sections. The engine produces... what format exactly?</li>
+</ul>
+<ul>
+<li><strong>Post-build CI similarity check.</strong> ⚠️ Only runs on code builds, not content changes. Forge-triggered content changes bypass it entirely.</li>
+</ul>
+<p><strong>Steps 4, 10, and 11 are broken.</strong> The flow has no trigger, no cache invalidation for editorial content, and no rendering contract. A building can be added, enriched, and validated — but the content can&#x27;t reach the user without manual intervention or unspecified glue code.</p>
+<h4>9. What&#x27;s Missing</h4>
+<p>Consolidating across all analysis:</p>
+<p>| Gap | Severity | Which docs don&#x27;t address it |</p>
+<p>|---|---|---|</p>
+<p>| <strong>Editorial/enrichment table schemas (SQL DDL)</strong> | Critical | Engine says &quot;stored in tables&quot; but never defines them |</p>
+<p>| <strong>Content publish state machine</strong> | Critical | Neither doc defines draft→validated→published→stale lifecycle |</p>
+<p>| <strong>Content engine trigger mechanism</strong> | Critical | Engine says &quot;when added&quot; but no trigger specified |</p>
+<p>| <strong>ISR revalidation for editorial content</strong> | Critical | Monorepo only covers <code>domain_visibility</code> changes |</p>
+<p>| <strong>Rendering contract (engine output → template input)</strong> | Critical | Engine produces sections; templates consume... what? |</p>
+<p>| <strong>Content engine in implementation phases</strong> | High | Implementation plan ignores the engine entirely |</p>
+<p>| <strong>Job orchestration layer</strong> | High | What runs enrichment/generation/validation? Cron? Queue? Edge Functions? |</p>
+<p>| <strong>Forge bypass of post-build CI</strong> | High | Content changes skip CI unless a code change triggers a build |</p>
+<p>| <strong>Fair Housing at app/DB layer</strong> | High | Only engine has compliance checks |</p>
+<p>| <strong>Single threshold config source</strong> | Medium | Two systems could diverge on similarity thresholds |</p>
+<p>| <strong>Manual edit workflow</strong> | Medium | No admin UI, no editorial review path for REJECT escalations |</p>
+<p>| <strong>Content observability</strong> | Medium | No dashboards for stale pages, validation failures, similarity drift |</p>
+<p>| <strong>Brief → persona compilation process</strong> | Low | Intent is clear but process isn&#x27;t documented |</p>
+<h4>10. Honest Overall Assessment</h4>
+<p><strong>7/10 as an integrated system.</strong></p>
+<p><strong>Why not lower:</strong> The architectural vision is genuinely sophisticated. The separation between structural enforcement (monorepo) and substance enforcement (engine) is the right abstraction. The Fair Housing analysis, provenance taxonomy, and entity-fit gate show real domain expertise. The monorepo design alone is probably 9/10 — it&#x27;s complete, it&#x27;s buildable, it addresses real problems.</p>
+<p><strong>Why not higher:</strong> The integration layer between the monorepo and content engine barely exists. Five critical gaps (schema, state machine, triggers, revalidation, rendering contract) would all produce &quot;undefined behavior&quot; if you tried to build this tomorrow. The engine is a design for a system that sits <em>beside</em> the monorepo rather than <em>inside</em> it. It references monorepo concepts (ISR, editorial tables, per-domain queries) but never closes the loop with concrete interfaces.</p>
+<p><strong>What would move it to 9/10:</strong></p>
+<ul>
+<li>Write the SQL DDL for <code>la_editorial_content</code>, <code>la_building_enrichments</code>, and equivalents</li>
+<li>Define the content status enum and lifecycle rules as a DB constraint</li>
+<li>Add a Phase 4.5 to the implementation plan with 8-10 tasks for the content engine</li>
+<li>Specify the trigger mechanism (Supabase DB webhook → Edge Function → enrichment queue)</li>
+<li>Extend the revalidation endpoint to accept editorial content tags</li>
+<li>Define a typed JSON block schema for engine output that templates consume</li>
+<li>Add a scheduled content-similarity cron that runs independently of code builds</li>
+</ul>
+<p><strong>Agreement with previous reviewers:</strong> All four of us converge on the same critical gaps. GPT-5.4 and Gemini 3.1 Pro both identified the Forge/CI bypass as the most operationally dangerous seam — I agree. Grok 4 correctly identified the missing orchestration layer. The consensus is strong.</p>
+<p><strong>The individual documents are excellent. The integration is where they fall apart.</strong></p>
+  </div>
+</div>
+<div class="participant-block">
+  <div class="participant-header" onclick="this.parentElement.classList.toggle('open')">
+    <span class="name">openai/gpt-5.4@openrouter</span>
+    <span>
+      <span class="chars">18,544 chars</span>
+      <span class="toggle">&#9654;</span>
+    </span>
+  </div>
+  <div class="participant-body">
+    <p>The three docs are now <strong>much better aligned than the earlier reviews suggest</strong>. The 2026-03-15 monorepo revisions clearly incorporated many of those integration critiques. But as a <strong>complete operating system</strong>, there are still a few important seams left open.</p>
+<h3>Bottom line</h3>
+<p><strong>Integrated-system score: 8.7/10</strong></p>
+<p>This is now a <strong>strong, mostly coherent architecture</strong>, with the monorepo handling:</p>
+<ul>
+<li>structural differentiation</li>
+<li>deployment boundaries</li>
+<li>shared/per-domain data access rules</li>
+<li>build validation</li>
+<li>route/indexability enforcement</li>
+</ul>
+<p>…and the content engine handling:</p>
+<ul>
+<li>domain-exclusive enrichment</li>
+<li>editorial generation</li>
+<li>semantic validation</li>
+<li>freshness</li>
+<li>compliance-aware content production</li>
+</ul>
+<p>That said, it is <strong>still not fully implementation-ready end-to-end</strong> because the most important missing pieces are operational:</p>
+<ul>
+<li><strong>Editorial/enrichment table schemas are still not explicitly specified</strong></li>
+<li><strong>The content engine still has no place in the implementation phases</strong></li>
+<li><strong>Publish-state workflow is implied, not codified</strong></li>
+<li><strong>Forge/runtime content changes still bypass the monorepo’s build-era checks unless a preview gate is added</strong></li>
+<li><strong>Fair Housing is strong in generation, weak at manual/admin ingress</strong></li>
+<li><strong>The render contract between generated block content and React templates is still underspecified</strong></li>
+</ul>
+<p>So: the architecture is now coherent enough to approve directionally, but not yet executable without additional integration design.</p>
+<hr>
+<h3>1. Does the content engine’s output connect to the monorepo’s data layer?</h3>
+<h4>Yes architecturally, but the storage contract is still incomplete.</h4>
+<p>The monorepo design is explicit that:</p>
+<ul>
+<li><strong>shared tables</strong> go through <code>packages/data/createDomainClient</code></li>
+<li><strong>per-domain tables</strong> live behind app-local access in <code>apps/*/src/lib/data/</code></li>
+</ul>
+<p>That matches the content engine design, which stores output in:</p>
+<ul>
+<li><code>la_editorial_content</code></li>
+<li><code>ll_editorial_content</code></li>
+<li>plus per-domain enrichments like <code>la_building_enrichments</code>, <code>ll_building_enrichments</code></li>
+</ul>
+<p>So the seam is conceptually clean:</p>
+<ul>
+<li><code>createDomainClient</code> should <strong>not</strong> own editorial tables</li>
+<li>apps should query editorial/enrichment tables locally</li>
+<li>shared entity facts and per-domain editorial remain separate</li>
+</ul>
+<p>That is the right architecture.</p>
+<h4>What is still missing</h4>
+<p>The actual schema contract is not fully specified anywhere. We know these tables exist, but not enough to wire the system safely.</p>
+<p>At minimum, <code>*_editorial_content</code> needs:</p>
+<ul>
+<li><code>id</code></li>
+<li><code>domain</code></li>
+<li><code>entity_type</code></li>
+<li><code>entity_id</code> and/or <code>entity_slug</code></li>
+<li><code>route_pattern</code> / <code>route_key</code></li>
+<li><code>template</code></li>
+<li><code>status</code></li>
+<li><code>content_json</code></li>
+<li><code>validation_report_json</code></li>
+<li><code>provenance_summary_json</code></li>
+<li><code>version</code></li>
+<li><code>generated_at</code></li>
+<li><code>published_at</code></li>
+<li><code>stale_at</code></li>
+</ul>
+<p>And <code>*_building_enrichments</code> needs:</p>
+<ul>
+<li>entity linkage</li>
+<li>enrichment payload JSON</li>
+<li>source metadata</li>
+<li>completeness metrics</li>
+<li>freshness timestamps</li>
+<li>provenance breakdown</li>
+</ul>
+<p>Without that, the engine and app are still only loosely coupled.</p>
+<h4>ISR / revalidation</h4>
+<p>The monorepo specifies revalidation for <code>domain_visibility</code> changes via webhook to <code>/api/revalidate</code>, but the content engine only says:</p>
+<p>&gt; ISR revalidation triggers when content is regenerated.</p>
+<p>That is not enough. It needs the same level of specificity as the shared-data revalidation flow:</p>
+<ul>
+<li>engine publishes content</li>
+<li>emits event with <code>domain</code>, <code>entity</code>, <code>route tags</code></li>
+<li>app invalidates relevant tags</li>
+<li>optionally invalidates index/list pages</li>
+</ul>
+<p>So the data-layer connection is now <strong>architecturally correct</strong>, but still missing:</p>
+<ul>
+<li>exact schemas</li>
+<li>app query interfaces</li>
+<li>evented publish/revalidate contract</li>
+</ul>
+<h4>Verdict</h4>
+<p><strong>Yes, the connection is real and coherent now. No, it is not fully implementation-specified.</strong></p>
+<hr>
+<h3>2. Do the two validation systems overlap or conflict?</h3>
+<h4>They overlap by design, and that is mostly a feature.</h4>
+<p>The monorepo validates:</p>
+<ul>
+<li>composition structure</li>
+<li>route sameness risk</li>
+<li>post-build rendered-page similarity</li>
+</ul>
+<p>The content engine validates:</p>
+<ul>
+<li>provenance</li>
+<li>fit</li>
+<li>semantic similarity</li>
+<li>persona adherence</li>
+<li>unique value</li>
+<li>compliance</li>
+<li>editorial quality</li>
+</ul>
+<p>These are not duplicates. They validate different artifacts at different stages.</p>
+<h4>Important distinction</h4>
+<ul>
+<li><strong>Council</strong> judges generated content before or around publication</li>
+<li><strong>Monorepo CI</strong> judges shipped/rendered output after template composition and factual/editorial extraction</li>
+</ul>
+<p>So yes, a page can:</p>
+<ul>
+<li>pass the council</li>
+<li>still fail build/post-build similarity</li>
+</ul>
+<p>That is <strong>not inherently a bug</strong>. It is defense in depth.</p>
+<h4>But there is still a governance gap</h4>
+<p>The docs still do not explicitly define precedence and disposition:</p>
+<ul>
+<li>Is council pass required before <code>published</code>?</li>
+<li>What happens if council passes but rendered similarity later fails?</li>
+<li>Does CI block deploy?</li>
+<li>Does failed CI mark content “validated but unshippable”?</li>
+<li>Does runtime-generated content trigger a separate rendered validation path?</li>
+</ul>
+<p>The monorepo doc does define route-class thresholds in detail. The content engine references route-class thresholds, but does not explicitly say it imports the same config. So drift is still possible.</p>
+<h4>Best integrated interpretation</h4>
+<p>The correct hierarchy should be:</p>
+<ul>
+<li><strong>Council</strong> = content admissibility gate</li>
+<li><strong>Rendered similarity validation</strong> = shipped-page gate</li>
+<li>Both must pass before indexed production publication</li>
+</ul>
+<p>That hierarchy is not yet stated as an operating rule.</p>
+<h4>Verdict</h4>
+<p><strong>Overlap is good. Final adjudication logic is still underspecified.</strong></p>
+<hr>
+<h3>3. Where does the content engine fit in the monorepo’s Phase structure?</h3>
+<h4>It still does not fit anywhere. This remains the biggest planning omission.</h4>
+<p>The implementation plan has Phases 0–5, but none mention:</p>
+<ul>
+<li><code>packages/content-engine/</code></li>
+<li>enrichment jobs</li>
+<li>validation council</li>
+<li>Forge</li>
+<li>freshness jobs</li>
+<li>editorial publish flow</li>
+<li>admin review tooling</li>
+</ul>
+<p>That means if the plan were executed literally, you would finish monorepo + D3 onboarding without having built the system that actually creates differentiated content.</p>
+<h4>Where it belongs</h4>
+<p>The content engine depends on:</p>
+<ul>
+<li>stable shared data layer</li>
+<li>per-domain apps</li>
+<li>route manifests</li>
+<li>content similarity tooling</li>
+<li><code>data-factual</code> / <code>data-editorial</code> markup</li>
+<li>revalidation endpoints</li>
+<li>per-domain content strategy</li>
+</ul>
+<p>So it should come <strong>after Phase 3</strong>, likely as:</p>
+<ul>
+<li><strong>Phase 4.5: Content Engine + Editorial Pipeline</strong></li>
+</ul>
+<p>or</p>
+<ul>
+<li>split across late Phase 4 and early Phase 5</li>
+</ul>
+<h4>Missing tasks</h4>
+<p>A real implementation plan needs tasks like:</p>
+<ul>
+<li>define enrichment/editorial schemas</li>
+<li>scaffold <code>packages/content-engine</code></li>
+<li>implement personas as machine-readable inputs</li>
+<li>build enrichment jobs</li>
+<li>build generation jobs</li>
+<li>build validation council</li>
+<li>build publish/revalidate orchestration</li>
+<li>build freshness cron</li>
+<li>build operator dashboard/admin review flow</li>
+</ul>
+<h4>Verdict</h4>
+<p><strong>Still a major roadmap gap. The design has a content brain; the implementation plan never schedules the surgery.</strong></p>
+<hr>
+<h3>4. How does the Forge optimization loop interact with deployment?</h3>
+<h4>This is still the most operationally dangerous seam.</h4>
+<p>Forge mutates prompts weekly and content regeneration appears to write into DB-backed content stores. That implies CMS-like runtime publishing.</p>
+<p>But the monorepo’s strongest differentiation check is <strong>post-build rendered similarity</strong>.</p>
+<p>If Forge can:</p>
+<ul>
+<li>regenerate content</li>
+<li>store it in Supabase</li>
+<li>trigger revalidation</li>
+<li>go live</li>
+</ul>
+<p>…then it can bypass the final rendered-page gate.</p>
+<h4>Why this matters</h4>
+<p>The monorepo checks:</p>
+<ul>
+<li>built output</li>
+<li>actual extracted editorial regions</li>
+<li>final route-class overlap</li>
+</ul>
+<p>The content engine checks:</p>
+<ul>
+<li>generated content before it’s composed into pages</li>
+</ul>
+<p>Those are not the same artifact.</p>
+<p>So a runtime content update could pass council and still produce a rendered page that would have failed similarity CI.</p>
+<h4>What the system needs</h4>
+<p>For indexed content, there should be a <strong>staged publish model</strong>:</p>
+<ul>
+<li>Generate candidate content</li>
+<li>Run council</li>
+<li>Render preview/staging version</li>
+<li>Run rendered similarity/compliance check on preview</li>
+<li>Mark as published</li>
+<li>Trigger prod revalidation</li>
+</ul>
+<p>Without that, Forge can silently degrade the portfolio and only surface when an unrelated build happens later.</p>
+<h4>Verdict</h4>
+<p><strong>Still underspecified and risky.</strong></p>
+<p>This is the single biggest issue preventing “fully production-ready” status.</p>
+<hr>
+<h3>5. Is Fair Housing compliance enforced at both layers?</h3>
+<h4>No. Strong in the engine, weak in the platform.</h4>
+<p>The content engine’s Fair Housing section is excellent:</p>
+<ul>
+<li>prohibited patterns</li>
+<li>compliant alternatives</li>
+<li>CNS carve-outs</li>
+<li>no persona leakage</li>
+<li>factual feature tag replacements</li>
+<li>stage-6 validation</li>
+</ul>
+<p>That is real substance.</p>
+<h4>But outside the engine</h4>
+<p>The monorepo/implementation plan still does not define:</p>
+<ul>
+<li>admin save-time validation</li>
+<li>DB publish constraints</li>
+<li>manual edit compliance workflow</li>
+<li>nightly audits of published editorial content</li>
+<li>restricted pathways to published status</li>
+</ul>
+<p>If anyone can:</p>
+<ul>
+<li>edit Supabase rows directly</li>
+<li>import content</li>
+<li>patch copy via admin</li>
+<li>write migration seed content</li>
+</ul>
+<p>…then Stage 6 can be bypassed.</p>
+<h4>What should exist</h4>
+<p>At minimum:</p>
+<ul>
+<li>only <code>published</code> content is publicly rendered</li>
+<li>status transition to <code>published</code> requires <code>fair_housing = pass</code></li>
+<li>manual edits force revalidation</li>
+<li>nightly compliance scanner on all published editorial content</li>
+</ul>
+<h4>Verdict</h4>
+<p><strong>Current Fair Housing posture is generation-safe, not system-safe.</strong></p>
+<p>Good policy layer, incomplete control layer.</p>
+<hr>
+<h3>6. Do `data-factual` / `data-editorial` align with provenance taxonomy?</h3>
+<h4>They are complementary, not equivalent.</h4>
+<p>This is now clearer across the docs than before, but still not explicitly mapped.</p>
+<ul>
+<li><code>data-factual</code> / <code>data-editorial</code> are for <strong>render-time extraction/comparison</strong></li>
+<li><code>DETERMINISTIC</code> / <code>INFERENTIAL</code> / <code>SPECULATIVE</code> / <code>UNKNOWN</code> are for <strong>claim epistemology</strong></li>
+</ul>
+<p>These are different dimensions.</p>
+<p>Examples:</p>
+<ul>
+<li>A paragraph can be <code>data-editorial</code> and still contain deterministic facts.</li>
+<li>A score box could be <code>data-factual</code> from the similarity tool’s standpoint, while being inferential in provenance terms.</li>
+<li>An editorial verdict section is presentation-editorial but provenance-mixed.</li>
+</ul>
+<p>So no, they are <strong>not the same distinction</strong> and should not be collapsed.</p>
+<h4>What is needed</h4>
+<p>The content block model should carry both:</p>
+<ul>
+<li><code>role: factual | editorial | mixed</code></li>
+<li><code>provenance: deterministic | inferential | speculative | mixed</code></li>
+</ul>
+<p>Then renderers can emit extraction attributes while preserving provenance metadata.</p>
+<h4>Verdict</h4>
+<p><strong>Aligned conceptually, orthogonal structurally.</strong></p>
+<p>That distinction should be explicitly documented in the integration layer.</p>
+<hr>
+<h3>7. Is the editorial brief template consistent with the persona documents?</h3>
+<h4>Yes in intent, but source-of-truth is still unresolved.</h4>
+<p>The implementation plan’s editorial brief template is:</p>
+<ul>
+<li>launch-gate planning input</li>
+<li>human-facing</li>
+<li>designed before indexed pages go live</li>
+</ul>
+<p>The content engine’s persona documents are:</p>
+<ul>
+<li>operational generation artifacts</li>
+<li>used by prompts and validators</li>
+<li>canonical for automated behavior</li>
+</ul>
+<p>These are compatible roles.</p>
+<h4>The issue</h4>
+<p>The docs do not explicitly define the transformation:</p>
+<ul>
+<li>Does the brief produce the persona?</li>
+<li>Does the persona supersede the brief?</li>
+<li>What happens when they diverge?</li>
+</ul>
+<p>Without that rule, drift is inevitable.</p>
+<h4>Correct rule</h4>
+<p>The system should explicitly say:</p>
+<ul>
+<li>editorial brief = planning input</li>
+<li>persona doc in <code>packages/content-engine/personas/</code> = canonical operational source</li>
+<li>any brief change must be compiled into persona updates</li>
+</ul>
+<h4>Verdict</h4>
+<p><strong>Consistent, but authority hierarchy is still implicit instead of explicit.</strong></p>
+<hr>
+<h3>8. What is the end-to-end flow for a new building?</h3>
+<p>Here is the full cross-doc flow as the system currently implies it.</p>
+<h4>1. Building enters shared Supabase</h4>
+<p>From monorepo docs:</p>
+<ul>
+<li>building stored in shared tables like <code>buildings</code>, <code>apartments</code></li>
+<li><code>domain_visibility</code> defaults empty</li>
+<li>ops opts building into one or more domains</li>
+</ul>
+<h4>2. Shared domain eligibility is established</h4>
+<p><code>createDomainClient</code> makes the building visible only where assigned.</p>
+<p>Example:</p>
+<ul>
+<li>visible on LA</li>
+<li>visible on Lofts</li>
+<li>hidden from D3/D4</li>
+</ul>
+<h4>3. Domain enrichment runs</h4>
+<p>From content engine:</p>
+<ul>
+<li>LA pipeline computes CQS, amenity completeness, lifestyle radius, management digest, event calendar, operational inference</li>
+<li>Lofts pipeline computes character index, CNS, adaptive reuse, light profile, building biography</li>
+</ul>
+<p>Stored in per-domain enrichment tables.</p>
+<h4>4. Entity-domain fit gate runs</h4>
+<p>Based on enrichment completeness:</p>
+<ul>
+<li>STRONG / MODERATE / WEAK / NO FIT</li>
+<li>determines full editorial, summary, listing-only, or omit</li>
+</ul>
+<h4>5. Content generation runs</h4>
+<p>Per domain and route class:</p>
+<ul>
+<li>persona + route strategy + shared data + enrichment data</li>
+<li>produces page content</li>
+</ul>
+<p>Stored in <code>*_editorial_content</code>.</p>
+<h4>6. Validation council runs</h4>
+<p>Stages 0–7:</p>
+<ul>
+<li>provenance</li>
+<li>fit</li>
+<li>similarity</li>
+<li>persona</li>
+<li>unique value</li>
+<li>factual/provenance</li>
+<li>fair housing</li>
+<li>editorial quality</li>
+</ul>
+<p>Result:</p>
+<ul>
+<li>PASS / REVISE / REJECT</li>
+</ul>
+<h4>7. Publish-state decision happens</h4>
+<p>This step is still weakly specified.</p>
+<p>It should be:</p>
+<ul>
+<li>generated → validated → previewed → published</li>
+</ul>
+<p>But the exact lifecycle model is not codified.</p>
+<h4>8. App renders page</h4>
+<p>App reads:</p>
+<ul>
+<li>shared data via <code>createDomainClient</code></li>
+<li>editorial/enrichment data via app-local query layer</li>
+<li>templates compose factual and editorial blocks</li>
+</ul>
+<h4>9. Revalidation fires</h4>
+<p>Should be:</p>
+<ul>
+<li>content publish event</li>
+<li>domain-specific revalidate webhook</li>
+<li>invalidate route/entity/index tags</li>
+</ul>
+<p>This is only partially specified.</p>
+<h4>10. Rendered similarity / deployment validation runs</h4>
+<p>For build-based deployments:</p>
+<ul>
+<li>content similarity tool extracts editorial HTML</li>
+<li>compares cross-domain overlap</li>
+<li>warns/errors by route class</li>
+</ul>
+<p>But for runtime content changes, this step is not guaranteed.</p>
+<h4>11. Freshness lifecycle</h4>
+<p>Weekly cron flags stale enrichments/content:</p>
+<ul>
+<li>re-enrich</li>
+<li>regenerate</li>
+<li>archive prior version</li>
+<li>consistency check</li>
+<li>republish if valid</li>
+</ul>
+<h4>Verdict</h4>
+<p><strong>The flow is reconstructable and mostly coherent now.</strong></p>
+<p>The weak points are:</p>
+<ul>
+<li>schema</li>
+<li>state machine</li>
+<li>preview/publish gate</li>
+<li>runtime rendered validation</li>
+<li>revalidation specificity</li>
+</ul>
+<hr>
+<h3>9. What is missing from the complete system?</h3>
+<p>These are the main cross-document gaps that remain.</p>
+<h4>A. Explicit editorial/enrichment schemas</h4>
+<p>Still the most concrete missing artifact.</p>
+<h4>B. Content state machine</h4>
+<p>Need explicit statuses such as:</p>
+<ul>
+<li><code>generated</code></li>
+<li><code>revise_requested</code></li>
+<li><code>rejected</code></li>
+<li><code>validated</code></li>
+<li><code>previewed</code></li>
+<li><code>published</code></li>
+<li><code>stale</code></li>
+<li><code>archived</code></li>
+</ul>
+<h4>C. Content engine implementation phase</h4>
+<p>Still absent from roadmap.</p>
+<h4>D. Publish orchestration architecture</h4>
+<p>No definitive answer on whether this runs via:</p>
+<ul>
+<li>worker app</li>
+<li>GitHub Actions</li>
+<li>Inngest/Trigger.dev</li>
+<li>Supabase Edge Functions</li>
+<li>cron + queue</li>
+</ul>
+<h4>E. Preview/render validation path for runtime content</h4>
+<p>Needed to close the Forge bypass problem.</p>
+<h4>F. Render contract</h4>
+<p>What exactly does generation output?</p>
+<ul>
+<li>markdown?</li>
+<li>MDX?</li>
+<li>structured sections?</li>
+<li>typed blocks?</li>
+</ul>
+<p>Given the monorepo’s component architecture, it should almost certainly be <strong>typed JSON blocks</strong>, but that is not yet specified.</p>
+<h4>G. Admin/editor workflow</h4>
+<p>No answer to:</p>
+<ul>
+<li>who reviews REJECTs</li>
+<li>how humans edit</li>
+<li>how edits re-enter validation</li>
+<li>how provenance/compliance is displayed in UI</li>
+</ul>
+<h4>H. Shared threshold/config source</h4>
+<p>The council and CI should reference one config package/file for route classes and thresholds.</p>
+<h4>I. Manual-ingress compliance controls</h4>
+<p>Needed for non-engine authored content.</p>
+<h4>J. Observability for content operations</h4>
+<p>Need dashboards for:</p>
+<ul>
+<li>stale content backlog</li>
+<li>failed validations</li>
+<li>fair housing failures</li>
+<li>similarity regressions</li>
+<li>unpublished validated content</li>
+<li>orphaned enrichments/pages</li>
+</ul>
+<hr>
+<h3>10. Honest overall assessment</h3>
+<h4>Score: 8.7/10</h4>
+<p>Why this is higher than the earlier 7–8 range:</p>
+<ul>
+<li>the revised monorepo docs addressed many earlier concerns directly</li>
+<li>content similarity is now much better specified</li>
+<li>JWT/RLS and shared/per-domain data boundaries are clearer</li>
+<li>editorial strategy requirements are stronger</li>
+<li>Fair Housing rules are much more mature</li>
+<li>route-class thresholds and extraction mechanics are materially improved</li>
+</ul>
+<p>Why it is not yet 9.5+/10:</p>
+<ul>
+<li>no explicit schema contracts</li>
+<li>no content-engine phase in implementation plan</li>
+<li>no stateful publish workflow</li>
+<li>no runtime rendered-validation gate for Forge-driven updates</li>
+<li>no admin/manual-edit enforcement</li>
+<li>no orchestration spec</li>
+</ul>
+<h4>What would move it to 9.5+</h4>
+<ul>
+<li><strong>Specify all enrichment/editorial table schemas</strong></li>
+<li><strong>Add a dedicated content-engine implementation phase</strong></li>
+<li><strong>Define the publish lifecycle and statuses</strong></li>
+<li><strong>Require preview/rendered validation before indexed publication</strong></li>
+<li><strong>Define human/admin editing workflow with compliance gates</strong></li>
+<li><strong>Specify block-based render contract with provenance + role metadata</strong></li>
+<li><strong>Define orchestration/runtime infrastructure</strong></li>
+</ul>
+<hr>
+<h3>Direct answers, condensed</h3>
+<h4>1. Engine output ↔ monorepo data layer?</h4>
+<p>Yes architecturally. Still missing explicit schemas and publish/revalidation mechanics.</p>
+<h4>2. Validation overlap/conflict?</h4>
+<p>They overlap intentionally. Could pass council and fail rendered CI. That is good if shipped-page validation is explicitly final.</p>
+<h4>3. Content engine in phase structure?</h4>
+<p>Still nowhere. Major roadmap omission.</p>
+<h4>4. Forge ↔ deployment?</h4>
+<p>Still risky. Runtime DB publication appears able to bypass final rendered-page checks.</p>
+<h4>5. Fair Housing at both layers?</h4>
+<p>No. Strong generation enforcement, weak manual/admin/platform enforcement.</p>
+<h4>6. HTML attributes ↔ provenance taxonomy?</h4>
+<p>No, not the same. They are orthogonal dimensions and should both exist in the block contract.</p>
+<h4>7. Editorial brief ↔ persona docs?</h4>
+<p>Compatible, but persona docs should be explicitly declared canonical.</p>
+<h4>8. End-to-end new building flow?</h4>
+<p>Mostly coherent and reconstructable now, but weak at schema, state, and publish/revalidation seams.</p>
+<h4>9. What’s missing?</h4>
+<p>Schema, lifecycle, orchestration, admin workflow, runtime preview validation, render contract.</p>
+<h4>10. Overall?</h4>
+<p><strong>Strong integrated design, not yet fully executable operating model.</strong></p>
+  </div>
+</div>
+<div class="participant-block">
+  <div class="participant-header" onclick="this.parentElement.classList.toggle('open')">
+    <span class="name">google/gemini-3.1-pro-preview@openrouter</span>
+    <span>
+      <span class="chars">7,687 chars</span>
+      <span class="toggle">&#9654;</span>
+    </span>
+  </div>
+  <div class="participant-body">
+    <p>This is a brilliant architectural vision solving one of the hardest problems in multi-brand SEO: avoiding doorway pages without hiring armies of writers. However, you have designed two precision watch movements that are missing the gears to connect them together. </p>
+<p>Here is my direct analysis of the integrated system and its critical integration seams.</p>
+<h4>1. Does the content engine&#x27;s output connect to the monorepo&#x27;s data layer?</h4>
+<p><strong>The connection is conceptually correct but operationally broken.</strong></p>
+<p>The separation of data concerns is spot-on: shared tables use the <code>createDomainClient</code>, and editorial content targets isolated <code>[domain]_editorial_content</code> tables via app-local queries. </p>
+<p><strong>The seams:</strong></p>
+<ul>
+<li><strong>Missing schema contract:</strong> The monorepo needs structured JSON to pipe into React templates. The Engine generates "editorial page content" per route class, but the exact data structure contract (Markdown vs structured blocks) is unspecified.</li>
+<li><strong>The ISR Cache Invalidation Gap:</strong> The Monorepo correctly implements a Supabase Edge Function to hit Next.js <code>/api/revalidate</code> when <code>domain_visibility</code> changes. But there is NO webhook documented for when <code>la_editorial_content</code> is inserted or updated by the Content Engine. The engine will regenerate content and write it to the database, but users will see the old content indefinitely.</li>
+</ul>
+<h4>2. Do the two validation systems overlap or conflict?</h4>
+<p><strong>They conflict in a way that will destroy your CI/CD pipeline.</strong></p>
+<p>The Engine calculates similarity <em>before</em> writing to the database. The Monorepo calculates similarity <em>during frontend PR builds</em> by reading rendered HTML.</p>
+<p><strong>The fatal flaw:</strong> If the Forge generates content and inserts it into the production DB on Tuesday, it might pass the Engine&#x27;s similarity thresholds. But on Wednesday, a UI developer submits a PR changing a button wrapper. Vercel runs <code>pnpm build</code>, which grabs the latest DB entries, runs the post-build <code>content-similarity</code> task, and <em>fails the Vercel build</em> because the combined template + content crosses the CI similarity threshold. Content errors should never break UI code deployments. </p>
+<h4>3. Where does the content engine fit in the monorepo&#x27;s Phase structure?</h4>
+<p><strong>It does not exist in the implementation plan.</strong></p>
+<p>The Monorepo Implementation Document schedules 5 detailed phases (scaffold -&gt; UI extraction -&gt; Lofts port -&gt; testing -&gt; D3 onboarding). <code>packages/content-engine/</code> is completely omitted. If a team followed the implementation doc verbatim, they would reach Phase 5 entirely incapable of populating the editorial schemas they just built. A missing &quot;Phase 4.5&quot; creates an orphaned architecture.</p>
+<h4>4. How does the Forge optimization loop interact with deployment?</h4>
+<p><strong>It creates silent production drift.</strong></p>
+<p>The Forge mutates prompts, regenerates content, and writes to <code>la_editorial_content</code>—bypassing the monorepo&#x27;s structural code and composition manifest entirely. </p>
+<p>Because the Forge writes directly to Supabase, there is no code commit to trigger Vercel. There is no automated visual regression layout check. Unsupervised AI content regeneration is dangerous without a Staging/Preview environment gate to render the new HTML and compute final post-build similarities before promoting that DB row to &quot;published&quot;.</p>
+<h4>5. Is Fair Housing compliance enforced at both layers?</h4>
+<p><strong>No. It is an AI-only safeguard, which is a legal risk.</strong></p>
+<p>The Validation Council comprehensively enforces Fair Housing in Stage 6. But what about human intervention? If an editorial director logs into a CMS or Supabase Studio to fix a typo and manually types &quot;attracts families,&quot; it completely bypasses the Engine and goes straight to the Next.js app. The Monorepo must have DB-level constraints (or an intercepting Edge Function) preventing any non-validated copy from being promoted to a <code>published</code> state.</p>
+<h4>6. Do data-factual HTML tags align with the engine&#x27;s provenance taxonomy?</h4>
+<p><strong>They are orthogonal concepts that have not been bridged.</strong></p>
+<ul>
+<li><code>data-factual</code> / <code>data-editorial</code> is a Frontend Layout concept (DOM nodes).</li>
+<li><code>DETERMINISTIC</code> / <code>INFERENTIAL</code> / <code>SPECULATIVE</code> is an Epistemic concept (how the AI derived the knowledge).</li>
+</ul>
+<p><strong>The seam:</strong> A deterministic claim (&quot;Built in 1920&quot;) will routinely be injected into an editorial narrative paragraph (&quot;This beautiful property, built in 1920...&quot;). To correctly exclude factual clauses from CI similarity checks, the AI needs to structure its output into blocks so the Next.js UI knows where to place the <code>data-editorial</code> DOM attributes. Right now, there is no documented contract telling the Next.js UI how to wrap AI-generated strings with these DOM attributes.</p>
+<h4>7. Is the editorial brief template consistent with the persona documents?</h4>
+<p><strong>They are duplicative and risk desyncing.</strong></p>
+<p>Monorepo Task 5.2 asks humans to write an Editorial Brief. The Content Engine requires human-written Persona files in <code>packages/content-engine/personas/d3.md</code>. These are two different documents prescribing the same voice identity. The Editorial Brief must logically compile <em>into</em> the operational persona document; otherwise, the human-facing intent and the AI prompt intent will drift.</p>
+<h4>8. What is the end-to-end flow for a new building?</h4>
+<p>Here is what should happen, including the critical missing pieces (<em>marked with an asterisks</em>):</p>
+<ul>
+<li>Ops adds a building to <code>buildings</code> (Monorepo shared).</li>
+<li><code>domain_visibility</code> is set to <code>['luxuryapartments', 'lofts']</code> (Monorepo).</li>
+<li><em>MISSING TRIGGER:</em> Content Engine should detect the DB insert via webhook or cron.</li>
+<li>Fit Gate (Stage 1) checks signal completeness.</li>
+<li>Domain enrichments fire (Places API, scraping).</li>
+<li>Content Generation produces editorial sections.</li>
+<li>Validation Council (8 stages) checks against policy.</li>
+<li>Writes to <code>la_editorial_content</code> & <code>ll_editorial_content</code>.</li>
+<li><em>MISSING REVALIDATION:</em> Edge Function triggers Monorepo's <code>/api/revalidate</code>.</li>
+</ul>
+<ul>
+<li>Users load Next.js pages served from newly populated ISR cache.</li>
+</ul>
+<h4>9. What is missing from the complete system?</h4>
+<ul>
+<li><strong>The Staging/Publish State Machine:</strong> Content currently goes straight from the Forge into the live UI. There needs to be a unified Pipeline that holds Engine text in <code>status: 'validated_unshipped'</code>, runs a headless content-render pass to check HTML similarity, and <em>then</em> flips it to <code>'published'</code>.</li>
+<li><strong>Compute architecture for the Forge:</strong> The Monorepo defines Vercel hosting. Where does the Content Engine run? Node service? Inngest/Trigger.dev queue? This is undefined.</li>
+<li><strong>Decoupled CI:</strong> Vercel UI builds must run similarity checks against a static dummy dataset, while production similarity checking runs daily on a cron script to ensure PRs don't fail due to AI anomalies.</li>
+</ul>
+<h4>10. Honest Overall Assessment</h4>
+<p><strong>Rating: 8/10.</strong></p>
+<p>The architecture successfully decomposes an impossible problem into robust systems (Structural UI sharing vs. Substantive knowledge sharing). However, its operational lifecycles are heavily coupled and will suffer catastrophic failures on Day 1.</p>
+<p>The system will move to a <strong>10/10</strong> if you:</p>
+<ul>
+<li>Schedule a new Phase 4.5 in the Implementation doc to build the engine.</li>
+<li>Formally declare an internal JSON layout contract connecting Engine generation to Next.js UI components.</li>
+<li>Add Fair Housing safety checks to human-editable gateways.</li>
+<li>Decouple your Vercel codebase builds from your active database Content Similarity scores.</li>
+</ul>
+  </div>
+</div>
+<div class="participant-block">
+  <div class="participant-header" onclick="this.parentElement.classList.toggle('open')">
+    <span class="name">x-ai/grok-4.20-beta@openrouter</span>
+    <span>
+      <span class="chars">10,013 chars</span>
+      <span class="toggle">&#9654;</span>
+    </span>
+  </div>
+  <div class="participant-body">
+    <p><strong>The integrated system is conceptually excellent but operationally incomplete.</strong> The monorepo provides strong structural guardrails against doorway-page risk. The content engine provides a serious attempt at Level 5 substantive differentiation. However, the three documents were written in parallel without fully closing the seams between them. The machine has the right parts, but the assembly instructions still have gaps that would cause production failures or compliance risk if built exactly as written today.</p>
+<h4>1. Content engine output ↔ monorepo data layer</h4>
+<p><strong>Partially connected. Schema and revalidation contracts are missing.</strong></p>
+<p>The engine correctly targets per-domain tables (<code>la_editorial_content</code>, <code>ll_editorial_content</code>). The monorepo design explicitly carves out per-domain editorial tables to live in <code>apps/*/src/lib/data/</code> rather than <code>packages/data/createDomainClient</code>. That separation is correct.</p>
+<p>What is absent:</p>
+<ul>
+<li>Exact table schema (no <code>id</code>, <code>entity_type</code>, <code>entity_slug</code>, <code>domain</code>, <code>status</code>, <code>content_json</code>/<code>mdx</code>, <code>validation_report_json</code>, <code>provenance_summary_json</code>, <code>version</code>, <code>published_at</code>, <code>stale_at</code>, <code>fair_housing_status</code>, etc.).</li>
+<li>Revalidation protocol. The monorepo defines an Edge Function webhook for <code>domain_visibility</code> changes. The engine never specifies what happens when Forge regenerates content — does it call <code>/api/revalidate</code> with the right tags (<code>editorial-building-one-dalton-tower</code>, <code>city-boston</code>, etc.)?</li>
+<li><code>createDomainClient</code> is intentionally unaware of editorial tables. That is correct, but there is no documented per-app editorial query layer or shared TypeScript interface for editorial records.</li>
+</ul>
+<p><strong>Seam status:</strong> Architecturally compatible, implementation-incomplete.</p>
+<h4>2. Validation systems overlap or conflict?</h4>
+<p><strong>They overlap intentionally and that is good, but the precedence and adjudication logic is undefined.</strong></p>
+<p>Monorepo CI = post-build, rendered-HTML, editorial-region-only TF-IDF with route-class thresholds.  </p>
+<p>Content engine council = pre-publish, semantic, provenance-aware, 8-stage judge.</p>
+<p>Content can easily pass the council but fail CI (chrome/template bleed, thin editorial region relative to factual blocks, extraction bugs). This is useful defense-in-depth <em>if</em> the system explicitly says:</p>
+<p>&gt; Council pass is necessary but not sufficient. Rendered-page similarity is the final gate for indexed content.</p>
+<p>It does not say this. Thresholds are also not synchronized in a single config file, so drift is likely. No defined status (<code>validated_unshipped</code>) or workflow for “council passed, CI failed.”</p>
+<p><strong>Seam status:</strong> Overlap is a feature; lack of ownership hierarchy is a bug.</p>
+<h4>3. Content engine in monorepo phase structure?</h4>
+<p><strong>Completely missing. This is the largest planning gap.</strong></p>
+<p>The implementation plan ends at Phase 5 (D3 onboarding) with zero mention of <code>packages/content-engine/</code>, enrichment jobs, validation council, Forge, or freshness cron. The engine depends on:</p>
+<ul>
+<li>Stable shared schema + <code>domain_visibility</code></li>
+<li>Per-domain editorial tables (Phase 1.5+)</li>
+<li><code>data-factual</code>/<code>data-editorial</code> attributes (Phase 2)</li>
+<li>Content similarity tooling (Phase 4)</li>
+<li>Manifest validator</li>
+</ul>
+<p>It should be a new <strong>Phase 4.5</strong> (or slotted into Phase 4 alongside tooling). There should be explicit tasks for schema/migrations, package scaffold, LA/Lofts enrichment pipelines, council implementation, publish workflow, and admin review surfaces. None exist.</p>
+<p><strong>Seam status:</strong> Critical omission.</p>
+<h4>4. Forge optimization loop ↔ deployment</h4>
+<p><strong>Ambiguous and risky. This is the most dangerous operational seam.</strong></p>
+<p>Forge mutates prompts and writes directly to Supabase. The monorepo’s similarity check is build-time only. Therefore regenerated content can:</p>
+<ul>
+<li>Bypass rendered-page CI entirely</li>
+<li>Change production content without a code deploy or Vercel build</li>
+<li>Cause a later unrelated PR to fail CI because the DB now violates thresholds</li>
+</ul>
+<p>Two models are possible. The documents do not choose one. Model B (staged publish with preview render + similarity check before marking <code>published</code>) is required for indexed content. As written, the system leans toward Model A (direct publish), which defeats the monorepo’s final validation layer.</p>
+<p><strong>Seam status:</strong> High risk of CI bypass and operator confusion.</p>
+<h4>5. Fair Housing at both layers?</h4>
+<p><strong>No. Only enforced inside the content engine. Insufficient.</strong></p>
+<p>Stage 6 of the council is excellent. However, the monorepo/application layer has zero enforcement for:</p>
+<ul>
+<li>Manual Supabase edits</li>
+<li>Admin CMS changes</li>
+<li>Seed scripts</li>
+<li>Emergency copy fixes</li>
+<li>Future human-authored blog posts</li>
+</ul>
+<p>Fair Housing must be enforced at the <em>publish gate</em> (DB constraint or admin save pipeline) and via periodic audit, not just at generation time. The engine is the rich semantic judge; the app layer must be the final control.</p>
+<p><strong>Seam status:</strong> Compliant-by-convention, not compliant-by-design.</p>
+<h4>6. `data-factual`/`data-editorial` attributes vs provenance taxonomy?</h4>
+<p><strong>Related but not equivalent. Must be treated as orthogonal.</strong></p>
+<p>HTML attributes are a <em>rendering/extraction</em> classification for the similarity tool. Provenance is an <em>epistemic claim</em> classification. A paragraph can be <code>data-editorial</code> <em>and</em> contain DETERMINISTIC + INFERENTIAL + SPECULATIVE claims. The documents sometimes blur them.</p>
+<p>Recommended model:</p>
+<ul>
+<li><code>data-content-type="factual|editorial|mixed"</code></li>
+<li><code>data-provenance="deterministic|inferential|speculative|mixed"</code> (or carried in the content JSON block)</li>
+</ul>
+<p>Content blocks should carry both dimensions.</p>
+<p><strong>Seam status:</strong> Conceptually aligned, technically underspecified.</p>
+<h4>7. Editorial brief template vs persona documents?</h4>
+<p><strong>Compatible in intent, but source-of-truth is unresolved.</strong></p>
+<p>The template is a human launch-gate planning artifact. The persona docs are operational system prompts. The implementation plan says “fill out the editorial brief.” The content engine says “persona docs are source of truth.”</p>
+<p>Best resolution: editorial brief is the <em>input</em> document; it is compiled into <code>packages/content-engine/personas/{domain}.md</code>, which becomes canonical for both humans and the engine. The system must state this hierarchy explicitly or drift will occur.</p>
+<p><strong>Seam status:</strong> Minor but real.</p>
+<h4>8. End-to-end flow for a new building</h4>
+<p>The flow mostly exists but breaks at publish state, revalidation, and rendering contract.</p>
+<ul>
+<li>Building added to shared Supabase table + <code>domain_visibility</code> assigned (monorepo design).</li>
+<li>Domain-specific enrichment jobs run (content engine §2, §7).</li>
+<li>Entity-domain fit gate (content engine §8) decides FULL / SUMMARY / LISTING-ONLY / OMIT.</li>
+<li>Content generation using persona + enrichment (content engine §2).</li>
+<li>8-stage validation council including Fair Housing and provenance (content engine §3).</li>
+<li><strong>Gap</strong>: publish state machine — <code>generated</code> → <code>validated</code> → <code>rendered-preview-checked</code> → <code>published</code> is not defined.</li>
+<li>Content written to per-domain editorial table.</li>
+<li><strong>Gap</strong>: revalidation trigger to the correct app’s <code>/api/revalidate</code> with appropriate tags is not specified.</li>
+<li>App renders using local <code>src/lib/data/</code> queries + shared <code>createDomainClient</code> for factual data + composition manifest template (monorepo).</li>
+</ul>
+<ul>
+<li>Build-time content similarity CI runs on rendered HTML using <code>data-factual</code>/<code>data-editorial</code> (monorepo §9).</li>
+</ul>
+<p>Missing steps: schema, status transitions, preview render gate, exact rendering contract (JSON blocks? MDX? typed components?), job orchestration.</p>
+<h4>9. What is missing from the complete system?</h4>
+<p>Critical gaps that no document fully owns:</p>
+<ul>
+<li><strong>Editorial content + enrichment table schemas</strong> (concrete DDL + TypeScript interfaces).</li>
+<li><strong>Content publish state machine</strong> and preview/staging workflow.</li>
+<li><strong>Job orchestration layer</strong> (cron, queue, Supabase Edge Functions, or separate worker).</li>
+<li><strong>Admin/editor workflow</strong> for REJECTs, manual edits, and provenance display.</li>
+<li><strong>Rendering contract</strong> — how structured engine output maps to React components (block schema with role + provenance metadata).</li>
+<li><strong>Unified threshold/config source</strong> shared by council and CI.</li>
+<li><strong>Fair Housing enforcement</strong> at DB/admin ingress layer.</li>
+<li><strong>Content engine phase/tasks</strong> in the implementation plan.</li>
+<li><strong>Explicit Forge → CI interaction model</strong> (staged publish vs direct-to-prod).</li>
+</ul>
+<h4>10. Honest overall assessment</h4>
+<p><strong>7.7/10 as an integrated production system.</strong></p>
+<p>Strengths: The architectural split (structural enforcement in monorepo vs substantive enforcement in content engine) is correct. The personas are richly defined. The validation council and Forge loop are sophisticated. The <code>domain_visibility</code> opt-in model, per-domain editorial tables, and content similarity CI are all thoughtful.</p>
+<p>Weaknesses: Several seams are still hand-wavy. The biggest risks are (1) Forge bypassing rendered CI, (2) missing schema contracts and lifecycle, (3) Fair Housing only at generation time, (4) content engine completely absent from the implementation roadmap, and (5) no defined publish/preview gate.</p>
+<p>To reach 9+/10:</p>
+<ul>
+<li>Add the content engine to the implementation plan as Phase 4.5 with concrete tasks.</li>
+<li>Specify editorial/enrichment schemas and a content state machine.</li>
+<li>Define a staged publish pipeline that includes rendered similarity check before marking content <code>published</code>.</li>
+<li>Add lightweight Fair Housing gate at DB/admin layer (status constraints + nightly audit).</li>
+<li>Create a single shared config for similarity thresholds and route classes.</li>
+<li>Document the exact rendering contract (block schema with provenance metadata).</li>
+</ul>
+<p>The vision is strong. The individual pieces are mature. The <em>integration operating model</em> is still ~60% specified.</p>
+<p><strong>VOTE:</strong> {&quot;option&quot;: &quot;Approve with integration revisions&quot;, &quot;confidence&quot;: 0.88, &quot;rationale&quot;: &quot;Directionally excellent architecture with clear separation of structural and substantive concerns, but critical seams around schemas, publish lifecycle, Forge-CI interaction, Fair Housing enforcement at ingress, and placement of content engine in the implementation plan must be closed before production implementation.&quot;}</p>
+  </div>
+</div>
+</div>
+<div class="round-section">
+<h2>Round 3</h2>
+<div class="participant-block open">
+  <div class="participant-header" onclick="this.parentElement.classList.toggle('open')">
+    <span class="name">opus@claude</span>
+    <span>
+      <span class="chars">13,617 chars</span>
+      <span class="toggle">&#9654;</span>
+    </span>
+  </div>
+  <div class="participant-body">
+    <p>Now I have the full picture. Here&#x27;s the evidence-grounded analysis.</p>
+<hr>
+<h3>Integrated System Review — Round 3 (Evidence-Grounded)</h3>
+<p>I&#x27;ve examined the actual codebase. Here are findings the previous reviewers couldn&#x27;t have known, plus my synthesis of the integration seams.</p>
+<h4>Critical Finding: The Implementation Plan Understates Migration Scope</h4>
+<p>The plan says LA has &quot;~48 imports from <code>@/data/</code>&quot; to migrate (Task 0.0). <strong>Reality: 253 occurrences across 164 files.</strong> Lofts is claimed to be &quot;still on static JSON&quot; — true, but it has <strong>177 occurrences across 126 files</strong>, not the implied ~48. LA has 49 static data files and 6 <code>*-server.ts</code> files, meaning the hybrid state is deeper than documented. Both repos have a massive dual-path data layer — static JSON consumed by components AND Supabase server queries consumed by pages. The plan&#x27;s Task 0.0 categorization table (15-20 data-fetch, 15-20 type-only, 10-15 dead code, ~5 config) is off by 5x on total scope.</p>
+<p>This matters for the monorepo because <strong>Task 1.7 moves LA into the monorepo, and Task 1.5 extracts <code>packages/data/</code>.</strong> If 164 files still import from <code>@/data/</code>, the extraction can&#x27;t cleanly separate what goes into the shared package vs what stays app-local. The plan assumes this migration is mostly done. It is not.</p>
+<h4>1. Engine Output ↔ Monorepo Data Layer</h4>
+<p><strong>The connection is architecturally sound but has three verified broken seams.</strong></p>
+<p><strong>A. Revalidation endpoint is hard-blocked.</strong> The existing <code>/api/revalidate/route.ts</code> has a <code>ALLOWED_TAGS</code> whitelist: <code>mls-apartments</code>, <code>apartments</code>, <code>neighborhoods</code>, <code>cities</code>, <code>blog-posts</code>. Any tag not in this set returns 400. When the content engine writes to <code>la_editorial_content</code>, it cannot trigger ISR cache invalidation without code changes to this endpoint. This is not a &quot;should we add a tag&quot; design question — it&#x27;s a <strong>hard technical blocker</strong>.</p>
+<p><strong>B. No <code>data-factual</code>/<code>data-editorial</code> attributes exist anywhere in either codebase.</strong> I searched both repos. Zero matches outside the design docs themselves. The content similarity tool&#x27;s entire extraction strategy depends on components having these attributes. Before the tool can work, someone must add attributes to ~30+ components. The plan mentions this as a &quot;one-time pass&quot; in Phase 2 pre-extraction but doesn&#x27;t budget time for it.</p>
+<p><strong>C. No editorial tables exist in either Supabase project.</strong> Grep for <code>la_editorial</code> and <code>ll_editorial</code> finds only design docs. No migration, no schema, no types. The engine doc says content is &quot;stored in per-domain editorial tables&quot; but these tables don&#x27;t exist and aren&#x27;t in any migration plan.</p>
+<h4>2. Validation Systems: Defense-in-Depth or Confusion?</h4>
+<p>All four previous reviewers agree: council + CI is good defense-in-depth with unclear adjudication. I agree, but want to sharpen one point.</p>
+<p><strong>The temporal mismatch is the real issue, not the threshold mismatch.</strong> The council validates before publication. The CI validates after build. If Forge regenerates content between builds, the CI never fires. The previous reviewers all caught this. But here&#x27;s what I&#x27;d add:</p>
+<p>The monorepo&#x27;s <code>content-similarity</code> Turborepo task has <code>&quot;dependsOn&quot;: [&quot;build&quot;]</code>. It only runs when <code>build</code> runs. Build only runs when code changes trigger a Vercel deployment or a developer runs <code>pnpm build:all</code>. <strong>Content-only changes in Supabase trigger zero builds.</strong> The similarity tool is architecturally incapable of catching Forge-induced drift unless someone adds a scheduled run decoupled from the build pipeline.</p>
+<p><strong>Recommendation:</strong> Add a <code>content-similarity-cron</code> task that runs daily against live Supabase data (not build output). This is a separate concern from the post-build check and should exist independently.</p>
+<h4>3. Content Engine in Phase Structure</h4>
+<p><strong>Missing. All 5 reviewers (4 prior + me) agree. This is the single largest planning gap.</strong></p>
+<p>I&#x27;ll add specificity: the engine depends on at least these monorepo artifacts:</p>
+<ul>
+<li><code>packages/data/</code> stable result types (Phase 1.5)</li>
+<li><code>data-factual</code>/<code>data-editorial</code> component attributes (Phase 2 pre-extraction)</li>
+<li><code>packages/tooling/content-similarity/</code> (Phase 4.6)</li>
+<li>Per-domain editorial table migrations (not in any phase)</li>
+<li>ISR revalidation endpoint updates (not in any phase)</li>
+</ul>
+<p>The earliest the engine could begin implementation is <strong>after Phase 2</strong> (when <code>data-factual</code>/<code>data-editorial</code> attributes exist). Full integration requires Phase 4.6. So a Phase 4.5 placement makes sense, but enrichment pipeline development (external API integrations, scoring models) could start in parallel with Phase 3 since it depends only on shared Supabase data.</p>
+<h4>4. Forge ↔ Deployment</h4>
+<p>I agree with all prior reviewers: <strong>this is the most dangerous operational seam.</strong></p>
+<p>Let me be concrete about what &quot;dangerous&quot; means. Consider this timeline:</p>
+<ul>
+<li>Monday: Forge mutates LA's building-page prompt, regenerates 50 pages</li>
+<li>Council validates them (semantic check passes)</li>
+<li>Content writes to <code>la_editorial_content</code> in Supabase</li>
+<li>ISR serves updated content on next request (assuming revalidation works — it currently can't, per finding 1A)</li>
+<li>Wednesday: A developer submits a PR changing a button color in <code>packages/ui/</code></li>
+<li>CI runs <code>pnpm build:all</code> → <code>content-similarity</code> task reads live Supabase data</li>
+<li><strong>Build fails</strong> because Monday's Forge mutation pushed 3 building pages past the 0.85 similarity threshold</li>
+<li>The developer has no idea why. The content team has no idea their changes broke CI.</li>
+</ul>
+<p>This is not hypothetical. It&#x27;s the natural consequence of coupling a runtime content pipeline to a build-time validation gate. Model B (staged publish with preview render check) is the only safe option.</p>
+<h4>5. Fair Housing</h4>
+<p><strong>Single-layer enforcement is insufficient. But the engine&#x27;s approach is strong.</strong></p>
+<p>The v3 engine doc&#x27;s Fair Housing section is genuinely thoughtful — the CNS carve-out, factual feature tags, personas-as-internal-only rule, and Operational Inference Narrative are well-reasoned compromises between editorial depth and compliance. This is better than what most production systems have.</p>
+<p>The gap remains at the platform layer. I&#x27;ll add one new concern: <strong>the Lofts repo today has no Fair Housing awareness at all.</strong> It&#x27;s a standalone app that doesn&#x27;t go through the engine. If someone writes content directly in the Lofts codebase (which is the current operating model), there&#x27;s no compliance gate. The engine is future architecture; the current system has zero protection.</p>
+<h4>6. `data-factual`/`data-editorial` vs Provenance</h4>
+<p>Previous reviewers correctly identify these as orthogonal. I&#x27;ll add: <strong>the orthogonality is actually fine because they serve different consumers.</strong></p>
+<ul>
+<li><code>data-factual</code>/<code>data-editorial</code> → consumed by the content-similarity CI tool (strip factual, compare editorial)</li>
+<li>DETERMINISTIC/INFERENTIAL/SPECULATIVE → consumed by the validation council (check provenance distribution, enforce 20% speculative cap)</li>
+</ul>
+<p>They don&#x27;t need to map 1:1. They need to coexist in the content block schema so both consumers can do their job. The engine should emit structured blocks with both dimensions; the renderer emits the appropriate HTML attributes.</p>
+<h4>7. Editorial Brief vs Persona</h4>
+<p>The implementation plan creates <code>packages/tooling/content-strategy-template.md</code> (a fill-in-the-blank launch-gate doc). The engine creates rich persona documents in <code>packages/content-engine/personas/</code>. The previous reviewers all identified the drift risk. I agree with the consensus fix: the brief is the input document, compiled into the persona, which becomes canonical. State this explicitly and the problem is solved.</p>
+<h4>8. End-to-End Flow</h4>
+<p>The flow breaks at multiple points. Here&#x27;s my annotated version with status codes:</p>
+<p>| Step | Status | What Happens |</p>
+<p>|---|---|---|</p>
+<p>| 1. Building added to Supabase | WORKS | Existing CRUD via admin dashboard |</p>
+<p>| 2. <code>domain_visibility</code> assigned | DESIGN ONLY | Column doesn&#x27;t exist yet in either production DB |</p>
+<p>| 3. Content engine detects new entity | NOT SPECIFIED | No trigger mechanism defined anywhere |</p>
+<p>| 4. Enrichment pipeline runs | DESIGN ONLY | No code, no API integrations, no Supabase Edge Functions |</p>
+<p>| 5. Entity-fit gate runs | DESIGN ONLY | No implementation |</p>
+<p>| 6. Content generation runs | DESIGN ONLY | No code |</p>
+<p>| 7. Validation council runs (8 stages) | DESIGN ONLY | No code |</p>
+<p>| 8. Content stored in editorial tables | BLOCKED | Tables don&#x27;t exist, no migration |</p>
+<p>| 9. ISR revalidation triggers | BLOCKED | Revalidation endpoint rejects unknown tags |</p>
+<p>| 10. App renders content | BLOCKED | No rendering contract (JSON blocks? MDX? markdown?) |</p>
+<p>| 11. Post-build similarity check | DESIGN ONLY | Tool not built |</p>
+<p>| 12. Freshness lifecycle runs | DESIGN ONLY | No cron, no staleness detection |</p>
+<p><strong>Steps 1 is production-ready. Steps 2-12 are pure design.</strong> That&#x27;s fine — the monorepo doesn&#x27;t exist yet either. But the plan should acknowledge this honestly rather than implying the integration is mostly figured out.</p>
+<h4>9. What&#x27;s Missing</h4>
+<p>Consolidating unique gaps not already beaten to death by the previous 4 reviewers:</p>
+<p><strong>A. The static data migration is 5x larger than estimated.</strong> 253 <code>@/data/</code> imports in LA (164 files), 177 in Lofts (126 files), not &quot;~48.&quot; This affects Phase 0 and Phase 1 timelines materially.</p>
+<p><strong>B. No content block schema.</strong> The engine produces editorial content. The app renders it. What is the interchange format? This needs to be a typed interface in <code>packages/content-engine/types/</code>:</p>
+<pre><code class="language-ts">
+interface EditorialBlock {
+  kind: &#x27;paragraph&#x27; | &#x27;score-breakdown&#x27; | &#x27;comparison&#x27; | &#x27;verdict&#x27; | &#x27;lifestyle-radius&#x27;;
+  role: &#x27;editorial&#x27; | &#x27;factual&#x27; | &#x27;mixed&#x27;;
+  provenance: &#x27;deterministic&#x27; | &#x27;inferential&#x27; | &#x27;speculative&#x27;;
+  content: string | Record&lt;string, unknown&gt;;
+}
+</code></pre>
+<p>Without this, you can&#x27;t build the rendering layer or the similarity extraction.</p>
+<p><strong>C. No orchestration architecture.</strong> Who runs the enrichment jobs? The generation jobs? The validation council? The freshness cron? The Forge experiments? This could be Supabase Edge Functions, GitHub Actions cron, Inngest/Trigger.dev, a Node.js worker process, or something else. None of the three documents specify this. It&#x27;s not a trivial decision — it affects cost, reliability, and debugging.</p>
+<p><strong>D. No admin workflow for REJECT escalations.</strong> The council produces REJECT results. Who sees them? Where? How do they re-enter the pipeline? Is there a queue? A dashboard? The engine doc says &quot;escalates to human review&quot; but doesn&#x27;t specify the surface.</p>
+<p><strong>E. Threshold config is not shared.</strong> The monorepo&#x27;s <code>config.ts</code> and the council&#x27;s Stage 2 thresholds should reference the same source file. Currently they&#x27;d be independently maintained, inviting drift.</p>
+<h4>10. Honest Overall Assessment</h4>
+<p><strong>7.5/10 as an integrated system.</strong></p>
+<p>All five reviewers (4 prior + me) converge on the same score band (7-8.7) and the same critical gaps. The consensus is remarkably consistent:</p>
+<p>| Gap | Identified by |</p>
+<p>|---|---|</p>
+<p>| Missing editorial schema | All 5 |</p>
+<p>| Content engine absent from phases | All 5 |</p>
+<p>| Forge bypasses CI | All 5 |</p>
+<p>| Fair Housing single-layer | All 5 |</p>
+<p>| Missing publish state machine | 4 of 5 |</p>
+<p>| Missing orchestration layer | 3 of 5 |</p>
+<p>| Missing rendering contract | 3 of 5 |</p>
+<p>| Static data migration underestimated | 1 (me — needed codebase access) |</p>
+<p><strong>Why I score slightly lower than Round 2 reviewers (7.5 vs 8-8.7):</strong> The codebase evidence reveals operational gaps they couldn&#x27;t see. The revalidation endpoint is hard-blocked. The <code>data-factual</code>/<code>data-editorial</code> attributes don&#x27;t exist. The static data migration is 5x larger than planned. LA still has 253 static imports across 164 files — the plan&#x27;s claim that &quot;~48 remaining imports&quot; need migration is wrong. These concrete findings lower my confidence that the plan-as-written can execute without significant revision.</p>
+<p><strong>Why not lower than 7.5:</strong> The architectural decisions are genuinely excellent. The separation of structural (monorepo) vs substantive (engine) enforcement is the right abstraction. The Fair Housing analysis is sophisticated. The provenance taxonomy is thoughtful. The domain personas create real differentiation potential. Each document individually is 8.5-9/10 quality.</p>
+<p><strong>What moves it to 9+/10:</strong></p>
+<ul>
+<li>Correct the static data migration scope (253 imports, not 48) and re-plan Task 0.0</li>
+<li>Specify editorial/enrichment table DDL with a content status enum</li>
+<li>Add a Phase 4.5 for the content engine with 10+ explicit tasks</li>
+<li>Define a staged publish pipeline: <code>draft → validated → preview-checked → published</code></li>
+<li>Add <code>editorial-content</code> to the revalidation endpoint's <code>ALLOWED_TAGS</code></li>
+<li>Add a daily <code>content-similarity-cron</code> decoupled from the build pipeline</li>
+<li>Define the editorial block interchange schema (engine output → React template input)</li>
+<li>Specify orchestration architecture (Inngest/Trigger.dev/cron/Edge Functions)</li>
+<li>Create a single <code>packages/tooling/content-similarity/config.ts</code> consumed by both the council and CI tool</li>
+</ul>
+<ul>
+<li>Add a lightweight Fair Housing regex gate at the DB publish-transition level</li>
+</ul>
+  </div>
+</div>
+<div class="participant-block open">
+  <div class="participant-header" onclick="this.parentElement.classList.toggle('open')">
+    <span class="name">openai/gpt-5.4@openrouter</span>
+    <span>
+      <span class="chars">17,003 chars</span>
+      <span class="toggle">&#9654;</span>
+    </span>
+  </div>
+  <div class="participant-body">
+    <p>The three documents now form a <strong>credible unified architecture</strong>, but they still do <strong>not</strong> form a fully executable operating model. The structural half is strong. The substantive half is strong. The seam between them is improved, but still incomplete in a few places that matter operationally.</p>
+<h3>Bottom line</h3>
+<p><strong>Integrated-system score: 8.8/10</strong></p>
+<p>What works well now:</p>
+<ul>
+<li>shared vs per-domain data boundaries are coherent</li>
+<li>the monorepo and engine agree on the overall separation of concerns</li>
+<li>content similarity is much more concretely specified than earlier versions</li>
+<li><code>data-factual</code> / <code>data-editorial</code> gives the monorepo a practical extraction contract</li>
+<li>personas, fit gate, provenance, Fair Housing, freshness, and route-class strategies are all substantial</li>
+</ul>
+<p>What still prevents this from being “build tomorrow with no major design questions”:</p>
+<ul>
+<li><strong>Editorial/enrichment SQL schemas are still not explicitly defined</strong></li>
+<li><strong>The content engine still has no implementation phase in the roadmap</strong></li>
+<li><strong>Publish-state workflow exists conceptually but not as a formal state machine</strong></li>
+<li><strong>Forge/runtime content publication can still bypass final rendered-page validation unless a preview gate is added</strong></li>
+<li><strong>Fair Housing enforcement is still generation-centric, not ingress/system-centric</strong></li>
+<li><strong>The rendering contract from engine output to React templates is still underspecified</strong></li>
+</ul>
+<p>So: this is now a strong integrated design, but still not a complete operating system.</p>
+<hr>
+<h3>1. Does the content engine’s output connect to the monorepo’s data layer?</h3>
+<h4>Yes architecturally. Not yet fully at the schema/contract level.</h4>
+<p>The split is now clear and correct:</p>
+<ul>
+<li><strong>shared tables</strong> → <code>packages/data/createDomainClient</code></li>
+<li><strong>per-domain editorial/enrichment tables</strong> → app-local <code>src/lib/data/</code></li>
+</ul>
+<p>That aligns perfectly with:</p>
+<ul>
+<li>monorepo design Section 3</li>
+<li>implementation plan Task 1.5</li>
+<li>content engine Section 2 / Layer 4</li>
+</ul>
+<h4>What is coherent</h4>
+<p>The monorepo explicitly says editorial tables are per-domain:</p>
+<ul>
+<li><code>la_editorial_content</code></li>
+<li><code>ll_editorial_content</code></li>
+</ul>
+<p>The content engine explicitly writes there.</p>
+<p>That means <code>createDomainClient</code> <strong>should not</strong> know about editorial tables, and I think that is correct. <code>createDomainClient</code> is for shared entities filtered by <code>domain_visibility</code>; editorial content is domain-owned and should sit behind app-local query code.</p>
+<h4>What is still missing</h4>
+<p>The documents still never define the actual table contracts. At minimum, <code>*_editorial_content</code> needs fields like:</p>
+<ul>
+<li><code>id</code></li>
+<li><code>entity_type</code></li>
+<li><code>entity_id</code> / <code>entity_slug</code></li>
+<li><code>route_pattern</code> / <code>route_key</code></li>
+<li><code>template</code></li>
+<li><code>status</code></li>
+<li><code>content_json</code></li>
+<li><code>validation_report_json</code></li>
+<li><code>provenance_summary_json</code></li>
+<li><code>version</code></li>
+<li><code>generated_at</code></li>
+<li><code>published_at</code></li>
+<li><code>stale_at</code></li>
+<li><code>fair_housing_status</code></li>
+</ul>
+<p>And enrichment tables need:</p>
+<ul>
+<li><code>entity linkage</code></li>
+<li><code>payload json</code></li>
+<li><code>source metadata</code></li>
+<li><code>completeness metrics</code></li>
+<li><code>freshness timestamps</code></li>
+<li><code>provenance summary</code></li>
+</ul>
+<p>Without this, the monorepo and engine are connected only by nouns, not by an implementation-grade contract.</p>
+<h4>ISR / revalidation</h4>
+<p>This is improved conceptually but still not fully specified.</p>
+<p>The monorepo gives an explicit revalidation flow for <code>domain_visibility</code> changes:</p>
+<ul>
+<li>Supabase Edge Function</li>
+<li>POST to <code>/api/revalidate</code></li>
+<li>tag-based invalidation</li>
+</ul>
+<p>But editorial regeneration needs its own equivalent contract:</p>
+<ul>
+<li>engine publishes content</li>
+<li>publish event includes <code>domain</code>, <code>entity</code>, <code>route tags</code></li>
+<li>app invalidates page tag plus related aggregate tags</li>
+</ul>
+<p>Right now the engine just says ISR revalidation triggers when content is regenerated. That is still too vague.</p>
+<h4>Verdict</h4>
+<p><strong>Connected architecturally, incomplete operationally.</strong></p>
+<p>The major missing piece is still the <strong>editorial/enrichment storage schema + publish/revalidate event contract</strong>.</p>
+<hr>
+<h3>2. Do the two validation systems overlap or conflict?</h3>
+<h4>They overlap intentionally, and that is mostly a strength.</h4>
+<p>They validate different artifacts:</p>
+<ul>
+<li><strong>Validation council</strong>: generated content before/around publication</li>
+<li><strong>Monorepo content similarity CI</strong>: built/rendered output after templates, composition, extraction</li>
+</ul>
+<p>That is good design. The engine checks semantic quality and compliance. The monorepo checks what is actually shipped.</p>
+<h4>Could content pass council and fail CI?</h4>
+<p>Yes, absolutely.</p>
+<p>Example:</p>
+<ul>
+<li>council approves genuinely differentiated editorial copy</li>
+<li>page renders inside shared layout/chrome</li>
+<li>editorial region is thinner than expected</li>
+<li>final rendered output crosses the route threshold</li>
+</ul>
+<p>That is not inherently a defect. It is valid defense-in-depth.</p>
+<h4>The remaining seam</h4>
+<p>The docs still don’t explicitly define adjudication logic.</p>
+<p>Needed rule:</p>
+<ul>
+<li><strong>Council pass</strong> = admissible content</li>
+<li><strong>Rendered similarity pass</strong> = shippable indexed page</li>
+<li>both required for indexed production publication</li>
+</ul>
+<p>Without that, operators won’t know what to do when:</p>
+<ul>
+<li>council passes</li>
+<li>preview/rendered similarity fails</li>
+<li>content is “good” semantically but not safe structurally</li>
+</ul>
+<h4>Threshold consistency</h4>
+<p>The monorepo has explicit route-class thresholds in Section 9.</p>
+<p>The engine references route-class thresholds, but does not explicitly say it imports the monorepo tool’s config.</p>
+<p>That means drift is still possible.</p>
+<p>Best fix:</p>
+<ul>
+<li>one shared config file/package for thresholds and route classes</li>
+<li>both council Stage 2 and monorepo CI import it</li>
+</ul>
+<h4>Verdict</h4>
+<p><strong>Overlap is intentional and desirable.</strong></p>
+<p>The unresolved issue is not duplication; it is <strong>precedence and shared configuration</strong>.</p>
+<hr>
+<h3>3. Where does the content engine fit in the monorepo’s Phase structure?</h3>
+<h4>It still doesn’t. This remains the biggest roadmap omission.</h4>
+<p>The implementation plan’s phases are:</p>
+<ul>
+<li>Phase 0: Lofts standalone</li>
+<li>Phase 1: scaffold monorepo</li>
+<li>Phase 2: UI extraction</li>
+<li>Phase 3: Lofts port</li>
+<li>Phase 4: testing/tooling</li>
+<li>Phase 5: D3 onboarding</li>
+</ul>
+<p>There is still no phase for:</p>
+<ul>
+<li><code>packages/content-engine/</code></li>
+<li>enrichment jobs</li>
+<li>generation jobs</li>
+<li>validation council</li>
+<li>Forge</li>
+<li>freshness cron</li>
+<li>publish workflow</li>
+<li>operator tooling</li>
+</ul>
+<h4>Where it should go</h4>
+<p>The content engine depends on:</p>
+<ul>
+<li>stable shared schema</li>
+<li>per-domain apps</li>
+<li>route manifests</li>
+<li>content similarity tooling</li>
+<li><code>data-factual</code> / <code>data-editorial</code></li>
+<li>revalidation endpoints</li>
+<li>content strategy/personas</li>
+</ul>
+<p>So it belongs <strong>after Phase 3</strong>, probably as:</p>
+<ul>
+<li><strong>Phase 4.5: Content Engine + Editorial Pipeline</strong></li>
+</ul>
+<h4>Missing tasks</h4>
+<p>A realistic plan needs explicit tasks for:</p>
+<ul>
+<li>editorial/enrichment migrations</li>
+<li><code>packages/content-engine/</code> scaffold</li>
+<li>persona ingestion</li>
+<li>enrichment runners</li>
+<li>generation runners</li>
+<li>validation council</li>
+<li>preview/publish pipeline</li>
+<li>freshness jobs</li>
+<li>admin/review surfaces</li>
+</ul>
+<h4>Verdict</h4>
+<p><strong>Still a major planning gap.</strong></p>
+<p>The architecture includes a content brain, but the implementation plan never schedules its construction.</p>
+<hr>
+<h3>4. How does the Forge optimization loop interact with deployment?</h3>
+<h4>This is still the riskiest operational seam.</h4>
+<p>Forge mutates prompts weekly. The engine stores regenerated content in DB-backed tables. That strongly implies CMS-style runtime publishing.</p>
+<p>But the monorepo’s strongest structural safeguard is <strong>post-build rendered similarity validation</strong>.</p>
+<h4>The risk</h4>
+<p>If Forge can:</p>
+<ul>
+<li>regenerate content</li>
+<li>write it to Supabase</li>
+<li>trigger revalidation</li>
+<li>go live</li>
+</ul>
+<p>then it can bypass the monorepo’s final rendered-page check.</p>
+<p>That means the content engine validates one artifact, while production serves another artifact that never passed the final ship-stage gate.</p>
+<h4>What should happen</h4>
+<p>For indexed content, the system needs a staged publish pipeline:</p>
+<ul>
+<li>generate candidate content</li>
+<li>run council</li>
+<li>render preview/staging page</li>
+<li>run rendered similarity/compliance on preview output</li>
+<li>mark content <code>published</code></li>
+<li>trigger production revalidation</li>
+</ul>
+<p>Without this, you get:</p>
+<ul>
+<li>silent portfolio drift from Forge</li>
+<li>later surprise failures on unrelated builds</li>
+<li>ambiguity over which validation is authoritative</li>
+</ul>
+<h4>Does Forge trigger rebuilds?</h4>
+<p>Nothing in the docs says yes.</p>
+<p>As written, Forge appears to mutate content <strong>without code deploys</strong>.</p>
+<p>That’s fine only if there is a <strong>runtime-safe preview gate</strong>. Right now, that gate is implied but not codified.</p>
+<h4>Verdict</h4>
+<p><strong>Still underdesigned and potentially dangerous.</strong></p>
+<p>This is the main reason I would not call the system fully production-ready yet.</p>
+<hr>
+<h3>5. Is Fair Housing compliance enforced at both layers?</h3>
+<h4>No. It is strong in the engine and weak in the platform.</h4>
+<p>The content engine’s Fair Housing section is excellent:</p>
+<ul>
+<li>prohibited patterns</li>
+<li>carve-outs</li>
+<li>replacement strategy</li>
+<li>“personas are internal only”</li>
+<li>Stage 6 validation</li>
+</ul>
+<p>That is a serious compliance design.</p>
+<h4>What is missing</h4>
+<p>The platform layer still does not define:</p>
+<ul>
+<li>manual-edit validation</li>
+<li>admin save-time compliance checks</li>
+<li>DB constraints on publish transitions</li>
+<li>nightly audits of published editorial rows</li>
+<li>restricted paths to <code>published</code></li>
+</ul>
+<p>So if content enters through:</p>
+<ul>
+<li>direct Supabase edit</li>
+<li>admin UI</li>
+<li>migration</li>
+<li>import</li>
+<li>emergency copy fix</li>
+</ul>
+<p>Stage 6 can be bypassed.</p>
+<h4>What should exist</h4>
+<p>At minimum:</p>
+<ul>
+<li>only <code>published</code> content is served publicly</li>
+<li>transition to <code>published</code> requires <code>fair_housing_status = pass</code></li>
+<li>manual edits force revalidation</li>
+<li>nightly scanner audits all published editorial content</li>
+</ul>
+<p>The content engine should remain the rich semantic judge. The app/DB layer should be the final hard gate.</p>
+<h4>Verdict</h4>
+<p><strong>Current posture is generation-safe, not system-safe.</strong></p>
+<p>That is better than most systems, but still incomplete for a housing-adjacent platform.</p>
+<hr>
+<h3>6. Do `data-factual` / `data-editorial` align with the engine’s provenance taxonomy?</h3>
+<h4>They are related, but they are not the same distinction.</h4>
+<p>This is an important seam, but not a fatal one.</p>
+<ul>
+<li><code>data-factual</code> / <code>data-editorial</code> = <strong>render-time comparison/extraction role</strong></li>
+<li><code>DETERMINISTIC</code> / <code>INFERENTIAL</code> / <code>SPECULATIVE</code> / <code>UNKNOWN</code> = <strong>claim provenance / epistemology</strong></li>
+</ul>
+<p>A block can be:</p>
+<ul>
+<li>editorial in presentation</li>
+<li>deterministic in provenance</li>
+</ul>
+<p>Or:</p>
+<ul>
+<li>factual in UI treatment</li>
+<li>inferential in claim basis</li>
+</ul>
+<p>These are orthogonal dimensions.</p>
+<h4>Best integrated model</h4>
+<p>The content block contract should carry both:</p>
+<ul>
+<li><code>role: factual | editorial | mixed</code></li>
+<li><code>provenance: deterministic | inferential | speculative | mixed</code></li>
+</ul>
+<p>Then the renderer can emit:</p>
+<ul>
+<li><code>data-factual</code></li>
+<li><code>data-editorial</code></li>
+</ul>
+<p>while preserving provenance metadata for validation, audits, or future UI labels.</p>
+<h4>Verdict</h4>
+<p><strong>No, they are not the same axis.</strong></p>
+<p>They should coexist as orthogonal metadata in the render contract.</p>
+<hr>
+<h3>7. Is the editorial brief template consistent with the persona documents?</h3>
+<h4>Yes in intent. The authority hierarchy is still implicit.</h4>
+<p>The implementation plan’s editorial brief is a:</p>
+<ul>
+<li>launch-gate planning artifact</li>
+<li>human-facing input</li>
+<li>pre-launch requirement</li>
+</ul>
+<p>The content engine’s persona docs are:</p>
+<ul>
+<li>operational generation inputs</li>
+<li>validator inputs</li>
+<li>ongoing living documents</li>
+</ul>
+<p>These are compatible roles.</p>
+<h4>The missing rule</h4>
+<p>The docs should explicitly say:</p>
+<ul>
+<li>editorial brief = input</li>
+<li>persona doc in <code>packages/content-engine/personas/</code> = canonical operational source</li>
+<li>any change to the brief must be reflected in the persona</li>
+</ul>
+<p>Without that, drift is inevitable.</p>
+<h4>Verdict</h4>
+<p><strong>Consistent, but source-of-truth governance still needs one explicit sentence.</strong></p>
+<hr>
+<h3>8. What is the end-to-end flow for a new building?</h3>
+<p>Here is the integrated flow as the three docs currently imply it.</p>
+<h4>Step 1: Building enters shared Supabase</h4>
+<p>From monorepo design / implementation:</p>
+<ul>
+<li>building is stored in shared <code>buildings</code> / <code>apartments</code></li>
+<li><code>domain_visibility</code> defaults empty</li>
+<li>ops assigns domains explicitly</li>
+</ul>
+<h4>Step 2: Domain eligibility is established</h4>
+<p><code>createDomainClient</code> will expose the building only to assigned domains.</p>
+<h4>Step 3: Domain-specific enrichment runs</h4>
+<p>From content engine:</p>
+<ul>
+<li>LA enrichment computes CQS, amenity completeness, lifestyle radius, management digest, event calendar, operational inference</li>
+<li>Lofts enrichment computes character index, CNS, adaptive reuse, light profile, biography</li>
+</ul>
+<h4>Step 4: Entity-domain fit gate runs</h4>
+<p>From engine Section 8:</p>
+<ul>
+<li>STRONG / MODERATE / WEAK / NO FIT</li>
+<li>determines full editorial, summary, listing-only, or omit</li>
+</ul>
+<h4>Step 5: Content generation runs</h4>
+<p>Per domain + route class:</p>
+<ul>
+<li>persona + shared data + enrichment data + route strategy</li>
+<li>produces domain-specific page content</li>
+</ul>
+<h4>Step 6: Validation council runs</h4>
+<p>Stages 0–7:</p>
+<ul>
+<li>provenance</li>
+<li>fit</li>
+<li>similarity</li>
+<li>persona</li>
+<li>unique value</li>
+<li>factual/provenance</li>
+<li>fair housing</li>
+<li>editorial quality</li>
+</ul>
+<h4>Step 7: Candidate content is stored</h4>
+<p>Implied in <code>*_editorial_content</code></p>
+<p>This is where the docs become weaker. There should be an explicit lifecycle such as:</p>
+<ul>
+<li>generated</li>
+<li>validated</li>
+<li>previewed</li>
+<li>published</li>
+<li>stale</li>
+<li>archived</li>
+</ul>
+<p>That lifecycle is still not formally defined.</p>
+<h4>Step 8: Preview/render validation should run</h4>
+<p>This is the missing-but-required step:</p>
+<ul>
+<li>render composed page in preview</li>
+<li>run final similarity/compliance extraction</li>
+<li>if pass, continue</li>
+</ul>
+<p>The docs do not fully codify this yet.</p>
+<h4>Step 9: Publish event fires</h4>
+<p>Should:</p>
+<ul>
+<li>mark content published</li>
+<li>call domain app revalidation</li>
+<li>invalidate page + related aggregate tags</li>
+</ul>
+<p>Only partially specified today.</p>
+<h4>Step 10: App renders page</h4>
+<p>Monorepo app composes:</p>
+<ul>
+<li>shared data from <code>createDomainClient</code></li>
+<li>editorial/enrichment data from app-local query layer</li>
+<li>templates with factual/editorial region markup</li>
+</ul>
+<h4>Step 11: Freshness lifecycle</h4>
+<p>From engine Section 13:</p>
+<ul>
+<li>weekly cron</li>
+<li>stale detection</li>
+<li>re-enrichment</li>
+<li>regeneration</li>
+<li>archive prior version</li>
+<li>republish if valid</li>
+</ul>
+<h4>Where the flow is still weak</h4>
+<ul>
+<li>editorial/enrichment schema</li>
+<li>content state machine</li>
+<li>preview gate</li>
+<li>revalidation specificity</li>
+<li>orchestration runner</li>
+</ul>
+<h4>Verdict</h4>
+<p><strong>The end-to-end flow is mostly reconstructable and coherent.</strong></p>
+<p>What’s missing is not the conceptual journey, but the <strong>operational glue</strong>.</p>
+<hr>
+<h3>9. What is missing from the complete system?</h3>
+<p>These are the major cross-document gaps still left open.</p>
+<h4>A. Explicit SQL schemas</h4>
+<p>Still the biggest concrete omission.</p>
+<h4>B. Content publish state machine</h4>
+<p>Still not formalized.</p>
+<h4>C. Content engine roadmap placement</h4>
+<p>Still absent from implementation phases.</p>
+<h4>D. Orchestration architecture</h4>
+<p>Not clearly assigned to:</p>
+<ul>
+<li>worker app</li>
+<li>queue system</li>
+<li>cron + functions</li>
+<li>Trigger.dev / Inngest</li>
+<li>GitHub Actions</li>
+<li>Supabase Edge Functions</li>
+</ul>
+<h4>E. Runtime preview/rendered validation path</h4>
+<p>Needed to close the Forge bypass seam.</p>
+<h4>F. Rendering contract</h4>
+<p>The engine says it outputs editorial page content, but:</p>
+<ul>
+<li>markdown?</li>
+<li>MDX?</li>
+<li>typed JSON blocks?</li>
+<li>section objects?</li>
+</ul>
+<p>Given the monorepo’s architecture, <strong>typed JSON blocks</strong> are the right answer, but it is still not explicitly specified.</p>
+<h4>G. Admin/editor workflow</h4>
+<p>Still no full answer to:</p>
+<ul>
+<li>who reviews REJECTs</li>
+<li>how humans edit content</li>
+<li>how manual changes re-enter validation</li>
+<li>how provenance/compliance is surfaced</li>
+</ul>
+<h4>H. Shared threshold/config source</h4>
+<p>Council Stage 2 and monorepo CI should use one source of truth.</p>
+<h4>I. Ingress-layer compliance controls</h4>
+<p>Still needed for manual content paths.</p>
+<h4>J. Content observability</h4>
+<p>Need dashboards for:</p>
+<ul>
+<li>stale content</li>
+<li>failed validations</li>
+<li>fair housing failures</li>
+<li>similarity regressions</li>
+<li>validated-but-unpublished backlog</li>
+</ul>
+<hr>
+<h3>10. Honest overall assessment</h3>
+<h4>Score: 8.8/10</h4>
+<p>This is now <strong>a strong integrated design</strong>. The revised monorepo docs fixed many of the earlier structural concerns, and the content engine is much more serious than a typical “AI content layer” design. The overall system is coherent enough that I would approve the direction.</p>
+<h4>Why not 9.5+</h4>
+<p>Because the remaining gaps are not cosmetic. They are operating-model gaps:</p>
+<ul>
+<li>no explicit editorial/enrichment schemas</li>
+<li>no formal publish lifecycle</li>
+<li>no implementation phase for the engine</li>
+<li>no runtime-safe preview gate for Forge-driven changes</li>
+<li>no manual-ingress Fair Housing enforcement</li>
+<li>no fully defined render contract</li>
+</ul>
+<h4>What would move it up</h4>
+<ul>
+<li><strong>Define all enrichment/editorial table schemas</strong></li>
+<li><strong>Add Phase 4.5 for the content engine</strong></li>
+<li><strong>Formalize content statuses and transition rules</strong></li>
+<li><strong>Require preview/render validation before indexed publish</strong></li>
+<li><strong>Define block-based render contract with role + provenance metadata</strong></li>
+<li><strong>Add manual/admin compliance gates</strong></li>
+<li><strong>Specify orchestration infrastructure</strong></li>
+</ul>
+<h4>Final judgment</h4>
+<p>The system is no longer “hand-wavy architecture art.” It is now mostly coherent. But it still needs one more pass focused purely on <strong>operations and contracts</strong>, not strategy.</p>
+<p><strong>Approve directionally, but not yet as a zero-ambiguity implementation package.</strong></p>
+  </div>
+</div>
+<div class="participant-block open">
+  <div class="participant-header" onclick="this.parentElement.classList.toggle('open')">
+    <span class="name">google/gemini-3.1-pro-preview@openrouter</span>
+    <span>
+      <span class="chars">58 chars</span>
+      <span class="toggle">&#9654;</span>
+    </span>
+  </div>
+  <div class="participant-body">
+    <p style="color: var(--red)">[ERROR: TypeError: object of type &#x27;NoneType&#x27; has no len()]</p>
+  </div>
+</div>
+<div class="participant-block open">
+  <div class="participant-header" onclick="this.parentElement.classList.toggle('open')">
+    <span class="name">x-ai/grok-4.20-beta@openrouter</span>
+    <span>
+      <span class="chars">8,659 chars</span>
+      <span class="toggle">&#9654;</span>
+    </span>
+  </div>
+  <div class="participant-body">
+    <p><strong>VOTE:</strong> {&quot;option&quot;: &quot;Approve with integration revisions&quot;, &quot;confidence&quot;: 0.89, &quot;rationale&quot;: &quot;The three documents now form a coherent, production-viable architecture with strong structural/substantive separation. Critical seams around explicit schemas, publish state machine, content-engine phase placement, Forge-to-CI gate, and manual-ingress Fair Housing controls remain, but are all well-scoped and fixable. Fixing them would raise the integrated system to 9.3/10.&quot;}</p>
+<h4>1. Content engine output ↔ monorepo data layer</h4>
+<p><strong>Partially connected — architecturally correct but contractually incomplete.</strong></p>
+<p>The monorepo explicitly carves out per-domain editorial tables (<code>la_editorial_content</code>, <code>ll_editorial_content</code>, <code>la_building_enrichments</code>, etc.) to live in <code>apps/*/src/lib/data/</code> rather than <code>packages/data/createDomainClient</code>. That boundary is correct and stated in both the monorepo design (Section 3) and content engine (Layer 4).</p>
+<p><strong>Missing pieces:</strong></p>
+<ul>
+<li>No concrete SQL DDL or TypeScript schema for the editorial/enrichment tables anywhere in the three documents.</li>
+<li>No documented revalidation contract for editorial changes (monorepo only documents <code>domain_visibility</code> webhook).</li>
+<li>No typed render contract mapping engine <code>content_json</code> (or MDX/blocks) into the Tier-2 templates.</li>
+</ul>
+<p>The connection is conceptually sound. It is not implementation-ready.</p>
+<h4>2. Validation systems overlap or conflict?</h4>
+<p><strong>Intentional and healthy overlap, but adjudication logic is absent.</strong></p>
+<p>Monorepo CI = post-build, rendered-HTML, <code>data-factual</code>/<code>data-editorial</code> stripped TF-IDF with route-class thresholds.  </p>
+<p>Content engine council = pre-publish, semantic 8-stage judge using provenance and entity-fit.</p>
+<p>A page can legitimately pass the council (good substance) yet fail CI (template chrome bleed, thin editorial region relative to shared factual blocks, extraction errors). This is useful defense-in-depth <strong>if</strong> the system states the precedence rule explicitly:</p>
+<p>&gt; Council pass is necessary but not sufficient. Rendered-page similarity (or staged preview validation) is the final gate for indexed content.</p>
+<p>It does not. Thresholds are also not centralized in a single config file, creating drift risk.</p>
+<h4>3. Content engine in monorepo phase structure?</h4>
+<p><strong>Still completely missing — the largest remaining planning gap.</strong></p>
+<p>The implementation plan (v5) ends at Phase 5 (D3 onboarding) with zero mention of <code>packages/content-engine/</code>, enrichment jobs, validation council, Forge, freshness cron, or editorial schemas. This is the exact criticism all previous reviewers made; v5 did not close it.</p>
+<p>It should be inserted as <strong>Phase 4.5</strong> (after manifest validator + content-similarity tool exist, before or alongside D3). Explicit tasks (schema/migrations, package scaffold, LA/Lofts pipelines, council, publish workflow, admin surfaces) are needed.</p>
+<h4>4. Forge optimization loop ↔ deployment?</h4>
+<p><strong>The most operationally dangerous seam — still risky.</strong></p>
+<p>Forge writes directly to Supabase editorial tables and triggers ISR revalidation. The monorepo’s strongest differentiation check runs only at build time. Therefore Forge-regenerated content can bypass the final rendered-page similarity CI.</p>
+<p>Two viable models exist; the documents do not choose one. A <strong>staged publish model</strong> (candidate → council → preview render + similarity check → <code>published</code> status → prod revalidation) is required for indexed content. As written, the system leans toward direct-to-prod.</p>
+<h4>5. Fair Housing at both layers?</h4>
+<p><strong>No. Generation-only enforcement is legally insufficient.</strong></p>
+<p>Engine Stage 6 is excellent (prohibited patterns, CNS carve-out, factual feature tags, personas-internal-only). However, the monorepo and database layer have zero gates for:</p>
+<ul>
+<li>Direct Supabase edits</li>
+<li>Admin CMS changes</li>
+<li>Seed scripts or migrations</li>
+<li>Future human writers</li>
+</ul>
+<p>Minimum required: a <code>fair_housing_status</code> column + DB constraint (or publish pipeline) that prevents <code>status = &#x27;published&#x27;</code> unless <code>fair_housing_status = &#x27;pass&#x27;</code>, plus a lightweight nightly audit.</p>
+<h4>6. `data-factual`/`data-editorial` vs provenance taxonomy?</h4>
+<p><strong>Orthogonal and should stay that way.</strong></p>
+<p><code>data-factual</code>/<code>data-editorial</code> = rendering/extraction classification for the similarity tool.  </p>
+<p><code>DETERMINISTIC/INFERENTIAL/SPECULATIVE</code> = epistemic claim classification for the council.</p>
+<p>A single paragraph can be <code>data-editorial</code> while containing DETERMINISTIC facts + INFERENTIAL analysis + SPECULATIVE opinion. The content block schema should carry <strong>both</strong> dimensions.</p>
+<p>The documents blur this slightly but it is not a breaking issue.</p>
+<h4>7. Editorial brief template vs persona documents?</h4>
+<p><strong>Compatible, but source-of-truth must be declared.</strong></p>
+<p>The implementation plan’s fill-in-the-blank template is a launch-gate human planning artifact. The content engine’s persona documents are the operational system prompts and validation judges’ reference.</p>
+<p><strong>Correct rule (needs to be stated explicitly):</strong> The editorial brief is the input document. The compiled persona document in <code>packages/content-engine/personas/{domain}.md</code> is the canonical operational artifact for both humans and AI. The brief is archived after conversion.</p>
+<h4>8. End-to-end flow for a new building?</h4>
+<p>The flow is mostly reconstructible but breaks at several seams:</p>
+<ul>
+<li>Building added to shared Supabase table + <code>domain_visibility</code> assigned (monorepo).</li>
+<li>Supabase Edge Function or cron detects new entity (unspecified trigger).</li>
+<li>Per-domain enrichment pipelines run → <code>la_building_enrichments</code> / <code>ll_*</code> (engine).</li>
+<li>Entity-domain fit gate decides FULL / SUMMARY / LISTING-ONLY / OMIT (engine §8).</li>
+<li>Content generation + 8-stage council (engine).</li>
+<li><strong>Gap:</strong> content written with <code>status</code> (schema + state machine missing).</li>
+<li><strong>Gap:</strong> publish gate / staged preview render + similarity check (Forge bypass risk).</li>
+<li>Content written to per-domain editorial table.</li>
+<li><strong>Gap:</strong> revalidation webhook with correct tags for editorial content (monorepo revalidation only documents <code>domain_visibility</code>).</li>
+</ul>
+<ul>
+<li>App reads via local <code>src/lib/data/</code> queries + composition manifest template.</li>
+</ul>
+<ul>
+<li>Build-time content similarity CI (only on code deploys, not content changes).</li>
+</ul>
+<p>Steps 2, 6, 7, 9 are underspecified or missing.</p>
+<h4>9. What is missing from the complete system?</h4>
+<p>Critical cross-document gaps:</p>
+<ul>
+<li>Explicit SQL DDL + TypeScript interfaces for all editorial/enrichment tables.</li>
+<li>Content publish state machine (<code>draft</code> → <code>validated</code> → <code>previewed</code> → <code>published</code> → <code>stale</code>).</li>
+<li>Placement of <code>packages/content-engine/</code> in the implementation plan (Phase 4.5).</li>
+<li>Staged publish / preview-render gate to close the Forge → CI bypass.</li>
+<li>Job orchestration layer (cron/queue/Edge Functions) for enrichment, generation, validation, freshness.</li>
+<li>Admin/editorial workflow for REJECTs and manual edits with compliance re-validation.</li>
+<li>Render contract (JSON block schema carrying both <code>role</code> and <code>provenance</code>).</li>
+<li>Single source of truth for route-class thresholds shared by council and CI.</li>
+<li>Fair Housing enforcement at DB/admin ingress (not just generation).</li>
+<li>Observability (stale content, rejection rate, similarity regressions, orphan detection).</li>
+</ul>
+<h4>10. Honest overall assessment</h4>
+<p><strong>Integrated-system score: 8.4/10</strong> (up from previous rounds’ 7–7.7 range).</p>
+<p><strong>Strengths</strong>  </p>
+<ul>
+<li>The architectural split (monorepo = structural enforcement, engine = substantive enforcement) is exactly right.</li>
+<li><code>domain_visibility</code> opt-in, per-domain editorial tables, content similarity CI with <code>data-factual/editorial</code>, entity-fit gate, provenance taxonomy, and Fair Housing rules show sophisticated thinking.</li>
+<li>v5 revisions incorporated most previous council feedback.</li>
+</ul>
+<p><strong>Weaknesses</strong>  </p>
+<p>Five critical seams remain that would cause undefined behavior or compliance risk if built exactly as written today: missing schemas + state machine, no content-engine phase, Forge bypass of final validation, incomplete Fair Housing controls, and no render contract.</p>
+<p>These are all well-understood and narrowly scoped. They are not conceptual flaws — they are integration specifications that were never written.</p>
+<p><strong>What would move it to 9.3+</strong>  </p>
+<ul>
+<li>Add the five missing schemas and the publish state machine.</li>
+<li>Insert Phase 4.5 + concrete tasks into the implementation plan.</li>
+<li>Define a staged-publish preview gate for indexed content.</li>
+<li>Add lightweight Fair Housing gate + nightly audit at the platform layer.</li>
+<li>Document the block-based render contract carrying both role and provenance.</li>
+</ul>
+<p>The machine has the right parts. The assembly instructions are now 85% complete. With the remaining integration revisions, this becomes one of the more thoughtful multi-brand SEO/content architectures in the industry.</p>
+  </div>
+</div>
+</div>
+
+<hr>
+<div class="meta">
+  Generated by <strong>ai-counsel</strong> &middot;
+  Participants: opus@claude, openai/gpt-5.4@openrouter, google/gemini-3.1-pro-preview@openrouter, x-ai/grok-4.20-beta@openrouter
+</div>
+</body>
+</html>

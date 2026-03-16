@@ -1,0 +1,1361 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI Council Deliberation — Architecture Review</title>
+<style>
+  :root {
+    --bg: #0f172a;
+    --surface: #1e293b;
+    --surface-elevated: #334155;
+    --border: #475569;
+    --text: #e2e8f0;
+    --text-muted: #94a3b8;
+    --accent: #3b82f6;
+    --green: #22c55e;
+    --yellow: #eab308;
+    --red: #ef4444;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    padding: 2rem;
+    max-width: 1100px;
+    margin: 0 auto;
+  }
+  h1 { font-size: 1.75rem; margin-bottom: 0.5rem; }
+  h2 { font-size: 1.35rem; margin: 1.5rem 0 0.75rem; color: var(--accent); }
+  h3 { font-size: 1.15rem; margin: 1.25rem 0 0.5rem; }
+  h4 { font-size: 1rem; margin: 1rem 0 0.5rem; color: var(--text-muted); }
+  p { margin: 0.5rem 0; }
+  hr { border: none; border-top: 1px solid var(--border); margin: 1.5rem 0; }
+  ul { margin: 0.5rem 0 0.5rem 1.5rem; }
+  li { margin: 0.25rem 0; }
+  code {
+    background: var(--surface-elevated);
+    padding: 0.15rem 0.4rem;
+    border-radius: 3px;
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+    font-size: 0.85em;
+  }
+  pre {
+    background: var(--surface-elevated);
+    padding: 1rem;
+    border-radius: 6px;
+    overflow-x: auto;
+    margin: 0.75rem 0;
+  }
+  pre code { background: none; padding: 0; }
+  strong { color: #f1f5f9; }
+
+  .meta { color: var(--text-muted); font-size: 0.85rem; margin-bottom: 1.5rem; }
+  .summary-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1.25rem 1.5rem;
+    margin: 1rem 0;
+  }
+  .summary-box h2 { margin-top: 0; }
+  .vote-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 0.75rem;
+    margin: 1rem 0;
+  }
+  .vote-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 0.75rem 1rem;
+    border-left: 4px solid var(--accent);
+  }
+  .vote-card .participant { font-weight: 600; font-size: 0.9rem; }
+  .vote-card .option { font-size: 0.85rem; margin-top: 0.25rem; }
+  .vote-card .confidence { font-size: 0.8rem; color: var(--text-muted); }
+  .vote-card .rationale { font-size: 0.8rem; color: var(--text-muted); margin-top: 0.25rem; font-style: italic; }
+
+  .round-section {
+    margin: 1.5rem 0;
+  }
+  .participant-block {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    margin: 0.75rem 0;
+    overflow: hidden;
+  }
+  .participant-header {
+    background: var(--surface-elevated);
+    padding: 0.6rem 1rem;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    user-select: none;
+  }
+  .participant-header:hover { background: #3b4f6b; }
+  .participant-header .name { font-weight: 600; }
+  .participant-header .chars { font-size: 0.8rem; color: var(--text-muted); }
+  .participant-header .toggle { font-size: 0.8rem; color: var(--text-muted); }
+  .participant-body {
+    padding: 1rem 1.25rem;
+    display: none;
+  }
+  .participant-block.open .participant-body { display: block; }
+  .participant-block.open .toggle { transform: rotate(90deg); }
+
+  .convergence {
+    display: inline-block;
+    background: var(--surface-elevated);
+    padding: 0.25rem 0.6rem;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+  }
+  .tag {
+    display: inline-block;
+    padding: 0.15rem 0.5rem;
+    border-radius: 3px;
+    font-size: 0.75rem;
+    font-weight: 600;
+  }
+</style>
+</head>
+<body>
+<h1>AI Council Deliberation</h1>
+<div class="meta">
+  2026-03-15 18:55 &middot;
+  Mode: conference &middot;
+  Rounds: 2 &middot;
+  <span class="convergence">majority_decision</span>
+</div>
+
+<div class="summary-box">
+<h2>Consensus</h2>
+<p>All four models reached strong consensus that the content differentiation engine works — the two editorial pages are genuinely distinct products serving different readers, answering different questions, with non-overlapping analytical frameworks. The vote was unanimous approval (0.88–0.95 confidence across all participants in both rounds).</p>
+<h3>Key Agreements</h3><ul>
+<li>Both pages are substantively differentiated, not cosmetically — different scoring systems (Concierge Quality Score vs. Character Index), different comparison universes (luxury competitors vs. architectural peers), different expertise signals (Glassdoor wage data vs. AIA award history)</li>
+<li>Domain A and Domain B are instantly identifiable without labels: A is a luxury residential decision tool, B is architectural/loft criticism</li>
+<li>Both pages justify independent existence and teach readers genuinely non-overlapping things — the &quot;learned something different&quot; test passes cleanly</li>
+<li>The provenance labeling system is more transparent than standard real estate content, but imperfect: some inferential claims about developer intent are labeled INFERENTIAL when SPECULATIVE is more accurate</li>
+<li>The ideal test specimen caveat: 360 Newbury is a perfect two-domain building; the engine still needs stress-testing on buildings that favor one domain heavily</li>
+</ul>
+<h3>Key Disagreements</h3><ul>
+<li><strong>Publication independence vs. sibling verticals:</strong> GPT-5.4 and Gemini were more skeptical, scoring differentiation 7.7 and 8.5 respectively and emphasizing that the shared structural DNA (identical section cadence, same score-card logic, same prose register) would read as &quot;one company with two themes&quot; to a Quality Rater. Opus and Grok scored differentiation 8.5–9.0 and argued the analytical divergence is sufficient to pass as distinct specialist publications.</li>
+<li><strong>Severity of shared template fingerprint:</strong> Minor disagreement on whether visible structural similarity is an acceptable publisher-network trait or a meaningful limitation to address.</li>
+</ul>
+<h3>Final Recommendation</h3>
+<p>The content differentiation engine is validated — proceed. The next sausage test should deliberately use a building that is strong-fit for one domain and thin-fit for the other (e.g., a new-construction luxury tower with no architectural history, or a raw industrial conversion with no amenities), to confirm the engine maintains editorial quality when source data is asymmetric. Separately, reduce the shared template signature — varying section cadence and tonal register between domains would push differentiation from &quot;strong verticals within one publisher&quot; toward &quot;genuinely independent publications.&quot;</p>
+</div>
+<h2>Votes</h2>
+<div class="vote-grid">
+<div class="vote-card" style="border-left-color: #22c55e">
+  <div class="participant">opus@claude</div>
+  <div class="option" style="color: #22c55e">Approve — content engine differentiation is proven</div>
+  <div class="confidence">Confidence: 90%</div>
+  <div class="rationale">Genuinely distinct editorial products from identical data. Different analytical frameworks, scoring systems, comparison universes, expertise domains, and reader utility. Differentiation is structural,</div>
+</div>
+<div class="vote-card" style="border-left-color: #22c55e">
+  <div class="participant">openai/gpt-5.4@openrouter</div>
+  <div class="option" style="color: #22c55e">Approve — differentiation is proven, with shared-network caveat</div>
+  <div class="confidence">Confidence: 91%</div>
+  <div class="rationale">The two pages are substantively different in framework, audience, and utility, but they still show a shared template and tonal fingerprint that reads more like sister verticals than fully independent </div>
+</div>
+<div class="vote-card" style="border-left-color: #22c55e">
+  <div class="participant">google/gemini-3.1-pro-preview@openrouter</div>
+  <div class="option" style="color: #22c55e">Approve - Engine Validated</div>
+  <div class="confidence">Confidence: 95%</div>
+  <div class="rationale">The engine successfully applied fundamentally different analytical lenses to identical data, creating non-redundant, highly targeted editorial value. The differentiation is structural and conceptual, </div>
+</div>
+<div class="vote-card" style="border-left-color: #22c55e">
+  <div class="participant">x-ai/grok-4.20-beta@openrouter</div>
+  <div class="option" style="color: #22c55e">Approve — content engine differentiation is proven</div>
+  <div class="confidence">Confidence: 91%</div>
+  <div class="rationale">Genuinely distinct analytical frameworks, scoring systems, expertise signals, and reader value from identical source data. Structural differentiation exceeds cosmetic changes.</div>
+</div>
+</div>
+<div class="round-section">
+<h2>Round 1</h2>
+<div class="participant-block">
+  <div class="participant-header" onclick="this.parentElement.classList.toggle('open')">
+    <span class="name">opus@claude</span>
+    <span>
+      <span class="chars">14,507 chars</span>
+      <span class="toggle">&#9654;</span>
+    </span>
+  </div>
+  <div class="participant-body">
+    <h3>Sausage Test Evaluation — 360 Newbury Street</h3>
+<h4>1. Are these genuinely different editorial products?</h4>
+<p>Yes. This is not a vocabulary swap. The two pages ask fundamentally different questions about the same building.</p>
+<p><strong>Domain A asks:</strong> &quot;Is this a good place to live at this price point?&quot; It evaluates the building as a consumer product — service quality, amenity completeness, neighborhood convenience, management reliability. The Concierge Quality Score (74/100) and Amenity Completeness (11/20) are shopping tools. The Lifestyle Radius section is a purchase-decision framework.</p>
+<p><strong>Domain B asks:</strong> &quot;What is this building, architecturally and historically, and what does living in it feel like?&quot; It evaluates the building as a designed object — ceiling proportions, light behavior, adaptive reuse quality, creative neighborhood density. The Character Index (82/100) and Adaptive Reuse Grade (B) are critical assessments of architectural integrity.</p>
+<p>These serve different decision-making processes. A reader choosing between 360 Newbury and The Clarendon on amenity value needs Domain A. A reader choosing between 360 Newbury and a Fort Point loft on spatial character needs Domain B.</p>
+<h4>2. Could you identify which domain each belongs to without being told?</h4>
+<p>Immediately.</p>
+<p><strong>Domain A signals:</strong> &quot;Concierge Quality Score,&quot; &quot;Amenity Completeness: 11 of 20 Standard Luxury Amenities,&quot; &quot;Lifestyle Radius,&quot; &quot;Management Track Record,&quot; Glassdoor salary data ($16/hour), hotel-branded residence comparisons (Mandarin Oriental). This is a luxury residential evaluation platform. The analytical framework treats concierge service as a differentiator and measures neighborhood walkability as an amenity substitute. Every section serves a &quot;should I lease/buy here&quot; decision.</p>
+<p><strong>Domain B signals:</strong> &quot;Building Biography,&quot; &quot;Character Index,&quot; &quot;Adaptive Reuse Grade,&quot; &quot;Light Profile,&quot; &quot;Creative Neighborhood Score,&quot; comparisons to 42 Laight Street in NYC and Fort Point industrial conversions. This is an architecture/design-oriented loft publication. The analytical framework treats spatial proportions and material authenticity as primary values. The Creative Neighborhood Score measures gallery density and maker spaces — metrics irrelevant to a pure luxury shopper.</p>
+<p>The comparables alone are diagnostic. Domain A compares to One Back Bay and Mandarin Oriental (luxury competitors). Domain B compares to Fort Point mills and a Gehry conversion in Tribeca (architectural peers). These are different reference universes.</p>
+<h4>3. Would a Google Quality Rater see these as independent publications?</h4>
+<p>A competent Quality Rater would see these as independent publications, with one caveat.</p>
+<p><strong>Evidence of independence:</strong></p>
+<ul>
+<li>Different analytical frameworks (neither domain's scoring system appears in the other)</li>
+<li>Different expertise signals (Domain A knows Glassdoor compensation data and hotel-brand concierge standards; Domain B knows AIA awards, Pritzker Prize context, and light physics)</li>
+<li>Different comparison sets (luxury buildings vs. architectural conversions)</li>
+<li>Different value judgments about the same facts (Domain A treats the absence of a gym as an amenity gap; Domain B doesn't mention it because it's irrelevant to architectural character)</li>
+<li>Different neighborhood analysis (Domain A counts Michelin restaurants; Domain B counts galleries and maker spaces)</li>
+</ul>
+<p><strong>The caveat:</strong> Both pages use the same provenance labeling system (DETERMINISTIC/INFERENTIAL/SPECULATIVE tags), the same specs table format, and similar structural conventions (scored metrics, comparison sections). A very attentive rater might notice the shared infrastructure. But the editorial voice, analytical depth, and subject-matter expertise are sufficiently distinct that this reads as two publications with a shared data supplier, not one publication with two skins.</p>
+<h4>4. Does each page justify its own existence?</h4>
+<p><strong>Domain A — yes.</strong> The Concierge Quality Score analysis (pulling Glassdoor data, noting $16/hour wages and 3.3/5 rating, comparing to in-house concierge standards) is genuinely useful consumer intelligence that doesn&#x27;t exist elsewhere for this building. The Amenity Completeness checklist against a 20-item standard is a practical comparison tool. The Lifestyle Radius section contextualizes the amenity gaps. This page helps someone decide whether to pay $5,500/month for a building with no gym.</p>
+<p><strong>Domain B — yes.</strong> The Character Index decomposition (scoring ceiling height at 95 but interior materials at 30) tells an architectural story no luxury listing would surface: the building has exceptional bones but generic-luxury finishes. The Adaptive Reuse Grade articulating what was preserved vs. lost is genuine architectural criticism. The Light Profile section — explaining how the Gehry canopy diffracts afternoon light on lower floors — is the kind of observation that requires understanding both architecture and optics. This page helps someone decide whether 360 Newbury is a real loft conversion or a luxury condo wearing a loft costume.</p>
+<p>Neither page is filler. Both would be missed.</p>
+<h4>5. What would a user learn from Domain A that they can&#x27;t learn from Domain B? And vice versa?</h4>
+<p><strong>Domain A exclusive insights:</strong></p>
+<ul>
+<li>Tillinger's is a third-party concierge, not in-house, with high staff turnover and $16/hour wages</li>
+<li>The building has only 11 of 20 standard luxury amenities (no gym, pool, rooftop, co-working, pet spa, bike storage, EV charging)</li>
+<li>The developer deliberately traded communal amenities for unit-level finishes — a strategic bet, not an oversight</li>
+<li>8 notable restaurants within 0.6 miles including 3 Michelin-recommended</li>
+<li>The building's management optimizes for cost over retention in service staffing</li>
+</ul>
+<p><strong>Domain B exclusive insights:</strong></p>
+<ul>
+<li>The 1918 Wurlitzer showroom's commercial requirements (tall ceilings for acoustic presence, large windows for display) are the source of the residential features</li>
+<li>Gehry's 1989 canopy won AIA Top 19 Works of the Year in 1991</li>
+<li>Interior material character scores 30/100 — every original surface was replaced</li>
+<li>The deep floor plates create a spatial quality (voluminous rather than elongated rooms) that modern narrow floor plates can't replicate</li>
+<li>Back Bay's creative ecosystem is curatorial, not generative — galleries showing work, not studios making it</li>
+<li>The Gehry canopy creates diffracted light patterns on lower floors — an architectural light effect</li>
+</ul>
+<p>These are genuinely non-overlapping knowledge sets.</p>
+<h4>6. Where do the pages overlap most?</h4>
+<p><strong>The Specs section</strong> is near-identical (expected — it&#x27;s deterministic data from the same row). Domain B adds architect, developer, original use, and ceiling height; Domain A omits these. Minor differentiation.</p>
+<p><strong>The comparisons sections</strong> share structural logic (three bullet-point comparisons) but compare to entirely different buildings. No content overlap.</p>
+<p><strong>The lede descriptions of the building</strong> both reference the same physical facts — Carrara marble, Sub-Zero, 12-foot ceilings, Gehry — but frame them differently. Domain A leads with &quot;location-first luxury play&quot; and critiques the amenity gaps. Domain B leads with &quot;1918 Wurlitzer showroom wearing Frank Gehry&#x27;s steel wings&quot; and critiques the interior authenticity. Same data points, different frames.</p>
+<p><strong>The concierge/management discussion</strong> overlaps slightly. Both mention Tillinger&#x27;s. Domain A dedicates two full sections to it (CQS + Management Track Record). Domain B barely mentions it. This is appropriate — concierge quality matters to Domain A&#x27;s framework but is irrelevant to Domain B&#x27;s.</p>
+<p>The overlap is minimal and mostly limited to deterministic facts that any competent page about this building would include.</p>
+<h4>7. Is the provenance labeling honest?</h4>
+<p><strong>Mostly yes, with two soft concerns.</strong></p>
+<p><strong>Honest labels:</strong></p>
+<ul>
+<li>The Amenity Completeness section (Domain A) is correctly labeled DETERMINISTIC — it's a checklist.</li>
+<li>The Building Biography (Domain B) is correctly labeled INFERENTIAL — it reconstructs narrative from architectural records.</li>
+<li>The Creative Neighborhood Score (Domain B) is correctly labeled DETERMINISTIC — it's venue-count data from APIs.</li>
+<li>The Specs sections are correctly DETERMINISTIC.</li>
+</ul>
+<p><strong>Soft concerns:</strong></p>
+<ul>
+<li><strong>Domain A's "The Living Experience" is labeled INFERENTIAL</strong> but contains claims that are closer to SPECULATIVE. "The developer spent the amenity budget on Carrara marble bathrooms" — this is an inference about developer intent with no sourced evidence. It's a plausible reading but it's editorial speculation dressed as inference. More honest label: MIXED or SPECULATIVE for the intent claims.</li>
+</ul>
+<ul>
+<li><strong>Domain B's Light Profile is labeled MIXED</strong> (computed from orientation + observational). The line about Gehry's canopy creating "patterns that shift through the afternoon" is observational — but was this actually observed, or inferred from the canopy's geometry? If this is the AI extrapolating from architectural drawings rather than site visit data, "INFERENTIAL" would be more honest than "observational." The distinction matters: a reader trusts "observational" as firsthand.</li>
+</ul>
+<p>Neither concern is a deal-breaker. The labeling system is more transparent than 95% of real estate editorial. But the team should tighten the distinction between &quot;plausible inference&quot; and &quot;editorial speculation&quot; in the pipeline.</p>
+<h4>8. Scores</h4>
+<p><strong>Domain A editorial quality: 8/10</strong></p>
+<p>Strong consumer intelligence product. The Concierge Quality Score with Glassdoor cross-referencing is genuinely novel analysis. The Lifestyle Radius section effectively contextualizes the amenity gap argument. The &quot;What CQS does NOT measure&quot; disclaimer is a strong trust signal. Minor deductions: the Operational Inference section feels like padding (it restates what the earlier sections already established), and the opening paragraph of The Living Experience is overly writerly for what is otherwise a data-driven product.</p>
+<p><strong>Domain B editorial quality: 9/10</strong></p>
+<p>Exceptional architectural criticism for a property listing format. The Character Index decomposition — scoring bones at 90+ but interiors at 30 — is a sharp, original insight. The Adaptive Reuse Grade provides a framework rarely applied to residential listings. The Light Profile section demonstrates genuine architectural literacy. The Creative Neighborhood Score&#x27;s distinction between &quot;curatorial vs. generative&quot; creative ecosystems is sophisticated editorial thinking. Minor deduction: the Building Biography could be tighter (the Tower Records paragraph adds atmosphere but no analytical value).</p>
+<p><strong>Differentiation score: 9/10</strong></p>
+<p>These are substantively different editorial products. Different analytical frameworks, different scoring systems, different comparison sets, different expertise domains, different reader personas, different decision-making contexts. The shared data source is invisible in the output. The one point deducted is for the structural similarity (both use scored metrics with denominators, both have three-item comparison sections, both end with identical-format spec tables) — a reader encountering both would notice the templating.</p>
+<h4>9. What&#x27;s missing from each page?</h4>
+<p><strong>Domain A is missing:</strong></p>
+<ul>
+<li><strong>Noise/livability data.</strong> 360 Newbury sits at the intersection of Newbury and Mass Ave — one of the loudest corners in Back Bay. A luxury evaluation platform should address street noise, especially for a building with enormous windows. Sound insulation quality is a material amenity fact.</li>
+<li><strong>Actual resident sentiment.</strong> The page cross-references Glassdoor (employee reviews) but not Google Reviews or resident forums for the building itself. What do people who live here actually say?</li>
+<li><strong>Price-per-square-foot context.</strong> At $800K for 705 sqft (1BR), this is $1,135/sqft. How does that compare to the buildings in the comparison set? The luxury shopper needs this number.</li>
+</ul>
+<p><strong>Domain B is missing:</strong></p>
+<ul>
+<li><strong>Interior photography analysis.</strong> The page critiques the interior finishes as "generic-luxury" but doesn't examine the actual spatial design decisions — how do the deep floor plates actually get laid out? Are the open plans successful? Do the kitchens work in the proportions?</li>
+<li><strong>Acoustic character.</strong> A 1918 commercial building with 12-foot ceilings and hard surfaces (marble, hardwood, glass) has acoustic properties — likely echoey. For a publication that cares about how a space <em>feels</em>, sound character matters as much as light character.</li>
+<li><strong>Material provenance.</strong> The page notes Carrara marble but doesn't interrogate it. Is this bookmatched slab or standard tile? The distinction matters to the reader who cares about material authenticity — which is Domain B's stated audience.</li>
+</ul>
+<h4>10. Does this test prove the content engine can work?</h4>
+<p><strong>Yes, with a qualification.</strong></p>
+<p><strong>What it proves:</strong> A single database row can feed two editorial pipelines that produce genuinely distinct, independently valuable analyses of the same property. The differentiation is not cosmetic — it&#x27;s structural. The two pages serve different readers, answer different questions, and draw on different enrichment data (Glassdoor + amenity checklists vs. AIA awards + architectural history + light physics). A user who reads both pages learns substantially more than a user who reads either one alone, and neither page makes the other redundant.</p>
+<p><strong>The qualification:</strong> This test uses a perfect specimen. 360 Newbury is a Pritzker Prize architect&#x27;s intervention on a 1918 commercial building with genuine loft proportions <em>and</em> luxury finishes <em>and</em> a famous concierge brand <em>and</em> a premier address. Both domains have abundant material to work with. The real test is a building where one domain has rich material and the other has thin material — say, a new-construction luxury tower with no architectural history (thin for Domain B) or a converted warehouse with no concierge and minimal amenities (thin for Domain A). Can the engine produce quality editorial when the data favors one domain heavily?</p>
+<p>The engine works. The next sausage test should use a building that stress-tests the weak side of each domain.</p>
+<hr>
+  </div>
+</div>
+<div class="participant-block">
+  <div class="participant-header" onclick="this.parentElement.classList.toggle('open')">
+    <span class="name">openai/gpt-5.4@openrouter</span>
+    <span>
+      <span class="chars">13,685 chars</span>
+      <span class="toggle">&#9654;</span>
+    </span>
+  </div>
+  <div class="participant-body">
+    <ul>
+<li><strong>Are these genuinely different editorial products?</strong></li>
+</ul>
+<p>Yes, mostly. They are meaningfully differentiated in <strong>editorial lens, evaluative framework, and user utility</strong>.</p>
+<ul>
+<li><strong>Domain A</strong> is a <strong>luxury-residential decision page</strong>. It asks: <em>Is this a good luxury living product for the price and location?</em> It foregrounds concierge quality, amenity completeness, lifestyle radius, management quality, and comparison to other luxury buildings.</li>
+<li><strong>Domain B</strong> is an <strong>architecture/adaptive-reuse/loft-character page</strong>. It asks: <em>Is this an architecturally meaningful building with authentic loft character?</em> It foregrounds building biography, character index, adaptive reuse grade, light profile, creative neighborhood score, and spatial analysis.</li>
+</ul>
+<p>That is real differentiation, not just synonym swapping. The implied reader is different:</p>
+<ul>
+<li>A = affluent renter/buyer choosing between luxury buildings</li>
+<li>B = loft/design/architecture-minded buyer who cares about provenance, volume, light, and authenticity</li>
+</ul>
+<p>That said, they still share some structural DNA strongly enough that I would not call them fully independent publications without caveats.</p>
+<hr>
+<ul>
+<li><strong>Could you identify which domain each belongs to without being told? What signals tell you?</strong></li>
+</ul>
+<p>Yes, very easily.</p>
+<h4>Domain A signals</h4>
+<ul>
+<li>Opening thesis is practical and market-facing: “location-first luxury play”</li>
+<li>Metrics like:</li>
+<li>Concierge Quality Score</li>
+<li>Amenity Completeness</li>
+<li>Lifestyle Radius</li>
+<li>Management Track Record</li>
+<li>Repeated framing around:</li>
+<li>luxury standard</li>
+<li>hotel-style service</li>
+<li>amenity tradeoffs</li>
+<li>whether the building “justifies” its price point</li>
+</ul>
+<p>This clearly belongs to a <strong>luxury apartments / high-end residential guide</strong>.</p>
+<h4>Domain B signals</h4>
+<ul>
+<li>Opening thesis is architectural and interpretive: “Wurlitzer showroom wearing Frank Gehry’s steel wings”</li>
+<li>Metrics like:</li>
+<li>Character Index</li>
+<li>Adaptive Reuse Grade</li>
+<li>Light Profile</li>
+<li>Creative Neighborhood Score</li>
+<li>Spatial Analysis</li>
+<li>Language like:</li>
+<li>“spatial bones”</li>
+<li>“material expression”</li>
+<li>“legible history”</li>
+<li>“raw vs refined”</li>
+<li>“authentic loft proportions”</li>
+</ul>
+<p>This clearly belongs to a <strong>lofts / architecture / adaptive reuse publication</strong>.</p>
+<p>So on brand differentiation, the engine succeeds.</p>
+<hr>
+<ul>
+<li><strong>Would a Google Quality Rater see these as independent publications, or one company with two themes?</strong></li>
+</ul>
+<p>Probably <strong>one company with two editorial verticals</strong>, not fully independent publications.</p>
+<p>Why:</p>
+<ul>
+<li>The page architecture is too similar:</li>
+<li>thesis-driven dek</li>
+<li>multiple proprietary-seeming scores</li>
+<li>similar section lengths and cadence</li>
+<li>repeated “How It Compares” and “The Specs”</li>
+<li>strong pattern of claim + score + caveat + benchmark</li>
+<li>The prose style is still recognizably from the same system:</li>
+<li>controlled, evaluative, high-confidence, magazine-like, analytic</li>
+<li>lots of contrast framing: “X is true; Y is not”</li>
+<li>same tendency to convert limited data into explanatory narratives</li>
+<li>Both pages use highly similar editorial machinery:</li>
+<li>quasi-proprietary indexes</li>
+<li>structured comparisons</li>
+<li>explicit provenance tags</li>
+<li>deterministic/inferential split</li>
+</ul>
+<p>A quality rater would likely think: <em>these are distinct topical treatments produced by the same publisher network or content system</em>, not two unrelated editorial institutions.</p>
+<p>That is not failure. It just means the test demonstrates <strong>strong vertical differentiation</strong>, not <strong>full publication-level independence</strong>.</p>
+<hr>
+<ul>
+<li><strong>Does each page justify its own existence? Would the internet be worse if either page didn't exist?</strong></li>
+</ul>
+<p>Yes, but unequally.</p>
+<h4>Domain A: yes, clearly</h4>
+<p>It gives practical, decision-oriented information a high-intent luxury buyer/renter could use:</p>
+<ul>
+<li>whether the address compensates for weak building amenities</li>
+<li>whether concierge is likely good or mediocre</li>
+<li>whether the management model is premium or merely acceptable</li>
+<li>what kind of luxury resident this building suits</li>
+</ul>
+<p>This has real transactional value.</p>
+<h4>Domain B: yes, but more narrowly</h4>
+<p>It gives a distinct interpretive read:</p>
+<ul>
+<li>whether this is a true loft or a luxury condo borrowing loft proportions</li>
+<li>how much adaptive reuse integrity remains</li>
+<li>whether the Gehry intervention matters architecturally</li>
+<li>what kind of light and spatial experience the building likely delivers</li>
+</ul>
+<p>That is valuable for a smaller but real audience.</p>
+<p>If either disappeared:</p>
+<ul>
+<li>Losing <strong>A</strong> would remove a useful luxury-housing evaluation page.</li>
+<li>Losing <strong>B</strong> would remove an architectural/loft-character assessment that most listing pages never provide.</li>
+</ul>
+<p>So yes, both justify existence. A does so more broadly; B does so more distinctively.</p>
+<hr>
+<ul>
+<li><strong>What would a user learn from Domain A that they can't learn from Domain B? And vice versa?</strong></li>
+</ul>
+<h4>What A teaches that B does not</h4>
+<ul>
+<li>This is a <strong>luxury building with below-average common amenities</strong></li>
+<li>The core tradeoff is <strong>unit finishes + location vs amenity package</strong></li>
+<li>Concierge is <strong>third-party, probably competent but not top tier</strong></li>
+<li>The building is aimed at residents who use the <strong>neighborhood as amenity infrastructure</strong></li>
+<li>Relative position vs other Back Bay luxury buildings in service/amenity terms</li>
+</ul>
+<p>That’s substantive and unique.</p>
+<h4>What B teaches that A does not</h4>
+<ul>
+<li>Why the building feels spatially special: <strong>1918 commercial bones</strong></li>
+<li>Why Gehry matters here and what the <strong>1989 intervention</strong> contributes</li>
+<li>The difference between <strong>authentic proportions</strong> and <strong>inauthentic finishes</strong></li>
+<li>The building’s adaptive-reuse success/failure in preserving history</li>
+<li>How light likely behaves by orientation, floor, and corner exposure</li>
+<li>The distinction between a <strong>creative-consumption neighborhood</strong> and a <strong>creative-production neighborhood</strong></li>
+</ul>
+<p>That is also substantive and unique.</p>
+<p>This is the strongest evidence the engine works: the “learned something different” test passes.</p>
+<hr>
+<ul>
+<li><strong>Where do the pages overlap most? Which sections feel like they're drawing from the same well?</strong></li>
+</ul>
+<p>The biggest overlap is in the <strong>core factual substrate and rhetorical construction</strong>.</p>
+<h4>Strongest overlaps</h4>
+<ul>
+<li>Both emphasize:</li>
+<li>12-foot ceilings</li>
+<li>deep floor plates</li>
+<li>large/floor-to-ceiling windows</li>
+<li>Gehry canopy</li>
+<li>high-end finishes</li>
+<li>tension between authentic bones and luxury polish</li>
+<li>Both use contrast-based framing:</li>
+<li>A: neighborhood amenities vs building amenities</li>
+<li>B: authentic proportions vs inauthentic interiors</li>
+<li>Both end up saying a similar meta-point:</li>
+<li>this building is special because of location/exterior bones, but compromised in another dimension</li>
+</ul>
+<h4>Sections drawing from the same well</h4>
+<ul>
+<li><strong>A “Living Experience”</strong> and <strong>B “Spatial Analysis”</strong> feel related</li>
+<li><strong>A “Lifestyle Radius”</strong> and <strong>B “Creative Neighborhood Score”</strong> are clearly sibling constructs</li>
+<li><strong>A “How It Compares”</strong> and <strong>B “How It Compares”</strong> are obviously generated from parallel templates</li>
+<li><strong>The Specs</strong> section is essentially shared</li>
+<li>Both pages repeatedly cash the same chips:</li>
+<li>“12-foot ceilings”</li>
+<li>“deep floor plates”</li>
+<li>“factory-scale windows”</li>
+<li>“Carrara marble/Sub-Zero/Miele”</li>
+<li>“neighborhood as lifestyle engine”</li>
+</ul>
+<p>So yes: differentiated outputs, but visibly from the same engine.</p>
+<hr>
+<ul>
+<li><strong>Is the provenance labeling honest? Do the DETERMINISTIC / INFERENTIAL / SPECULATIVE tags accurately reflect the claims being made?</strong></li>
+</ul>
+<p><strong>Partly honest, but too generous to the pages.</strong> There is some over-labeling of confidently written speculation as “inferential” or even “deterministic.”</p>
+<h4>Where labeling feels fair</h4>
+<ul>
+<li>Pure specs sections labeled <strong>DETERMINISTIC</strong></li>
+<li>Commentary sections labeled <strong>INFERENTIAL</strong></li>
+<li>Explicit caveats around concierge score uncertainty are good and unusually honest</li>
+</ul>
+<h4>Where labeling feels shaky</h4>
+<p>#### Domain A</p>
+<ul>
+<li>“Lifestyle Radius [DETERMINISTIC — Google Places API data]”</li>
+<li>The raw venue counts may be deterministic if actually computed.</li>
+<li>But “among the highest in Boston” and “compensates for amenity gaps” are not deterministic. Those are interpretive.</li>
+<li>“Amenity Completeness: 11 of 20”</li>
+<li>Counting can be deterministic, but the <strong>choice of the 20 standard luxury amenities</strong> is editorial and subjective.</li>
+<li>“Concierge Quality Score: 74/100”</li>
+<li>This is not really inferential in a robust empirical sense; it is a <strong>constructed editorial model</strong> with weak external validation.</li>
+<li>“Management Track Record”</li>
+<li>Using Glassdoor to infer resident-facing service quality is plausible but fragile.</li>
+</ul>
+<p>#### Domain B</p>
+<ul>
+<li>“Character Index: 82/100”</li>
+<li>The subcomponents are partly measurable, but the weighting and overall number are editorial judgment.</li>
+<li>“Light Profile [MIXED — computed from orientation + observational]”</li>
+<li>Several claims are plausible, but details like canopy effects on light patterns feel speculative unless tied to actual photos/plans.</li>
+<li>“Creative Neighborhood Score [DETERMINISTIC]”</li>
+<li>Venue counts can be deterministic; “creative character is curatorial, not generative” is interpretation.</li>
+<li>“Adaptive Reuse Grade: B”</li>
+<li>Fairly labeled inferential.</li>
+</ul>
+<p>Overall: the labels are directionally honest, but they blur <strong>data-derived counting</strong> with <strong>editorial scoring frameworks</strong>. I’d prefer:</p>
+<ul>
+<li><strong>FACTUAL</strong></li>
+<li><strong>MODEL-DERIVED</strong></li>
+<li><strong>EDITORIAL INFERENCE</strong></li>
+<li><strong>SPECULATIVE/UNVERIFIED</strong></li>
+</ul>
+<p>That would be more honest than calling many score outputs “deterministic.”</p>
+<hr>
+<ul>
+<li><strong>Score each page independently (1-10) on editorial quality. Then score the differentiation between them (1-10).</strong></li>
+</ul>
+<h4>Domain A editorial quality: **8.3/10**</h4>
+<p>Strengths:</p>
+<ul>
+<li>useful decision framework</li>
+<li>clear audience</li>
+<li>strong luxury-market positioning</li>
+<li>honest about tradeoffs</li>
+<li>more commercially useful than most real estate content</li>
+</ul>
+<p>Weaknesses:</p>
+<ul>
+<li>concierge scoring feels overconfident</li>
+<li>some comparisons feel asserted rather than evidenced</li>
+<li>can lapse into polished generalization</li>
+<li>“lifestyle radius” language is a bit productized</li>
+</ul>
+<h4>Domain B editorial quality: **8.0/10**</h4>
+<p>Strengths:</p>
+<ul>
+<li>sharper voice</li>
+<li>genuinely distinctive architectural perspective</li>
+<li>strongest original value in biography/adaptive reuse/light analysis</li>
+<li>nuanced explanation of “real bones, non-original surfaces”</li>
+</ul>
+<p>Weaknesses:</p>
+<ul>
+<li>more risk of overinterpretation</li>
+<li>some claims about preservation and light effects feel too certain from limited data</li>
+<li>occasionally performs expertise rather than fully demonstrating it</li>
+<li>narrower utility for a mainstream user</li>
+</ul>
+<h4>Differentiation score: **7.7/10**</h4>
+<p>Good, real, and commercially promising.  </p>
+<p>Not a 9+ because:</p>
+<ul>
+<li>shared scaffolding is visible</li>
+<li>same engine cadence and score-card logic shows through</li>
+<li>both pages still feel system-siblings, not strangers</li>
+</ul>
+<hr>
+<ul>
+<li><strong>What's missing from each page that would make it stronger?</strong></li>
+</ul>
+<h4>Domain A is missing</h4>
+<ul>
+<li><strong>Noise/street exposure analysis</strong></li>
+</ul>
+<p>  Crucial at Mass Ave + Newbury and with Hynes below.</p>
+<ul>
+<li><strong>Actual service evidence</strong></li>
+</ul>
+<p>  Resident reviews, building complaint patterns, package/security details.</p>
+<ul>
+<li><strong>Who should not live here</strong> section</li>
+</ul>
+<p>  Eg, gym-dependent residents, noise-sensitive residents, those wanting family-oriented common space.</p>
+<ul>
+<li><strong>Floor/unit variability</strong></li>
+</ul>
+<p>  Are lower-floor units much noisier? Are interior units weaker?</p>
+<ul>
+<li><strong>Condo fees / carrying costs / rental inventory patterns</strong> if available</li>
+</ul>
+<p>  That would strengthen true luxury evaluation.</p>
+<h4>Domain B is missing</h4>
+<ul>
+<li><strong>More evidence of the actual floor plans</strong></li>
+</ul>
+<p>  It talks convincingly about deep plates and flexibility, but examples would help.</p>
+<ul>
+<li><strong>Sharper distinction between original shell vs reconstructed openings</strong></li>
+</ul>
+<p>  Are windows original, enlarged, replaced? That matters a lot in loft authenticity.</p>
+<ul>
+<li><strong>A plan/material audit</strong></li>
+<li>exposed structure?</li>
+<li>original columns?</li>
+<li>slab expression?</li>
+<li>retained retail traces?</li>
+<li><strong>Acoustic consequences of the shell/location</strong></li>
+</ul>
+<p>  Real loft buyers care about sound as much as light.</p>
+<ul>
+<li><strong>Unit-by-unit variability in character</strong></li>
+</ul>
+<p>  Not all 53 units likely have equal loft credibility.</p>
+<hr>
+<ul>
+<li><strong>Does this test prove the content engine can work? Or does it reveal a fundamental flaw?</strong></li>
+</ul>
+<p>It proves the engine <strong>can work</strong>, with an important limitation.</p>
+<h4>What it proves</h4>
+<p>The system can take identical base property data and generate:</p>
+<ul>
+<li>different editorial questions</li>
+<li>different ranking frameworks</li>
+<li>different comparative sets</li>
+<li>different user value</li>
+</ul>
+<p>That is the core requirement, and this test passes it.</p>
+<h4>What it does not prove</h4>
+<p>It does <strong>not</strong> yet prove the outputs would be perceived as fully independent publications. The same system fingerprint remains visible:</p>
+<ul>
+<li>same section rhythm</li>
+<li>same score-heavy structure</li>
+<li>same polished adjudicative tone</li>
+<li>same “smart summary plus proprietary metric” machinery</li>
+</ul>
+<h4>The fundamental risk revealed</h4>
+<p>Not a fatal flaw, but a serious one:  </p>
+<p>the engine may be producing <strong>verticalized variants of one master publication voice</strong>, rather than truly separate editorial identities.</p>
+<p>That means:</p>
+<ul>
+<li>differentiation is enough for product segmentation</li>
+<li>not yet enough for strong “independent publication” illusion</li>
+</ul>
+<p>So my conclusion is:</p>
+<ul>
+<li><strong>As a content differentiation engine:</strong> yes, promising and functional</li>
+<li><strong>As proof of publication-level independence:</strong> not yet</li>
+<li><strong>As a quality test:</strong> successful, but exposes a shared-template signature that should be reduced</li>
+</ul>
+<h3>Bottom line</h3>
+<p>These are <strong>genuinely different editorial products</strong>, and each teaches a user something the other does not. But they still read like <strong>two well-developed sections of the same publishing company</strong>, not two unrelated editorial institutions.</p>
+  </div>
+</div>
+<div class="participant-block">
+  <div class="participant-header" onclick="this.parentElement.classList.toggle('open')">
+    <span class="name">google/gemini-3.1-pro-preview@openrouter</span>
+    <span>
+      <span class="chars">6,228 chars</span>
+      <span class="toggle">&#9654;</span>
+    </span>
+  </div>
+  <div class="participant-body">
+    <p>To provide a substantive analysis of this blind &quot;sausage test,&quot; I will evaluate the two generated pages against the 10 questions presented to the council. </p>
+<h4>1. Are these genuinely different editorial products?</h4>
+<p><strong>Yes.</strong> They are fundamentally different in both thesis and utility. They do not merely respin the same facts using a thesaurus; they apply entirely different analytical frameworks to the same source data. </p>
+<ul>
+<li>  <strong>Domain A</strong> runs the data through a <em>luxury hospitality and lifestyle</em> framework. It evaluates the building based on the friction of daily life—concierge quality, presence of communal amenities, and proximity to upscale dining.</li>
+<li>  <strong>Domain B</strong> runs the data through an <em>architectural preservation and spatial</em> framework. It evaluates the building as an artifact—how the 1918 commercial origins create authentic loft geometry, and how the 2005 renovation erased the industrial materiality.</li>
+</ul>
+<h4>2. Could you identify which domain each belongs to without being told?</h4>
+<p><strong>Yes.</strong> Based on the preamble contextualizing the two brands (Luxury Apartments vs. Lofts), the mapping is unmistakable. </p>
+<ul>
+<li>  <strong>Domain A</strong> is the Luxury Apartments (LA) brand. Its proprietary metrics ("Concierge Quality Score," "Amenity Completeness") and comparables (One Back Bay, Mandarin Oriental) cater specifically to high-net-worth buyers indexing for convenience and status.</li>
+<li>  <strong>Domain B</strong> is the Lofts brand. Its proprietary metrics ("Character Index," "Adaptive Reuse Grade") and comparables (Fort Point lofts, 42 Laight Street) cater to buyers indexing for aesthetic authenticity and architectural provenance.</li>
+</ul>
+<h4>3. Would a Google Quality Rater see these as independent publications, or one company with two themes?</h4>
+<p>A Google Quality Rater assessing Experience, Expertise, Authoritativeness, and Trustworthiness (E-E-A-T) would likely view these as <strong>independent publications</strong>. Because the bespoke scoring systems (CQS vs. Character Index) directly inform the editorial angle, the pages express distinct institutional viewpoints. A rater would see a real estate advisory firm (Domain A) and an architectural/loft enthusiast publication (Domain B). There is no &quot;spun content&quot; footprint here.</p>
+<h4>4. Does each page justify its own existence?</h4>
+<p><strong>Yes.</strong> They serve entirely different buyer intents. A buyer who cares deeply about full-service amenities needs Domain A to warn them that 360 Newbury lacks a private gym or dedicated in-house staff. A buyer specifically hunting for a raw, industrial aesthetic needs Domain B to warn them that the interiors have been essentially sanitized with generic luxury finishes despite the true loft proportions. </p>
+<h4>5. What would a user learn from Domain A that they can&#x27;t learn from Domain B?</h4>
+<ul>
+<li>  <strong>From A:</strong> The structural deficit of communal amenities (no pool, gym, or lounge); the nuanced reality of Tillinger's third-party concierge model; the inferred staff turnover issues from Glassdoor; and how the building stacks up practically against hyper-amenitized peers like The Clarendon.</li>
+<li>  <strong>From B:</strong> The historical context of the Wurlitzer showroom; the specific mechanics and architectural significance of Frank Gehry's 1989 cantilevered canopy; how the natural light behaves given the specific corner exposure; and the critical reality that the interior finishes are "architecturally silent" about the building's industrial past.</li>
+</ul>
+<h4>6. Where do the pages overlap most?</h4>
+<p>They naturally overlap in their absolute deterministic data—the &quot;Specs&quot; sections at the bottom are nearly identical structurally. Contextually, they cross paths most when discussing the <strong>12-foot ceilings and deep windows</strong>. However, even here they diverge in synthesis: Domain A views these features as a &quot;small luxury that signals management attention,&quot; while Domain B views them as a &quot;structural inheritance from the commercial layout.&quot; </p>
+<h4>7. Is the provenance labeling honest?</h4>
+<p><strong>Impressively so.</strong> The provenance tags function beautifully as editorial guardrails. </p>
+<p>When Domain A states that the &quot;Concierge Quality Score&quot; is a 74, the <code>[PROVENANCE: INFERENTIAL]</code> tag openly admits this is extrapolated from Glassdoor data and advertised services, preventing the brand from making legally or factually dangerous claims about actual response times. Similarly, Domain B&#x27;s <code>[PROVENANCE: INFERENTIAL]</code> tag on the Adaptive Reuse Grade clarifies that this is an editorial critique, not an official architectural certification.</p>
+<h4>8. Scoring</h4>
+<ul>
+<li>  <strong>Domain A Editorial Quality: 9/10.</strong> It takes exactly the right angle for a luxury buyer, identifying the deliberate trade-off the developer made (spending the budget on Sub-Zero/Miele rather than a communal gym).</li>
+<li>  <strong>Domain B Editorial Quality: 9/10.</strong> The architectural criticism is striking. Phrases like "The proportions are authentic. The finishes are not." represent high-level conceptual synthesis.</li>
+<li>  <strong>Differentiation Score: 9.5/10.</strong> The engine didn't just change the tone; it successfully invoked different evaluative rubrics.</li>
+</ul>
+<h4>9. What&#x27;s missing from each page?</h4>
+<ul>
+<li>  <strong>Domain A:</strong> Floor plan analysis. If the amenity is the unit itself, how do the deep floor plates impact daily living? Does it create dark interior bedrooms?</li>
+<li>  <strong>Domain B:</strong> Materials detailing on the Gehry canopy. How has the 1989 exterior aged?</li>
+<li>  <strong>Both:</strong> Quotes or sentiment analysis from actual residents (if available) to ground the inferential leaps.</li>
+</ul>
+<h4>10. Does this test prove the content engine can work?</h4>
+<p><strong>Yes, unequivocally.</strong> If this was generated entirely from the 27-line JSON blob provided at the top, the content engine is a massive success. It proves that passing deterministic data through robust, distinct persona matrices (which likely prompt the LLM to invent its own domain-specific indices like &quot;Character Index&quot;) yields genuinely accretive editorial value, bypassing the typical SEO trap of writing the same generic summary from different angles.</p>
+<p><em>*</em></p>
+  </div>
+</div>
+<div class="participant-block">
+  <div class="participant-header" onclick="this.parentElement.classList.toggle('open')">
+    <span class="name">x-ai/grok-4.20-beta@openrouter</span>
+    <span>
+      <span class="chars">6,970 chars</span>
+      <span class="toggle">&#9654;</span>
+    </span>
+  </div>
+  <div class="participant-body">
+    <p><strong>1. Are these genuinely different editorial products?</strong></p>
+<p>Yes. They are substantially different in substance, analytical lens, and reader value.</p>
+<ul>
+<li>Domain A is a <strong>consumer luxury real estate review</strong>: it evaluates the building as a <em>product</em> for affluent renters/buyers. Primary concerns: value for money, lifestyle fit, concierge execution, amenity completeness, and whether the "neighborhood-as-amenity" thesis works. Tone is pragmatic, slightly skeptical, and purchase-oriented.</li>
+</ul>
+<ul>
+<li>Domain B is an <strong>architectural/cultural adaptation essay</strong>: it evaluates the building as a <em>converted artifact</em>. Primary concerns: preservation vs. erasure, spatial DNA from 1918, Gehry's intervention, light physics, and tension between authentic loft bones and generic luxury finishes. Tone is more contemplative, historically grounded, and design-critic-like.</li>
+</ul>
+<p>The difference goes well beyond vocabulary — they prioritize different facts, ask different questions, and deliver different kinds of insight.</p>
+<p><strong>2. Could you identify which domain each belongs to without being told? What signals tell you?</strong></p>
+<p>Yes, easily.</p>
+<ul>
+<li><strong>Domain A signals (Luxury Apartments persona):</strong> Focus on "Concierge Quality Score", "Amenity Completeness: 11 of 20", explicit lifestyle radius, direct comparisons on practical luxury features (gym, pool, rooftop), Glassdoor employee pay analysis, and a pragmatic "is this worth it?" framing.</li>
+</ul>
+<ul>
+<li><strong>Domain B signals (Lofts persona):</strong> "Character Index" with scored dimensions (ceiling height 95, original materials interior 30), "Adaptive Reuse Grade: B", detailed architectural biography, spatial analysis of deep floor plates, light physics discussion, and heavy emphasis on original use (Wurlitzer showroom), Gehry intervention, and cultural history.</li>
+</ul>
+<p>The scoring systems and evaluative frameworks are distinct and consistent with their presumed domains.</p>
+<p><strong>3. Would a Google Quality Rater see these as independent publications, or one company with two themes?</strong></p>
+<p>Independent publications with thematic overlap, not one company with two themes. </p>
+<p>The analytical models are different enough (consumer luxury audit vs. architectural adaptation critique) that they feel like two separate editorial voices. A rater would likely see them as two specialist sites that happen to cover the same high-end property from their respective beats — similar to how <em>Curbed</em> and <em>Architectural Digest</em> might both cover the same building differently. The provenance labeling, section structures, and judgment criteria diverge too much for them to read as the same entity&#x27;s A/B test.</p>
+<p><strong>4. Does each page justify its own existence? Would the internet be worse if either page didn&#x27;t exist?</strong></p>
+<p>Yes to both. </p>
+<p>Domain A gives practical decision-making guidance for someone choosing where to live. Domain B gives cultural and architectural context that enriches understanding of why the building feels the way it does. Both add distinct value. The internet would be slightly worse without either.</p>
+<p><strong>5. What would a user learn from Domain A that they can&#x27;t learn from Domain B? And vice versa?</strong></p>
+<p><strong>From A only:</strong></p>
+<ul>
+<li>Explicit amenity gap analysis and "11 of 20" rating</li>
+<li>Concierge Quality Score with Glassdoor turnover critique</li>
+<li>Direct "neighborhood as amenity" value proposition framing</li>
+<li>Practical lifestyle radius quantification</li>
+<li>Management operational inference focused on resident experience friction</li>
+<li>Explicit value-for-money positioning vs. competitors on amenities</li>
+</ul>
+<p><strong>From B only:</strong></p>
+<ul>
+<li>Architectural history and Gehry intervention details</li>
+<li>Character Index scoring that reveals the bones-vs-finish tension</li>
+<li>Adaptive Reuse Grade with what-was-preserved vs. lost analysis</li>
+<li>Light physics and how 12-ft ceilings + deep plates affect lived experience</li>
+<li>Cultural/creative neighborhood assessment (galleries vs. maker spaces)</li>
+<li>Spatial analysis of floor plate implications</li>
+</ul>
+<p><strong>6. Where do the pages overlap most?</strong></p>
+<ul>
+<li>The Specs section (almost identical, as expected)</li>
+<li>Basic building facts (units, sizes, prices, years, transit)</li>
+<li>Mention of 12-ft ceilings, Sub-Zero/Miele appliances, Carrara marble, Gehry canopy</li>
+<li>General comparisons to other buildings</li>
+</ul>
+<p>The overlap is mostly in raw data and a few signature features. The <em>interpretation</em> of those facts diverges sharply.</p>
+<p><strong>7. Is the provenance labeling honest?</strong></p>
+<p>Mostly yes, with some stretch.</p>
+<p>Both pages are appropriately labeled &quot;DETERMINISTIC&quot; for specs/measurements and &quot;INFERENTIAL&quot; for qualitative judgments. Domain B&#x27;s &quot;MIXED&quot; labels are fair. The main weakness is that both occasionally present fairly speculative inferences (especially about resident psychology or developer intent) as &quot;editorial observation&quot; without enough hedging. But the system is transparent about provenance, which is better than most real estate content.</p>
+<p><strong>8. Score each page independently (1-10) on editorial quality. Then score the differentiation between them (1-10).</strong></p>
+<ul>
+<li><strong>Domain A: 8/10</strong> — Very strong consumer luxury review. Clear thesis, good skepticism on concierge quality, practical. Slightly generic in parts.</li>
+<li><strong>Domain B: 8.5/10</strong> — Slightly stronger. The Character Index and Adaptive Reuse analysis are genuinely insightful. Feels more original.</li>
+<li><strong>Differentiation: 9/10</strong> — Excellent differentiation. These are meaningfully distinct editorial products from the same data.</li>
+</ul>
+<p><strong>9. What&#x27;s missing from each page that would make it stronger?</strong></p>
+<p><strong>Domain A missing:</strong></p>
+<ul>
+<li>Any real acknowledgment of the building's architectural distinctiveness (Gehry intervention barely mentioned)</li>
+<li>Discussion of the 1918 origins beyond "office origins"</li>
+<li>Floor plans or layout analysis</li>
+<li>Actual resident quotes or interview material</li>
+</ul>
+<p><strong>Domain B missing:</strong></p>
+<ul>
+<li>Stronger critique on the luxury pricing given the amenity gaps (it acknowledges the interior finishes are generic but doesn't fully connect this to the rent/sale prices)</li>
+<li>More on the current management/ownership reality</li>
+<li>Practical information about noise on Newbury Street or Mass Ave</li>
+</ul>
+<p><strong>10. Does this test prove the content engine can work? Or does it reveal a fundamental flaw?</strong></p>
+<p>This test <strong>proves the content engine can work</strong>.</p>
+<p>The differentiation is genuine and impressive. Two different analytical frameworks were applied to the same 50-field database row, resulting in two coherent, non-redundant editorial products that feel like they could belong to different specialist publications. The scoring systems (Concierge Quality Score + Amenity Completeness vs. Character Index + Adaptive Reuse Grade) are particularly effective at forcing divergence.</p>
+<p>This is not just synonym swapping — it&#x27;s structural, tonal, and intellectual differentiation. The content engine passes the sausage test.</p>
+<p><strong>Final Assessment:</strong> The content differentiation engine is successful.</p>
+  </div>
+</div>
+</div>
+<div class="round-section">
+<h2>Round 2</h2>
+<div class="participant-block open">
+  <div class="participant-header" onclick="this.parentElement.classList.toggle('open')">
+    <span class="name">opus@claude</span>
+    <span>
+      <span class="chars">14,138 chars</span>
+      <span class="toggle">&#9654;</span>
+    </span>
+  </div>
+  <div class="participant-body">
+    <h3>Sausage Test Evaluation — 360 Newbury Street</h3>
+<h4>1. Are these genuinely different editorial products?</h4>
+<p>Yes. The differentiation is structural, not cosmetic.</p>
+<p>Domain A treats the building as a <strong>purchase decision</strong>. Every section answers: &quot;Should I spend $5,500/month here instead of somewhere else?&quot; The Concierge Quality Score, Amenity Completeness (11/20), and Lifestyle Radius are shopping tools. The comparables are luxury competitors (One Back Bay, Mandarin Oriental, The Clarendon). The central argument is transactional: the building trades communal amenities for unit-level finishes and address premium.</p>
+<p>Domain B treats the building as a <strong>designed object</strong>. Every section answers: &quot;What is this building, architecturally, and how honest is its conversion?&quot; The Character Index, Adaptive Reuse Grade, and Light Profile are critical assessments. The comparables are architectural peers (Fort Point mills, 42 Laight Street in Tribeca). The central argument is evaluative: the building has authentic loft bones but inauthentic interiors, and that tension defines the living experience.</p>
+<p>These serve different cognitive processes. One helps you choose. The other helps you understand.</p>
+<h4>2. Could you identify which domain?</h4>
+<p>Immediately, and with certainty.</p>
+<p><strong>Domain A = luxury residential platform.</strong> Diagnostic markers: &quot;Concierge Quality Score,&quot; Glassdoor wage data ($16/hour), &quot;Amenity Completeness: 11 of 20 Standard Luxury Amenities,&quot; hotel-branded residence comparisons, &quot;Lifestyle Radius&quot; with Michelin restaurant counts. The editorial posture is that of a sophisticated consumer advocate — skeptical of marketing, interested in operational reality.</p>
+<p><strong>Domain B = architecture/loft publication.</strong> Diagnostic markers: &quot;Character Index&quot; with subcomponent scoring (ceiling height 95, original materials interior 30), &quot;Adaptive Reuse Grade: B,&quot; &quot;Building Biography&quot; tracing the Wurlitzer showroom origins, AIA awards, light physics discussion, &quot;Creative Neighborhood Score&quot; measuring gallery density and maker spaces. The editorial posture is that of an architectural critic who happens to cover residential properties.</p>
+<p>The scoring systems alone are conclusive. No luxury residential guide invents an &quot;Adaptive Reuse Grade.&quot; No architecture publication invents a &quot;Concierge Quality Score.&quot;</p>
+<h4>3. Would a Google Quality Rater see these as independent publications?</h4>
+<p>A competent rater would see <strong>two specialist publications from the same content infrastructure</strong>, which is the right answer — because that&#x27;s what they are.</p>
+<p><strong>Evidence of independence:</strong></p>
+<ul>
+<li>Entirely different analytical frameworks with no overlap in scoring systems</li>
+<li>Different expertise domains (Glassdoor compensation analysis vs. AIA award history)</li>
+<li>Different comparison universes (luxury buildings vs. architectural conversions)</li>
+<li>Different value judgments on identical facts: Domain A frames the absent gym as an amenity gap; Domain B doesn't mention it because gyms are irrelevant to architectural character</li>
+<li>Different neighborhood lenses: restaurant walkability vs. gallery density</li>
+</ul>
+<p><strong>Evidence of shared infrastructure:</strong></p>
+<ul>
+<li>Similar section cadence (thesis → scored metrics → comparisons → specs)</li>
+<li>Same provenance labeling system (DETERMINISTIC/INFERENTIAL/SPECULATIVE)</li>
+<li>Identical specs table format</li>
+<li>Both use three-item comparison sections</li>
+<li>Same controlled, magazine-like prose register</li>
+</ul>
+<p>A rater would likely conclude: two well-differentiated verticals from a single publisher, not two unrelated editorial institutions. This is analogous to how <em>Condé Nast Traveler</em> and <em>Architectural Digest</em> share infrastructure but serve different readerships. That&#x27;s a perfectly valid content strategy — and importantly, not what Google penalizes.</p>
+<h4>4. Does each page justify its own existence?</h4>
+<p><strong>Domain A — yes, clearly.</strong> The Concierge Quality Score analysis — cross-referencing Glassdoor data, noting $16/hour wages and 3.3/5 staff ratings, comparing to in-house concierge standards — is consumer intelligence that doesn&#x27;t exist elsewhere for this building. The amenity gap analysis (11/20 with a clear list of what&#x27;s absent) is a practical comparison tool. This page helps someone decide whether to pay $5,500/month for a building with no gym.</p>
+<p><strong>Domain B — yes, distinctly.</strong> The Character Index decomposition — scoring ceiling height at 95 but interior materials at 30 — tells a story no luxury listing would surface: this building has exceptional bones but interiors that are architecturally silent about its past. The sentence &quot;The proportions are authentic. The finishes are not.&quot; is genuine architectural criticism. The Light Profile section (explaining how the Gehry canopy diffracts afternoon light on lower floors) demonstrates domain expertise. This page helps someone decide whether 360 Newbury is a real loft conversion or a luxury condo in a loft costume.</p>
+<p>Neither is filler. Both would be missed by their respective audiences.</p>
+<h4>5. Unique insights from each?</h4>
+<p><strong>Domain A exclusively teaches:</strong></p>
+<ul>
+<li>Tillinger's is third-party, not in-house, with measurable staffing instability ($16/hr, 3.3/5 Glassdoor)</li>
+<li>The building has only 11 of 20 standard luxury amenities — every communal amenity category is absent</li>
+<li>This is a deliberate developer strategy (unit-level finishes over communal spaces), not an oversight</li>
+<li>8 notable restaurants within 0.6 miles, 3 Michelin-recommended</li>
+<li>The building's management optimizes for cost over retention in service staffing</li>
+</ul>
+<p><strong>Domain B exclusively teaches:</strong></p>
+<ul>
+<li>The 1918 Wurlitzer showroom's commercial requirements (tall ceilings for acoustic presence, large windows for display) created the residential features</li>
+<li>Gehry's 1989 canopy won AIA Top 19 Works of the Year in 1991</li>
+<li>Interior material character scores 30/100 — every original surface was replaced</li>
+<li>Deep floor plates create voluminous rooms that modern narrow floor plates can't replicate</li>
+<li>Back Bay's creative ecosystem is curatorial (galleries showing work), not generative (studios making work)</li>
+<li>The Gehry canopy creates shifting diffracted light patterns on lower floors</li>
+</ul>
+<p>These are genuinely non-overlapping knowledge sets. A reader of both pages knows substantially more than a reader of either alone.</p>
+<h4>6. Where do they overlap most?</h4>
+<p><strong>The Specs section</strong> is structurally near-identical. Domain B adds architect, developer, original use, and ceiling height; Domain A omits these. Expected overlap — it&#x27;s deterministic data.</p>
+<p><strong>Core physical facts</strong> appear in both: 12-foot ceilings, deep floor plates, large windows, Sub-Zero/Miele appliances, Carrara marble, Gehry canopy. But the interpretive frame diverges every time. Domain A: &quot;the electric shades are a small luxury that signals management attention to detail.&quot; Domain B: &quot;the windows were designed to illuminate a commercial showroom, not a bedroom. That over-engineering is now the building&#x27;s greatest residential feature.&quot; Same windows, different meaning.</p>
+<p><strong>The concept of &quot;neighborhood as asset&quot;</strong> appears in both but through different lenses. Domain A quantifies walkable restaurants and cultural institutions. Domain B counts galleries and maker spaces and distinguishes &quot;curatorial vs. generative&quot; creative ecosystems.</p>
+<p>The factual substrate necessarily overlaps. The interpretive layer almost never does.</p>
+<h4>7. Is the provenance labeling honest?</h4>
+<p><strong>Largely yes, with two meaningful weaknesses.</strong></p>
+<p><strong>Honest and well-done:</strong></p>
+<ul>
+<li>Specs sections labeled DETERMINISTIC — correct</li>
+<li>Domain A's "What CQS does NOT measure" disclaimer — unusually transparent</li>
+<li>Domain B's Character Index labeled MIXED (deterministic measurements + inferential qualitative assessment) — accurate</li>
+<li>Creative Neighborhood Score labeled DETERMINISTIC (venue count data) — fair</li>
+</ul>
+<p><strong>Two weaknesses:</strong></p>
+<ul>
+<li><strong>Domain A's "The Living Experience" is labeled INFERENTIAL</strong> but contains speculation about developer intent. "The developer spent the amenity budget on Carrara marble bathrooms" is an editorial hypothesis about resource allocation decisions, not an inference from observable data. More honest label: SPECULATIVE for intent claims, INFERENTIAL for observable pattern claims.</li>
+</ul>
+<ul>
+<li><strong>Domain B's Light Profile claims the Gehry canopy creates "patterns that shift through the afternoon."</strong> Labeled MIXED (computed + observational). But "observational" implies someone observed this in person. If this is extrapolated from architectural geometry rather than site visit data, "INFERENTIAL" is more honest. The distinction matters because a reader gives different weight to "we observed this" vs. "we calculated this should happen."</li>
+</ul>
+<p>Neither weakness undermines the system. The labeling is more transparent than virtually all real estate editorial content. But tightening the line between &quot;plausible inference&quot; and &quot;editorial speculation&quot; would improve trustworthiness.</p>
+<h4>8. Scores</h4>
+<p><strong>Domain A editorial quality: 8/10</strong></p>
+<p>Strong consumer intelligence. The CQS with Glassdoor cross-referencing is genuinely novel. The amenity completeness framework (present/absent with explicit denominator) is immediately useful. The Lifestyle Radius section effectively argues why the amenity gap might be acceptable. Deductions: the Operational Inference section restates what earlier sections already established (mild padding), and a few sentences in &quot;The Living Experience&quot; lean into magazine prose rather than the data-driven voice the rest of the page maintains.</p>
+<p><strong>Domain B editorial quality: 8.5/10</strong></p>
+<p>Sharper, more distinctive, and slightly more original. The Character Index decomposition — scoring bones at 90+ but interiors at 30 — is a genuinely insightful framework. The Adaptive Reuse Grade (&quot;B, not A, because an A-grade conversion makes the building&#x27;s history legible inside the units&quot;) is crisp architectural criticism. The Light Profile section demonstrates real spatial literacy. The &quot;curatorial vs. generative&quot; creative ecosystem distinction is sophisticated editorial thinking. Deduction: the Tower Records paragraph in the Building Biography adds atmosphere but no analytical value, and the page could be slightly tighter.</p>
+<p><strong>Differentiation score: 8.5/10</strong></p>
+<p>These are substantively different editorial products. Different frameworks, different expertise signals, different comparison universes, different reader personas, different questions answered. The one and a half points deducted: (a) the shared structural template is visible (both use scored metrics, three-item comparisons, provenance tags, spec tables), and (b) both pages share a controlled, slightly detached prose register that suggests a common voice underneath the domain-specific content. A truly independent publication pair would have more divergent tonal signatures — one might be more conversational, the other more academic. Here they&#x27;re both &quot;smart magazine.&quot;</p>
+<h4>9. What&#x27;s missing?</h4>
+<p><strong>Domain A is missing:</strong></p>
+<ul>
+<li><strong>Noise analysis.</strong> 360 Newbury sits at Mass Ave and Newbury — one of the loudest corners in Back Bay. A luxury evaluation platform that discusses floor-to-ceiling windows without mentioning sound insulation is leaving out material consumer information.</li>
+<li><strong>Price-per-square-foot context.</strong> At $800K for 705 sqft, this is ~$1,135/sqft. How does that compare to One Back Bay, The Clarendon, and the Mandarin? The luxury shopper needs this number.</li>
+<li><strong>Actual resident sentiment.</strong> The page cross-references Glassdoor (employees) but not Google Reviews or resident forums for the building itself.</li>
+</ul>
+<p><strong>Domain B is missing:</strong></p>
+<ul>
+<li><strong>Acoustic character.</strong> A 1918 commercial building with 12-foot ceilings and hard surfaces (marble, hardwood, glass) has acoustic properties — likely echoey. For a publication about how spaces feel, sound matters as much as light.</li>
+<li><strong>Interior spatial critique.</strong> The page talks about deep floor plates in the abstract but doesn't examine how they're actually laid out. Are open plans successful? Do bedrooms feel connected or isolated? Does the kitchen work in the proportions?</li>
+<li><strong>Material provenance detail.</strong> "Carrara marble" covers a range from bookmatched slabs to commodity tile. For Domain B's audience — people who care about material authenticity — this distinction matters.</li>
+</ul>
+<h4>10. Does this test prove the content engine can work?</h4>
+<p><strong>Yes, convincingly.</strong></p>
+<p>The engine takes a single database row and produces two pages that serve different readers, answer different questions, apply different analytical frameworks, and arrive at different conclusions about the same building. The differentiation is structural (different scoring systems, different comparison sets, different expertise domains), not cosmetic (same analysis with different adjectives). A reader who encounters both pages learns substantially more than a reader who encounters either alone. Neither page makes the other redundant.</p>
+<p><strong>The important qualification:</strong> 360 Newbury is a perfect specimen. It has a Pritzker Prize architect, 1918 commercial origins, genuine loft proportions, luxury finishes, a named concierge brand, and a premier address. Both domains have abundant material. The stress test the engine still needs is a building where one domain has rich material and the other has thin material — a new-construction luxury tower with no architectural history (thin for Domain B) or a converted warehouse with no concierge and minimal amenities (thin for Domain A). Can the engine maintain editorial quality when the data favors one domain heavily?</p>
+<p>But for the question asked — can the content engine produce genuinely distinct editorial products from the same data? — the answer is unambiguously yes.</p>
+<hr>
+  </div>
+</div>
+<div class="participant-block open">
+  <div class="participant-header" onclick="this.parentElement.classList.toggle('open')">
+    <span class="name">openai/gpt-5.4@openrouter</span>
+    <span>
+      <span class="chars">11,666 chars</span>
+      <span class="toggle">&#9654;</span>
+    </span>
+  </div>
+  <div class="participant-body">
+    <ul>
+<li><strong>Are these genuinely different editorial products?</strong></li>
+</ul>
+<p>Yes. They are materially different in <strong>editorial purpose, evaluative criteria, and reader payoff</strong>.</p>
+<ul>
+<li><strong>Domain A</strong> treats the building as a <strong>luxury residential product</strong>. Its core question is: <em>Does this building deliver a strong high-end living experience relative to price and competition?</em> Everything is organized around service, amenity package, management quality, and neighborhood convenience as substitutes for missing building infrastructure.</li>
+<li><strong>Domain B</strong> treats the building as an <strong>architectural object and adaptive-reuse case</strong>. Its core question is: <em>How authentic, spatially compelling, and architecturally legible is this conversion?</em> It centers on building history, preserved bones, erased materials, light behavior, and cultural context.</li>
+</ul>
+<p>That is real differentiation. These are not the same ideas with swapped adjectives. They make different judgments about what matters:</p>
+<ul>
+<li>A says “no gym / no pool / third-party concierge” are central.</li>
+<li>B says “12-foot ceilings / preserved shell / erased interior history” are central.</li>
+</ul>
+<p>Those are different editorial hierarchies.</p>
+<hr>
+<ul>
+<li><strong>Could you identify which domain each belongs to without being told? What signals tell you?</strong></li>
+</ul>
+<p>Yes, immediately.</p>
+<h4>Domain A signals</h4>
+<ul>
+<li>“Concierge Quality Score”</li>
+<li>“Amenity Completeness”</li>
+<li>“Lifestyle Radius”</li>
+<li>“Management Track Record”</li>
+<li>comparisons to One Back Bay, The Clarendon, Mandarin Oriental</li>
+<li>emphasis on service execution, building-contained amenities, and value at this price point</li>
+</ul>
+<p>This clearly belongs to a <strong>luxury residential / apartment-buying guidance</strong> domain.</p>
+<h4>Domain B signals</h4>
+<ul>
+<li>“Building Biography”</li>
+<li>“Character Index”</li>
+<li>“Adaptive Reuse Grade”</li>
+<li>“Light Profile”</li>
+<li>“Creative Neighborhood Score”</li>
+<li>comparisons to Fort Point lofts and 42 Laight Street</li>
+</ul>
+<p>This clearly belongs to an <strong>architecture / loft / adaptive-reuse</strong> domain.</p>
+<p>The choice of comparables is especially diagnostic. A compares to luxury competitors. B compares to architectural peers.</p>
+<hr>
+<ul>
+<li><strong>Would a Google Quality Rater see these as independent publications, or one company with two themes?</strong></li>
+</ul>
+<p>My answer is: <strong>probably one company with two well-differentiated editorial verticals</strong>, not fully independent publications.</p>
+<p>Why:</p>
+<ul>
+<li>They share a lot of <strong>publishing machinery</strong>:</li>
+<li>proprietary-style scores</li>
+<li>similar sectional cadence</li>
+<li>“How It Compares”</li>
+<li>“The Specs”</li>
+<li>provenance labels</li>
+<li>Both use the same high-confidence, synthesis-heavy, analytic style.</li>
+<li>Both convert sparse source facts into polished explanatory frameworks with similar rhetorical confidence.</li>
+</ul>
+<p>That said, they are much more distinct than typical spun content. A quality rater would likely see them as <strong>related brands or editorial products within the same network</strong>, not duplicates.</p>
+<p>So: <strong>not one theme with superficial rewriting</strong>, but also <strong>not fully unrelated publications</strong>.</p>
+<hr>
+<ul>
+<li><strong>Does each page justify its own existence? Would the internet be worse if either page didn't exist?</strong></li>
+</ul>
+<p>Yes.</p>
+<h4>Domain A</h4>
+<p>Yes, clearly. It answers practical questions users actually have:</p>
+<ul>
+<li>Is the concierge likely good or mediocre?</li>
+<li>Is this building under-amenitized for the price?</li>
+<li>Is the address compensating for missing internal amenities?</li>
+<li>What kind of resident is this building actually for?</li>
+</ul>
+<p>That is useful market-facing intelligence.</p>
+<h4>Domain B</h4>
+<p>Yes, though for a narrower audience. It answers questions listing sites usually ignore:</p>
+<ul>
+<li>Is this a real loft, or just a condo with tall ceilings?</li>
+<li>What survives from the original building?</li>
+<li>Does Gehry actually matter here?</li>
+<li>Are the proportions authentic even if the finishes are generic?</li>
+</ul>
+<p>That gives users a different kind of value: interpretive, architectural, and experiential.</p>
+<p>So yes, both justify existence. A is broader. B is more specialized.</p>
+<hr>
+<ul>
+<li><strong>What would a user learn from Domain A that they can't learn from Domain B? And vice versa?</strong></li>
+</ul>
+<h4>From Domain A only</h4>
+<ul>
+<li>The building is <strong>thin on communal amenities</strong> for its price point.</li>
+<li>The concierge operation is <strong>third-party and likely less stable</strong> than in-house luxury teams.</li>
+<li>The building’s strategy is basically <strong>location + in-unit finishes instead of amenity package</strong>.</li>
+<li>This is a good fit for residents who use the neighborhood as their amenity ecosystem.</li>
+<li>Relative standing against other Back Bay luxury buildings on service and amenity terms.</li>
+</ul>
+<h4>From Domain B only</h4>
+<ul>
+<li>The building’s best residential qualities derive from its <strong>1918 commercial origins</strong>.</li>
+<li>Gehry’s canopy is not decorative trivia; it is a real part of the building’s architectural identity.</li>
+<li>The building has <strong>authentic loft bones but non-authentic interior material expression</strong>.</li>
+<li>The adaptive reuse is good but not top-tier because the interior past is no longer legible.</li>
+<li>The neighborhood is culturally strong in <strong>presentation/consumption</strong>, weaker in <strong>production/maker energy</strong>.</li>
+<li>Light behavior and spatial quality are central to why the building feels special.</li>
+</ul>
+<p>Those are clearly non-overlapping lessons.</p>
+<hr>
+<ul>
+<li><strong>Where do the pages overlap most? Which sections feel like they're drawing from the same well?</strong></li>
+</ul>
+<p>The overlap is mostly in the <strong>raw factual substrate</strong> and in the <strong>editorial scaffolding</strong>.</p>
+<h4>Biggest factual overlaps</h4>
+<ul>
+<li>12-foot ceilings</li>
+<li>deep floor plates</li>
+<li>large/floor-to-ceiling windows</li>
+<li>Gehry canopy</li>
+<li>luxury finishes</li>
+<li>same basic size/price/unit facts</li>
+</ul>
+<h4>Biggest structural overlaps</h4>
+<ul>
+<li>scored proprietary metrics</li>
+<li>benchmark/comparison section</li>
+<li>specs section</li>
+<li>thesis-led opening paragraph</li>
+<li>evidence → judgment → caveat pattern</li>
+</ul>
+<h4>Specific sibling sections</h4>
+<ul>
+<li>A’s <strong>Lifestyle Radius</strong> and B’s <strong>Creative Neighborhood Score</strong></li>
+<li>A’s <strong>Living Experience</strong> and B’s <strong>Spatial Analysis</strong></li>
+<li>both <strong>How It Compares</strong></li>
+<li>both <strong>The Specs</strong></li>
+</ul>
+<p>So the overlap is not mostly in conclusions; it is mostly in <strong>source facts and template logic</strong>.</p>
+<hr>
+<ul>
+<li><strong>Is the provenance labeling honest? Do the DETERMINISTIC / INFERENTIAL / SPECULATIVE tags accurately reflect the claims being made?</strong></li>
+</ul>
+<p><strong>Mostly, but not perfectly.</strong> The system is more transparent than normal real estate content, but several labels are too generous.</p>
+<h4>Where it works</h4>
+<ul>
+<li>Specs as <strong>DETERMINISTIC</strong>: fair</li>
+<li>broad interpretive sections as <strong>INFERENTIAL</strong>: mostly fair</li>
+<li>explicit caveat on the concierge score: very good trust signal</li>
+</ul>
+<h4>Where it gets shaky</h4>
+<p>#### Domain A</p>
+<ul>
+<li><strong>Amenity Completeness: 11 of 20</strong> is only partly deterministic.</li>
+</ul>
+<p>  The count may be deterministic, but the choice of what constitutes the 20-item luxury standard is editorial.</p>
+<ul>
+<li><strong>Lifestyle Radius</strong> is not fully deterministic once it moves from counting venues to saying the radius “compensates” for amenity gaps.</li>
+<li><strong>Operational Inference</strong> is properly marked inferential, but some statements about developer or management intent edge toward speculation.</li>
+</ul>
+<p>#### Domain B</p>
+<ul>
+<li><strong>Character Index: 82/100</strong> is not really deterministic in any final sense; it is a model-driven editorial judgment.</li>
+<li><strong>Light Profile</strong> includes claims that sound observational and quite specific. If not based on actual site observation or photographic analysis, some of that is closer to inference than mixed-observational certainty.</li>
+<li><strong>Creative Neighborhood Score</strong> may be deterministic at the venue-count level, but the “curatorial not generative” conclusion is clearly interpretive.</li>
+</ul>
+<p>So the provenance system is directionally honest, but it would be better if it distinguished:</p>
+<ul>
+<li>factual data</li>
+<li>model-derived score</li>
+<li>editorial inference</li>
+<li>speculation/unverified observation</li>
+</ul>
+<p>That would tighten trust.</p>
+<hr>
+<ul>
+<li><strong>Score each page independently (1-10) on editorial quality. Then score the differentiation between them (1-10).</strong></li>
+</ul>
+<h4>Domain A editorial quality: **8.2/10**</h4>
+<p>Strengths:</p>
+<ul>
+<li>clear user purpose</li>
+<li>practical and commercially useful</li>
+<li>good framing of the core tradeoff</li>
+<li>strong consumer lens</li>
+<li>nice caveats around concierge uncertainty</li>
+</ul>
+<p>Weaknesses:</p>
+<ul>
+<li>some overconfidence in what can be inferred from Glassdoor and reviews</li>
+<li>slightly repetitive in the management/operational sections</li>
+<li>a few assertions about intent are stronger than the evidence supports</li>
+</ul>
+<h4>Domain B editorial quality: **8.6/10**</h4>
+<p>Strengths:</p>
+<ul>
+<li>sharper conceptual framing</li>
+<li>genuinely distinctive architectural lens</li>
+<li>strong synthesis around bones vs finishes</li>
+<li>adaptive reuse and light analysis are memorable</li>
+<li>more original in feel than most property content</li>
+</ul>
+<p>Weaknesses:</p>
+<ul>
+<li>some risk of over-reading limited facts</li>
+<li>a few claims feel expert-performative rather than fully demonstrated</li>
+<li>niche utility compared with A</li>
+</ul>
+<h4>Differentiation score: **8.3/10**</h4>
+<p>This is a successful differentiation test.  </p>
+<p>Why not 9.5+?</p>
+<ul>
+<li>shared engine fingerprint is still visible</li>
+<li>common section architecture remains obvious</li>
+<li>both still sound like sibling publications rather than strangers</li>
+</ul>
+<p>But the differentiation is real and substantive.</p>
+<hr>
+<ul>
+<li><strong>What's missing from each page that would make it stronger?</strong></li>
+</ul>
+<h4>Domain A is missing</h4>
+<ul>
+<li><strong>Noise/livability analysis</strong></li>
+</ul>
+<p>  This intersection is busy; that matters a lot in a luxury evaluation.</p>
+<ul>
+<li><strong>Resident sentiment</strong></li>
+</ul>
+<p>  More actual resident-facing review evidence, not just employee-side inference.</p>
+<ul>
+<li><strong>Price-per-square-foot and carrying-cost context</strong></li>
+</ul>
+<p>  Essential for high-end comparison shopping.</p>
+<ul>
+<li><strong>Unit/floor variability</strong></li>
+</ul>
+<p>  Lower floors vs upper floors, street-facing vs weaker exposures.</p>
+<ul>
+<li><strong>A clearer “who should not live here” section</strong></li>
+</ul>
+<p>  Very useful for decision-making.</p>
+<h4>Domain B is missing</h4>
+<ul>
+<li><strong>Floor plan evidence</strong></li>
+</ul>
+<p>  It talks about deep floor plates convincingly, but examples would make it stronger.</p>
+<ul>
+<li><strong>Material audit</strong></li>
+</ul>
+<p>  What, if anything, remains inside? Columns? original structure? traces of prior use?</p>
+<ul>
+<li><strong>Acoustic analysis</strong></li>
+</ul>
+<p>  Important for spaces with high ceilings, glass, hard surfaces, and a noisy location.</p>
+<ul>
+<li><strong>Variability in loft character by unit</strong></li>
+</ul>
+<p>  Not every unit will express the same strengths equally.</p>
+<ul>
+<li><strong>More explicit treatment of window condition/provenance</strong></li>
+</ul>
+<p>  Original, replaced, enlarged, reconstructed?</p>
+<hr>
+<ul>
+<li><strong>Does this test prove the content engine can work? Or does it reveal a fundamental flaw?</strong></li>
+</ul>
+<p>It proves the content engine <strong>can work</strong>, with one important limitation.</p>
+<h4>What it proves</h4>
+<p>The engine can take one shared property row and produce:</p>
+<ul>
+<li>different editorial questions</li>
+<li>different evaluative frameworks</li>
+<li>different comparison sets</li>
+<li>different user utility</li>
+<li>different forms of expertise signaling</li>
+</ul>
+<p>That is the core challenge, and this test passes.</p>
+<h4>What it does not prove</h4>
+<p>It does not prove the system can consistently create outputs that feel like <strong>fully independent publications</strong>. The shared template and tonal DNA are still visible.</p>
+<h4>So the real conclusion</h4>
+<ul>
+<li><strong>As a differentiation engine:</strong> yes, validated</li>
+<li><strong>As proof of publication-level independence:</strong> not fully</li>
+<li><strong>As a product test:</strong> successful</li>
+<li><strong>As a warning:</strong> the system still has a recognizable house style and score-card architecture</li>
+</ul>
+<p>This is not a fatal flaw. It just means the engine is currently better at creating <strong>distinct verticals</strong> than truly separate editorial identities.</p>
+<p><strong>Bottom line:</strong> The test is a success. These are genuinely differentiated editorial products. But they still feel like products from the same publishing network more than two unrelated institutions.</p>
+  </div>
+</div>
+<div class="participant-block open">
+  <div class="participant-header" onclick="this.parentElement.classList.toggle('open')">
+    <span class="name">google/gemini-3.1-pro-preview@openrouter</span>
+    <span>
+      <span class="chars">7,862 chars</span>
+      <span class="toggle">&#9654;</span>
+    </span>
+  </div>
+  <div class="participant-body">
+    <h4>1. Are these genuinely different editorial products?</h4>
+<p><strong>Yes.</strong> They represent two fundamentally different analytical frameworks applied to the same raw data. </p>
+<ul>
+<li><strong>Domain A (The Luxury/Consumer Lens):</strong> Evaluates the building as a high-end consumer good. It asks: <em>How does this building serve its residents' daily needs, and does it justify its price point?</em> It focuses on service friction, amenity fulfillment, and location as a substitute for in-house facilities.</li>
+<li><strong>Domain B (The Architectural/Cultural Lens):</strong> Evaluates the building as a historical artifact and designed space. It asks: <em>What is the spatial and cultural pedigree of this building, and how does it feel?</em> It focuses on historical provenance, the success (or failure) of its adaptive reuse, and physical properties like light and volume.</li>
+</ul>
+<p>This is not a simple respin or synonym-swap. The engine has successfully adopted two distinct editorial mandates that care about completely different things.</p>
+<h4>2. Could you identify which domain each belongs to without being told? </h4>
+<p><strong>Absolutely.</strong> The signals are glaringly obvious and perfectly mapped to their respective niches:</p>
+<ul>
+<li><strong>Domain A signals:</strong> Obsession with the "Concierge Quality Score," deep-dive into third-party management (Tillinger's) via Glassdoor reviews, a literal checklist of "Amenity Completeness," and comparisons to hotel-branded residences (Mandarin Oriental) and hyper-amenitized towers (The Clarendon). This is clearly a Luxury Apartment guide.</li>
+<li><strong>Domain B signals:</strong> A "Building Biography," detailed discussion of a Frank Gehry intervention, a "Character Index" that heavily penalizes the building for replacing original interior materials, and a nuanced breakdown of how 12-foot ceilings interact with natural light. This is clearly an Architectural/Loft publication.</li>
+</ul>
+<h4>3. Would a Google Quality Rater see these as independent publications, or one company with two themes?</h4>
+<p>A sharp Quality Rater evaluating E-E-A-T (Experience, Expertise, Authoritativeness, and Trustworthiness) would likely see these as <strong>two verticals owned by the same publishing company.</strong> </p>
+<p>While the content and analysis are independent, the <strong>architectural scaffolding</strong> is a dead giveaway:</p>
+<ul>
+<li>Both rely heavily on bespoke, capitalized quantitative metrics (Concierge Quality Score / Character Index).</li>
+<li>Both utilize the exact same provenance tagging system <code>[PROVENANCE: INFERENTIAL]</code>.</li>
+<li>Both feature a structured "How It Compares" section with three bullet points.</li>
+<li>Both end with an identical "The Specs" section.</li>
+</ul>
+<p>The content is highly differentiated, but the <em>formatter</em> is identical. </p>
+<h4>4. Does each page justify its own existence? </h4>
+<p><strong>Yes.</strong> They serve mutually exclusive buyer/renter intents. </p>
+<p>If someone is paying $5,500/month for a 2-bedroom, they need Domain A to explicitly warn them: <em>There is no gym, and the concierge is a third-party contractor.</em> </p>
+<p>Conversely, if an architecture enthusiast is looking for a raw, industrial loft, they need Domain B to warn them: <em>The proportions are authentic, but the finishes are generic luxury condo (Carrara marble).</em> </p>
+<p>Without both pages, specific segments of the market would be missing critical decision-making context.</p>
+<h4>5. What would a user learn from Domain A that they can&#x27;t learn from Domain B? And vice versa?</h4>
+<p><strong>Exclusive to A:</strong></p>
+<ul>
+<li>The building has exactly 11 out of 20 standard luxury amenities (missing a pool, fitness center, lounge, etc.).</li>
+<li>The developer specifically bet on high-end unit finishes (Sub-Zero/Miele) as a trade-off for the lack of communal amenities.</li>
+<li>The concierge is provided by Tillinger's, which has a 3.3/5 Glassdoor rating indicating high turnover and $16/hr pay.</li>
+</ul>
+<p><strong>Exclusive to B:</strong></p>
+<ul>
+<li>The building was originally a Wurlitzer Music & Sound showroom from 1918, which explains the acoustic necessity of the 12-foot ceilings.</li>
+<li>Frank Gehry designed the steel-and-glass canopy in 1989 (winning an AIA award).</li>
+<li>All original interior materiality was erased in the 2005 conversion, earning it an Adaptive Reuse Grade of 'B'.</li>
+<li>How the Gehry canopy physically diffracts western afternoon light on the lower floors.</li>
+</ul>
+<h4>6. Where do the pages overlap most?</h4>
+<p>They naturally overlap on the <strong>deterministic data points</strong>, specifically referencing the 12-foot ceilings, deep floor plates, the Mass Ave/Newbury intersection, and the high-end interior finishes. </p>
+<p>However, the overlap is handled masterfully. When Domain A mentions the 12-foot ceilings, it treats them as a &quot;spatial drama that most new construction can&#x27;t match&quot; (a luxury flex). When Domain B mentions the exact same ceilings, it treats them as a &quot;direct inheritance from the 1918 commercial layout&quot; (an architectural feature). </p>
+<h4>7. Is the provenance labeling honest? </h4>
+<p><strong>Directionally yes, but occasionally too generous to the AI&#x27;s editorializing.</strong></p>
+<ul>
+<li><strong>Strong labeling:</strong> Domain A's <code>[PROVENANCE: INFERENTIAL — based on Glassdoor, Google Reviews, portfolio data]</code> is a fantastic, honest disclaimer about how it arrived at a subjective concierge score.</li>
+<li><strong>Weak labeling:</strong> Domain A's "Lifestyle Radius" is labeled <code>DETERMINISTIC</code> because it uses API data to count restaurants, but the surrounding text ("The Lifestyle Radius compensates for the building's internal amenity gaps") is highly subjective editorial inference. Similarly, Domain B's "Adaptive Reuse Grade" is labeled <code>INFERENTIAL</code>, but grading something a 'B' based on architectural preservation philosophies borders on <code>SPECULATIVE/EDITORIAL</code>.</li>
+</ul>
+<h4>8. Scores</h4>
+<ul>
+<li><strong>Domain A Editorial Quality: 8.5/10.</strong> Clear, pragmatic, and highly useful for an affluent renter. The Glassdoor sleuthing is a brilliant touch for a luxury consumer wanting to know <em>why</em> the service might feel disjointed.</li>
+<li><strong>Domain B Editorial Quality: 9.0/10.</strong> Exceptional spatial and architectural critique. The quote "The proportions are authentic. The finishes are not." is a masterclass in summarizing real estate tension.</li>
+<li><strong>Differentiation Score: 8.5/10.</strong> The engine successfully created two entirely different realities from one JSON blob. It loses 1.5 points only because the structural cadence (Score -> Justification -> Comparison -> Specs) makes them feel like sister sites rather than complete strangers.</li>
+</ul>
+<h4>9. What&#x27;s missing from each page?</h4>
+<ul>
+<li><strong>Domain A is missing noise analysis.</strong> A luxury evaluation of a building sitting directly over the Green Line (Hynes T stop) and on the busiest commercial corner in Boston must mention sound insulation. Does it vibrate? Are the 1918 windows drafty/loud?</li>
+<li><strong>Domain B is missing floor plan reality.</strong> It praises the "deep floor plates," but deep plates often result in "bowling alley" units or bedrooms without exterior windows (borrowed light). An architectural page needs to address how the interior layouts actually function within that deep shell.</li>
+</ul>
+<h4>10. Does this test prove the content engine can work?</h4>
+<p><strong>Yes, it unequivocally proves the engine works.</strong> </p>
+<p>Generating differentiated content usually results in an LLM just swapping adjectives (e.g., calling it a &quot;luxurious haven&quot; in one text and a &quot;historical masterpiece&quot; in another, while regurgitating the exact same bullet points). </p>
+<p>This engine did something much harder: it invoked <strong>distinct evaluative rubrics</strong>. It understood that a luxury buyer views the absence of a gym as a <em>defect</em>, while an architectural critic views the absence of original exposed brick as a <em>defect</em>. It proved that passing flat data through rigorous, persona-driven analytical frameworks yields highly valuable, non-redundant editorial products.</p>
+<p><em>*</em></p>
+  </div>
+</div>
+<div class="participant-block open">
+  <div class="participant-header" onclick="this.parentElement.classList.toggle('open')">
+    <span class="name">x-ai/grok-4.20-beta@openrouter</span>
+    <span>
+      <span class="chars">7,726 chars</span>
+      <span class="toggle">&#9654;</span>
+    </span>
+  </div>
+  <div class="participant-body">
+    <p><strong>1. Are these genuinely different editorial products?</strong></p>
+<p>Yes, they are genuinely different editorial products at the level of substance, analytical framework, and reader value — not just vocabulary substitution.</p>
+<p>Domain A treats the building as a <strong>consumer luxury product</strong>: it evaluates service delivery, amenity trade-offs, management execution, and whether the address compensates for missing building amenities. Its core question is practical: “Is this a good place to live at this price?”</p>
+<p>Domain B treats the building as an <strong>architectural artifact</strong>: it evaluates spatial DNA, adaptive reuse integrity, light physics, material authenticity, and historical legibility. Its core question is critical: “How successfully was this 1918 commercial building turned into a loft, and what does that feel like?”</p>
+<p>The differences are structural: different scoring systems, different comparison sets, different expertise signals, and different lenses on the exact same facts (12-ft ceilings, Gehry canopy, Carrara marble, deep plates). This is real differentiation.</p>
+<p><strong>2. Could you identify which domain each belongs to without being told? What signals tell you?</strong></p>
+<p>Yes, immediately and unambiguously.</p>
+<ul>
+<li><strong>Domain A signals (Luxury Apartments persona):</strong> “Concierge Quality Score,” “Amenity Completeness: 11 of 20,” “Lifestyle Radius,” Glassdoor wage analysis, hotel-branded comparisons (Mandarin Oriental, One Back Bay), focus on third-party management friction, and pragmatic “neighborhood as amenity” thesis. This is clearly a high-end residential buyer guide.</li>
+<li><strong>Domain B signals (Lofts/Architecture persona):</strong> “Character Index” with sub-scores (interior materials 30/100), “Adaptive Reuse Grade: B,” “Light Profile,” building biography, comparisons to Fort Point mills and 42 Laight Street, emphasis on “spatial bones vs. generic finishes,” and discussion of Wurlitzer showroom acoustics and Gehry’s 1989 intervention. This reads as an architecture/loft-focused critical publication.</li>
+</ul>
+<p>The evaluative rubrics and comparables are diagnostic.</p>
+<p><strong>3. Would a Google Quality Rater see these as independent publications, or one company with two themes?</strong></p>
+<p>A competent Quality Rater would see them as <strong>two distinct specialist publications</strong> from the same data supplier, not one company with two skins. </p>
+<p>The analytical models, scoring systems, expertise displayed (Glassdoor HR data vs. AIA awards and light physics), value judgments, and comparison universes diverge too sharply for them to feel like the same editorial voice wearing different hats. The shared provenance tagging system and Specs table format are the only strong fingerprints of common infrastructure. On E-E-A-T, they demonstrate different forms of experience and expertise.</p>
+<p><strong>4. Does each page justify its own existence? Would the internet be worse if either page didn&#x27;t exist?</strong></p>
+<p>Yes to both.</p>
+<p>Domain A provides genuine consumer intelligence (concierge realism, amenity gap quantification, operational signals) that listing sites and most luxury real estate content omit. Domain B provides architectural criticism and spatial analysis almost never present in residential listings. Both add non-redundant value; the internet would be poorer without either.</p>
+<p><strong>5. What would a user learn from Domain A that they can&#x27;t learn from Domain B? And vice versa?</strong></p>
+<p><strong>Domain A exclusive:</strong></p>
+<ul>
+<li>Tillinger’s is third-party with high turnover and $16/hr wages</li>
+<li>Explicit “only 11 of 20 standard luxury amenities” checklist and the deliberate developer trade-off</li>
+<li>Lifestyle Radius quantification and neighborhood-as-amenity thesis</li>
+<li>Management optimization for cost over retention</li>
+<li>Practical positioning vs. amenity-rich competitors</li>
+</ul>
+<p><strong>Domain B exclusive:</strong></p>
+<ul>
+<li>Full building biography (Wurlitzer → Tower Records → Gehry 1989 → 2005 conversion)</li>
+<li>Character Index exposing the bones-vs-finishes tension (interior materials 30/100)</li>
+<li>Adaptive Reuse Grade explaining what history was preserved vs. erased</li>
+<li>Detailed light physics analysis including Gehry canopy diffraction</li>
+<li>Creative Neighborhood Score distinguishing curatorial vs. generative creative ecosystems</li>
+<li>Spatial implications of deep commercial floor plates</li>
+</ul>
+<p>These are genuinely non-overlapping knowledge sets.</p>
+<p><strong>6. Where do the pages overlap most? Which sections feel like they&#x27;re drawing from the same well?</strong></p>
+<p>They overlap most in:</p>
+<ul>
+<li>The <strong>Specs table</strong> (nearly identical, as expected for deterministic data)</li>
+<li>Core physical facts (12-ft ceilings, deep plates, Gehry canopy, Carrara marble, Sub-Zero/Miele, corner location)</li>
+<li>The three-item “How It Compares” structure (though the actual comparables differ sharply)</li>
+</ul>
+<p>Even where facts overlap, interpretation diverges: Domain A sees 12-ft ceilings as a “small luxury that signals management attention”; Domain B sees them as “structural inheritance from 1918 commercial design.”</p>
+<p><strong>7. Is the provenance labeling honest?</strong></p>
+<p>Mostly yes — better than 90% of real estate content. DETERMINISTIC is used appropriately for specs, counts, and API data. INFERENTIAL and MIXED tags are generally fair.</p>
+<p>Minor issues:</p>
+<ul>
+<li>Some Domain A claims about developer <em>intent</em> (“the developer spent the amenity budget on…”) labeled INFERENTIAL lean speculative.</li>
+<li>Domain B’s Light Profile “MIXED — computed from orientation + observational” slightly overclaims observation if no actual site visit occurred.</li>
+</ul>
+<p>The labeling system is a strong trust signal overall and is used responsibly.</p>
+<p><strong>8. Score each page independently (1-10) on editorial quality. Then score the differentiation between them (1-10).</strong></p>
+<ul>
+<li><strong>Domain A: 8.5/10</strong> — Strong, pragmatic consumer product. The Concierge Quality Score + Glassdoor integration is smart. Slight deduction for occasional padding in Operational Inference.</li>
+<li><strong>Domain B: 9/10</strong> — Excellent architectural criticism. The Character Index and Adaptive Reuse framing are sharp and original.</li>
+<li><strong>Differentiation: 9/10</strong> — Excellent. Structural, intellectual, and persona-level differentiation is clear. One point deducted because the shared Specs format and provenance system are visible.</li>
+</ul>
+<p><strong>9. What&#x27;s missing from each page that would make it stronger?</strong></p>
+<p><strong>Domain A missing:</strong></p>
+<ul>
+<li>Street noise analysis (busy Newbury/Mass Ave corner with huge windows)</li>
+<li>Actual resident sentiment beyond Glassdoor employee reviews</li>
+<li>Price-per-square-foot context and floor/unit variability</li>
+</ul>
+<p><strong>Domain B missing:</strong></p>
+<ul>
+<li>Acoustic character of hard surfaces and tall ceilings</li>
+<li>More specific unit layout analysis (how deep plates are actually partitioned)</li>
+<li>Material provenance details on the Carrara marble and how the Gehry canopy has aged</li>
+</ul>
+<p><strong>10. Does this test prove the content engine can work? Or does it reveal a fundamental flaw?</strong></p>
+<p>This test <strong>proves the content engine can work</strong>.</p>
+<p>A single 27-field JSON row was transformed into two coherent, non-redundant, editorially valuable pages that serve different reader personas with different analytical frameworks. The differentiation is not cosmetic — it is substantive. The scoring systems alone (Concierge Quality Score + Amenity Completeness vs. Character Index + Adaptive Reuse Grade) force real divergence.</p>
+<p>This is not synonym swapping. It is successful structural differentiation. The qualification from prior rounds remains relevant: this specimen is architecturally rich <em>and</em> luxury-amenity relevant. Future tests should stress-test buildings where one domain has thin material. But on the evidence here, the engine succeeds.</p>
+  </div>
+</div>
+</div>
+
+<hr>
+<div class="meta">
+  Generated by <strong>ai-counsel</strong> &middot;
+  Participants: opus@claude, openai/gpt-5.4@openrouter, google/gemini-3.1-pro-preview@openrouter, x-ai/grok-4.20-beta@openrouter
+</div>
+</body>
+</html>
