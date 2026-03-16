@@ -182,6 +182,16 @@ class SentenceTransformerBackend(SimilarityBackend):
             model_name: Model to use (default: all-MiniLM-L6-v2)
                        This is a good balance of speed and accuracy.
         """
+        self._model_name = model_name
+        self.model = None
+        self.cosine_similarity = None
+        logger.info(f"SentenceTransformerBackend configured (lazy load: {model_name})")
+
+    def _ensure_loaded(self):
+        """Lazily load the model on first use to avoid slow MCP server startup."""
+        if self.model is not None:
+            return
+
         try:
             from sentence_transformers import SentenceTransformer
             from sklearn.metrics.pairwise import cosine_similarity
@@ -189,16 +199,16 @@ class SentenceTransformerBackend(SimilarityBackend):
             # Check if we can reuse cached model
             if (
                 SentenceTransformerBackend._model_cache is not None
-                and SentenceTransformerBackend._model_name_cache == model_name
+                and SentenceTransformerBackend._model_name_cache == self._model_name
             ):
-                logger.info(f"Reusing cached sentence transformer model: {model_name}")
+                logger.info(f"Reusing cached sentence transformer model: {self._model_name}")
                 self.model = SentenceTransformerBackend._model_cache
             else:
-                logger.info(f"Loading sentence transformer model: {model_name}")
-                self.model = SentenceTransformer(model_name)
+                logger.info(f"Loading sentence transformer model: {self._model_name}")
+                self.model = SentenceTransformer(self._model_name)
                 # Cache for future instances
                 SentenceTransformerBackend._model_cache = self.model
-                SentenceTransformerBackend._model_name_cache = model_name
+                SentenceTransformerBackend._model_name_cache = self._model_name
                 logger.info("Sentence transformer model loaded and cached successfully")
 
             self.cosine_similarity = cosine_similarity
@@ -213,6 +223,8 @@ class SentenceTransformerBackend(SimilarityBackend):
         """Compute semantic similarity using sentence embeddings."""
         if not text1 or not text2:
             return 0.0
+
+        self._ensure_loaded()
 
         # Generate embeddings (vectors that capture meaning)
         embeddings = self.model.encode([text1, text2])

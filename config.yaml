@@ -334,7 +334,16 @@ model_registry:
       label: "Qwen 2.5 72B (OpenRouter)"
       tier: "general"
       enabled: true
+    # ===== OpenAI Frontier Models =====
+    - id: "openai/gpt-5.4"
+      label: "GPT-5.4 (OpenRouter)"
+      tier: "flagship"
+      enabled: true
     # ===== Google Gemini Models =====
+    - id: "google/gemini-3.1-pro-preview"
+      label: "Gemini 3.1 Pro Preview (OpenRouter)"
+      tier: "flagship"
+      enabled: true
     - id: "google/gemini-2.5-pro"
       label: "Gemini 2.5 Pro (OpenRouter)"
       tier: "premium"
@@ -352,6 +361,10 @@ model_registry:
       tier: "speed"
       enabled: true
     # ===== xAI Grok Models =====
+    - id: "x-ai/grok-4.20-beta"
+      label: "Grok 4.20 Beta (OpenRouter)"
+      tier: "flagship"
+      enabled: true
     - id: "x-ai/grok-4"
       label: "Grok 4 (OpenRouter)"
       tier: "premium"

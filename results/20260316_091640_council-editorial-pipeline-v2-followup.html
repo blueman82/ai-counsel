@@ -1,0 +1,678 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI Council Deliberation — Architecture Review</title>
+<style>
+  :root {
+    --bg: #0f172a;
+    --surface: #1e293b;
+    --surface-elevated: #334155;
+    --border: #475569;
+    --text: #e2e8f0;
+    --text-muted: #94a3b8;
+    --accent: #3b82f6;
+    --green: #22c55e;
+    --yellow: #eab308;
+    --red: #ef4444;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    padding: 2rem;
+    max-width: 1100px;
+    margin: 0 auto;
+  }
+  h1 { font-size: 1.75rem; margin-bottom: 0.5rem; }
+  h2 { font-size: 1.35rem; margin: 1.5rem 0 0.75rem; color: var(--accent); }
+  h3 { font-size: 1.15rem; margin: 1.25rem 0 0.5rem; }
+  h4 { font-size: 1rem; margin: 1rem 0 0.5rem; color: var(--text-muted); }
+  p { margin: 0.5rem 0; }
+  hr { border: none; border-top: 1px solid var(--border); margin: 1.5rem 0; }
+  ul { margin: 0.5rem 0 0.5rem 1.5rem; }
+  li { margin: 0.25rem 0; }
+  code {
+    background: var(--surface-elevated);
+    padding: 0.15rem 0.4rem;
+    border-radius: 3px;
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+    font-size: 0.85em;
+  }
+  pre {
+    background: var(--surface-elevated);
+    padding: 1rem;
+    border-radius: 6px;
+    overflow-x: auto;
+    margin: 0.75rem 0;
+  }
+  pre code { background: none; padding: 0; }
+  strong { color: #f1f5f9; }
+
+  .meta { color: var(--text-muted); font-size: 0.85rem; margin-bottom: 1.5rem; }
+  .summary-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1.25rem 1.5rem;
+    margin: 1rem 0;
+  }
+  .summary-box h2 { margin-top: 0; }
+  .vote-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 0.75rem;
+    margin: 1rem 0;
+  }
+  .vote-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 0.75rem 1rem;
+    border-left: 4px solid var(--accent);
+  }
+  .vote-card .participant { font-weight: 600; font-size: 0.9rem; }
+  .vote-card .option { font-size: 0.85rem; margin-top: 0.25rem; }
+  .vote-card .confidence { font-size: 0.8rem; color: var(--text-muted); }
+  .vote-card .rationale { font-size: 0.8rem; color: var(--text-muted); margin-top: 0.25rem; font-style: italic; }
+
+  .round-section {
+    margin: 1.5rem 0;
+  }
+  .participant-block {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    margin: 0.75rem 0;
+    overflow: hidden;
+  }
+  .participant-header {
+    background: var(--surface-elevated);
+    padding: 0.6rem 1rem;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    user-select: none;
+  }
+  .participant-header:hover { background: #3b4f6b; }
+  .participant-header .name { font-weight: 600; }
+  .participant-header .chars { font-size: 0.8rem; color: var(--text-muted); }
+  .participant-header .toggle { font-size: 0.8rem; color: var(--text-muted); }
+  .participant-body {
+    padding: 1rem 1.25rem;
+    display: none;
+  }
+  .participant-block.open .participant-body { display: block; }
+  .participant-block.open .toggle { transform: rotate(90deg); }
+
+  .convergence {
+    display: inline-block;
+    background: var(--surface-elevated);
+    padding: 0.25rem 0.6rem;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+  }
+  .tag {
+    display: inline-block;
+    padding: 0.15rem 0.5rem;
+    border-radius: 3px;
+    font-size: 0.75rem;
+    font-weight: 600;
+  }
+</style>
+</head>
+<body>
+<h1>AI Council Deliberation</h1>
+<div class="meta">
+  2026-03-16 09:16 &middot;
+  Mode: conference &middot;
+  Rounds: 2 &middot;
+  <span class="convergence">majority_decision</span>
+</div>
+
+<div class="summary-box">
+<h2>Consensus</h2>
+<p>**
+All four models unanimously approve the v2 document, confirming that every required change from the v1 review was correctly implemented and the pipeline is now implementation-grade. Scores ranged from 8.7–9.5/10 (avg ~9.1), up from 8.2 in v1.</p>
+<h3>Key Agreements</h3><ul>
+<li>All 7 required changes (20% sampling floor, field notes as callouts, CREATE TABLE DDL, API routes, state transition table, 2-minute guard, structured rejection codes) are correctly and faithfully implemented — no misinterpretations</li>
+<li>The B-level upgrade (3 binary checks + required field note, 6–8 min) correctly follows Opus&#x27;s v1 recommendation and is the right tradeoff for solo-operator sustainability; GPT-5.4&#x27;s claim-verification concern is addressed via mandatory C-level escalation for high-value entities</li>
+<li>The state transition table is functionally complete for v1; the implicit `revision_requested → pending_review → in_review → rejected` path works without being explicitly enumerated</li>
+<li>Throttle cron + claim-based locking are now concretely specified and buildable — no longer hand-wavy</li>
+<li>Three minor schema/consistency gaps exist but are non-blocking: (1) `stale_data_warning boolean DEFAULT false` referenced in prose but missing from DDL; (2) RLS policies use raw `auth.jwt() -&gt;&gt; &#x27;role&#x27;` instead of the existing codebase&#x27;s `public.user_role()` helper; (3) `editorial_content_id` cannot be a real SQL FK across domain-specific tables and should be explicitly labeled as a soft/application-layer reference</li>
+</ul>
+<h3>Key Disagreements</h3><ul>
+<li>Minor score spread (8.7–9.5) reflecting different weighting of the documentation gaps, but no substantive disagreement on approval or implementation completeness</li>
+<li>Opus additionally flagged two code-level gaps the others missed: middleware `Role` type needs `content_reviewer` and `editorial_director` added to `isAuthorized`, and the 4 new ISR tags need adding to the existing `ALLOWED_TAGS` set in `/api/revalidate/route.ts`</li>
+</ul>
+<h3>Final Recommendation</h3>
+<p>**
+Approve v2 for immediate development. Before a developer opens the first migration PR, make five documentation fixes in a single editing pass: add the `stale_data_warning` column to the queue DDL, update RLS policies to use `public.user_role()`, label `editorial_content_id` as an application-level soft reference, note the middleware role type update, and confirm the 4 new ISR tags are added to `ALLOWED_TAGS`. None of these require redesign; all are under 30 minutes of editing total.</p>
+</div>
+<h2>Votes</h2>
+<div class="vote-grid">
+<div class="vote-card" style="border-left-color: #22c55e">
+  <div class="participant">opus@claude</div>
+  <div class="option" style="color: #22c55e">Approve</div>
+  <div class="confidence">Confidence: 91%</div>
+  <div class="rationale">All 7 required changes correctly implemented. Five minor documentation/consistency issues identified (RLS function, missing column, soft FK clarification, middleware role type, ISR tags) — all fixable</div>
+</div>
+<div class="vote-card" style="border-left-color: #22c55e">
+  <div class="participant">openai/gpt-5.4@openrouter</div>
+  <div class="option" style="color: #22c55e">Approve</div>
+  <div class="confidence">Confidence: 94%</div>
+  <div class="rationale">All 7 required changes are present and correctly implemented. Remaining issues are minor specification tightenings—mainly stale_data_warning schema alignment, auto_published semantics, and clarifying </div>
+</div>
+<div class="vote-card" style="border-left-color: #22c55e">
+  <div class="participant">google/gemini-3.1-pro-preview@openrouter</div>
+  <div class="option" style="color: #22c55e">Approve</div>
+  <div class="confidence">Confidence: 98%</div>
+  <div class="rationale">P0 completely resolved. The specification correctly integrates all 7 mandate items from v1. The DB schema, API routes, operational throttle, and B-level review depths are precisely specified and imple</div>
+</div>
+</div>
+<div class="round-section">
+<h2>Round 1</h2>
+<div class="participant-block">
+  <div class="participant-header" onclick="this.parentElement.classList.toggle('open')">
+    <span class="name">opus@claude</span>
+    <span>
+      <span class="chars">7,242 chars</span>
+      <span class="toggle">&#9654;</span>
+    </span>
+  </div>
+  <div class="participant-body">
+    <p>Now I have concrete evidence from the codebase. Let me provide my evaluation.</p>
+<hr>
+<h3>Evaluation: Editorial Review Pipeline v2</h3>
+<h4>1. Are all 7 required changes correctly implemented?</h4>
+<p><strong>Yes — all 7 are correctly implemented.</strong></p>
+<p>| # | Required Change | Status | Notes |</p>
+<p>|---|---|---|---|</p>
+<p>| 1 | Sampling floor 10% → 20% | ✅ | Section 3, table row 4: &quot;20% floor&quot; with <code>sampled_20</code> tier |</p>
+<p>| 2 | Field notes as styled callouts | ✅ | HTML example in Section 2, <code>&lt;aside class=&quot;editorial-note&quot;&gt;</code>, immutability rule added |</p>
+<p>| 3 | CREATE TABLE for <code>la_editorial_content</code> | ✅ | Full DDL in Section 1, migration <code>20260316000001</code> (before queue&#x27;s <code>20260316000002</code>) |</p>
+<p>| 4 | API routes defined | ✅ | Section 4: 6 endpoints with params, guards, side effects |</p>
+<p>| 5 | State transition table with guards | ✅ | 10 transitions, 4 invariants |</p>
+<p>| 6 | 2-minute review duration guard | ✅ | <code>fast_review_warning</code> boolean, described in multiple sections |</p>
+<p>| 7 | Structured <code>rejection_reason_code</code> enum | ✅ | 8 codes listed, alongside free-text <code>rejection_reason</code> |</p>
+<p>No misinterpretations detected. Each item faithfully implements the consensus recommendation.</p>
+<h4>2. Does the B-level upgrade strike the right balance?</h4>
+<p><strong>Yes — Opus&#x27;s lightweight approach is correct for this context.</strong></p>
+<p>The 3 binary checks (verdict defensible? claim paused? would share?) add structure without turning B into C. The critical insight: this is a <em>solo operator</em> at launch. GPT-5.4&#x27;s concern about structured claim verification is valid in principle, but implementing it at B-level would:</p>
+<ul>
+<li>Push B reviews to 10-12 minutes (eroding the B/C distinction)</li>
+<li>Accelerate reviewer fatigue in Phase 1 when 100% of pages require review</li>
+<li>Create rubber-stamping pressure — the exact problem the 2-min guard exists to prevent</li>
+</ul>
+<p>The escape valve is well-designed: C-level exists for high-value entities, and the tier transition triggers (Section 8) scale up when quality signals degrade. This is the right tradeoff for a v1 with a solo operator.</p>
+<p><strong>One note:</strong> The &quot;Would share with a friend apartment-hunting?&quot; check is the strongest of the three — it forces gestalt evaluation. Good choice.</p>
+<h4>3. Is the state transition table complete?</h4>
+<p><strong>Nearly complete. One minor gap:</strong></p>
+<p>The 10 listed transitions cover the core workflow. However:</p>
+<ul>
+<li><strong>Missing transition: <code>revision_requested</code> → <code>rejected</code></strong>. If a revision is requested but the regenerated content is still bad, the reviewer should be able to reject it outright rather than requesting another revision. The document says "rejected rows are immutable after rejection (new row created for retry)" but doesn't show how a revised piece gets rejected.</li>
+</ul>
+<p>In practice this is handled implicitly: the revised content re-enters as <code>pending_review</code> → <code>in_review</code> → can be rejected. But the <code>revision_count</code> tracking makes this worth stating explicitly. The 3-rejection escalation rule covers the pathological case.</p>
+<p><strong>Verdict:</strong> Not blocking. The implicit path works. A one-line addition to the table (<code>revision_requested → pending_review → in_review → rejected</code>) would be cleaner documentation but isn&#x27;t an architectural gap.</p>
+<h4>4. Do throttle cron + claim-based locking adequately handle operational mechanics?</h4>
+<p><strong>Yes — these are now properly specified.</strong></p>
+<ul>
+<li><strong>Throttle cron:</strong> Daily midnight UTC, priority-based FIFO, per-domain. The pseudocode in Section 3 is implementable as-is. Correct that the throttle doesn't block generation.</li>
+<li><strong>Claim-based locking:</strong> 30-min expiry with cron release of abandoned reviews. "Claim Review" button (not page open) starts the timer — this prevents accidental locks from browsing.</li>
+<li><strong>Stale queue handling:</strong> 7-day warning for <code>pending_review</code> items with changed source data. Good edge case coverage.</li>
+</ul>
+<p><strong>One operational concern (not blocking):</strong> The lock release cron runs every 30 minutes per the integration table (Section 10), but the migration SQL doesn&#x27;t create a <code>stale_data_warning</code> column mentioned in the edge cases. This is a documentation-to-schema discrepancy — the schema would need that column added. Minor.</p>
+<h4>5. Updated production readiness score</h4>
+<p><strong>8.7/10</strong> (up from 8.2 average in v1).</p>
+<p>The v2 improvements are substantial:</p>
+<ul>
+<li>Schema is now complete and migration-ordered</li>
+<li>API routes are specified with guards and side effects</li>
+<li>State machine is explicit with invariants</li>
+<li>Edge cases are enumerated (stale data, concurrent reviewers, Forge regeneration)</li>
+<li>Operational tiers have transition triggers</li>
+<li>The document reads like a technical specification a developer can implement from, not a design sketch</li>
+</ul>
+<p><strong>What keeps it from 9+:</strong></p>
+<ul>
+<li>The <code>stale_data_warning</code> column is referenced in prose but absent from the schema DDL</li>
+<li>The RLS policies use <code>auth.jwt() ->> 'role'</code> — but the existing codebase uses <code>public.user_role()</code> (which reads from <code>app_metadata</code>). Need consistency. Looking at the existing migration <code>20260224000004</code>, the codebase has a <code>public.user_role()</code> function that reads <code>auth.jwt() -> 'app_metadata' ->> 'role'</code>. The editorial pipeline's RLS policies should use this same function for consistency.</li>
+<li>No mention of how <code>editorial_content_id</code> FK works across domains — if <code>la_editorial_content</code> and <code>ll_editorial_content</code> are separate tables, the FK can't point to both. This needs a polymorphic approach (domain prefix in the FK resolution) or a shared editorial content table with a domain column. The document says "one-directional FK: queue → content" but doesn't resolve the cross-domain FK problem.</li>
+</ul>
+<h4>6. Is this document implementation-complete?</h4>
+<p><strong>Yes, with the three caveats above.</strong></p>
+<p>A developer could build this system from v2 making only normal clarifying questions (exact CSS for the callout, Tailwind classes for the admin UI, which React component library for the review panel). No architectural decisions remain.</p>
+<p>The cross-domain FK issue (point 3 in my score explanation) is the closest thing to an architectural question, but it has an obvious answer: either use the <code>domain</code> column to resolve which table to query at the application layer (not a true SQL FK), or make <code>editorial_content</code> a single shared table with a <code>domain</code> column (matching the queue&#x27;s design). The document leans toward separate tables per domain but the FK constraint as written can&#x27;t enforce this across tables. A developer would need to clarify this.</p>
+<h4>7. What still prevents shipping?</h4>
+<p><strong>Nothing architectural.</strong> Three documentation polish items:</p>
+<ul>
+<li>Add <code>stale_data_warning boolean DEFAULT false</code> to the <code>editorial_review_queue</code> schema</li>
+<li>Use <code>public.user_role()</code> in RLS policies instead of raw JWT parsing (matches existing codebase convention)</li>
+<li>Clarify the <code>editorial_content_id</code> FK — either make it a soft reference (application-level, no SQL constraint) or consolidate editorial content into one table</li>
+</ul>
+<p>None of these require redesign. They&#x27;re 15 minutes of document editing.</p>
+<hr>
+  </div>
+</div>
+<div class="participant-block">
+  <div class="participant-header" onclick="this.parentElement.classList.toggle('open')">
+    <span class="name">openai/gpt-5.4@openrouter</span>
+    <span>
+      <span class="chars">3,650 chars</span>
+      <span class="toggle">&#9654;</span>
+    </span>
+  </div>
+  <div class="participant-body">
+    <ul>
+<li><strong>Required changes:</strong> Yes — all 7 from the prior recommendation are present and correctly interpreted.</li>
+<li><strong>20% floor:</strong> explicitly raised and carried through sampling table.</li>
+<li><strong>Field notes as callouts:</strong> correctly specified, with public rendering example and preservation across regeneration.</li>
+<li><strong><code>la_editorial_content</code> CREATE TABLE + migration ordering:</strong> present.</li>
+<li><strong>API routes:</strong> present at implementation-planning level.</li>
+<li><strong>State transition table:</strong> present, materially adequate.</li>
+<li><strong>2-minute guard:</strong> present as warning/metrics flag, which matches the earlier recommendation.</li>
+<li><strong>Structured rejection codes:</strong> present and useful for Forge.</li>
+</ul>
+<p>   Minor note: the “6 endpoints” line is slightly miscounted since the doc actually defines more than six routes, but that’s editorial, not substantive.</p>
+<ul>
+<li><strong>B-level upgrade:</strong> This is the right balance. The 3 structured checks + required field note + confidence rating moves B-level from “rubber stamp” to a defensible lightweight review without collapsing solo-operator sustainability. GPT-5.4’s concern is still directionally valid for high-risk/high-value pages, but the doc already addresses that by escalating those cases to <strong>mandatory review / C-level</strong>. I would not block on adding claim-by-claim verification to B.</li>
+</ul>
+<ul>
+<li><strong>State transitions:</strong> Mostly complete and no longer hand-wavy. The main remaining gap is not architectural but operational precision:</li>
+<li><code>approved -> published</code> vs <code>approved -> stays approved waiting for throttle</code> is implied, but “approved” is acting as a queue state, not just a terminal review state. That’s fine.</li>
+<li>You should explicitly define whether <code>auto_published</code> also updates content status to <code>published</code> immediately and logs a <code>published</code>-equivalent event, or whether it is a distinct terminal queue state only.</li>
+<li>The doc mentions stale-data warnings but the field is not in the queue schema (<code>stale_data_warning boolean</code> is referenced in prose but missing from SQL).</li>
+</ul>
+<ul>
+<li><strong>Throttle cron + claim locking:</strong> Adequate. This was one of the biggest weak spots in v1 and is now specified well enough to build:</li>
+<li>daily publish cron with priority + FIFO is clear,</li>
+<li>claim/release flow is clear,</li>
+<li>30-minute lock expiry is clear,</li>
+<li>abandoned review reset is clear.</li>
+</ul>
+<p>   One caution: “runs at midnight UTC per domain” is good enough for implementation, but if domains care about local-market publish pacing later, that’s a future enhancement, not a blocker.</p>
+<ul>
+<li><strong>Updated readiness score:</strong> <strong>9.0/10</strong>. Up materially from ~8.2. The document is now implementation-grade.</li>
+</ul>
+<ul>
+<li><strong>Implementation complete?</strong> <strong>Yes, essentially.</strong> A developer can build this without making architectural decisions. Remaining questions are normal implementation details, not missing design.</li>
+</ul>
+<ul>
+<li><strong>What still prevents shipping?</strong></li>
+</ul>
+<p>   Very little. I would not block shipping on any of this, but I’d tighten three items before coding starts:</p>
+<ul>
+<li>add the missing <code>stale_data_warning</code> field if that warning is intended behavior,</li>
+<li>clarify exact semantics of <code>auto_published</code> vs <code>published</code>,</li>
+<li>enforce the “only one active queue row per entity” invariant in the database if possible (partial unique index or equivalent), not just in prose.</li>
+</ul>
+<p><strong>Bottom line:</strong> v2 correctly implements the prior review feedback. The P0 is not just resolved; the pipeline is now specified at a level where engineering can proceed safely.</p>
+  </div>
+</div>
+<div class="participant-block">
+  <div class="participant-header" onclick="this.parentElement.classList.toggle('open')">
+    <span class="name">google/gemini-3.1-pro-preview@openrouter</span>
+    <span>
+      <span class="chars">4,317 chars</span>
+      <span class="toggle">&#9654;</span>
+    </span>
+  </div>
+  <div class="participant-body">
+    <p>Here is my evaluation of the Editorial Review Pipeline — Design Document (v2). </p>
+<p>This is a comprehensive, implementation-ready document that directly addresses every structural flaw flagged in the v1 review. The system has matured from theoretical &quot;vaporware&quot; into a concrete set of schemas, API contracts, state machines, and background workers. </p>
+<h4>1. Are all required changes correctly implemented?</h4>
+<p><strong>Yes.</strong> All 7 mandate items from the previous council deliberation have been executed exactly as requested:</p>
+<ul>
+<li><strong>20% Floor:</strong> Explicitly codified in the Section 3 sampling rules.</li>
+<li><strong>Field Notes Rendering:</strong> HTML snippet provided in Section 2 confirms Notes will act as styled <code>"editorial-note"</code> components (out-of-band callouts) rather than inline text injection.</li>
+<li><strong>la_editorial_content CREATE TABLE:</strong> Provided with proper foreign key directionality (queue → content, eliminating the circular dependency) and migration sequencing.</li>
+<li><strong>API Routes:</strong> Section 4 covers the necessary CRUD operations, including guards and side effects.</li>
+<li><strong>State Transition Table:</strong> Included in Section 1, covering the queue lifecycle from <code>pending_review</code> through to <code>published</code> or <code>rejected</code>.</li>
+<li><strong>2-Minute Guard:</strong> The <code>fast_review_warning</code> boolean relies on calculated timestamps and surfaces in metrics/Forge logic without blocking the UI flow.</li>
+<li><strong>Structured Rejection Codes:</strong> Enum created (<code>weak_verdict</code>, <code>stale_data</code>, etc.) to provide dense, clusterable signals back to the Forge.</li>
+</ul>
+<h4>2. Does the B-level upgrade strike the right balance?</h4>
+<p><strong>Yes.</strong> The addition of three lightweight binary checks (+1 min) perfectly threads the needle between Opus&#x27;s desire for velocity and GPT-5.4&#x27;s demand for defensibility. By requiring the operator to explicitly sign off on the <em>lack</em> of unsupported claims (&quot;Any claim that made me pause?&quot;), you transfer legal and editorial liability to the human layer without forcing them to manually re-verify every background fact. Setting the B-level baseline to 6-8 minutes makes a 5-10 page daily workload completely sustainable for a solo operator (~1 hour).</p>
+<h4>3. Is the state transition table complete?</h4>
+<p><strong>Functionally complete for v1, with one minor semantic observation.</strong></p>
+<p>The table maps the core lifecycle perfectly. The 30-minute lock expiration loop safely handles abandoned reviews. </p>
+<p><em>Edge Case Note:</em> Consider what happens if a manual edit occurs on a <code>rejected</code> state item before regeneration happens. The table states that a <code>rejected</code> item spawns a &quot;new row created&quot; on regeneration. This immutability of rejected rows is a very smart design choice for auditability. It is functionally complete as written.</p>
+<h4>4. Does the throttle cron + claim-based locking handle operational mechanics?</h4>
+<p><strong>Yes, elegantly.</strong> </p>
+<ul>
+<li><strong>The Throttle:</strong> Decoupling the generation speed from the publication speed via a daily cron job pulling from an <code>approved</code> queue prevents SEO velocity penalties and ensures the site scales organically. Grouping by <code>priority</code> first, then FIFO, ensures high-value assets aren't buried in the queue.</li>
+<li><strong>Locking:</strong> Explicit API endpoints (<code>/claim</code> and <code>/release</code>) combined with <code>reviewer_id</code> stamping and a 30-minute lock timeout is the industry standard for preventing concurrent reviewer collisions.</li>
+</ul>
+<h4>5. Updated production readiness score?</h4>
+<p><strong>9.5/10.</strong> (Up from 8.2). The document leaves almost nothing to the imagination. The 0.5 deduction is merely an acknowledgement that minor UI state handling (e.g., error boundaries when a claim lock fails) will need to be resolved by the front-end developer, which is standard.</p>
+<h4>6. Is this document now implementation-complete?</h4>
+<p><strong>Yes.</strong> A mid-level or senior full-stack developer could take this document and write the Supabase migrations, API routes, React components, and cron jobs without needing to invent architecture. The explicit definitions for schema (Section 1), Admin UI (Section 2), API contracts (Section 4), and Integration points (Section 10) constitute a pristine technical spec.</p>
+<h4>7. What, if anything, still prevents shipping?</h4>
+<p><strong>Nothing.</strong> This is approved for immediate development. </p>
+<p><em>*</em></p>
+  </div>
+</div>
+<div class="participant-block">
+  <div class="participant-header" onclick="this.parentElement.classList.toggle('open')">
+    <span class="name">x-ai/grok-4.20-beta@openrouter</span>
+    <span>
+      <span class="chars">4,316 chars</span>
+      <span class="toggle">&#9654;</span>
+    </span>
+  </div>
+  <div class="participant-body">
+    <p><strong>VOTE:</strong> {&quot;option&quot;: &quot;Approve&quot;, &quot;confidence&quot;: 0.88, &quot;rationale&quot;: &quot;All 7 required v1 changes are correctly implemented. Document is now implementation-complete.&quot;}</p>
+<h4>1. Required Changes Implementation Check</h4>
+<p>All 7 items from the v1 Final Recommendation are correctly addressed:</p>
+<ul>
+<li><strong>Sampling floor</strong>: Raised from 10% to <strong>20% floor</strong> with clear table and mandatory overrides. ✓</li>
+<li><strong>Field notes rendering</strong>: Explicitly specified as styled <code>editorial-note</code> callouts (with HTML example and immutability rule across Forge regenerations). No inline blending. ✓</li>
+<li><strong>CREATE TABLE for la_editorial_content</strong>: Full <code>CREATE TABLE</code> statement provided as first migration (20260316000001) with proper dependency ordering before the queue table. Includes all required columns (field_notes, categories, etc.). ✓</li>
+<li><strong>API routes</strong>: 6 concrete endpoints under <code>/api/admin/editorial-review/</code> with params, guards, and side effects. ✓</li>
+<li><strong>State transition table</strong>: Comprehensive table with 10 transitions, explicit guards, and invariants. ✓</li>
+<li><strong>2-minute review duration guard</strong>: <code>fast_review_warning</code> + explicit policy (under 2 min still allowed but flagged for metrics/Forge). ✓</li>
+<li><strong>Structured <code>rejection_reason_code</code></strong>: 8-value enum + free-text field, explicitly called out for Forge clustering. ✓</li>
+</ul>
+<p>No misinterpretations. All were implemented cleanly.</p>
+<h4>2. B-level Upgrade</h4>
+<p>The 3 lightweight structured checks (verdict defensible, claim pause, would-share-with-friend) + 15-char field note at 6-8 minutes is the correct balance. This follows the Opus recommendation from v1 exactly. It adds defensibility without forcing solo operators into 15-minute C-level reviews on every page. GPT-5.4&#x27;s deeper claim verification concern is mitigated by:</p>
+<ul>
+<li>The provenance panel in the UI</li>
+<li>Monthly blind audits of skip-tier pages</li>
+<li>The mandatory overrides for high-value/weak-enrichment entities</li>
+</ul>
+<p>This is sustainable for a solo operator while still providing structured signal to the Forge.</p>
+<h4>3. State Transition Table</h4>
+<p>The table is complete and well-specified. Key strengths:</p>
+<ul>
+<li>Clear guards (e.g. "all 3 checks answered", "review_duration >= 2 min")</li>
+<li>Proper handling of abandoned reviews (30 min timeout)</li>
+<li>Distinction between <code>approved</code> → <code>published</code> (cron-driven)</li>
+<li>Invariants section addresses the one-active-review rule</li>
+</ul>
+<p>No major missing transitions. The &quot;stale_data_warning&quot; case is noted in edge cases but could arguably have its own transition; however, it&#x27;s not a blocking omission.</p>
+<h4>4. Operational Mechanics</h4>
+<p>The throttle cron (daily midnight UTC, priority + FIFO) and claim-based locking (30-min expiry) adequately address the previous hand-wavy areas. The design now shows:</p>
+<ul>
+<li>How backlog behaves (skip-tier still publishes)</li>
+<li>How concurrent reviewers are handled</li>
+<li>How throttle interacts with generation (non-blocking)</li>
+<li>Explicit stale data warning after 7 days</li>
+</ul>
+<p>This is solid for production operation.</p>
+<h4>5. Production Readiness Score</h4>
+<p><strong>8.7/10</strong> (up from v1&#x27;s 7.8–8.5 avg 8.2). The document is now extremely thorough. The only remaining deductions are minor:</p>
+<ul>
+<li>Some edge cases around Forge regeneration + field note preservation could use one more paragraph of explicit rules.</li>
+<li>The exact mechanism for "preserving field notes across regeneration" is stated as a rule but lacks the implementation detail of <em>how</em> the content engine identifies and re-inserts them.</li>
+</ul>
+<p>These are normal clarifying questions, not architectural gaps.</p>
+<h4>6. Implementation-Complete Status</h4>
+<p><strong>Yes.</strong> A competent full-stack developer familiar with the existing codebase could build this system from v2 with only normal clarifying questions (exact styling of callouts, exact text of rejection reasons in UI, exact Supabase RLS policy details, etc.). No architectural decisions remain.</p>
+<h4>7. What Still Prevents Shipping</h4>
+<p>Nothing architectural. Only two small polish items:</p>
+<ul>
+<li>Add the four new ISR tags (<code>editorial-building</code>, etc.) to the <code>ALLOWED_TAGS</code> set in <code>/api/revalidate/route.ts</code> (explicitly called out but the actual code change isn't shown).</li>
+<li>Minor clarification on the exact Forge regeneration + field note preservation algorithm.</li>
+</ul>
+<p>These are trivial. The document is ready for implementation.</p>
+<p><strong>Final consensus position:</strong> Approve v2. The editorial review pipeline is no longer vaporware — it is now a complete, buildable specification.</p>
+  </div>
+</div>
+</div>
+<div class="round-section">
+<h2>Round 2</h2>
+<div class="participant-block open">
+  <div class="participant-header" onclick="this.parentElement.classList.toggle('open')">
+    <span class="name">opus@claude</span>
+    <span>
+      <span class="chars">4,313 chars</span>
+      <span class="toggle">&#9654;</span>
+    </span>
+  </div>
+  <div class="participant-body">
+    <p>Now I have the concrete evidence needed. Here&#x27;s my evaluation:</p>
+<hr>
+<h3>Evaluation: Editorial Review Pipeline v2</h3>
+<h4>1. All 7 required changes — correctly implemented?</h4>
+<p><strong>Yes, all 7 are present and faithfully implemented.</strong> No misinterpretations.</p>
+<h4>2. B-level upgrade balance</h4>
+<p><strong>Correct for v1.</strong> The 3 binary checks add defensibility without collapsing into C-level. The &quot;Would share with a friend apartment-hunting?&quot; check is the standout — it forces holistic evaluation that structured claim-checking can&#x27;t replicate at B-level time budgets.</p>
+<h4>3. State transition table completeness</h4>
+<p><strong>Adequate.</strong> The implicit <code>revision_requested → pending_review → in_review → rejected</code> path works without being explicitly stated. Not a gap.</p>
+<h4>4. Throttle cron + claim-based locking</h4>
+<p><strong>Well-specified.</strong> The v1 hand-wavy areas are now concrete and buildable.</p>
+<h4>5. Three concrete issues the other reviewers identified</h4>
+<p>All four prior reviewers converged on the same findings. I&#x27;ve verified them against the codebase:</p>
+<p><strong>Issue A: RLS policies use wrong function.</strong> The document uses <code>auth.jwt() -&gt;&gt; &#x27;role&#x27;</code> in RLS policies. The codebase has a <code>public.user_role()</code> function (migration <code>20260303000001</code>) that reads <code>auth.jwt()-&gt;&#x27;app_metadata&#x27;-&gt;&gt;&#x27;role&#x27;</code> with <code>SECURITY DEFINER</code>. Every other RLS policy in the codebase uses <code>public.user_role()</code>. The editorial pipeline policies <strong>must</strong> use this function — using raw JWT parsing bypasses the app_metadata path and would break if the JWT claim structure ever changes.</p>
+<p><strong>Issue B: <code>stale_data_warning</code> column referenced in prose (Section 3 edge cases) but absent from the <code>editorial_review_queue</code> CREATE TABLE DDL.</strong> Add <code>stale_data_warning boolean DEFAULT false</code> to the schema.</p>
+<p><strong>Issue C: <code>editorial_content_id</code> FK across domains.</strong> The queue has <code>editorial_content_id uuid NOT NULL</code> with a comment saying &quot;FK to per-domain editorial table&quot; but no actual <code>REFERENCES</code> constraint — which is correct since SQL can&#x27;t FK to two different tables. The document should explicitly state this is a soft reference resolved at the application layer (the <code>domain</code> column determines which table to query). It currently reads as if there&#x27;s a constraint when there isn&#x27;t one.</p>
+<p><strong>Issue D (new): Middleware <code>Role</code> type needs updating.</strong> The current middleware (<code>middleware.ts:48</code>) defines <code>type Role = &#x27;admin&#x27; | &#x27;concierge&#x27; | &#x27;renter&#x27;</code>. The document mentions adding <code>content_reviewer</code> and <code>editorial_director</code> but the <code>isAuthorized</code> function&#x27;s access matrix only handles <code>admin</code>, <code>concierge</code>, and <code>renter</code>. A new role without a matching branch in <code>isAuthorized</code> would be denied access to <code>/admin/content/review/<em></code>. The document should note that <code>isAuthorized</code> needs a new branch: <code>content_reviewer</code> and <code>editorial_director</code> → allowed on <code>/admin/content/review/</em></code> only.</p>
+<p><strong>Issue E (new): ALLOWED_TAGS in revalidate route.</strong> The current <code>ALLOWED_TAGS</code> set (<code>route.ts:4-10</code>) contains exactly 5 tags: <code>mls-apartments</code>, <code>apartments</code>, <code>neighborhoods</code>, <code>cities</code>, <code>blog-posts</code>. The document correctly identifies that 4 new editorial tags need to be added. Confirmed this is a real code change required.</p>
+<h4>6. Production readiness score</h4>
+<p><strong>8.8/10.</strong> The 5 issues above are all 15-minute fixes — none architectural. The document is implementation-grade.</p>
+<h4>7. Implementation-complete?</h4>
+<p><strong>Yes.</strong> A developer can build from this with only normal clarifying questions. The 5 issues are documentation polish, not missing design.</p>
+<h4>8. What prevents shipping?</h4>
+<p>Nothing architectural. Five documentation items, all fixable in one pass:</p>
+<ul>
+<li><code>stale_data_warning boolean DEFAULT false</code> → add to queue schema</li>
+<li>RLS policies → <code>public.user_role() IN (...)</code> instead of <code>auth.jwt() ->> 'role'</code></li>
+<li><code>editorial_content_id</code> → explicitly label as soft reference (no SQL FK constraint)</li>
+<li>Note that <code>middleware.ts</code> <code>Role</code> type and <code>isAuthorized</code> function need updating</li>
+<li>The 4 new ISR tags need adding to <code>ALLOWED_TAGS</code> (confirmed against actual code)</li>
+</ul>
+<hr>
+  </div>
+</div>
+<div class="participant-block open">
+  <div class="participant-header" onclick="this.parentElement.classList.toggle('open')">
+    <span class="name">openai/gpt-5.4@openrouter</span>
+    <span>
+      <span class="chars">5,099 chars</span>
+      <span class="toggle">&#9654;</span>
+    </span>
+  </div>
+  <div class="participant-body">
+    <p>I agree with the approval direction, with a few concrete caveats.</p>
+<h3>1. Are all 7 required changes correctly implemented?</h3>
+<p><strong>Yes.</strong> The v2 document includes all 7 requested additions in substance and mostly in the intended form:</p>
+<ul>
+<li><strong>Sampling floor 10% → 20%</strong>: clearly implemented.</li>
+<li><strong>Field notes as styled callouts</strong>: correctly implemented, with explicit non-inline rendering and preservation rule.</li>
+<li><strong><code>la_editorial_content</code> CREATE TABLE + migration ordering</strong>: present and sequenced correctly.</li>
+<li><strong>API routes defined</strong>: present at a buildable level.</li>
+<li><strong>State transition table with guards</strong>: present and materially sufficient.</li>
+<li><strong>2-minute review-duration guard</strong>: present as a warning/metrics flag, which matches the recommendation.</li>
+<li><strong>Structured <code>rejection_reason_code</code> enum</strong>: present and useful for Forge feedback.</li>
+</ul>
+<p>So on the narrow validation question: <strong>yes, the required changes were implemented correctly.</strong></p>
+<h3>2. Does the B-level upgrade strike the right balance?</h3>
+<p><strong>Yes, for v1.</strong> The 3 structured checks + required field note + confidence level is the right compromise.</p>
+<p>GPT-5.4’s earlier concern was valid in principle: B-level review can be too thin if it becomes a performative checkbox pass. But forcing claim-by-claim verification into B would blur the B/C distinction and likely create fatigue or fake rigor for a solo operator. This version avoids that.</p>
+<p>What makes this acceptable:</p>
+<ul>
+<li>mandatory review overrides for high-risk/high-value cases,</li>
+<li>optional C-level for deeper review,</li>
+<li>2-minute warning guard,</li>
+<li>blind audits of skip-tier pages,</li>
+<li>structured rejection codes feeding Forge.</li>
+</ul>
+<p>So: <strong>sufficient for launch</strong>, not perfect forever. If rejection rates or audit failures rise, then B should tighten later.</p>
+<h3>3. Is the state transition table complete?</h3>
+<p><strong>Mostly complete, but not perfectly explicit.</strong></p>
+<p>Core lifecycle is covered. The remaining gaps are small:</p>
+<ul>
+<li><strong><code>revision_requested</code> handling is slightly under-specified</strong>: after revised content comes back, the path back through review is implied, not fully enumerated.</li>
+<li><strong><code>auto_published</code> semantics should be a little tighter</strong>: is it a true terminal state equivalent to published, and does it always update content status + event log in the same way?</li>
+<li>The doc references <strong>stale-data warning behavior</strong> but the schema shown does <strong>not include <code>stale_data_warning</code></strong>.</li>
+</ul>
+<p>None of these are architectural blockers, but they are real polish gaps.</p>
+<h3>4. Do throttle cron + claim-based locking adequately handle operational mechanics?</h3>
+<p><strong>Yes.</strong> This was a weak point in v1 and is now good enough to implement safely.</p>
+<ul>
+<li>Daily throttle cron is specified clearly enough.</li>
+<li>Priority + FIFO ordering is clear.</li>
+<li>Claim/release mechanics are clear.</li>
+<li>30-minute expiry for abandoned reviews is clear.</li>
+<li>Queueing approved items without blocking generation is the correct design.</li>
+</ul>
+<p>This is now operationally credible.</p>
+<h3>5. Updated production readiness score</h3>
+<p><strong>8.9/10</strong></p>
+<p>That’s a meaningful improvement from the prior ~8.2 range. The doc is now implementation-grade. I’m not at 9.5+ because there are still a few specification inconsistencies:</p>
+<ul>
+<li>missing <code>stale_data_warning</code> column in schema despite prose references,</li>
+<li>RLS policy examples use raw <code>auth.jwt() ->> 'role'</code>, which may not match existing project role helpers,</li>
+<li>the queue’s <code>editorial_content_id</code> is described like an FK to per-domain tables, but a true relational FK cannot point to multiple domain-specific tables.</li>
+</ul>
+<h3>6. Is this document now implementation-complete?</h3>
+<p><strong>Yes, essentially.</strong> A developer could build this from v2 without making major architectural decisions.</p>
+<p>The remaining questions are implementation clarifications, not missing system design.</p>
+<p>The only near-architectural ambiguity is the cross-domain <code>editorial_content_id</code> reference. If content remains split into per-domain tables, then this is effectively an <strong>application-level polymorphic reference</strong>, not a normal SQL FK. That should be stated explicitly.</p>
+<h3>7. What still prevents shipping?</h3>
+<p><strong>Nothing major prevents shipping.</strong> But before coding starts, I’d tighten these items:</p>
+<ul>
+<li><strong>Add <code>stale_data_warning boolean default false</code></strong> to the queue schema if that behavior is intended.</li>
+<li><strong>Clarify <code>auto_published</code> semantics</strong> relative to <code>published</code>.</li>
+<li><strong>Clarify <code>editorial_content_id</code> reference mechanics across domain-specific content tables</strong>.</li>
+<li><strong>Align RLS role checks with the existing codebase convention</strong> if a helper like <code>public.user_role()</code> already exists.</li>
+<li>Ideally, <strong>enforce the “only one active queue row per entity” invariant at the DB level</strong> if feasible.</li>
+</ul>
+<p>These are small but worth cleaning up.</p>
+<p><strong>Bottom line:</strong> v2 successfully implements the requested fixes and resolves the earlier “vaporware” concern. I would approve it.</p>
+  </div>
+</div>
+<div class="participant-block open">
+  <div class="participant-header" onclick="this.parentElement.classList.toggle('open')">
+    <span class="name">google/gemini-3.1-pro-preview@openrouter</span>
+    <span>
+      <span class="chars">5,334 chars</span>
+      <span class="toggle">&#9654;</span>
+    </span>
+  </div>
+  <div class="participant-body">
+    <p>This is a thorough, implementation-grade specification that has successfully crossed the threshold from high-level design to buildable architecture. The v2 document diligently resolves every P0 concern raised during the v1 review. </p>
+<p>Here is my evaluation across the seven critical axes:</p>
+<h4>1. Are all required changes correctly implemented?</h4>
+<p><strong>Yes, explicitly and correctly.</strong></p>
+<ul>
+<li><strong>20% Floor:</strong> Updated cleanly in the sampling rules table.</li>
+<li><strong>Field notes as callouts:</strong> Structured gracefully as an HTML <code><aside></code> element with specific CSS classes, resolving the "invisible seams" issue. The immutability rule ensuring they survive Forge regenerations is a crucial structural addition.</li>
+<li><strong><code>la_editorial_content</code> CREATE TABLE:</strong> Added as the first migration script with proper dependency ordering. It correctly establishes the schema and severs the circular dependency (using a one-directional FK from the queue).</li>
+<li><strong>API Routes:</strong> Six precise endpoints defined with HTTP methods, specific payloads, explicit execution guards, and side-effects.</li>
+<li><strong>State Transition Table:</strong> Fully documented with triggers, guards, and 4 necessary system invariants.</li>
+<li><strong>Minimum 2-Minute Guard:</strong> Elegantly handled. Instead of hard-blocking (which frustrates users), it sets a <code>fast_review_warning</code> boolean for metrics monitoring and Forge weighting.</li>
+<li><strong>Structured Rejection Codes:</strong> Enum correctly defined in both the DB schema and the UI, which will allow the Forge to cluster failure reasons effectively.</li>
+</ul>
+<h4>2. Does the B-level upgrade strike the right balance?</h4>
+<p><strong>Yes.</strong> The implementation of the three structured binary checks successfully captures Opus&#x27;s intent, and it is the correct architectural choice for a solo operator. </p>
+<p>GPT-5.4&#x27;s desire for structured claim verification is theoretically sound for maximizing E-E-A-T, but operationally lethal for a v1 launch. By forcing the reviewer to explicitly answer &quot;Does the verdict feel defensible?&quot;, &quot;Any claim that made me pause?&quot;, and &quot;Would share with a friend?&quot; (gestalt check), you introduce necessary psychological friction and accountability without bloating the review time to 15 minutes. High-value or high-risk pages are appropriately escalated via mandatory C-level triggers.</p>
+<h4>3. Is the state transition table complete?</h4>
+<p><strong>Yes, it covers the core lifecycle robustly.</strong> </p>
+<p>The explicit separation of the human reviewer&#x27;s terminal state (<code>approved</code>) from the system&#x27;s terminal state (<code>published</code> via cron) is well-defined. The exception paths (<code>rejected</code> spawning a new row, <code>revision_requested</code> dropping back to <code>pending_review</code>) handle standard editorial loops perfectly.</p>
+<p><em>Minor note on edge case coverage:</em> The prose mentions a <code>stale_data_warning</code> for backlog items older than 7 days, but this is handled lazily/at render time rather than via a discrete state transition, which is perfectly fine. The implicit path of rejecting a freshly regenerated revision is clear enough for implementation.</p>
+<h4>4. Do the throttle cron + claim-based locking adequately handle operational mechanics?</h4>
+<p><strong>Yes.</strong> These were the weakest points in v1 and are now structurally sound.</p>
+<ul>
+<li><strong>Throttle:</strong> A daily priority-queue cron reading from an <code>approved</code> buffer is the correct distributed systems approach. It completely decouples generative velocity from SEO publication pacing.</li>
+<li><strong>Locking:</strong> Explicit <code>/claim</code> API with a 30-minute lock expiration cron job is industry standard. Relying on an explicit UI button click to start the timer (rather than page-load) prevents accidental ghost locks.</li>
+</ul>
+<h4>5. Updated production readiness score</h4>
+<p><strong>9.5/10</strong> (Up from an average of ~8.2).</p>
+<p>The document is excellent. The 0.5 deduction stems entirely from a few trivial documentation-to-code mismatches in the schema.</p>
+<h4>6. Is this document now implementation-complete?</h4>
+<p><strong>Yes.</strong> </p>
+<p>A front-end or full-stack developer could take this document and immediately begin scaffolding the Supabase migrations, Next.js API routes, and React Admin UI components. No architectural or design decisions are left blank.</p>
+<h4>7. What, if anything, still prevents shipping?</h4>
+<p><strong>Nothing architectural.</strong> </p>
+<p>Development should be cleared to begin. Before finalizing the Pull Request, the engineering team should catch three minor schema/implementation sync issues:</p>
+<ul>
+<li><strong>Missing Column DDL:</strong> Add <code>stale_data_warning boolean DEFAULT false</code> to the <code>editorial_review_queue</code> migration script (it is mentioned in the Edge Cases but omitted from the SQL).</li>
+<li><strong>RLS Convention:</strong> Verify whether the specific Supabase instance uses <code>auth.jwt() ->> 'role'</code> or a custom <code>public.user_role()</code> function, and align the RLS policies accordingly.</li>
+<li><strong><code>auto_published</code> Semantics:</strong> Ensure the sync logic clarifies whether an item marked <code>auto_published</code> in the queue directly updates the content table to <code>published</code>, or if it still waits for the daily throttle. (In a skip-tier, it should bypass the throttle, but making the engineering mapping clear will prevent a bug).</li>
+</ul>
+<p><em>*</em></p>
+  </div>
+</div>
+<div class="participant-block open">
+  <div class="participant-header" onclick="this.parentElement.classList.toggle('open')">
+    <span class="name">x-ai/grok-4.20-beta@openrouter</span>
+    <span>
+      <span class="chars">5,717 chars</span>
+      <span class="toggle">&#9654;</span>
+    </span>
+  </div>
+  <div class="participant-body">
+    <p><strong>VOTE:</strong> {&quot;option&quot;: &quot;Approve&quot;, &quot;confidence&quot;: 0.94, &quot;rationale&quot;: &quot;All 7 required changes from v1 are correctly implemented. Document is now implementation-complete with only trivial documentation cleanups remaining.&quot;}</p>
+<h4>1. Required Changes Implementation Check</h4>
+<p>All 7 items from the v1 Final Recommendation are present and correctly realized:</p>
+<ul>
+<li><strong>Sampling floor 10% → 20%</strong>: Explicitly raised. Section 3 table shows <code>sampled_20</code> tier with 20% floor + mandatory overrides for high-value/weak-enrichment cases. ✓</li>
+<li><strong>Field notes as styled callouts</strong>: Fully specified. HTML <code><aside class="editorial-note"></code> example in Section 2, immutability rule across Forge regeneration, separate columns for category/source/insertion_point. Not inline blending. ✓</li>
+<li><strong>CREATE TABLE for <code>la_editorial_content</code></strong>: Present as first migration (<code>20260316000001</code>) with full DDL, proper ordering before queue table, and RLS. Also notes repetition for <code>ll_editorial_content</code>. ✓</li>
+<li><strong>API routes defined</strong>: Section 4 lists 6 clear endpoints (<code>/claim</code>, <code>/approve</code>, <code>/reject</code>, <code>/request-revision</code>, <code>/release</code>, plus list/metrics) with guards, params, and side effects. ✓</li>
+<li><strong>State transition table</strong>: Present with 10 transitions, explicit guards, and invariants section. ✓</li>
+<li><strong>2-minute review duration guard</strong>: Implemented as <code>fast_review_warning</code> boolean + UI timer warning + metrics/Forge signal. Under-2-min reviews still allowed but flagged. ✓</li>
+<li><strong>Structured <code>rejection_reason_code</code> enum</strong>: 8-value enum defined (<code>weak_verdict</code>, <code>unsupported_claim</code>, ..., <code>other</code>) alongside free-text <code>rejection_reason</code>. ✓</li>
+</ul>
+<p>No misinterpretations. Every required item was executed faithfully.</p>
+<h4>2. B-level Upgrade Balance</h4>
+<p><strong>Yes — the Opus lightweight approach was the correct call.</strong></p>
+<p>The 3 binary checks (verdict defensible, any claim paused, would-share-with-friend) + required 15-char field note add meaningful structure (~+1 min) without collapsing the B/C distinction. This keeps Phase 1 sustainable for a solo operator (30–64 min/day initially). GPT-5.4’s deeper claim-verification desire is valid in principle but would push B reviews toward 10–12 minutes, eroding the tier system and accelerating reviewer fatigue. The design correctly treats C-level as the escape valve for high-value or thin-enrichment entities, with monthly blind audits as calibration. The “would share with friend apartment-hunting” question is particularly strong for gestalt judgment.</p>
+<h4>3. State Transition Table</h4>
+<p><strong>Complete for practical purposes.</strong></p>
+<p>The 10 transitions plus invariants cover the core lifecycle well. The implicit path (<code>revision_requested</code> → new content → <code>pending_review</code> → <code>rejected</code>) works given the “rejected rows are immutable” rule. One could argue for an explicit <code>revision_requested</code> → <code>rejected</code> transition after a bad regeneration, but it is non-blocking. The abandoned-review lock release and stale-data warning are appropriately handled via cron and flags rather than additional state rows.</p>
+<h4>4. Throttle Cron + Claim-Based Locking</h4>
+<p><strong>Yes — these were the weakest parts of v1 and are now adequately specified.</strong></p>
+<ul>
+<li>Throttle cron is concrete (midnight UTC, priority + FIFO, per-domain, non-blocking on generation).</li>
+<li>Claim-based locking (30-min expiry, “Claim Review” button starts timer, cron release of abandoned reviews) prevents both accidental locks and concurrent editing.</li>
+<li>Stale-data warning after 7 days is called out with UI banner.</li>
+<li>“Only one active queue row per entity” invariant is documented and can be enforced with a partial unique index.</li>
+</ul>
+<p>Minor documentation-to-schema gap: <code>stale_data_warning</code> column is mentioned in prose but absent from the <code>editorial_review_queue</code> DDL. This is a 30-second fix.</p>
+<h4>5. Updated Production Readiness Score</h4>
+<p><strong>9.1/10</strong> (up from v1’s ~8.2 average).</p>
+<p>Strengths: schema is complete and ordered, API contracts are actionable, state machine is explicit, operational mechanics are no longer hand-wavy, Forge feedback loop is tight, tier transition triggers exist, and the document reads like a spec a mid-level full-stack engineer can implement from.</p>
+<p>Remaining deductions (0.9 total):</p>
+<ul>
+<li>Minor schema-prose mismatch on <code>stale_data_warning</code> column.</li>
+<li>RLS policies use raw <code>auth.jwt() ->> 'role'</code> while the existing codebase uses <code>public.user_role()</code> helper (per migration <code>20260224000004</code>). Consistency would be preferable.</li>
+<li>Cross-domain FK comment: <code>editorial_content_id</code> pointing to per-domain tables cannot have a real SQL FK. The document already leans toward application-level resolution via <code>domain</code> + <code>entity_type</code>, which is acceptable.</li>
+</ul>
+<p>None of these are architectural blockers.</p>
+<h4>6. Implementation-Complete Status</h4>
+<p><strong>Yes.</strong> A developer familiar with the existing Supabase/Next.js stack could build this system from v2 with only normal clarifying questions:</p>
+<ul>
+<li>Exact Tailwind classes for the editorial-note aside</li>
+<li>Precise text of rejection reason dropdowns</li>
+<li>Whether <code>stale_data_warning</code> should be a real column or computed on-the-fly</li>
+<li>Exact ISR tag naming convention</li>
+</ul>
+<p>No open architectural decisions remain.</p>
+<h4>7. What Still Prevents Shipping?</h4>
+<p>Nothing of substance. Three trivial documentation polish items:</p>
+<ul>
+<li>Add <code>stale_data_warning boolean DEFAULT false</code> to the queue table DDL.</li>
+<li>Update the RLS policies to use <code>public.user_role()</code> for consistency with the rest of the codebase.</li>
+<li>Add one clarifying sentence about how the FK is resolved (application-level join using <code>domain</code> + <code>entity_type</code>).</li>
+</ul>
+<p>These are &lt;15 minutes of editing. The pipeline is approved for implementation.</p>
+<p><strong>Summary:</strong> v2 faithfully implements every required change from the v1 council review. The editorial review system is no longer vaporware — it is a concrete, buildable specification. Ready to ship.</p>
+  </div>
+</div>
+</div>
+
+<hr>
+<div class="meta">
+  Generated by <strong>ai-counsel</strong> &middot;
+  Participants: opus@claude, openai/gpt-5.4@openrouter, google/gemini-3.1-pro-preview@openrouter, x-ai/grok-4.20-beta@openrouter
+</div>
+</body>
+</html>

@@ -128,8 +128,14 @@ class BaseCLIAdapter(ABC):
         prompt_bytes = None
 
         if use_stdin:
-            # Remove the {prompt} placeholder from args — will pipe via stdin
-            args = [arg for arg in args if arg != "{prompt}"]
+            # Remove the {prompt} placeholder from args — will pipe via stdin.
+            # Subclasses may override _stdin_placeholder() to replace with a
+            # marker (e.g. "-") instead of removing entirely.
+            stdin_marker = self._stdin_placeholder()
+            if stdin_marker:
+                args = [stdin_marker if arg == "{prompt}" else arg for arg in args]
+            else:
+                args = [arg for arg in args if arg != "{prompt}"]
             prompt_bytes = full_prompt.encode("utf-8")
 
         # Format arguments with {model}, {prompt}, {working_directory}, and {reasoning_effort} placeholders
@@ -237,6 +243,16 @@ class BaseCLIAdapter(ABC):
         error_lower = error_msg.lower()
         return any(re.search(pattern, error_lower, re.IGNORECASE)
                    for pattern in self.TRANSIENT_ERROR_PATTERNS)
+
+    def _stdin_placeholder(self) -> str | None:
+        """
+        Return the placeholder to substitute for {prompt} when piping via stdin.
+
+        By default returns None, meaning {prompt} is simply removed from args.
+        Subclasses can override to return a marker (e.g. "-") that tells the CLI
+        to read from stdin explicitly.
+        """
+        return None
 
     def _adjust_args_for_context(self, is_deliberation: bool) -> list[str]:
         """

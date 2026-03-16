@@ -93,6 +93,10 @@ class CodexAdapter(BaseCLIAdapter):
             reasoning_effort=reasoning_effort,
         )
 
+    def _stdin_placeholder(self) -> str | None:
+        """Codex CLI requires '-' as positional arg to read prompt from stdin."""
+        return "-"
+
     def parse_output(self, raw_output: str) -> str:
         """
         Parse codex output.

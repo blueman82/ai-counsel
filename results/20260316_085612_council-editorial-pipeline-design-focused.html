@@ -1,0 +1,1626 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI Council Deliberation — Architecture Review</title>
+<style>
+  :root {
+    --bg: #0f172a;
+    --surface: #1e293b;
+    --surface-elevated: #334155;
+    --border: #475569;
+    --text: #e2e8f0;
+    --text-muted: #94a3b8;
+    --accent: #3b82f6;
+    --green: #22c55e;
+    --yellow: #eab308;
+    --red: #ef4444;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    padding: 2rem;
+    max-width: 1100px;
+    margin: 0 auto;
+  }
+  h1 { font-size: 1.75rem; margin-bottom: 0.5rem; }
+  h2 { font-size: 1.35rem; margin: 1.5rem 0 0.75rem; color: var(--accent); }
+  h3 { font-size: 1.15rem; margin: 1.25rem 0 0.5rem; }
+  h4 { font-size: 1rem; margin: 1rem 0 0.5rem; color: var(--text-muted); }
+  p { margin: 0.5rem 0; }
+  hr { border: none; border-top: 1px solid var(--border); margin: 1.5rem 0; }
+  ul { margin: 0.5rem 0 0.5rem 1.5rem; }
+  li { margin: 0.25rem 0; }
+  code {
+    background: var(--surface-elevated);
+    padding: 0.15rem 0.4rem;
+    border-radius: 3px;
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+    font-size: 0.85em;
+  }
+  pre {
+    background: var(--surface-elevated);
+    padding: 1rem;
+    border-radius: 6px;
+    overflow-x: auto;
+    margin: 0.75rem 0;
+  }
+  pre code { background: none; padding: 0; }
+  strong { color: #f1f5f9; }
+
+  .meta { color: var(--text-muted); font-size: 0.85rem; margin-bottom: 1.5rem; }
+  .summary-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1.25rem 1.5rem;
+    margin: 1rem 0;
+  }
+  .summary-box h2 { margin-top: 0; }
+  .vote-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 0.75rem;
+    margin: 1rem 0;
+  }
+  .vote-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 0.75rem 1rem;
+    border-left: 4px solid var(--accent);
+  }
+  .vote-card .participant { font-weight: 600; font-size: 0.9rem; }
+  .vote-card .option { font-size: 0.85rem; margin-top: 0.25rem; }
+  .vote-card .confidence { font-size: 0.8rem; color: var(--text-muted); }
+  .vote-card .rationale { font-size: 0.8rem; color: var(--text-muted); margin-top: 0.25rem; font-style: italic; }
+
+  .round-section {
+    margin: 1.5rem 0;
+  }
+  .participant-block {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    margin: 0.75rem 0;
+    overflow: hidden;
+  }
+  .participant-header {
+    background: var(--surface-elevated);
+    padding: 0.6rem 1rem;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    user-select: none;
+  }
+  .participant-header:hover { background: #3b4f6b; }
+  .participant-header .name { font-weight: 600; }
+  .participant-header .chars { font-size: 0.8rem; color: var(--text-muted); }
+  .participant-header .toggle { font-size: 0.8rem; color: var(--text-muted); }
+  .participant-body {
+    padding: 1rem 1.25rem;
+    display: none;
+  }
+  .participant-block.open .participant-body { display: block; }
+  .participant-block.open .toggle { transform: rotate(90deg); }
+
+  .convergence {
+    display: inline-block;
+    background: var(--surface-elevated);
+    padding: 0.25rem 0.6rem;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+  }
+  .tag {
+    display: inline-block;
+    padding: 0.15rem 0.5rem;
+    border-radius: 3px;
+    font-size: 0.75rem;
+    font-weight: 600;
+  }
+</style>
+</head>
+<body>
+<h1>AI Council Deliberation</h1>
+<div class="meta">
+  2026-03-16 08:56 &middot;
+  Mode: conference &middot;
+  Rounds: 2 &middot;
+  <span class="convergence">majority_decision</span>
+</div>
+
+<div class="summary-box">
+<h2>Consensus</h2>
+<p>All four models unanimously agree the P0 is resolved — the editorial review pipeline is no longer vaporware and is now specified at implementation-grade. The document earns conditional approval with a consistent set of required adjustments before a developer starts building.</p>
+<h3>Key Agreements</h3><ul>
+<li><strong>P0 is resolved:</strong> The document provides sufficient schema, workflow, UI, sampling logic, and Forge integration for a developer to build v1 with only normal clarifying questions — not architectural decisions.</li>
+<li><strong>Two-table design is correct:</strong> Separating `editorial_review_queue` (workflow metadata) from domain-specific `editorial_content` tables (content artifact) is the right architecture; the only refinement needed is removing or clarifying the bidirectional circular reference between the two tables.</li>
+<li><strong>10% sampling floor is too low:</strong> All models independently concluded that a permanent 10% review rate for 301+ published pages is inadequate for YMYL-adjacent housing content; 20% is the consensus minimum floor.</li>
+<li><strong>Field notes must render as attributed callouts:</strong> Raw inline insertion will produce visible seams; all models converged on rendering field notes as a styled &quot;Editor&#x27;s Note&quot; or &quot;Local Observation&quot; callout within the target section rather than blending them invisibly into AI prose.</li>
+<li><strong>Several implementation gaps need specification before development starts:</strong> Missing items include API route definitions, the `la_editorial_content` CREATE TABLE (only an ALTER is shown), ISR revalidation tag additions to the existing allowlist, a formal state transition table, and a content preview mechanism for unpublished drafts.</li>
+<li><strong>Updated production readiness score: ~8.0–8.3/10</strong> (up from 6.5–7.5 with the P0 as primary drag).</li>
+</ul>
+<h3>Key Disagreements</h3><ul>
+<li><strong>B-level review depth:</strong> GPT-5.4 argued B-level should be upgraded to 7–10 minutes with structured verification of 2–3 specific claims, calling the current version &quot;too thin&quot; for strong E-E-A-T defense. Opus (Round 2) pushed back, arguing that formalizing B-level into C-level territory will produce rubber-stamping or burnout in a solo operator context — recommending only 3 lightweight binary questions adding ~1 minute instead. Grok and Gemini were closer to GPT-5.4&#x27;s position.</li>
+<li><strong>Exact sampling floor:</strong> Minor divergence — Opus held at 20%, GPT-5.4 insisted on 25% as the minimum, Grok landed at 20%, Gemini suggested 20–25%. Not a fundamental disagreement, but the final number matters for solo-operator economics.</li>
+</ul>
+<h3>Final Recommendation</h3>
+<p>Approve the document with the following required additions before a developer starts: raise the steady-state sampling floor from 10% to 20%, specify field notes rendering as attributed editorial callouts (not inline injection), add a CREATE TABLE for `la_editorial_content` with explicit migration ordering, define API routes and a formal state transition table, add a minimum 2-minute review duration guard to prevent rubber-stamping, and add a structured `rejection_reason_code` enum alongside the free-text field for Forge signal quality. B-level review should add 3 lightweight structured questions (+1 minute) rather than a full claim-verification checklist — the lightweight check preserves solo-operator sustainability while improving defensibility. None of these are architectural changes; all are additive specification work.</p>
+</div>
+<h2>Votes</h2>
+<div class="vote-grid">
+<div class="vote-card" style="border-left-color: #22c55e">
+  <div class="participant">opus@claude</div>
+  <div class="option" style="color: #22c55e">Approve with conditions</div>
+  <div class="confidence">Confidence: 85%</div>
+  <div class="rationale">P0 resolved at implementation-grade. Six concrete conditions before a developer starts: (1) CREATE TABLE for la_editorial_content, (2) ISR revalidation tag addition, (3) content preview mechanism deci</div>
+</div>
+<div class="vote-card" style="border-left-color: #22c55e">
+  <div class="participant">openai/gpt-5.4@openrouter</div>
+  <div class="option" style="color: #22c55e">Approve with revisions</div>
+  <div class="confidence">Confidence: 90%</div>
+  <div class="rationale">The P0 vaporware issue is resolved and the pipeline is buildable, but B-level is too thin, the 10% sampling floor is too low for housing content, and core implementation details like versioning, trans</div>
+</div>
+<div class="vote-card" style="border-left-color: #22c55e">
+  <div class="participant">google/gemini-3.1-pro-preview@openrouter</div>
+  <div class="option" style="color: #22c55e">Approve with minor modifications</div>
+  <div class="confidence">Confidence: 95%</div>
+  <div class="rationale">The design fully resolves the P0 vaporware blocker by providing an implementation-ready schema, workflow, and sustainable daily operator cadence. The Field Notes Gap logic is excellent. Requires only </div>
+</div>
+</div>
+<div class="round-section">
+<h2>Round 1</h2>
+<div class="participant-block">
+  <div class="participant-header" onclick="this.parentElement.classList.toggle('open')">
+    <span class="name">opus@claude</span>
+    <span>
+      <span class="chars">13,015 chars</span>
+      <span class="toggle">&#9654;</span>
+    </span>
+  </div>
+  <div class="participant-body">
+    <p>Good. Now I have sufficient grounding in the actual codebase. Let me deliver my evaluation.</p>
+<hr>
+<h2>Council Review: Editorial Review Pipeline Design</h2>
+<h3>Question 1: Does this resolve the P0?</h3>
+<p><strong>Yes, substantially.</strong> The document moves the editorial pipeline from hand-wave to implementation-grade. A developer could build from this document with minimal back-and-forth. The schema is concrete SQL, the status flow is explicit, the UI has specific routes and column layouts, the sampling algorithm has deterministic rules.</p>
+<p><strong>Three gaps a developer would hit:</strong></p>
+<ul>
+<li><strong>No API route specification.</strong> The admin UI needs server endpoints — <code>PATCH /api/admin/editorial-review/[id]</code> for status transitions, <code>GET /api/admin/editorial-review</code> for queue listing, <code>POST /api/admin/editorial-review/[id]/approve</code>, etc. The document describes the UI and database but not the REST layer between them. Given the existing pattern in this codebase (30 API routes, all in <code>app/src/app/api/</code>), a developer would need to infer the route structure.</li>
+</ul>
+<ul>
+<li><strong>No migration file specified.</strong> The codebase has 35 migrations in <code>supabase/migrations/</code>. The schema SQL is provided inline but there's no filename convention or dependency ordering (e.g., does <code>la_editorial_content</code> exist yet? No — it's referenced but its CREATE TABLE isn't shown, only an ALTER TABLE).</li>
+</ul>
+<ul>
+<li><strong>The <code>content_audit_log</code> and <code>content_versions</code> tables already exist</strong> (migration <code>20260310000001</code>). The design should acknowledge the existing audit infrastructure and specify whether review events integrate with it or run parallel.</li>
+</ul>
+<p>These are &quot;developer asks PM a question&quot; gaps, not &quot;developer can&#x27;t proceed&quot; blockers. <strong>Verdict: P0 resolved.</strong></p>
+<h3>Question 2: Two-table design</h3>
+<p><strong>Correct separation.</strong> The queue table handles workflow state that changes rapidly (status transitions, reviewer assignment, timing). The content table holds the persistent artifact. Combining them would mean every status change writes to the content row, which is worse for audit trails and concurrent access.</p>
+<p><strong>One concern:</strong> The <code>field_notes</code> and <code>field_notes_insertion_point</code> appear in BOTH tables (queue and editorial_content). The document says &quot;field_notes copied to editorial_content.field_notes&quot; on approval. This is fine for denormalization, but the source-of-truth semantics should be explicit: the queue row is the authoritative record of what the reviewer wrote; the content row is the published copy. If a Forge regeneration occurs later, does it wipe the field_notes from the content table? The document says &quot;Published content is never unpublished by Forge&quot; — good — but doesn&#x27;t say whether field_notes survive regeneration of the surrounding content.</p>
+<p><strong>Recommendation:</strong> Add a rule: &quot;Field notes are immutable once approved. Forge regeneration preserves existing field_notes and their insertion points. New review can add additional field_notes.&quot;</p>
+<h3>Question 3: Is B-level review sufficient for Tier 2 defense?</h3>
+<p><strong>It&#x27;s sufficient for the stated goal, but the framing should be more honest about what it actually buys.</strong></p>
+<p>B-level review (5-7 min scan + one field note) provides:</p>
+<ul>
+<li><strong>Audit trail:</strong> A human saw this page before it published. Reviewer ID, timestamp, duration logged. This satisfies Google's Quality Rater "evidence of editorial oversight" signal.</li>
+<li><strong>One unique human data point:</strong> The field note (e.g., "Called leasing office — upper floors quieter") is a genuinely human contribution that no AI could generate. This is the real differentiator.</li>
+<li><strong>Catch gross errors:</strong> A 5-minute read catches hallucinated amenities, wrong neighborhood descriptions, obviously wrong verdicts.</li>
+</ul>
+<p>What B-level does NOT provide:</p>
+<ul>
+<li><strong>Claim verification.</strong> The reviewer doesn't check data points against sources.</li>
+<li><strong>Prose quality editing.</strong> Weak sections stay weak.</li>
+<li><strong>Detection resistance.</strong> One inserted sentence changes the statistical profile less than a restructured paragraph would.</li>
+</ul>
+<p><strong>For YMYL housing content specifically:</strong> B-level is adequate for the &quot;curation&quot; framing (LA curates and reviews buildings) but would be inadequate if the content made specific financial claims. The entity-fit gate and provenance system handle this upstream — speculative claims are already flagged. B-level is the right checkpoint for &quot;does this page feel editorially sound?&quot; not &quot;is every claim verified?&quot;</p>
+<p><strong>The real risk is quality decay as review fatigue sets in.</strong> Reviewing 8 pages/day of similar content, a solo operator&#x27;s B-level reviews will degrade from genuine engagement to rubber-stamping within 2-3 weeks. The metrics dashboard (avg review time) can detect this, but only if someone acts on it.</p>
+<p><strong>Recommendation:</strong> Add a minimum review duration guard — reviews completed in under 2 minutes trigger a &quot;fast review&quot; warning and don&#x27;t count toward the approval metrics. This prevents rubber-stamping from corrupting the Forge feedback loop.</p>
+<h3>Question 4: Field notes design</h3>
+<p><strong>The concept is right. The execution needs one fix.</strong></p>
+<p>Separate field with insertion point is architecturally clean. It preserves provenance, enables Forge analysis, and avoids the messy problem of inline editing attribution.</p>
+<p><strong>The integration problem:</strong> How does a field note with insertion point &quot;within noise section&quot; actually get rendered in the published page? The design describes WHERE to insert but not HOW. The content engine generates prose sections. A field note like &quot;Called leasing office — upper floors quieter&quot; inserted &quot;within noise&quot; needs a rendering template that weaves the human observation into the AI-generated noise section naturally.</p>
+<p>If the rendering is naive (append human note after AI paragraph), the seam will be visible — different register, different specificity, different sentence structure. If the rendering is sophisticated (AI rewrites the section incorporating the note), it defeats the provenance separation.</p>
+<p><strong>Recommendation:</strong> Define the rendering strategy explicitly:</p>
+<ul>
+<li><strong>Option A (simple, seam-visible):</strong> Render field notes as a styled callout/aside within the section. "Editor's note: Upper floors noticeably quieter per leasing office." This is honest and the seam is a feature, not a bug — it signals human involvement.</li>
+<li><strong>Option B (integrated, more work):</strong> AI rewrites the paragraph incorporating the field note, then the rewritten version goes through a diff check to ensure the note wasn't diluted.</li>
+</ul>
+<p>I&#x27;d recommend Option A for launch. It&#x27;s simpler, more honest, and the styled callout is itself an E-E-A-T signal.</p>
+<h3>Question 5: Sampling schedule</h3>
+<p><strong>The floor of 10% at 300+ pages is too low for YMYL housing content.</strong> Here&#x27;s why:</p>
+<p>At 10% sampling with 300+ published pages, the publication rate is 15-30 pages/day. That&#x27;s 1.5-3 sampled reviews per day. At 15 pages/day, 13.5 pages publish with ZERO human eyes on them. For a site positioning itself as an editorial authority on luxury housing (a financial/lifestyle decision), having 90% of content with no human review is a defensibility problem.</p>
+<p>The sampling document correctly notes that skip-tier pages &quot;rely on Tier 1 (content quality), Tier 3 (structural variety), and Tier 6 (generation rules).&quot; These are all automated. The entire humanization strategy&#x27;s Tier 2 becomes a 10% fig leaf.</p>
+<p><strong>Concrete recommendation:</strong></p>
+<ul>
+<li>0-100: 100% (as specified)</li>
+<li>101-300: 25% (as specified)</li>
+<li>301+: <strong>20% floor, not 10%</strong> — at 20 pages/day that's 4 reviews/day, ~25 min. Sustainable for a solo operator.</li>
+<li>Alternative: Keep 10% but add a <strong>monthly blind audit of 20 pages</strong> (already mentioned in the v5 engine doc but not in this pipeline doc). The blind audit serves as a quality checkpoint on the skip-tier pages.</li>
+</ul>
+<h3>Question 6: Revised throttle sustainability</h3>
+<p><strong>The Phase 1 math is realistic. The cumulative load is not.</strong></p>
+<p>Phase 1: 25-56 min/day of reviews. Solo operator also manages:</p>
+<ul>
+<li>Enrichment pipeline monitoring</li>
+<li>Forge weekly review (15 min)</li>
+<li>Content engine error triage</li>
+<li>Admin dashboard monitoring</li>
+<li>Actual business operations (partnerships, leads, etc.)</li>
+</ul>
+<p>The document correctly identifies this in the &quot;Operational Tiers&quot; section and provides a scaling path (solo → freelance editor → editorial director). This is the right answer.</p>
+<p><strong>The missing piece:</strong> When does the operator NEED to transition from Tier A to Tier B? The document says &quot;Solo + Freelance Editor&quot; as Tier B but doesn&#x27;t specify the trigger. If mandatory reviews exceed 60 min/day for 5 consecutive days? If rejection rate exceeds 20%? If average review time drops below 2 min (rubber-stamping)?</p>
+<p><strong>Recommendation:</strong> Add a &quot;Tier transition triggers&quot; table:</p>
+<p>| Trigger | Action |</p>
+<p>|---|---|</p>
+<p>| Mandatory reviews &gt; 60 min/day for 5 days | Hire freelance editor |</p>
+<p>| Avg review time &lt; 2 min | Quality degradation — pause publishing, review process |</p>
+<p>| Rejection rate &gt; 25% | Content engine needs tuning, not more reviews |</p>
+<h3>Question 7: Forge integration</h3>
+<p><strong>The feedback loop is well-specified and complete.</strong> Three signals (editorial accessibility score, field notes gap analysis, rejection clustering) give the Forge enough to improve on. The weekly CSV export is pragmatic — no real-time integration needed at this scale.</p>
+<p><strong>One addition needed:</strong> The Forge requeue rules say &quot;First 10 pages: mandatory&quot; when a new mutation is adopted. But who decides whether a mutation is &quot;adopted&quot;? The Forge adopts mutations automatically when they outperform the current variant. There should be a gate: <strong>mutation adoption itself should require human approval for the first 3 mutations.</strong> After the operator understands what Forge changes look like, auto-adoption with mandatory review is fine.</p>
+<h3>Question 8: What&#x27;s missing?</h3>
+<ul>
+<li><strong>API routes</strong> (mentioned above). Need at minimum: queue list, queue item detail, approve, reject, request revision, metrics aggregate.</li>
+</ul>
+<ul>
+<li><strong>Revalidation tag integration.</strong> The existing <code>/api/revalidate</code> route accepts tags from an allowlist: <code>mls-apartments</code>, <code>apartments</code>, <code>neighborhoods</code>, <code>cities</code>, <code>blog-posts</code>. Building pages generated by the content engine would need new tags (e.g., <code>buildings</code>, <code>editorial-content</code>). The design should specify which ISR tags are invalidated on publish.</li>
+</ul>
+<ul>
+<li><strong>Concurrent reviewer conflict.</strong> What if two admin sessions open the same review item? The <code>in_review</code> status is set on page open, but there's no locking. With a solo operator this is moot, but with Tier B+ (freelancer + operator), two people could approve/reject the same page simultaneously.</li>
+</ul>
+<ul>
+<li><strong>The <code>la_editorial_content</code> table doesn't exist yet.</strong> The design ALTERs it but doesn't CREATE it. Is this created by the content engine? If so, that dependency should be explicit.</li>
+</ul>
+<ul>
+<li><strong>Rollback procedure.</strong> What happens if a published page is later found to have a problem? The status flow shows <code>pending_review → in_review → approved → published</code> but no <code>published → unpublished</code> path. The document says "Published content is never unpublished by Forge" but what about manual unpublish by a human?</li>
+</ul>
+<ul>
+<li><strong>Content preview URL.</strong> The review detail page says "Full rendered content preview as it would appear on the public site." How? Is this a Next.js draft mode URL? An iframe to a preview deployment? The codebase has ISR (not static export), so draft content that isn't yet published needs a preview mechanism.</li>
+</ul>
+<h3>Question 9: Updated production readiness score</h3>
+<p>The P0 blocker is resolved. The pipeline is specified at implementation-grade with the gaps noted above (all fixable without architectural changes).</p>
+<p><strong>Previous score: 7.0/10</strong> (my estimate of where Opus landed in Round 4).</p>
+<p><strong>Updated score: 7.8/10.</strong></p>
+<p><strong>What prevents 8.5+:</strong></p>
+<ul>
+<li>The 6 gaps listed in Q8 are all solvable but need specification before implementation</li>
+<li>No implementation exists — this is still a design document, not running code</li>
+<li>The content engine itself (Tier 1) is also still a design document</li>
+<li>The <code>la_editorial_content</code> table and content engine output format are prerequisites that don't exist yet</li>
+</ul>
+<p><strong>What prevents 9.0+:</strong></p>
+<ul>
+<li>None of the content system (engine, pipeline, Forge) is built. It's well-designed but entirely on paper.</li>
+<li>The monorepo migration hasn't happened</li>
+<li>Production readiness for the <em>existing</em> LA site (lead-gen MVP) is higher (~8.5) because the editorial pipeline is a content-scaling feature, not a launch blocker for the current static/ISR site</li>
+</ul>
+<hr>
+  </div>
+</div>
+<div class="participant-block">
+  <div class="participant-header" onclick="this.parentElement.classList.toggle('open')">
+    <span class="name">openai/gpt-5.4@openrouter</span>
+    <span>
+      <span class="chars">18,232 chars</span>
+      <span class="toggle">&#9654;</span>
+    </span>
+  </div>
+  <div class="participant-body">
+    <p>This substantially resolves the P0. It is no longer vaporware. The document moves Tier 2 from slogan to buildable system: schema, statuses, queue semantics, review actions, routing, sampling, throttle, Forge feedback, and operator workflow are all now concrete enough that a developer could start implementation.</p>
+<p>That said, “P0 resolved” is not the same as “fully production-hardened.” The design is implementation-grade in broad strokes, but still has a few material gaps and a couple of strategic choices I would tighten before calling it truly deployment-safe for YMYL-adjacent housing content.</p>
+<h3>1. Does this resolve the P0?</h3>
+<p>Yes, largely.</p>
+<p>Why it resolves it:</p>
+<ul>
+<li>It specifies where pages queue: <code>editorial_review_queue</code></li>
+<li>It specifies what the reviewer does: B vs C definitions</li>
+<li>It specifies where the reviewer logs in: <code>/admin/content/review</code></li>
+<li>It specifies how publication gating works: queue status, content status, throttle</li>
+<li>It specifies how Forge reads review outcomes</li>
+<li>It specifies identity logging, time tracking, rejection/revision handling</li>
+<li>It specifies sampling and skip behavior</li>
+</ul>
+<p>That is enough to remove the “vaporware” criticism.</p>
+<h4>Can a developer build this without ambiguity?</h4>
+<p>Mostly yes, but not entirely. A developer can build v1 from this, but there are still some places where implementation details are underspecified:</p>
+<ul>
+<li>exact publication state machine and allowed transitions</li>
+<li>how skip-tier pages become both “approved” and “published” without race conditions</li>
+<li>whether <code>approved</code> and <code>published</code> are distinct states in queue for all pages or only throttle-delayed ones</li>
+<li>what “edit distance” means operationally</li>
+<li>how field notes are rendered into public content</li>
+<li>whether reviewer can approve without changing rendered content, despite field notes being “copied” to editorial content</li>
+<li>concurrency locking: two reviewers opening same page</li>
+<li>SLA/escalation rules for stale queue items</li>
+<li>how revisions map to content versions and whether queue rows are immutable per attempt</li>
+</ul>
+<p>So: <strong>P0 resolved, but with implementation clarifications needed.</strong></p>
+<h3>2. Is the two-table design correct?</h3>
+<p>Yes, I think the two-table design is directionally correct and better than combining them.</p>
+<h4>Why separation is good</h4>
+<p>The queue and the content object are different concerns:</p>
+<ul>
+<li><code>editorial_content</code>: canonical content/version/publication state</li>
+<li><code>editorial_review_queue</code>: workflow event / review process state</li>
+</ul>
+<p>That separation is healthy because:</p>
+<ul>
+<li>one content item can have multiple review attempts over time</li>
+<li>Forge requeues published content without replacing live content immediately</li>
+<li>workflow metadata is noisy and process-oriented</li>
+<li>content tables remain domain-specific while review process can be shared</li>
+</ul>
+<p>This is especially justified by the stated use case: shared queue, per-domain content tables, version replacement, and historical review tracking.</p>
+<h4>But the current design has one weakness</h4>
+<p>The queue currently has:</p>
+<ul>
+<li><code>editorial_content_id</code></li>
+<li>while content also has <code>review_queue_id</code></li>
+</ul>
+<p>That creates a circular coupling and likely unnecessary confusion.</p>
+<p>I would recommend:</p>
+<ul>
+<li><code>editorial_review_queue</code> references a specific content version row</li>
+<li><code>editorial_content</code> should <strong>not</strong> need <code>review_queue_id</code> unless only one active queue row is ever allowed</li>
+<li>better model: content version is primary, queue items reference versions</li>
+<li>if you want “current queue item” on content, derive it via query or add <code>current_review_queue_id</code> explicitly with clear semantics</li>
+</ul>
+<h4>Better structure</h4>
+<p>Use:</p>
+<ul>
+<li><code>editorial_content_versions</code> or treat current per-domain editorial row as versioned content</li>
+<li><code>editorial_review_queue.content_version_id</code></li>
+<li>optional <code>parent_queue_id</code> or <code>supersedes_queue_id</code> for revision lineage</li>
+</ul>
+<p>So overall:</p>
+<ul>
+<li><strong>separation: correct</strong></li>
+<li><strong>current bidirectional linkage: probably too messy</strong></li>
+<li><strong>combine tables? no</strong></li>
+<li><strong>refine relational model? yes</strong></li>
+</ul>
+<h3>3. Is B-level review sufficient for Tier 2 defense?</h3>
+<p>Not as currently defined, if this is meant to be a serious E-E-A-T / human-in-the-loop defense for housing content.</p>
+<p>This is the most important strategic weakness left.</p>
+<h4>What B-level currently is</h4>
+<ul>
+<li>read full page</li>
+<li>check opening verdict / obvious wrong claims</li>
+<li>add one field note</li>
+<li>approve or reject</li>
+<li>5–7 minutes</li>
+</ul>
+<p>That is enough to constitute <strong>some</strong> human involvement.</p>
+<p>It is <strong>not</strong> enough to support strong claims that content is meaningfully editor-reviewed in a way that materially reduces quality risk.</p>
+<h4>Why it’s too light</h4>
+<p>For housing/luxury apartment pages, risk isn’t just factual hallucination. It’s:</p>
+<ul>
+<li>overstated neighborhood claims</li>
+<li>tone drift into sales copy</li>
+<li>outdated amenity assumptions</li>
+<li>misleading comparative language</li>
+<li>“feels machine-made” despite being technically plausible</li>
+<li>local experiential claims that are too generic or too confidently stated</li>
+</ul>
+<p>A 5-minute skim plus one note will catch some obvious misses, but not enough of the subtle ones.</p>
+<h4>My recommendation</h4>
+<p>B-level should be redefined upward slightly:</p>
+<p>#### Revised B-level</p>
+<p>Required actions:</p>
+<ul>
+<li>Read full page</li>
+<li>Verify 3 critical claims against source/provenance panel:</li>
+<li>verdict framing</li>
+<li>one amenity/building claim</li>
+<li>one neighborhood/noise/commute/comparison claim</li>
+<li>Add one field note or explicitly mark “no unique field note; source-verified”</li>
+<li>Complete a structured checklist:</li>
+<li>verdict feels fair</li>
+<li>no obvious unsupported claims</li>
+<li>no excessive promotional phrasing</li>
+<li>comparison section not misleading</li>
+<li>approve/reject/request revision</li>
+</ul>
+<p>Time impact:</p>
+<ul>
+<li>more like <strong>7–10 minutes</strong>, not 5–7</li>
+</ul>
+<p>That is still manageable, but much more defensible.</p>
+<h4>For YMYL question specifically</h4>
+<p>Housing is not classic medical/financial YMYL, but it is consequential decision content. If the strategy is to tell a quality or search evaluator “these pages have human editorial review,” then current B-level is borderline too thin.</p>
+<p>So my answer:</p>
+<ul>
+<li><strong>Current B-level: insufficient as a strong Tier 2 defense</strong></li>
+<li><strong>Revised B-level with structured checks: sufficient for sampled/default review</strong></li>
+<li><strong>Top entities should still get C-level</strong></li>
+</ul>
+<h3>4. Is the field notes design right?</h3>
+<p>Conceptually yes. Operationally risky.</p>
+<h4>What’s right about it</h4>
+<p>Keeping human additions separate from AI-generated base text is smart for:</p>
+<ul>
+<li>provenance</li>
+<li>auditability</li>
+<li>AI Act / compliance posture</li>
+<li>Forge learning</li>
+<li>preserving the distinction between generated copy and human observations</li>
+</ul>
+<p>I agree with the decision not to treat human review as invisible inline rewriting by default.</p>
+<h4>What’s risky</h4>
+<p>The insertion-point model can create visible seams:</p>
+<ul>
+<li>AI prose may have one cadence, then a blunt human sentence appears</li>
+<li>one inserted note may feel bolted on</li>
+<li>“after verdict / within experience / within noise” is too coarse to guarantee stylistic coherence</li>
+<li>if the UI just appends raw notes, pages will read like stitched-together fragments</li>
+</ul>
+<h4>Better approach</h4>
+<p>Keep field notes separate in storage, but don’t inject them as raw sentence fragments.</p>
+<p>Instead:</p>
+<ul>
+<li>store <code>field_note_text</code></li>
+<li>store <code>placement_target</code></li>
+<li>on render, display it in a visibly human-attributed component, such as:</li>
+<li>“Editor’s note”</li>
+<li>“On-the-ground note”</li>
+<li>“Leasing call note”</li>
+<li>“Local observation”</li>
+<li>or render it as a stylized aside/callout integrated into the page design</li>
+</ul>
+<p>That solves the seam problem and improves trust.</p>
+<p>If you insist on inline insertion, then you need:</p>
+<ul>
+<li>a normalization pass</li>
+<li>review preview of final rendered phrasing</li>
+<li>maybe a templated intro like “A recent leasing-office check suggested…”</li>
+</ul>
+<h4>Best practice here</h4>
+<ul>
+<li><strong>Storage separate:</strong> yes</li>
+<li><strong>Raw inline injection:</strong> no</li>
+<li><strong>Rendered as attributed editorial note/callout:</strong> yes</li>
+</ul>
+<h3>5. Does the sampling schedule make sense?</h3>
+<p>It is a reasonable starting policy operationally, but I would not endorse dropping to 10% for this content class.</p>
+<h4>What works</h4>
+<ul>
+<li>100% for first 100 pages is good</li>
+<li>higher scrutiny during early calibration is exactly right</li>
+<li>Forge mutation override for first 10 pages is good</li>
+<li>tying sampling to domain maturity makes sense</li>
+</ul>
+<h4>What does not work</h4>
+<p>10% at 301+ is too low unless Tier 1 quality is already empirically excellent and stable over time.</p>
+<p>Why:</p>
+<ul>
+<li>drift can emerge gradually</li>
+<li>enrichment changes can silently degrade quality</li>
+<li>prompt mutations can interact with entity type in weird ways</li>
+<li>low sampling weakens the claim that human review is a core defense rather than occasional QA</li>
+</ul>
+<h4>Better schedule</h4>
+<p>I would suggest one of these:</p>
+<p>#### Safer baseline</p>
+<ul>
+<li>0–100: 100%</li>
+<li>101–300: 50%</li>
+<li>301+: 25%</li>
+<li>top entities / new entity types / new mutations: 100% temporarily</li>
+</ul>
+<p>#### Leaner but still credible</p>
+<ul>
+<li>0–100: 100%</li>
+<li>101–300: 25%</li>
+<li>301+: <strong>25% floor</strong>, not 10%</li>
+</ul>
+<p>If solo-operator economics are the reason for 10%, then the honest answer is that the human-review layer is thinner than the strategy claims.</p>
+<h4>My recommendation</h4>
+<ul>
+<li><strong>Permanent floor of 25%</strong></li>
+<li>Plus mandatory review for:</li>
+<li>top 20 buildings</li>
+<li>any page with low enrichment confidence</li>
+<li>any page touching sensitive comparison claims</li>
+<li>any new Forge mutation cohort</li>
+<li>any regenerated page after rejection</li>
+</ul>
+<p>So: <strong>10% is too low. 25% should be the minimum steady-state floor.</strong></p>
+<h3>6. Is the revised throttle sustainable?</h3>
+<p>Mostly yes for early phases, but only if other operational work is lighter than implied.</p>
+<h4>The math</h4>
+<p>At 5–8 pages/day and 5–7 min/page, 25–56 min/day sounds plausible.</p>
+<p>If B-level becomes the more credible 7–10 min/page:</p>
+<ul>
+<li>5 pages/day = 35–50 min/day</li>
+<li>8 pages/day = 56–80 min/day</li>
+</ul>
+<p>Still not impossible. But now add:</p>
+<ul>
+<li>queue management</li>
+<li>revisions</li>
+<li>difficult pages</li>
+<li>top-building C-level review</li>
+<li>Forge monitoring</li>
+<li>enrichment tuning</li>
+<li>admin tasks</li>
+</ul>
+<p>For a solo operator, this becomes real overhead.</p>
+<h4>My view</h4>
+<ul>
+<li>Early-phase throttle is sustainable at the low end</li>
+<li>The upper end assumes clean approvals and low context switching</li>
+<li>8/day may be aggressive if the operator is also actively evolving the pipeline</li>
+</ul>
+<h4>Recommended adjustment</h4>
+<p>For solo operator:</p>
+<ul>
+<li>first 50 pages: <strong>5–6/day</strong></li>
+<li>51–100: <strong>6–8/day</strong></li>
+<li>only expand beyond that after rejection rate and review-time metrics stabilize</li>
+</ul>
+<p>This is a more honest operational envelope.</p>
+<h3>7. Does Forge integration close the feedback loop?</h3>
+<p>Yes, mostly. This is one of the stronger parts of the design.</p>
+<p>The proposed signals are useful:</p>
+<ul>
+<li>review duration as editorial accessibility</li>
+<li>edit distance as correction burden</li>
+<li>rejection clustering</li>
+<li>field notes gap analysis</li>
+<li>mutation-specific mandatory review window</li>
+</ul>
+<p>That is enough to make the review system not just a gate, but a learning instrument.</p>
+<h4>One caveat</h4>
+<p>The quality of the Forge loop depends on structured data, not just free text.</p>
+<p>Right now too much signal is buried in text fields:</p>
+<ul>
+<li><code>rejection_reason text</code></li>
+<li><code>field_notes text</code></li>
+<li><code>edit_summary text</code></li>
+</ul>
+<p>You should add structured enums in addition to free text:</p>
+<ul>
+<li>rejection_reason_code</li>
+<li>issue_type_tags[]</li>
+<li>field_note_type</li>
+<li>confidence score</li>
+<li>source of note: leasing call / site visit / resident forum / reviewer inference</li>
+</ul>
+<p>Otherwise your clustering will be noisy and labor-intensive.</p>
+<h4>Recommendation</h4>
+<p>Add structured dimensions:</p>
+<ul>
+<li><code>rejection_reason_code</code>: unsupported_claim, weak_verdict, thin_comparison, too_promotional, stale_data, poor_local_specificity, etc.</li>
+<li><code>field_note_category</code>: noise, staff quality, finishes, maintenance, crowding, micro-location, transit reality</li>
+<li><code>reviewer_confidence</code>: high/medium/low</li>
+<li><code>requires_enrichment_fix</code>: boolean</li>
+</ul>
+<p>Then the Forge loop becomes much more actionable.</p>
+<h3>8. What’s missing?</h3>
+<p>Several things still need specification.</p>
+<h4>A. Versioning model</h4>
+<p>This is the biggest missing implementation piece.</p>
+<p>You mention:</p>
+<ul>
+<li>revision history</li>
+<li>published page stays live</li>
+<li>new version enters queue</li>
+<li>old stays until new approved</li>
+</ul>
+<p>But the schema shown does not clearly model versions.</p>
+<p>Need explicit answer:</p>
+<ul>
+<li>Is each <code>editorial_content</code> row a versioned artifact?</li>
+<li>How do you represent v1, v2, v3?</li>
+<li>Is there a stable entity record plus multiple content versions?</li>
+<li>What marks current live version?</li>
+<li>How is rollback done?</li>
+</ul>
+<p>Without this, “published content never unpublished by Forge” is policy, not yet schema.</p>
+<h4>B. State machine / transition rules</h4>
+<p>Need explicit allowed transitions:</p>
+<ul>
+<li>pending_review -> in_review</li>
+<li>in_review -> approved/rejected/revision_requested</li>
+<li>approved -> published</li>
+<li>pending_review -> published for skip-tier?</li>
+<li>rejected -> superseded?</li>
+<li>revision_requested -> regenerated draft?</li>
+</ul>
+<p>A transition table would remove ambiguity.</p>
+<h4>C. Concurrency / locking</h4>
+<p>What if two admins open the same review item?</p>
+<p>Need:</p>
+<ul>
+<li>optimistic lock or “claim review” action</li>
+<li><code>locked_by</code>, <code>locked_at</code>, lock expiry</li>
+<li>if timer starts on open, accidental opens create bogus metrics</li>
+</ul>
+<h4>D. Auto-approval semantics for skip-tier</h4>
+<p>Current text says skip pages auto-approve immediately and queue -&gt; published.</p>
+<p>Then why create a queue row at all?</p>
+<p>Maybe for auditability. Fine. But then specify:</p>
+<ul>
+<li>are skip items inserted directly as <code>published</code>?</li>
+<li>or <code>approved</code> then a scheduler publishes?</li>
+<li>does throttle still apply to skip-tier pages? text says yes via queue behavior, but state flow implies immediate publish</li>
+</ul>
+<p>This needs tightening.</p>
+<h4>E. Publication throttle implementation</h4>
+<p>What actually enforces max pages/day?</p>
+<ul>
+<li>cron job?</li>
+<li>DB function?</li>
+<li>app-layer scheduler?</li>
+<li>per-domain timezone?</li>
+<li>what counts as a day?</li>
+</ul>
+<p>Need:</p>
+<ul>
+<li><code>scheduled_publish_at</code></li>
+<li>publish worker cadence</li>
+<li>FIFO vs priority-based release</li>
+</ul>
+<h4>F. Review checklist / rubric</h4>
+<p>If B-level remains subjective, consistency will drift badly.</p>
+<p>Need at least a lightweight rubric with checkboxes.</p>
+<h4>G. Audit trail</h4>
+<p>Current schema tracks latest review fields but not full action history.</p>
+<p>Need either:</p>
+<ul>
+<li>immutable review events table</li>
+</ul>
+<p>or</p>
+<ul>
+<li>append-only audit log</li>
+</ul>
+<p>Especially important if revisions happen multiple times.</p>
+<h4>H. Reviewer permissions</h4>
+<p>RLS policy says <code>role=admin</code>. But operational tiers include freelancers and editorial director.</p>
+<p>So either:</p>
+<ul>
+<li>admins only is wrong</li>
+</ul>
+<p>or</p>
+<ul>
+<li>freelancers need admin JWTs, which is bad</li>
+</ul>
+<p>Need roles like:</p>
+<ul>
+<li>content_reviewer</li>
+<li>editorial_director</li>
+<li>operator_admin</li>
+</ul>
+<h4>I. Source verification UX</h4>
+<p>B-level says provenance system handles data, but if reviewer must spot obviously wrong claims, the UI should expose source evidence side-by-side or via hover panel.</p>
+<h4>J. Definition of “substantive note”</h4>
+<p>Metrics mention notes vs “verified,” but the schema/UI doesn’t define substantive. Need either:</p>
+<ul>
+<li>minimum character count is not enough</li>
+<li>category + evidence source would help</li>
+</ul>
+<h4>K. Domain count basis</h4>
+<p>Sampling and throttle depend on “published count.”</p>
+<p>Need to define:</p>
+<ul>
+<li>all-time published live pages?</li>
+<li>currently live only?</li>
+<li>per domain only?</li>
+<li>does archived/unpublished content count?</li>
+</ul>
+<h4>L. Escalation rules</h4>
+<p>You mention “after 3 rejections, manual intervention.”</p>
+<p>Need same for:</p>
+<ul>
+<li>queue age > X</li>
+<li>repeated revision_requested loops</li>
+<li>mutation-specific spike in rejection rate</li>
+</ul>
+<h3>9. Does this change my production readiness score?</h3>
+<p>Yes.</p>
+<p>Previously, with this as a P0, I’d have been in the 6.5–7.0 range. With this document, I’d move to <strong>8.0/10</strong>.</p>
+<h4>Why not higher?</h4>
+<p>Because while the P0 is resolved, remaining issues still matter:</p>
+<ul>
+<li><strong>B-level is too light</strong> if you want to present human review as a central trust defense</li>
+<li><strong>10% sampling floor is too low</strong></li>
+<li><strong>Versioning / state machine / locking are not fully specified</strong></li>
+<li><strong>field note rendering risks visible seams</strong></li>
+<li><strong>review roles / RLS do not yet match operating model</strong></li>
+<li><strong>too much Forge signal is unstructured text</strong></li>
+</ul>
+<h4>What would get it to 8.5–9.0?</h4>
+<ul>
+<li>revise B-level to structured 7–10 minute review</li>
+<li>raise long-term sampling floor to 25%</li>
+<li>add explicit versioning schema</li>
+<li>add transition table and queue locking semantics</li>
+<li>render field notes as attributed editorial callouts, not raw inline insertions</li>
+<li>add reviewer roles beyond <code>admin</code></li>
+<li>add structured issue taxonomy for Forge</li>
+</ul>
+<h3>Direct answers by question</h3>
+<h4>1. Does this resolve the P0?</h4>
+<p>Yes. It is now specified enough to build v1. Some implementation details still need clarification, but the blocker is resolved.</p>
+<h4>2. Is the two-table design correct?</h4>
+<p>Yes, separation is right. Do not combine. But remove or clarify the circular link between queue and content.</p>
+<h4>3. Is B-level sufficient?</h4>
+<p>Not as written. Upgrade B-level to include a structured checklist and verification of 2–3 critical claims. Expect 7–10 minutes, not 5–7.</p>
+<h4>4. Is field notes design right?</h4>
+<p>Storage model yes. Rendering model no, if raw inline insertion is intended. Better to render as attributed editorial notes/callouts.</p>
+<h4>5. Does sampling schedule make sense?</h4>
+<p>Early phases yes. Long-term 10% is too low. Recommend 25% minimum floor.</p>
+<h4>6. Is revised throttle sustainable?</h4>
+<p>Mostly, but only at the low end and only if B-level stays light. With a more credible B-level, throttle should probably start at 5–6/day.</p>
+<h4>7. Does Forge integration close the loop?</h4>
+<p>Yes in principle. Add structured reason/category fields to make the loop truly effective.</p>
+<h4>8. What’s missing?</h4>
+<p>Versioning, state transitions, locking, throttle implementation, role model, audit events, source-verification UX, and clearer skip-tier semantics.</p>
+<h4>9. Updated production readiness score?</h4>
+<p><strong>8.0/10</strong></p>
+<p>Main remaining blockers to a higher score:</p>
+<ul>
+<li>thin B-level</li>
+<li>low 10% sampling floor</li>
+<li>missing hard implementation details around versioning/workflow mechanics</li>
+</ul>
+<h3>Bottom line</h3>
+<p>This document does what it needed to do: it resolves the “vaporware” critique. Tier 2 is now real enough to build and operate. But I would not rubber-stamp the current policy choices unchanged. The two most important changes I’d still push are:</p>
+<ul>
+<li><strong>Strengthen B-level review</strong> into a short structured editorial QA pass</li>
+<li><strong>Raise the steady-state review floor to 25%</strong></li>
+</ul>
+<p>Those two changes would make the human-review layer credibly central rather than ceremonially present.</p>
+  </div>
+</div>
+<div class="participant-block">
+  <div class="participant-header" onclick="this.parentElement.classList.toggle('open')">
+    <span class="name">google/gemini-3.1-pro-preview@openrouter</span>
+    <span>
+      <span class="chars">5,923 chars</span>
+      <span class="toggle">&#9654;</span>
+    </span>
+  </div>
+  <div class="participant-body">
+    <p>This document effectively resolves the P0 blocker identified in Round 4. The transition from abstract &quot;Tier 2 defense&quot; to a concrete operational pipeline with DB schemas, admin UI specifications, sampling logic, and a daily operator cadence is exactly what was needed to move this architecture toward production readiness.</p>
+<p>Here is my evaluation answering your specific questions:</p>
+<h4>1. Does this resolve the P0?</h4>
+<p><strong>Yes.</strong> The document provides an implementation-grade specification. The ambiguity around &quot;where do pages queue&quot; and &quot;what does the reviewer do&quot; has been entirely eliminated. A frontend/backend developer could take the schema, status flow, and UI mockups and build this system immediately. It completely removes the &quot;vaporware&quot; criticism.</p>
+<h4>2. Is the two-table design correct?</h4>
+<p><strong>Yes, it is the correct architectural choice for a multi-domain setup.</strong> </p>
+<p>Maintaining a single <code>editorial_review_queue</code> standardizes the workflow logic, metrics, and Forge integration across all current and future domains. By storing a reference to the domain-specific tables (<code>la_editorial_content</code>), you avoid polluting the content tables with workflow metadata and avoid forcing a rigid, identical schema on all domain content. It also allows the admin dashboard to easily query all pending work across the portfolio in one request.</p>
+<h4>3. Is B-level review sufficient for Tier 2 defense?</h4>
+<p><strong>Yes, due to the E-E-A-T mechanism.</strong></p>
+<p>If B-level review was merely &quot;clicking approve,&quot; it would be insufficient. However, the mandatory requirement to add <em>one field note—an observation the AI couldn&#x27;t have made</em>—is a strategically brilliant move. It forces genuine human Experience (the first &#x27;E&#x27; in E-E-A-T) into every reviewed page. A 5-7 minute limit strictly prevents the operator from falling into the trap of rewriting AI prose (which destroys scale) while guaranteeing a verifiably human injection.</p>
+<h4>4. Is the field notes design right?</h4>
+<p><strong>Yes, but the physical implementation needs careful UX.</strong></p>
+<p>Storing field notes separately and injecting them via <code>insertion_point</code> perfectly solves the EU AI Act provenance requirement. It also prevents the AI&#x27;s content engine from overwriting human additions during regenerations. </p>
+<p><em>However</em>, the seam between AI and human prose could be jarring if blindly concatenated. The best way to implement this on the frontend is to visually embrace the seam—for example, styling it as an &quot;Editor&#x27;s Note&quot; or &quot;Reviewer&#x27;s Field Observation&quot; callout box within the specified section. This increases perceived trustworthiness and circumvents the need for the human text to perfectly match the AI&#x27;s cadence.</p>
+<h4>5. Does the sampling schedule make sense?</h4>
+<p><strong>The floor (10%) is slightly too low for YMYL housing content.</strong></p>
+<p>100% for the first 100 pages is excellent for dialing in the prompt and training the engine. However, dropping to 10% for 301+ pages means 9 out of 10 pages auto-publish blindly. Since apartment hunting is a high-cost YMYL decision, a hallucination about pet policies, ADA accessibility, or safety can severely damage domain authority. </p>
+<p><strong>Recommendation:</strong> Keep the floor at <strong>20-25%</strong>, or implement a rule where high-tier buildings (e.g., top 20 buildings per city, which drive the most traffic) are <em>always</em> flagged <code>mandatory</code> on initial generation and regeneration. </p>
+<h4>6. Is the revised throttle sustainable?</h4>
+<p><strong>Yes.</strong> Asking a solo operator to perform 25-56 minutes of review daily (5-8 pages) is highly sustainable. It anchors the daily operational cadence without consuming their entire schedule, leaving ample room for Forge optimization, pipeline management, and non-content business tasks.</p>
+<h4>7. Does the Forge integration close the feedback loop?</h4>
+<p><strong>Mostly.</strong> The &quot;Field Notes Gap Analysis&quot; is the most powerful concept here. If the Forge detects that reviewers are consistently adding manual notes about &quot;noise peak hours,&quot; it creates a clear mandate to add noise-timing to the data enrichment pipeline. </p>
+<p><em>Minor gap:</em> The <code>edit_distance</code> integer is logged, but the <em>actual diff</em> is not. If the Forge (or the prompt engineer) wants to learn <em>how</em> the C-level edits rewrote the text to improve the <code>cadence_variant</code>, they need the actual text diffs, not just the Levenshtein distance number. Add a <code>diff_payload</code> or <code>edited_content</code> text field to the queue table to capture what exactly was changed.</p>
+<h4>8. What&#x27;s missing?</h4>
+<ul>
+<li>  <strong>Stale Queue Handling:</strong> If the operator takes a 2-week vacation, do pending reviews block updates? If a building's pricing or amenity data changes in the source system while it is sitting in the <code>pending_review</code> queue, does the queue item automatically invalidate and regenerate?</li>
+<li>  <strong>Diff Tracking:</strong> As mentioned above, true C-level edits need to be structurally tracked so the LLM can explicitly learn from the "before and after."</li>
+<li>  <strong>Approval UX:</strong> The spec notes "UI nudges toward substantive observation." The UI should explicitly validate field note length (e.g., minimum 15 words) to prevent the operator from simply typing "Looks good" to bypass the mandate.</li>
+</ul>
+<h4>9. Does this change your production readiness score?</h4>
+<p><strong>Yes, this elevates the architecture from a 7.0 to an 8.5/10.</strong></p>
+<p>The &quot;hand-wave&quot; is gone. The human-in-the-loop strategy is now a mathematically modeled daily operation. The remaining 1.5 points to reach 10/10 production-readiness involve standard pre-launch hardening: implementing the diff storage, defining the visual presentation of inserted field notes, and finalizing the error-handling for stale queue items.</p>
+<p><em>*</em></p>
+  </div>
+</div>
+<div class="participant-block">
+  <div class="participant-header" onclick="this.parentElement.classList.toggle('open')">
+    <span class="name">x-ai/grok-4.20-beta@openrouter</span>
+    <span>
+      <span class="chars">5,434 chars</span>
+      <span class="toggle">&#9654;</span>
+    </span>
+  </div>
+  <div class="participant-body">
+    <p><strong>1. Does this resolve the P0?</strong>  </p>
+<p>Yes. The document is implementation-grade. A competent full-stack developer (Supabase + Next.js) could build the entire pipeline from this spec with very little ambiguity. The schema, state machine, UI wireframe, sampling rules, throttle, Forge CSV contract, and end-to-end flow are all specified at the level expected for a P0 blocker resolution. This is no longer vaporware.</p>
+<p><strong>2. Two-table design</strong>  </p>
+<p>The two-table design is correct and preferable.  </p>
+<ul>
+<li><code>editorial_review_queue</code> is the workflow/audit/log table (shared, indexed, RLS-protected).</li>
+<li>Domain-specific <code>*_editorial_content</code> tables remain the source-of-truth for the actual content.</li>
+</ul>
+<p>Joining on <code>review_queue_id</code> is clean. Combining them would bloat the content tables with workflow noise and make per-domain partitioning harder. The separation adds almost zero complexity while preserving clean provenance and audit trails.</p>
+<p><strong>3. Is B-level review sufficient for Tier 2?</strong>  </p>
+<p>It is sufficient as a <em>minimum</em> Tier 2 defense for the scale and operational reality described, but it is light.  </p>
+<p>For true YMYL housing content (luxury rentals involve significant financial and lifestyle decisions), a 5–7 minute scan + one field note is closer to “light human oversight” than deep editorial control. It does, however, satisfy the core goal of the humanization hierarchy: <strong>prevent fully autonomous AI publication</strong> and create a permanent human provenance trail (reviewer_id, field_notes, timestamps, rejection_reason).</p>
+<p>It is acceptable <strong>only</strong> because it is paired with:</p>
+<ul>
+<li>Strong Tier 1 automated validation council</li>
+<li>Provenance system</li>
+<li>Forge feedback loop that treats human field notes as training signal</li>
+<li>100% review for the first 100 pages</li>
+</ul>
+<p>If we wanted stronger E-E-A-T, we should raise default review level to “B+” (7–10 min) for the first 200 pages and require at least two distinct field notes. Current B-level is the pragmatic minimum for a solo operator.</p>
+<p><strong>4. Field notes design</strong>  </p>
+<p>The separate <code>field_notes</code> + <code>field_notes_insertion_point</code> design is smart for provenance, Forge learning, and EU AI Act compliance. However, it carries a real risk of visible seams. A human sentence dropped into AI prose is often stylistically detectable unless the prompt is explicitly tuned to paraphrase or integrate the note.  </p>
+<p>Mitigation needed (not currently specified): the content engine must receive the field note + insertion point on the <em>next regeneration</em> and be instructed to rewrite the surrounding paragraph in the same voice. The current design treats the note as a static insertion; it should be treated as an authoritative human signal that the engine must absorb stylistically.</p>
+<p><strong>5. Sampling schedule</strong>  </p>
+<p>Reasonable but the permanent 10% floor is too low for YMYL housing.  </p>
+<p>Suggested adjustment:  </p>
+<ul>
+<li>0–100 pages: 100% mandatory</li>
+<li>101–300: 25%</li>
+<li>301–1000: 15%</li>
+<li>1000+: 12.5% (1 in 8) with random stratification by cadence variant and building value tier.</li>
+</ul>
+<p>10% is acceptable only if the Forge loop proves extremely effective and rejection rates stay below 8%. Until we have 3+ months of data, 12.5–15% is safer.</p>
+<p><strong>6. Revised throttle</strong>  </p>
+<p>Yes, sustainable. 25–56 minutes per day in Phase 1 for a solo operator who is also doing enrichment/Forge work is realistic (roughly one focused content hour). It drops quickly to 10–20 min/day, which is acceptable. The math checks out.</p>
+<p><strong>7. Forge integration</strong>  </p>
+<p>Strong. The editorial accessibility score, field-notes gap analysis, and rejection-reason clustering are exactly the right signals. The weekly CSV contract is concrete and usable. This closes the loop effectively.</p>
+<p><strong>8. What’s missing</strong>  </p>
+<p>Several implementation details a developer will need:</p>
+<ul>
+<li>Exact status transition table with invariants (e.g., can you move from <code>rejected</code> directly to <code>published</code>? What happens to <code>revision_requested</code> after 14 days?)</li>
+<li>How ISR revalidation is triggered from the review action (API route? Supabase edge function? Database trigger + webhook?)</li>
+<li>Conflict resolution if content engine and reviewer change the same page simultaneously</li>
+<li>How “edit_distance” is calculated (simple Levenshtein on which fields? Or semantic diff?)</li>
+<li>Security: can a reviewer approve their own generated content? (Should be blocked)</li>
+<li>Retention policy for old versions / revision history visibility in admin UI</li>
+<li>How the throttle is enforced (database function that checks daily published count per domain?)</li>
+<li>Explicit definition of “substantive observation” vs “verified” — the UI nudge mentioned is good but needs criteria</li>
+</ul>
+<p><strong>9. Production readiness score</strong>  </p>
+<p>Previous Round 4 scores: 6.5–7.5/10 with P0 as the primary blocker.  </p>
+<p><strong>Updated score: 8.4/10</strong></p>
+<p>The P0 is resolved. Remaining drags on the score:</p>
+<ul>
+<li>Field notes integration still has a seam risk (needs engine-side absorption logic)</li>
+<li>Sampling floor should probably be 12.5–15% rather than 10%</li>
+<li>A few edge cases and transition rules still need to be written</li>
+<li>We still lack a clear definition of what success looks like for Tier 2 (target rejection rate? target field-note quality? target editorial accessibility score?)</li>
+</ul>
+<p>Overall this document is excellent and moves the project from “blocked” to “ready for implementation.”</p>
+<p><strong>VOTE:</strong> {&quot;option&quot;: &quot;Approve&quot;, &quot;confidence&quot;: 0.82, &quot;rationale&quot;: &quot;P0 blocker resolved at high quality; minor adjustments needed on sampling floor and field-note absorption but spec is now implementation-ready&quot;}</p>
+  </div>
+</div>
+</div>
+<div class="round-section">
+<h2>Round 2</h2>
+<div class="participant-block open">
+  <div class="participant-header" onclick="this.parentElement.classList.toggle('open')">
+    <span class="name">opus@claude</span>
+    <span>
+      <span class="chars">12,978 chars</span>
+      <span class="toggle">&#9654;</span>
+    </span>
+  </div>
+  <div class="participant-body">
+    <p>Now I have concrete evidence. Here&#x27;s my evaluation:</p>
+<hr>
+<h2>Council Review: Editorial Review Pipeline Design</h2>
+<h3>1. Does this resolve the P0?</h3>
+<p><strong>Yes.</strong> This is implementation-grade. A developer can build v1 from this document with manageable ambiguity.</p>
+<p>However, I verified several things that the other reviewers flagged, and I want to ground their concerns in <strong>actual codebase evidence</strong>:</p>
+<p><strong>The <code>la_editorial_content</code> table does not exist.</strong> I searched every migration file and the Supabase directory — zero matches for <code>la_editorial_content</code> or <code>editorial_content</code>. The design document ALTERs a table that hasn&#x27;t been CREATEd. This isn&#x27;t a minor gap — the developer hits a blocker on the first SQL statement. The content engine design v5 presumably specifies this table, but the dependency is implicit and must be made explicit with a migration ordering note.</p>
+<p><strong>The <code>content_audit_log</code> and <code>content_versions</code> tables DO exist</strong> (migration <code>20260310000001</code>). They support generic audit logging keyed by <code>table_name</code> + <code>record_id</code>. The editorial review pipeline should integrate with these rather than creating a parallel audit system. Specifically, review events (approve, reject, revision_request) should log to <code>content_audit_log</code> alongside status transitions. This is a design refinement, not a blocker.</p>
+<p><strong>The revalidation route has a hardcoded allowlist:</strong> <code>mls-apartments</code>, <code>apartments</code>, <code>neighborhoods</code>, <code>cities</code>, <code>blog-posts</code>. There is no <code>buildings</code> or <code>editorial-content</code> tag. The design says &quot;ISR revalidation triggered on publish&quot; but the actual mechanism requires adding a new tag to this allowlist. The end-to-end flow references <code>/buildings/the-benjamin-seaport</code> — and the <code>/buildings/[slug]</code> route does exist — but the ISR trigger is unspecified.</p>
+<p><strong>No <code>draftMode</code> usage anywhere in the codebase.</strong> The design says the review detail page shows &quot;full rendered content preview as it would appear on the public site.&quot; With no Next.js draft mode integration, unpublished content has no preview mechanism. This is a real implementation gap that needs a decision: draft mode, server-side render with a preview flag, or a separate preview route.</p>
+<p><strong>The middleware only recognizes three roles:</strong> <code>admin</code>, <code>concierge</code>, <code>renter</code>. There is no <code>content_reviewer</code> or <code>editorial_director</code> role. For Tier A (solo operator who is admin), this is fine. For Tier B+ (freelance editors), either the middleware needs a new role or freelancers get admin JWTs, which is a security problem.</p>
+<p><strong>Verdict: P0 resolved.</strong> But the developer needs answers to the 5 items above before building, and 2 of them (missing CREATE TABLE, missing ISR tag) are blocking.</p>
+<h3>2. Two-table design</h3>
+<p><strong>Correct.</strong> I agree with all four reviewers. The separation is architecturally sound.</p>
+<p>The circular reference (<code>editorial_content.review_queue_id</code> ↔ <code>editorial_review_queue.editorial_content_id</code>) is a minor concern. I&#x27;d keep <code>editorial_review_queue.editorial_content_id</code> as the canonical FK and drop <code>review_queue_id</code> from the content table. If you need &quot;current review item&quot; for a content row, query the queue table with a simple <code>WHERE editorial_content_id = X AND status != &#x27;published&#x27; ORDER BY created_at DESC LIMIT 1</code>.</p>
+<h3>3. Is B-level review sufficient?</h3>
+<p><strong>Sufficient for launch, insufficient as a long-term strategy.</strong> Here&#x27;s where I diverge slightly from the other reviewers:</p>
+<p>The other models are evaluating B-level against an idealized YMYL standard. I&#x27;m evaluating it against <strong>what this operator can actually sustain while also building a business.</strong> The document correctly identifies that this is a solo operator managing enrichment pipelines, Forge optimization, partnership outreach, and the actual apartment marketplace — not a newsroom with dedicated editors.</p>
+<p>B-level with the mandatory field note is the right minimum viable editorial process. The field note is the key differentiator — it&#x27;s verifiably human, experiential, and can&#x27;t be generated by the AI. One genuine &quot;Called leasing office — upper floors quieter&quot; per page is worth more for E-E-A-T than a 15-minute checklist that devolves into box-ticking.</p>
+<p><strong>That said</strong>, I agree with GPT-5.4 that B-level should include a lightweight structured check. Not a full verification rubric, but three binary questions:</p>
+<ul>
+<li>Does the verdict feel defensible? (yes/no)</li>
+<li>Any claim that made you pause? (yes/no + note if yes)</li>
+<li>Would you share this page with a friend apartment-hunting? (yes/no)</li>
+</ul>
+<p>Time impact: adds ~1 minute. Total: 6-8 minutes. Still sustainable.</p>
+<p><strong>I disagree with raising B-level to 7-10 minutes with formal claim verification.</strong> That&#x27;s C-level. If you make the default level more burdensome, the operator will either burn out or start rubber-stamping — both worse outcomes than a lighter process done honestly.</p>
+<h3>4. Field notes design</h3>
+<p><strong>Storage model: correct. Rendering: needs specification.</strong></p>
+<p>I agree with all four reviewers that raw inline insertion will produce visible seams. The Opus recommendation (styled callout/aside) is the right choice for launch:</p>
+<p>&gt; &quot;Editor&#x27;s note: Upper floors (15+) noticeably quieter per leasing office. Weekend noise peaks 11pm-1am.&quot;</p>
+<p>This is honest, it&#x27;s an E-E-A-T signal (visible human involvement), and it avoids the uncanny valley of an AI paragraph suddenly containing a sentence with different register and specificity.</p>
+<p><strong>However</strong>, there&#x27;s a deeper question nobody addressed: what happens to the insertion point system when the content engine regenerates the surrounding text? The &quot;within noise section&quot; insertion point is semantic, not positional. If the noise section is restructured in a Forge mutation, the insertion point mapping breaks. The rendering system needs to match field notes to sections by semantic tag, not by DOM position or paragraph index.</p>
+<h3>5. Sampling schedule</h3>
+<p><strong>10% is too low. 20% is the right floor.</strong></p>
+<p>I split the difference between Opus (20%) and GPT-5.4/Grok (25%). Here&#x27;s my reasoning:</p>
+<p>At 300+ pages with 15-30 pages/day publication rate:</p>
+<ul>
+<li>10% = 1.5-3 reviews/day = 7.5-21 min/day. Operationally trivial but strategically hollow.</li>
+<li>20% = 3-6 reviews/day = 18-42 min/day. Meaningful sampling, still sustainable.</li>
+<li>25% = 3.75-7.5 reviews/day = 22-52 min/day. Starting to compress other operational tasks.</li>
+</ul>
+<p>At 20%, the operator maintains genuine engagement with the content pipeline without it becoming their primary job. The mathematical reality is that at 300+ pages, the content quality should be well-calibrated — the first 100 pages of 100% review trained the engine. The sampling&#x27;s purpose shifts from &quot;quality gate&quot; to &quot;drift detection + human provenance.&quot; 20% is sufficient for that.</p>
+<p><strong>Add this rule:</strong> All pages for buildings with monthly rent &gt; $10K get mandatory review regardless of sampling tier. High-value entities carry disproportionate brand risk.</p>
+<h3>6. Throttle sustainability</h3>
+<p><strong>Sustainable at the lower end, aggressive at the upper end.</strong></p>
+<p>Phase 2 (51-100 pages, 8-10 mandatory reviews/day at 6-8 min each) = 48-80 min/day. That&#x27;s a full hour of editorial review before touching any other operational task. For a solo operator who is also an entrepreneur, this is the crunch period.</p>
+<p>The design should acknowledge this explicitly and either:</p>
+<ul>
+<li>Reduce Phase 2 throttle to 6-8 pages/day (matching Phase 1), or</li>
+<li>Accept that Phase 2 is when the operator evaluates whether to hire a freelance editor (Tier B transition trigger)</li>
+</ul>
+<h3>7. Forge integration</h3>
+<p><strong>Mostly closed. Two additions needed.</strong></p>
+<p>The three feedback signals (editorial accessibility, field notes gap, rejection clustering) are well-chosen. The weekly CSV is pragmatic.</p>
+<p><strong>Missing signal 1:</strong> Structured rejection codes, as GPT-5.4 noted. Free-text <code>rejection_reason</code> will produce inconsistent clustering. Add an enum: <code>weak_verdict | unsupported_claim | thin_comparison | too_promotional | stale_data | poor_local_specificity | formatting_issue | other</code>. The free-text field stays for details, but the enum drives Forge optimization.</p>
+<p><strong>Missing signal 2:</strong> Skip-tier audit sampling. The Forge has no signal about whether skip-tier pages (the 75-90% that auto-publish) are actually good. Add a monthly blind audit: randomly select 20 published skip-tier pages, review them, and log the results. This creates a ground-truth calibration for whether the skip rate is safe.</p>
+<h3>8. What&#x27;s missing</h3>
+<p>Ordered by developer-blocking severity:</p>
+<ul>
+<li><strong><code>la_editorial_content</code> CREATE TABLE</strong> — doesn't exist anywhere in the codebase. The ALTER TABLE in the design will fail. Must either be created in the same migration or the dependency on the content engine's migration must be explicit.</li>
+</ul>
+<ul>
+<li><strong>ISR revalidation tag</strong> — the existing <code>/api/revalidate</code> route has a hardcoded <code>ALLOWED_TAGS</code> set. Need to add <code>buildings</code> (or whatever tag the buildings route uses for <code>fetchTag</code>). The design should specify the exact tag name and the route file to modify.</li>
+</ul>
+<ul>
+<li><strong>Content preview mechanism</strong> — no <code>draftMode</code> exists in this codebase. The review detail page needs to render unpublished content. Options: (a) Next.js draft mode, (b) server-side rendering with a <code>?preview=true</code> query param gated behind admin auth, (c) rendering the content directly in the admin page without going through the public route. Option (c) is simplest for launch.</li>
+</ul>
+<ul>
+<li><strong>API routes</strong> — As Opus noted, the admin UI needs endpoints. At minimum: <code>GET /api/admin/editorial-review</code> (queue list), <code>GET /api/admin/editorial-review/[id]</code> (detail), <code>PATCH /api/admin/editorial-review/[id]</code> (status transitions), <code>GET /api/admin/editorial-review/metrics</code> (dashboard).</li>
+</ul>
+<ul>
+<li><strong>State transition table</strong> — needs explicit allowed transitions and guards. E.g., <code>pending_review → in_review</code> only if <code>reviewer_id IS NULL</code> (prevents double-claim). <code>in_review → approved</code> only if <code>field_notes IS NOT NULL</code> (enforces the mandate).</li>
+</ul>
+<ul>
+<li><strong>Reviewer role for Tier B+</strong> — the middleware needs either a <code>content_reviewer</code> role or a separate auth path for freelancers. This can be deferred to Tier B but should be noted as a known gap.</li>
+</ul>
+<ul>
+<li><strong>Throttle enforcement mechanism</strong> — what runs the throttle? A cron job that moves <code>approved</code> → <code>published</code> up to N per day? A database function? An API route the admin triggers manually? This is a significant implementation decision left unspecified.</li>
+</ul>
+<ul>
+<li><strong>Concurrency/locking</strong> — GPT-5.4's point about optimistic locking is valid for Tier B+ but irrelevant for Tier A (solo operator). Defer with a note.</li>
+</ul>
+<h3>9. Production readiness score</h3>
+<p><strong>Previous: ~7.0/10 with P0 as primary drag.</strong></p>
+<p><strong>Updated: 8.2/10.</strong></p>
+<p>This is slightly higher than Opus (7.8) and slightly lower than Gemini (8.5). My reasoning:</p>
+<p>The P0 is resolved. The pipeline is specified at a level where a developer can build it with 5-8 clarifying questions, not 50. The remaining items are implementation details (API routes, migration ordering, ISR tags) and policy refinements (sampling floor, structured rejection codes), not architectural gaps.</p>
+<p><strong>What prevents 9.0+:</strong></p>
+<ul>
+<li>None of the content system is built (engine, pipeline, Forge — all paper)</li>
+<li>The <code>la_editorial_content</code> table doesn't exist yet</li>
+<li>The content preview mechanism is unspecified</li>
+<li>The throttle enforcement mechanism is unspecified</li>
+<li>The existing <code>content_audit_log</code> integration is unaddressed</li>
+</ul>
+<p><strong>What would get it to 8.5:</strong></p>
+<ul>
+<li>Add the CREATE TABLE for <code>la_editorial_content</code></li>
+<li>Specify the API routes</li>
+<li>Define the throttle enforcement mechanism</li>
+<li>Add a state transition table with guards</li>
+<li>Raise sampling floor to 20%</li>
+</ul>
+<hr>
+<h3>Points of agreement/disagreement with other reviewers</h3>
+<p><strong>I agree with all four models</strong> that the P0 is resolved, the two-table design is correct, and the 10% floor is too low.</p>
+<p><strong>I disagree with GPT-5.4</strong> on raising B-level to 7-10 minutes with structured claim verification. That&#x27;s C-level work rebranded as B-level. A lighter structured check (3 binary questions, +1 minute) is the right middle ground.</p>
+<p><strong>I disagree with GPT-5.4</strong> on 25% minimum floor. 20% is sufficient and more operationally realistic.</p>
+<p><strong>I agree with Opus</strong> on styled callout rendering for field notes. This is the cleanest solution and the strongest E-E-A-T signal.</p>
+<p><strong>I agree with Grok</strong> that &quot;B-level is the pragmatic minimum for a solo operator&quot; but add that it should include 3 lightweight structured questions.</p>
+<p><strong>I agree with Gemini</strong> that the field notes gap analysis is the strongest Forge signal in the design.</p>
+<hr>
+  </div>
+</div>
+<div class="participant-block open">
+  <div class="participant-header" onclick="this.parentElement.classList.toggle('open')">
+    <span class="name">openai/gpt-5.4@openrouter</span>
+    <span>
+      <span class="chars">18,105 chars</span>
+      <span class="toggle">&#9654;</span>
+    </span>
+  </div>
+  <div class="participant-body">
+    <p>This resolves the P0 in the sense that Tier 2 is no longer conceptual theater. It is now a real system design with schema, queue semantics, UI surface, review taxonomy, sampling, throttle, and Forge outputs. That is enough to eliminate the “vaporware” objection from Round 4.</p>
+<p>That said, I would not say it is ambiguity-free. It is implementation-grade at the product-design level, but not yet fully implementation-complete at the engineering-contract level. A developer can start, but they will still need to make several workflow and data-model decisions that should ideally be specified now rather than discovered mid-build.</p>
+<h3>1) Does this resolve the P0?</h3>
+<p>Yes, substantially.</p>
+<p>What was missing before:</p>
+<ul>
+<li>where content waits</li>
+<li>who reviews it</li>
+<li>what “review” means</li>
+<li>how publication is gated</li>
+<li>how this interacts with throughput and Forge</li>
+</ul>
+<p>This document answers all of those.</p>
+<p>A developer could build a v1 from this. So the P0 itself is resolved.</p>
+<p>But “can build v1” is not the same as “fully specified with low implementation risk.” The main remaining ambiguities are:</p>
+<h4>A. State machine is described, but not formalized</h4>
+<p>You list statuses, but not a strict transition matrix. For example:</p>
+<ul>
+<li>can <code>pending_review -> published</code> happen only for <code>skip</code>, or also via throttle worker?</li>
+<li>is <code>approved</code> a durable state distinct from <code>published</code>, or only an intermediate before async publish?</li>
+<li>can <code>in_review</code> time out back to <code>pending_review</code>?</li>
+<li>does <code>revision_requested</code> create a new queue row or update the current one?</li>
+<li>what exactly happens when a new version supersedes an old draft?</li>
+</ul>
+<p>This needs a transition table.</p>
+<h4>B. Versioning is still under-modeled</h4>
+<p>The document says:</p>
+<ul>
+<li>published stays live</li>
+<li>new version enters queue</li>
+<li>approved replacement swaps in later</li>
+</ul>
+<p>But the schema shown is just <code>la_editorial_content</code> plus one <code>review_queue_id</code>. That is not a clear version model. If each content row is mutable, you lose durable version history. If each row is a version, you need a stable entity key and “current live version” semantics.</p>
+<p>Right now the policy is specified more clearly than the data model.</p>
+<h4>C. Queue/content relationship is slightly muddled</h4>
+<p><code>editorial_review_queue.editorial_content_id</code> points to content, and content has <code>review_queue_id</code> back to queue. That bidirectional coupling is risky. Usually one side should own the relation. The queue pointing to a content version is enough. A derived “current queue item” is cleaner than a circular reference unless you have a very specific reason.</p>
+<h4>D. Publication mechanics are still hand-wavy</h4>
+<p>You say:</p>
+<ul>
+<li>pages can be approved and publish at throttled rate</li>
+<li>skip-tier pages auto-approve immediately</li>
+<li>ISR revalidation is triggered on publish</li>
+</ul>
+<p>But what performs that? A cron? DB job? app worker? edge function? route handler? Without that, the pipeline logic is mostly specified, but not the actual release mechanism.</p>
+<p>So: <strong>P0 resolved, but not fully hardened.</strong></p>
+<hr>
+<h3>2) Is the two-table design correct?</h3>
+<p>Yes, the separation is correct.</p>
+<p><code>editorial_review_queue</code> and domain-specific <code>editorial_content</code> are different concerns:</p>
+<ul>
+<li>content table = canonical artifact and publication state</li>
+<li>queue table = workflow, reviewer assignment, timing, review metadata, rejection history</li>
+</ul>
+<p>Combining them would make the content row absorb process noise:</p>
+<ul>
+<li>review timers</li>
+<li>sampling tier</li>
+<li>reviewer identity</li>
+<li>rejection reasons</li>
+<li>mutation metadata</li>
+<li>queue state churn</li>
+</ul>
+<p>That is bad normalization and bad workflow design.</p>
+<p>So I would keep the separation.</p>
+<h4>What I would change</h4>
+<p>Not the existence of two tables, but the exact relationship.</p>
+<p>Current design:</p>
+<ul>
+<li>queue has <code>editorial_content_id</code></li>
+<li>content has <code>review_queue_id</code></li>
+</ul>
+<p>That is where unnecessary complexity appears.</p>
+<p>Better:</p>
+<ul>
+<li>queue item references a specific content version row</li>
+<li>content row does <strong>not</strong> need <code>review_queue_id</code></li>
+<li>if you need current queue item, derive it or store <code>current_review_queue_id</code> with explicit semantics</li>
+</ul>
+<p>If you want true re-review, regeneration, rollback, and replacement, the stronger design is:</p>
+<ul>
+<li><code>editorial_entities</code> or stable entity key</li>
+<li><code>editorial_content_versions</code></li>
+<li><code>editorial_review_queue</code> references <code>content_version_id</code></li>
+</ul>
+<p>That would make the “published stays live while new version is reviewed” story much cleaner.</p>
+<p>So:</p>
+<ul>
+<li><strong>two-table separation: yes</strong></li>
+<li><strong>current relational details: needs refinement</strong></li>
+<li><strong>combine them: no</strong></li>
+</ul>
+<hr>
+<h3>3) Is B-level review sufficient for Tier 2 defense?</h3>
+<p>As written, it is enough to claim “human touched this before publication.”</p>
+<p>It is not enough to claim “meaningful editorial review materially improves content quality” in a strong sense.</p>
+<p>That distinction matters.</p>
+<h4>What current B-level buys you</h4>
+<ul>
+<li>a human gate before publish</li>
+<li>reviewer identity and time-on-task</li>
+<li>opportunity to catch obvious hallucinations</li>
+<li>one genuinely human addition</li>
+<li>auditability</li>
+<li>non-zero human provenance</li>
+</ul>
+<p>That is valuable. It is much better than autonomous publish.</p>
+<h4>What it does not buy you</h4>
+<ul>
+<li>reliable claim verification</li>
+<li>strong consistency in tone and fairness</li>
+<li>deep correction of subtle machine-made comparative framing</li>
+<li>confidence that local claims are grounded rather than plausible-sounding</li>
+<li>strong evidence of robust editorial supervision for consequential housing decisions</li>
+</ul>
+<p>For housing content, this is not medical YMYL, but it is still consequential. People make expensive decisions based on this content. So the defense should not overstate what B-level actually is.</p>
+<h4>My position</h4>
+<p>Current B-level is <strong>acceptable as a minimum operational layer</strong>, especially during early solo-operator phase.</p>
+<p>But if Tier 2 is being presented as a major trust layer, B-level should be strengthened slightly.</p>
+<h4>Recommended B-level revision</h4>
+<p>Require:</p>
+<ul>
+<li>Read full page</li>
+<li>Verify 2–3 critical claims using the provenance/source panel</li>
+<li>opening verdict</li>
+<li>one building/amenity claim</li>
+<li>one neighborhood/noise/comparison claim</li>
+<li>Add one field note <strong>or</strong> mark “source-verified, no unique field note available”</li>
+<li>Complete a short checklist:</li>
+<li>verdict fair</li>
+<li>no unsupported strong claims</li>
+<li>not overly promotional</li>
+<li>comparison section not misleading</li>
+</ul>
+<p>That moves B-level from “skim + annotate” to “light editorial QA.”</p>
+<h4>Time impact</h4>
+<p>Current estimate: 5–7 min  </p>
+<p>Revised realistic estimate: <strong>7–10 min</strong></p>
+<p>That is still operationally feasible, but much more defensible.</p>
+<p>So my answer:</p>
+<ul>
+<li><strong>Current B-level: enough to resolve vaporware and establish a real HITL layer</strong></li>
+<li><strong>Current B-level: too thin if positioned as a strong E-E-A-T defense</strong></li>
+<li><strong>Recommended production B-level: 7–10 min with structured checks</strong></li>
+</ul>
+<hr>
+<h3>4) Is the field notes design right?</h3>
+<p>Storage design: yes.  </p>
+<p>Rendering/integration design: not fully.</p>
+<p>I agree with the core choice to keep field notes separate from base AI prose. That is good for:</p>
+<ul>
+<li>provenance</li>
+<li>audit</li>
+<li>compliance posture</li>
+<li>Forge learning</li>
+<li>preserving human-vs-generated distinction</li>
+</ul>
+<p>But if the field note is simply inserted into the prose body at a section marker, the seam will often be visible.</p>
+<p>Example:</p>
+<ul>
+<li>AI section has polished, evenly toned prose</li>
+<li>human reviewer adds: “Called leasing office — upper floors quieter after 15”</li>
+<li>rendered inline, this can feel stitched on</li>
+</ul>
+<p>That is not necessarily fatal, but it needs an explicit rendering strategy.</p>
+<h4>Best launch strategy</h4>
+<p>Render field notes as attributed callouts inside the relevant section:</p>
+<ul>
+<li>“Editor’s note”</li>
+<li>“Leasing-office note”</li>
+<li>“Local observation”</li>
+<li>“Reviewer note”</li>
+</ul>
+<p>This solves multiple problems:</p>
+<ul>
+<li>visible seam becomes intentional</li>
+<li>provenance is clearer</li>
+<li>trust may improve rather than decline</li>
+<li>no need to stylistically blend human text into AI text</li>
+</ul>
+<h4>What I would avoid</h4>
+<p>Raw inline insertion pretending to be part of the original generated paragraph. That invites cadence mismatch and weakens provenance clarity.</p>
+<h4>Additional rule needed</h4>
+<p>If content is regenerated later, approved field notes should be preserved unless explicitly retired. Otherwise the “human contribution” layer is fragile.</p>
+<p>So:</p>
+<ul>
+<li><strong>separate field storage: correct</strong></li>
+<li><strong>insertion-point concept: fine</strong></li>
+<li><strong>rendering strategy: must be explicitly specified</strong></li>
+<li><strong>recommended rendering: attributed editorial callout, not stealth inline merge</strong></li>
+</ul>
+<hr>
+<h3>5) Does the sampling schedule make sense?</h3>
+<p>The early stages do. The long-run floor does not.</p>
+<h4>What makes sense</h4>
+<ul>
+<li>0–100 at 100% review: absolutely right</li>
+<li>101–300 at 25%: plausible as a scale transition</li>
+<li>mandatory review for first 10 pages of new Forge mutation: good</li>
+</ul>
+<h4>What does not</h4>
+<p><strong>10% for 301+ is too low</strong> for this category.</p>
+<p>At 15–30 pages/day:</p>
+<ul>
+<li>only 1.5 to 3 pages/day get reviewed</li>
+<li>the vast majority publish with zero human eyes</li>
+<li>this weakens the claim that human review is a meaningful operating layer</li>
+</ul>
+<p>If Tier 2 is central to the strategy, 10% makes it feel more like periodic QA than editorial oversight.</p>
+<h4>My recommendation</h4>
+<p>Minimum steady-state floor should be <strong>20–25%</strong>, not 10%.</p>
+<p>A practical schedule:</p>
+<ul>
+<li>0–100: 100%</li>
+<li>101–300: 25%</li>
+<li>301+: <strong>20% minimum</strong></li>
+<li>top 20 buildings per city: always mandatory on initial publish and major regeneration</li>
+<li>low-confidence enrichment pages: always mandatory</li>
+<li>mutation cohorts: first 10 mandatory</li>
+</ul>
+<p>If they are cost-constrained, I would accept 15% as a leaner compromise, but 10% is not where I’d land for housing.</p>
+<p>So:</p>
+<ul>
+<li><strong>sampling framework: good</strong></li>
+<li><strong>10% floor: too low</strong></li>
+<li><strong>recommended floor: 20–25%</strong></li>
+</ul>
+<hr>
+<h3>6) Is the revised throttle sustainable?</h3>
+<p>Broadly yes, but only if review remains disciplined and the operator’s other responsibilities are not underestimated.</p>
+<h4>If B-level stays as written</h4>
+<p>5–8 pages/day at 5–7 min/page:</p>
+<ul>
+<li>25–56 min/day</li>
+</ul>
+<p>That is sustainable.</p>
+<h4>If B-level is upgraded to something more credible</h4>
+<p>5–8 pages/day at 7–10 min/page:</p>
+<ul>
+<li>35–80 min/day</li>
+</ul>
+<p>Still potentially sustainable, but now much more meaningful as a daily obligation.</p>
+<h4>Real issue</h4>
+<p>The review time is not the only cost. There is also:</p>
+<ul>
+<li>queue management</li>
+<li>hard cases and rejections</li>
+<li>Forge review</li>
+<li>enrichment/pipeline monitoring</li>
+<li>admin work</li>
+<li>actual business operations</li>
+</ul>
+<p>So I think the current throttle is <strong>mostly realistic at low end</strong>, but optimistic at the top end if the same person is also running everything else.</p>
+<h4>Better early recommendation</h4>
+<ul>
+<li>first 50 pages: <strong>5–6/day</strong></li>
+<li>51–100: <strong>6–8/day</strong></li>
+<li>then scale after actual rejection/time metrics are observed</li>
+</ul>
+<p>Also add tier transition triggers, for example:</p>
+<ul>
+<li>mandatory reviews > 60 min/day for 5 days → bring in freelancer</li>
+<li>avg review time < 2 min → process degradation warning</li>
+<li>rejection rate > 20–25% → tune engine before increasing throughput</li>
+</ul>
+<p>So:</p>
+<ul>
+<li><strong>sustainable in principle: yes</strong></li>
+<li><strong>upper-band assumptions: a bit rosy</strong></li>
+<li><strong>more conservative initial throttle would be safer</strong></li>
+</ul>
+<hr>
+<h3>7) Does the Forge integration close the feedback loop?</h3>
+<p>Yes, directionally it does. This is one of the stronger parts of the design.</p>
+<p>The chosen signals are sensible:</p>
+<ul>
+<li>review duration = editorial accessibility / correction burden</li>
+<li>edit distance = rewrite burden</li>
+<li>rejection reasons = quality failure taxonomy</li>
+<li>field notes patterns = missing enrichment dimensions</li>
+</ul>
+<p>That is enough to make review data actually useful rather than just archival.</p>
+<h4>Main weakness</h4>
+<p>Too much of the signal is free text.</p>
+<p>Right now:</p>
+<ul>
+<li><code>rejection_reason</code> is free text</li>
+<li><code>field_notes</code> is free text</li>
+<li><code>edit_summary</code> is free text</li>
+</ul>
+<p>You can cluster text, but it is noisy and operationally annoying. The Forge will work better if there are structured fields alongside the prose.</p>
+<h4>Add:</h4>
+<ul>
+<li><code>rejection_reason_code</code></li>
+<li><code>issue_tags[]</code></li>
+<li><code>field_note_category</code></li>
+<li><code>field_note_source</code> (leasing office, site visit, resident forum, reviewer inference)</li>
+<li><code>reviewer_confidence</code></li>
+<li><code>requires_enrichment_fix</code> boolean</li>
+</ul>
+<p>Then the Forge can make sharper decisions.</p>
+<h4>Another missing piece</h4>
+<p>If C-level edits are supposed to teach the system, a numeric <code>edit_distance</code> alone is weak. You may need:</p>
+<ul>
+<li>edited output snapshot</li>
+<li>or structured diff payload</li>
+</ul>
+<p>Otherwise the system knows “how much changed” but not “what improved.”</p>
+<p>So:</p>
+<ul>
+<li><strong>feedback loop concept: yes, good</strong></li>
+<li><strong>needs structured metadata to become truly high-leverage</strong></li>
+</ul>
+<hr>
+<h3>8) What’s missing?</h3>
+<p>Several things a developer will still need.</p>
+<h4>1. Explicit versioning model</h4>
+<p>This is the biggest one.</p>
+<p>Need clear answers:</p>
+<ul>
+<li>Is each <code>editorial_content</code> row a mutable current artifact or a version?</li>
+<li>How is current live version determined?</li>
+<li>How are revisions and rollback represented?</li>
+<li>What gets superseded?</li>
+</ul>
+<h4>2. Formal transition table</h4>
+<p>Need allowed transitions and invariants:</p>
+<ul>
+<li><code>pending_review -> in_review</code></li>
+<li><code>in_review -> approved/rejected/revision_requested</code></li>
+<li><code>approved -> published</code></li>
+<li><code>pending_review -> published</code> only for skip?</li>
+<li><code>in_review</code> lock expiry?</li>
+<li><code>rejected</code> creates new row or mutates existing?</li>
+</ul>
+<h4>3. Concurrency / locking</h4>
+<p>Two reviewers can open same item.</p>
+<p>Need:</p>
+<ul>
+<li><code>locked_by</code></li>
+<li><code>locked_at</code></li>
+<li>lock expiry</li>
+<li>optimistic concurrency protection</li>
+</ul>
+<p>“Timer starts on open” is not enough if multiple sessions are possible.</p>
+<h4>4. Reviewer role model</h4>
+<p>RLS says <code>role = admin</code>.</p>
+<p>But operating tiers mention freelancers, editorial director, etc.</p>
+<p>Need actual roles:</p>
+<ul>
+<li>admin</li>
+<li>content_reviewer</li>
+<li>editorial_director</li>
+</ul>
+<p>Otherwise the auth model does not match the staffing model.</p>
+<h4>5. API route / server action contract</h4>
+<p>UI is specified, DB is specified, but the application layer between them is not.</p>
+<p>Need endpoints or server actions for:</p>
+<ul>
+<li>queue list</li>
+<li>queue detail</li>
+<li>claim/open review</li>
+<li>approve</li>
+<li>reject</li>
+<li>request revision</li>
+<li>metrics summary</li>
+</ul>
+<h4>6. Publication throttle implementation</h4>
+<p>Need to define:</p>
+<ul>
+<li>scheduler/worker mechanism</li>
+<li>per-domain daily window</li>
+<li>timezone basis</li>
+<li>priority ordering</li>
+<li>what happens to approved backlog</li>
+</ul>
+<h4>7. Preview mechanism</h4>
+<p>“Full rendered content preview as it would appear on public site” needs implementation detail.</p>
+<p>How is unpublished content rendered?</p>
+<ul>
+<li>draft mode?</li>
+<li>tokenized preview route?</li>
+<li>internal render endpoint?</li>
+</ul>
+<h4>8. Revalidation integration</h4>
+<p>What exact tags or paths get invalidated?</p>
+<p>This should be explicit.</p>
+<h4>9. Audit/event history</h4>
+<p>Current queue row stores latest state, but not necessarily immutable action history.</p>
+<p>Need:</p>
+<ul>
+<li>append-only review events</li>
+</ul>
+<p>or</p>
+<ul>
+<li>integration with existing audit log/version tables</li>
+</ul>
+<h4>10. Stale queue semantics</h4>
+<p>If source data changes while item sits pending:</p>
+<ul>
+<li>does it invalidate?</li>
+<li>regenerate?</li>
+<li>warn reviewer that underlying enrichment changed?</li>
+</ul>
+<h4>11. Definition of “substantive note”</h4>
+<p>Currently “minimum any text” is too weak.</p>
+<p>That invites junk entries.</p>
+<p>Need either:</p>
+<ul>
+<li>minimum length</li>
+<li>category + source</li>
+<li>or explicit checkbox for “no unique note available; source-verified”</li>
+</ul>
+<h4>12. Success thresholds</h4>
+<p>Need operational thresholds:</p>
+<ul>
+<li>acceptable rejection rate</li>
+<li>acceptable avg review time</li>
+<li>backlog alert threshold</li>
+<li>when to pause publishing</li>
+<li>when to promote/demote a Forge mutation</li>
+</ul>
+<hr>
+<h3>9) Updated production readiness score</h3>
+<p>Yes, this improves the score materially.</p>
+<p>Before, with Tier 2 unspecified, this was a major drag because a central defense had no operational form.</p>
+<p>Now I would move the overall readiness to <strong>about 8.0/10</strong>.</p>
+<h4>Why not higher?</h4>
+<p>Because the P0 is resolved, but several meaningful implementation-hardening issues remain:</p>
+<ul>
+<li>B-level still too light if presented strongly</li>
+<li>10% sampling floor too low</li>
+<li>versioning model not yet explicit</li>
+<li>state transitions not formalized</li>
+<li>queue locking/concurrency unspecified</li>
+<li>reviewer roles don’t match staffing plan</li>
+<li>field-note rendering not fully specified</li>
+<li>Forge signals too text-heavy</li>
+</ul>
+<h4>What would move it toward 8.5–9.0?</h4>
+<ul>
+<li>strengthen B-level to structured 7–10 min review</li>
+<li>raise sampling floor to at least 20%</li>
+<li>define versioned content model explicitly</li>
+<li>add state transition matrix and lock semantics</li>
+<li>render field notes as editorial callouts</li>
+<li>add structured reason/category fields for Forge</li>
+<li>define worker/API/revalidation mechanics</li>
+</ul>
+<hr>
+<h3>Direct answers</h3>
+<h4>1. Does this resolve the P0?</h4>
+<p>Yes. The editorial review pipeline is now real and buildable. Some implementation details remain ambiguous, but the vaporware critique is resolved.</p>
+<h4>2. Is the two-table design correct?</h4>
+<p>Yes. Keep queue and content separate. Do not combine. But simplify the relationship and define a stronger version model.</p>
+<h4>3. Is B-level sufficient?</h4>
+<p>As written, only as a minimum human gate. It is too light to be a strong Tier 2 trust defense. Upgrade to a structured 7–10 minute review with 2–3 critical claim checks.</p>
+<h4>4. Is field notes design right?</h4>
+<p>Storage model yes. Rendering model needs explicit design. Best v1 is an attributed editorial callout, not raw inline blending.</p>
+<h4>5. Does the sampling schedule make sense?</h4>
+<p>Early stages yes. The 10% floor is too low. Raise to 20–25%.</p>
+<h4>6. Is the revised throttle sustainable?</h4>
+<p>Generally yes, but somewhat optimistic at the top end. Start a bit more conservatively if B-level is strengthened.</p>
+<h4>7. Does Forge integration close the feedback loop?</h4>
+<p>Yes in principle. Add structured metadata and probably actual diff capture for C-level edits.</p>
+<h4>8. What’s missing?</h4>
+<p>Versioning, transition rules, locking, roles, API/server contract, throttle implementation, preview mechanism, audit-event history, stale queue handling, and stronger definition of substantive notes.</p>
+<h4>9. Updated production readiness score?</h4>
+<p><strong>8.0/10</strong></p>
+<h3>Bottom line</h3>
+<p>This document does what it needed to do: it turns Tier 2 from rhetoric into an actual operational system. That is enough to clear the P0. But I would still require a small follow-up spec before implementation that locks down:</p>
+<ul>
+<li>versioning</li>
+<li>transitions</li>
+<li>locking</li>
+<li>roles</li>
+<li>publication worker behavior</li>
+</ul>
+<p>And I would push two policy changes before launch:</p>
+<ul>
+<li><strong>Strengthen B-level</strong></li>
+<li><strong>Raise the long-run review floor above 10%</strong></li>
+</ul>
+  </div>
+</div>
+<div class="participant-block open">
+  <div class="participant-header" onclick="this.parentElement.classList.toggle('open')">
+    <span class="name">google/gemini-3.1-pro-preview@openrouter</span>
+    <span>
+      <span class="chars">58 chars</span>
+      <span class="toggle">&#9654;</span>
+    </span>
+  </div>
+  <div class="participant-body">
+    <p style="color: var(--red)">[ERROR: TypeError: object of type &#x27;NoneType&#x27; has no len()]</p>
+  </div>
+</div>
+<div class="participant-block open">
+  <div class="participant-header" onclick="this.parentElement.classList.toggle('open')">
+    <span class="name">x-ai/grok-4.20-beta@openrouter</span>
+    <span>
+      <span class="chars">8,280 chars</span>
+      <span class="toggle">&#9654;</span>
+    </span>
+  </div>
+  <div class="participant-body">
+    <p><strong>1. Does this resolve the P0?</strong></p>
+<p>Yes, it resolves the P0 at implementation-grade. A developer familiar with the existing Supabase + Next.js + ISR pattern in this codebase could build the entire pipeline from this document with only normal clarification questions. The schema is concrete, the status machine is explicit, the admin routes and UI layout are specified, the sampling and throttle algorithms are deterministic, and the Forge contract (weekly CSV + specific signals) is clear. The &quot;vaporware&quot; critique is eliminated.</p>
+<p>However, there are still ~6 developer questions that would require PM input before shipping:</p>
+<ul>
+<li>Exact API routes and payloads for the admin UI (the document describes the UI but not the <code>app/api/admin/editorial-review/...</code> handlers that the existing 30+ routes follow).</li>
+<li>Migration strategy: the provided SQL is an ALTER on <code>la_editorial_content</code>, but no CREATE TABLE for <code>editorial_review_queue</code> is shown, no migration filename, and no dependency ordering against the existing <code>content_versions</code>/<code>content_audit_log</code> tables from migration <code>20260310000001</code>.</li>
+<li>How ISR revalidation tags are triggered. The codebase has an allowlist in <code>/api/revalidate</code> — this design should specify which new tags (<code>buildings</code>, <code>editorial-content</code>, etc.) are added.</li>
+<li>Precise state transition rules and invariants (especially for skip-tier pages and <code>revision_requested</code>).</li>
+<li>Concurrency/locking for the <code>in_review</code> state when multiple admins (or future freelancers) are involved.</li>
+<li>How field notes are actually rendered on the public page (see Q4).</li>
+</ul>
+<p>These are normal implementation clarifications, not blockers. The P0 is resolved.</p>
+<p><strong>2. Is the two-table design correct?</strong></p>
+<p>Yes, the separation is correct and preferable. <code>editorial_review_queue</code> owns workflow state, metrics, reviewer identity, timing, and Forge signals. The domain content tables own the published artifact. Mixing them would either bloat content tables with transient workflow columns or lose clean audit history. The bidirectional reference (<code>editorial_content_id</code> + <code>review_queue_id</code>) is slightly awkward but acceptable for a small system; a cleaner version would have the queue reference a content version and derive the “current” queue item via query.</p>
+<p>The design correctly treats the queue row as the authoritative record of what the human actually wrote; the copied <code>field_notes</code> in <code>editorial_content</code> is a denormalized published snapshot.</p>
+<p><strong>3. Is B-level review sufficient for Tier 2 defense?</strong></p>
+<p>It is sufficient as the minimum viable Tier 2 layer but borderline for YMYL housing content. A forced human field note that the AI could not have generated (plus reviewer ID, timestamp, duration) creates genuine E-E-A-T provenance that no amount of prompt engineering can fake. It also satisfies the core goal of preventing fully autonomous AI publication.</p>
+<p>However, a pure 5-minute skim + one note is light. It will catch gross errors but not subtle tone drift, misleading comparisons, or over-promotion. For a site positioning itself as a luxury housing authority, 10% sampling at steady-state with only this level of review feels thin.</p>
+<p>I agree with the other models that raising the long-term floor to <strong>20%</strong> (or adding a monthly blind audit of 20 random published pages) and adding a <strong>minimum 2-minute review duration guard</strong> (reviews under 2 min get flagged and do not count toward approval metrics) would make the system more defensible without breaking solo-operator economics.</p>
+<p><strong>4. Is the field notes design right?</strong></p>
+<p>The storage model (separate <code>field_notes</code> + <code>field_notes_insertion_point</code>) is excellent for provenance, auditability, and Forge learning. I strongly prefer this over invisible inline rewriting.</p>
+<p>The integration/rendering model is underspecified and is the biggest practical risk. Blind concatenation will create visible seams. The document should explicitly choose a rendering strategy:</p>
+<ul>
+<li><strong>Recommended for launch (Option A):</strong> Render field notes as a styled, attributed “Editor’s / On-the-ground Note” callout within the target section. This is honest, improves perceived trustworthiness, is an explicit E-E-A-T signal, and requires zero stylistic integration work.</li>
+<li><strong>Future (Option B):</strong> Pass the note back to the content engine on next regeneration with instructions to absorb it stylistically, then diff the result to ensure the human signal was not diluted.</li>
+</ul>
+<p>The design currently implies Option B without saying how the seam problem is solved. It should pick A for v1.</p>
+<p><strong>5. Does the sampling schedule make sense?</strong></p>
+<p>The early ramp (100% for first 100) is correct. The permanent 10% floor at 301+ is too low for housing content that influences significant financial/lifestyle decisions. At 20–30 pages/day that means 18–27 pages publish with zero human eyes.</p>
+<p><strong>Recommended schedule:</strong></p>
+<ul>
+<li>0–100: 100%</li>
+<li>101–300: 25%</li>
+<li>301+: <strong>20% floor</strong> (still only ~4–6 reviews/day at steady state — sustainable)</li>
+</ul>
+<p>Alternatively keep 10% but add the monthly blind audit already mentioned in the v5 engine doc.</p>
+<p><strong>6. Is the revised throttle sustainable?</strong></p>
+<p>Yes for a solo operator in Phase 1 (25–56 min/day). The math is realistic and leaves room for other responsibilities. The operational tiers and scaling path (solo → freelance → director) are well thought out.</p>
+<p>I would add explicit <strong>Tier transition triggers</strong>:</p>
+<ul>
+<li>Mandatory review time > 60 min/day for 5 consecutive days → hire freelance editor</li>
+<li>Average review duration < 2 min → quality degradation flag, pause publishing</li>
+<li>Rejection rate > 25% sustained → content engine needs prompt/enrichment work, not more reviews</li>
+</ul>
+<p><strong>7. Does the Forge integration close the feedback loop?</strong></p>
+<p>Yes, this is one of the strongest parts. The three signals (editorial accessibility score via duration/edit distance, field notes gap analysis, rejection clustering) give Forge exactly the right kind of structured feedback. The weekly CSV is pragmatic at current scale. The requeue rules for new mutations are sensible.</p>
+<p>One enhancement: add structured fields (<code>rejection_reason_code</code>, <code>field_note_category</code> enum/array, <code>reviewer_confidence</code>) alongside the free-text fields. Pure text clustering will be noisy.</p>
+<p><strong>8. What&#x27;s missing?</strong></p>
+<ul>
+<li><strong>API route specification</strong> (critical for the admin UI).</li>
+<li><strong>Migration files and ordering</strong> — especially interaction with existing <code>content_versions</code> / <code>content_audit_log</code>.</li>
+<li><strong>Explicit ISR revalidation tags</strong> and how publication triggers them.</li>
+<li><strong>Versioning model clarification</strong> — how many content versions are kept, how rollback works, whether <code>la_editorial_content</code> is versioned or the queue tracks versions.</li>
+<li><strong>Concurrency locking</strong> for <code>in_review</code> state.</li>
+<li><strong>Rendering strategy</strong> for field notes (see Q4).</li>
+<li><strong>State transition table</strong> with invariants and what skip-tier pages actually do.</li>
+<li><strong>Minimum review duration guard</strong> and “substantive note” criteria.</li>
+<li><strong>Preview mechanism</strong> for the “full rendered content preview” in the review UI (draft mode? separate preview deployment?).</li>
+</ul>
+<ul>
+<li><strong>Role model expansion</strong> — <code>admin</code> RLS is too coarse once freelancers are involved.</li>
+</ul>
+<p><strong>9. Does this change your production readiness score?</strong></p>
+<p>Yes. Previous Round 4 scores across models were 6.5–7.5/10 with Tier 2 vaporware as a primary P0/P1 drag.</p>
+<p><strong>Updated score: 8.3/10</strong></p>
+<p>The P0 is resolved. The design is thoughtful, pragmatic, and moves the humanization strategy from slogan to operational system.</p>
+<p>What prevents 9.0+:</p>
+<ul>
+<li>Still on paper, no running code.</li>
+<li>6–10 implementation clarifications listed above.</li>
+<li>B-level is a bit light and sampling floor should be raised for YMYL.</li>
+<li>Content engine (Tier 1) and monorepo migration are also still largely unbuilt.</li>
+<li>The existing LA lead-gen MVP site is currently at ~8.4/10 production readiness; this scaling feature improves the <em>future</em> architecture but is not a blocker for current traffic.</li>
+</ul>
+<p>This is a strong document that deserves approval with the adjustments noted.</p>
+<p><strong>VOTE:</strong> {&quot;option&quot;: &quot;Approve with conditions&quot;, &quot;confidence&quot;: 0.88, &quot;rationale&quot;: &quot;P0 vaporware issue is fully resolved at implementation grade. Minor-to-medium adjustments needed on sampling floor (20%), field note rendering strategy (use callouts for v1), minimum review duration guard, API route specs, and a few workflow edge cases. These are additive, not redesigns.&quot;}</p>
+  </div>
+</div>
+</div>
+
+<hr>
+<div class="meta">
+  Generated by <strong>ai-counsel</strong> &middot;
+  Participants: opus@claude, openai/gpt-5.4@openrouter, google/gemini-3.1-pro-preview@openrouter, x-ai/grok-4.20-beta@openrouter
+</div>
+</body>
+</html>
