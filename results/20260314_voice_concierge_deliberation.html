@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Council Deliberation: Voice AI Concierge Platform</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --surface-2: #1c2333;
+    --border: #30363d;
+    --text: #e6edf3;
+    --text-muted: #8b949e;
+    --accent: #58a6ff;
+    --red: #f85149;
+    --orange: #d29922;
+    --green: #3fb950;
+    --purple: #bc8cff;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    padding: 2rem;
+    max-width: 1100px;
+    margin: 0 auto;
+  }
+  h1 { font-size: 1.8rem; margin-bottom: 0.5rem; }
+  h2 { font-size: 1.4rem; margin: 2rem 0 1rem; color: var(--accent); border-bottom: 1px solid var(--border); padding-bottom: 0.5rem; }
+  h3 { font-size: 1.1rem; margin: 1.5rem 0 0.75rem; color: var(--text); }
+  h4 { font-size: 1rem; margin: 1rem 0 0.5rem; color: var(--text-muted); }
+  p, li { margin-bottom: 0.5rem; }
+  ul { padding-left: 1.5rem; }
+  .header {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1.5rem 2rem;
+    margin-bottom: 2rem;
+  }
+  .header .subtitle { color: var(--text-muted); font-size: 0.95rem; margin-top: 0.25rem; }
+  .meta {
+    display: flex;
+    gap: 2rem;
+    margin-top: 1rem;
+    flex-wrap: wrap;
+  }
+  .meta-item { font-size: 0.85rem; color: var(--text-muted); }
+  .meta-item strong { color: var(--text); }
+  .verdict-box {
+    background: linear-gradient(135deg, #2d1215, #1a0a0c);
+    border: 2px solid var(--red);
+    border-radius: 8px;
+    padding: 1.5rem 2rem;
+    margin: 1.5rem 0;
+    text-align: center;
+  }
+  .verdict-box .label { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--red); margin-bottom: 0.5rem; }
+  .verdict-box .verdict { font-size: 1.6rem; font-weight: 700; color: var(--red); }
+  .verdict-box .detail { font-size: 0.9rem; color: var(--text-muted); margin-top: 0.5rem; }
+  .vote-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1rem 0;
+  }
+  .vote-table th, .vote-table td {
+    padding: 0.6rem 1rem;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+  }
+  .vote-table th {
+    background: var(--surface);
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .vote-table td { font-size: 0.9rem; }
+  .badge {
+    display: inline-block;
+    padding: 0.15rem 0.5rem;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 600;
+  }
+  .badge-red { background: rgba(248, 81, 73, 0.15); color: var(--red); border: 1px solid rgba(248, 81, 73, 0.3); }
+  .badge-orange { background: rgba(210, 153, 34, 0.15); color: var(--orange); border: 1px solid rgba(210, 153, 34, 0.3); }
+  .badge-green { background: rgba(63, 185, 80, 0.15); color: var(--green); border: 1px solid rgba(63, 185, 80, 0.3); }
+  .badge-purple { background: rgba(188, 140, 255, 0.15); color: var(--purple); border: 1px solid rgba(188, 140, 255, 0.3); }
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1.25rem 1.5rem;
+    margin: 1rem 0;
+  }
+  .card-danger { border-left: 3px solid var(--red); }
+  .card-warning { border-left: 3px solid var(--orange); }
+  .card-success { border-left: 3px solid var(--green); }
+  .card-info { border-left: 3px solid var(--accent); }
+  .card-title { font-weight: 600; margin-bottom: 0.5rem; }
+  .finding-num { color: var(--text-muted); font-size: 0.8rem; margin-right: 0.5rem; }
+  .participant-section {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1.5rem;
+    margin: 1.5rem 0;
+  }
+  .participant-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+  }
+  .participant-name { font-weight: 600; font-size: 1.05rem; }
+  .round-label { font-size: 0.75rem; color: var(--text-muted); }
+  .recommendation {
+    background: var(--surface);
+    border: 1px solid var(--accent);
+    border-radius: 8px;
+    padding: 1.5rem 2rem;
+    margin: 1.5rem 0;
+  }
+  .confidence-bar {
+    width: 100%;
+    height: 6px;
+    background: var(--border);
+    border-radius: 3px;
+    overflow: hidden;
+    margin-top: 0.25rem;
+  }
+  .confidence-fill {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 0.3s;
+  }
+  .tally-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    margin: 1rem 0;
+  }
+  .tally-item {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1rem;
+    text-align: center;
+  }
+  .tally-count { font-size: 2rem; font-weight: 700; }
+  .tally-label { font-size: 0.8rem; color: var(--text-muted); margin-top: 0.25rem; }
+  .new-badge {
+    display: inline-block;
+    padding: 0.1rem 0.4rem;
+    border-radius: 4px;
+    font-size: 0.65rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    background: rgba(188, 140, 255, 0.2);
+    color: var(--purple);
+    border: 1px solid rgba(188, 140, 255, 0.3);
+    margin-left: 0.5rem;
+    vertical-align: middle;
+  }
+  .footer {
+    margin-top: 3rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border);
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    text-align: center;
+  }
+  code {
+    background: var(--surface-2);
+    padding: 0.15rem 0.4rem;
+    border-radius: 4px;
+    font-size: 0.85em;
+    color: var(--accent);
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>Council Deliberation: Voice AI Concierge Platform</h1>
+  <div class="subtitle">Multi-tenant luxury real estate voice AI concierge &mdash; Master design &amp; implementation plan review</div>
+  <div class="meta">
+    <div class="meta-item"><strong>Date:</strong> March 14, 2026</div>
+    <div class="meta-item"><strong>Mode:</strong> Conference (3 rounds)</div>
+    <div class="meta-item"><strong>Participants:</strong> Claude Opus, Gemini 2.5 Pro, Grok 4</div>
+    <div class="meta-item"><strong>Document:</strong> 2026-03-14-voice-concierge-MASTER.md</div>
+    <div class="meta-item"><strong>Tools Used:</strong> 9 (file tree, code search, file read)</div>
+  </div>
+</div>
+
+<div class="verdict-box">
+  <div class="label">Council Verdict</div>
+  <div class="verdict">Reject and Revise</div>
+  <div class="detail">Unanimous (3-0) by Round 3 &mdash; Strong design, fatal execution flaws</div>
+</div>
+
+<h2>Final Vote Tally</h2>
+<div class="tally-grid">
+  <div class="tally-item">
+    <div class="tally-count" style="color: var(--red);">6</div>
+    <div class="tally-label">Reject and Revise</div>
+  </div>
+  <div class="tally-item">
+    <div class="tally-count" style="color: var(--orange);">2</div>
+    <div class="tally-label">Approve with Major Revisions</div>
+  </div>
+  <div class="tally-item">
+    <div class="tally-count" style="color: var(--text-muted);">1</div>
+    <div class="tally-label">Approve with Major Concerns</div>
+  </div>
+</div>
+
+<h2>Vote Evolution Across Rounds</h2>
+<table class="vote-table">
+  <thead>
+    <tr>
+      <th>Model</th>
+      <th>Round 1</th>
+      <th>Round 2</th>
+      <th>Round 3</th>
+      <th>Confidence</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>Claude Opus</strong></td>
+      <td><span class="badge badge-orange">Approve w/ revisions</span></td>
+      <td><span class="badge badge-orange">Approve w/ revisions</span></td>
+      <td><span class="badge badge-red">Reject and Revise</span></td>
+      <td>
+        0.91
+        <div class="confidence-bar"><div class="confidence-fill" style="width: 91%; background: var(--red);"></div></div>
+      </td>
+    </tr>
+    <tr>
+      <td><strong>Gemini 2.5 Pro</strong></td>
+      <td><span class="badge badge-red">Reject and Revise</span></td>
+      <td><span class="badge badge-red">Reject and Revise</span></td>
+      <td><span class="badge badge-red">Reject and Revise</span></td>
+      <td>
+        0.95
+        <div class="confidence-bar"><div class="confidence-fill" style="width: 95%; background: var(--red);"></div></div>
+      </td>
+    </tr>
+    <tr>
+      <td><strong>Grok 4</strong></td>
+      <td><span class="badge badge-orange">Approve w/ concerns</span></td>
+      <td><span class="badge badge-red">Reject and Revise</span></td>
+      <td><span class="badge badge-red">Reject and Revise</span></td>
+      <td>
+        0.90
+        <div class="confidence-bar"><div class="confidence-fill" style="width: 90%; background: var(--red);"></div></div>
+      </td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>Consensus Summary</h2>
+<div class="card card-info">
+  <p>All three models reached strong agreement that the platform <strong>cannot be built as designed</strong> due to critical security, legal, and feasibility flaws. Claude Opus initially framed this as "approve with major revisions" but shifted to "reject" in round 3 after cross-pollination revealed additional issues. The distinction between "revise" and "reject" is semantic &mdash; the severity of required changes is identical.</p>
+</div>
+
+<h2>Dangerous Issues &mdash; Must Fix Before Building</h2>
+
+<div class="card card-danger">
+  <div class="card-title"><span class="finding-num">#1</span> TCPA Compliance is Fatally Flawed</div>
+  <p>The FCC's 2024 ruling classifies AI voices as "artificial," requiring prior express <strong>written</strong> consent for <em>all</em> outbound calls to wireless numbers &mdash; not just marketing calls. The design wrongly treats tour reminders as "informational" needing only express consent.</p>
+  <p><strong>All 3 models flagged this.</strong> Statutory damages: $500&ndash;$1,500 per call.</p>
+</div>
+
+<div class="card card-danger">
+  <div class="card-title"><span class="finding-num">#2</span> Timezone Compliance Uses Wrong Timezone <span class="new-badge">New</span></div>
+  <p>The pre-call gate checks calling hours based on the <em>property's</em> timezone, not the <em>recipient's</em>. TCPA restrictions apply based on the recipient's local time. The system lacks any mechanism to determine the lead's timezone (e.g., area code lookup), <strong>guaranteeing systematic violations</strong>.</p>
+  <p><strong>Surfaced by Gemini, confirmed by all.</strong></p>
+</div>
+
+<div class="card card-danger">
+  <div class="card-title"><span class="finding-num">#3</span> RLS + Connection Pooling = Cross-Tenant Data Leak</div>
+  <p>Using session-level <code>SET app.current_tenant_id</code> with a connection pool allows connections to be recycled with the wrong tenant's context. This is the #1 multi-tenant security bug.</p>
+  <p><strong>Fix:</strong> Use <code>SET LOCAL</code> within transactions &mdash; it auto-resets when the transaction ends.</p>
+</div>
+
+<div class="card card-danger">
+  <div class="card-title"><span class="finding-num">#4</span> Platform-Wide API Keys are Catastrophic <span class="new-badge">New</span></div>
+  <p>The explicit design of "one key per service for entire platform" means a single leaked Retell or Claude API key exposes <strong>every tenant's</strong> data and operations. Per-tenant or securely proxied credentials are required.</p>
+  <p><strong>All 3 models flagged this independently.</strong></p>
+</div>
+
+<div class="card card-danger">
+  <div class="card-title"><span class="finding-num">#5</span> <code>recording_consent DEFAULT true</code> is Legally Reckless <span class="new-badge">New</span></div>
+  <p>Any bug that bypasses consent-checking logic would record without consent. The database default must be <code>false</code>, not <code>true</code>.</p>
+</div>
+
+<div class="card card-danger">
+  <div class="card-title"><span class="finding-num">#6</span> SSRF in Onboarding Scraper <span class="new-badge">New</span></div>
+  <p>The onboarding wizard scrapes arbitrary user-provided URLs with no protection against internal IPs or cloud metadata endpoints. Classic Server-Side Request Forgery vector.</p>
+  <p><strong>Fix:</strong> Strict URL validation + sandboxed execution environment.</p>
+</div>
+
+<div class="card card-danger">
+  <div class="card-title"><span class="finding-num">#7</span> BIPA Risk for Illinois Residents <span class="new-badge">New</span></div>
+  <p>If ElevenLabs or Retell stores voiceprints, Illinois residents require explicit BIPA consent. Statutory damages: <strong>$5,000 per violation</strong>. The design does not mention BIPA at all.</p>
+</div>
+
+<h2>Significant Gaps</h2>
+
+<div class="card card-warning">
+  <div class="card-title"><span class="finding-num">#8</span> Single-Process Express Bottleneck <span class="new-badge">New</span></div>
+  <p>Webhooks (10s SLA), BullMQ workers (CPU-heavy transcript analysis), and cron scheduler all run in one process. A slow Claude API call starves webhook responses, causing Retell tool call timeouts.</p>
+  <p><strong>Fix:</strong> Separate webhook server from workers as distinct Railway services.</p>
+</div>
+
+<div class="card card-warning">
+  <div class="card-title"><span class="finding-num">#9</span> Missing LLM API Costs in Estimates <span class="new-badge">New</span></div>
+  <p>The $800&ndash;850/mo cost estimate completely omits Claude API costs for transcript analysis, KB generation, gap detection, and onboarding scraping. Could add hundreds/month, further eroding thin margins.</p>
+</div>
+
+<div class="card card-warning">
+  <div class="card-title"><span class="finding-num">#10</span> Timeline is ~2x Underestimated</div>
+  <p>All three models independently estimated <strong>16&ndash;22+ weeks</strong> for a solo developer. No pre-existing code exists to reuse. Phase 1 alone (15 tasks) is a 6&ndash;8 week project.</p>
+</div>
+
+<div class="card card-warning">
+  <div class="card-title"><span class="finding-num">#11</span> Single-Vendor Lock on Retell</div>
+  <p>Voice, transcription, widget, phone numbers, call routing &mdash; all through Retell. No abstraction layer, no fallback provider.</p>
+</div>
+
+<div class="card card-warning">
+  <div class="card-title"><span class="finding-num">#12</span> Thin Margins (~43&ndash;47% Gross)</div>
+  <p>Starter $99/mo with 500 minutes: ~47% gross margin. Pro $299/mo with 2,000 minutes: ~43%. SaaS viability typically requires 70&ndash;80%. Recommend $199/$499 pricing.</p>
+</div>
+
+<div class="card card-warning">
+  <div class="card-title"><span class="finding-num">#13</span> No Human Call Transfer</div>
+  <p>Design mentions "warm handoff" but no implementation &mdash; no Retell <code>transfer_call</code> API, no forwarding number config.</p>
+</div>
+
+<div class="card card-warning">
+  <div class="card-title"><span class="finding-num">#14</span> No Embedding Fallback</div>
+  <p>OpenAI embedding API down = every <code>search_knowledge</code> call fails = every caller gets "I can't look that up." Add PostgreSQL <code>tsvector</code> full-text search as fallback.</p>
+</div>
+
+<h2>What's Done Well</h2>
+
+<div class="card card-success">
+  <ul>
+    <li><strong>Multi-tenant with RLS from day 1</strong> &mdash; correct decision, hard to retrofit</li>
+    <li><strong>Three-layer knowledge engine</strong> &mdash; live data + curated KB + learned knowledge is a genuine competitive moat</li>
+    <li><strong>Learning loop as differentiator</strong> &mdash; the compound advantage of getting smarter from every call is the real product</li>
+    <li><strong>TCPA awareness</strong> &mdash; 7-step gate, consent audit trail, DNC checks show serious compliance intent (even if details need legal review)</li>
+    <li><strong>Staleness detection</strong> &mdash; time-based + contradiction + site sync is sophisticated</li>
+    <li><strong>Verified tech specs</strong> &mdash; Retell docs, pgvector benchmarks, Stripe metering all cross-checked against real documentation</li>
+    <li><strong>Graceful degradation</strong> &mdash; fallback prompts when tools fail, agent instructions for mid-call error handling</li>
+    <li><strong>Cost estimates with real numbers</strong> &mdash; most plans skip this entirely</li>
+    <li><strong>Phased plan with clear boundaries</strong> &mdash; dependencies between phases are well-defined</li>
+  </ul>
+</div>
+
+<h2>Final Recommendation</h2>
+
+<div class="recommendation">
+  <h3>Council's Prescribed Path Forward</h3>
+  <ol style="padding-left: 1.5rem;">
+    <li><strong>Do not build the outbound calling system</strong> before engaging a TCPA-specialized attorney. The legal exposure is existential and the design contains at least two systematic violation vectors (consent classification and timezone logic).</li>
+    <li><strong>Fix the RLS pooling bug</strong> &mdash; use <code>SET LOCAL</code> within transactions before writing any tenant-facing code.</li>
+    <li><strong>Redesign the API key architecture</strong> &mdash; per-tenant or securely proxied credentials, not platform-wide keys.</li>
+    <li><strong>Fix <code>recording_consent DEFAULT true</code></strong> &mdash; change to <code>false</code>.</li>
+    <li><strong>Secure the scraper</strong> against SSRF before the onboarding wizard goes live.</li>
+    <li><strong>Separate webhook server from workers</strong> into distinct services.</li>
+    <li><strong>Target a realistic 10-week inbound-only MVP</strong> for 1&ndash;2 properties, deferring outbound, SaaS billing, and the marketing site to a second phase with a corrected legal and security foundation.</li>
+    <li><strong>Price higher</strong> ($199/$499) to achieve viable margins.</li>
+  </ol>
+</div>
+
+<h2>Key Disagreement</h2>
+<div class="card card-info">
+  <div class="card-title">Severity Framing</div>
+  <p>Claude Opus maintained "approve with revisions" through rounds 1&ndash;2 before shifting to "reject" in round 3. Gemini held "reject" at 0.95 confidence from round 1. The practical prescription is identical &mdash; but Gemini and Grok considered the legal misinterpretation of TCPA severe enough to constitute a <em>fundamental</em> design flaw, not a revision task. By round 3, all models converged on "reject."</p>
+</div>
+
+<h2>New Findings Beyond Initial Review</h2>
+<p>The council deliberation surfaced <strong>6 findings</strong> not present in the initial solo review:</p>
+<table class="vote-table">
+  <thead>
+    <tr><th>#</th><th>Finding</th><th>Surfaced By</th><th>Severity</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>1</td><td>Timezone compliance uses property timezone, not recipient's</td><td>Gemini</td><td><span class="badge badge-red">Critical</span></td></tr>
+    <tr><td>2</td><td><code>recording_consent DEFAULT true</code></td><td>Claude Opus</td><td><span class="badge badge-red">Critical</span></td></tr>
+    <tr><td>3</td><td>Missing LLM API costs in $800-850/mo estimate</td><td>Gemini</td><td><span class="badge badge-orange">High</span></td></tr>
+    <tr><td>4</td><td>BIPA risk for Illinois residents (voiceprints)</td><td>Claude Opus</td><td><span class="badge badge-red">Critical</span></td></tr>
+    <tr><td>5</td><td>SSRF vulnerability in onboarding scraper</td><td>Claude Opus, Grok</td><td><span class="badge badge-red">Critical</span></td></tr>
+    <tr><td>6</td><td>Single-process Express bottleneck (webhooks + workers)</td><td>Claude Opus</td><td><span class="badge badge-orange">High</span></td></tr>
+  </tbody>
+</table>
+
+<div class="footer">
+  <p>AI Counsel Deliberation &mdash; 3 rounds, 3 participants, 9 tool executions</p>
+  <p>Transcript: transcripts/20260314_205538_file-20260314voiceconciergemastermd-voice-ai-concierge.md</p>
+  <p>Generated March 14, 2026</p>
+</div>
+
+</body>
+</html>

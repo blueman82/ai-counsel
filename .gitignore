@@ -99,3 +99,8 @@ REVIEW_SUMMARY.txt
 
 # Internal development documentation (not for public repo)
 docs/dev/
+
+# Local machine config (absolute paths, not portable)
+.mcp.json
+.session.json
+.claude/

@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Council Deliberation: Voice Concierge v1 → v2 Delta Review</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --surface-2: #1c2333;
+    --border: #30363d;
+    --text: #e6edf3;
+    --text-muted: #8b949e;
+    --accent: #58a6ff;
+    --red: #f85149;
+    --orange: #d29922;
+    --green: #3fb950;
+    --purple: #bc8cff;
+    --yellow: #e3b341;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    padding: 2rem;
+    max-width: 1100px;
+    margin: 0 auto;
+  }
+  h1 { font-size: 1.8rem; margin-bottom: 0.5rem; }
+  h2 { font-size: 1.4rem; margin: 2rem 0 1rem; color: var(--accent); border-bottom: 1px solid var(--border); padding-bottom: 0.5rem; }
+  h3 { font-size: 1.1rem; margin: 1.5rem 0 0.75rem; color: var(--text); }
+  p, li { margin-bottom: 0.5rem; }
+  ul, ol { padding-left: 1.5rem; }
+  .header {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1.5rem 2rem;
+    margin-bottom: 2rem;
+  }
+  .header .subtitle { color: var(--text-muted); font-size: 0.95rem; margin-top: 0.25rem; }
+  .meta {
+    display: flex;
+    gap: 2rem;
+    margin-top: 1rem;
+    flex-wrap: wrap;
+  }
+  .meta-item { font-size: 0.85rem; color: var(--text-muted); }
+  .meta-item strong { color: var(--text); }
+  .verdict-box {
+    background: linear-gradient(135deg, #1a1a0a, #1a150a);
+    border: 2px solid var(--orange);
+    border-radius: 8px;
+    padding: 1.5rem 2rem;
+    margin: 1.5rem 0;
+    text-align: center;
+  }
+  .verdict-box .label { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--orange); margin-bottom: 0.5rem; }
+  .verdict-box .verdict { font-size: 1.6rem; font-weight: 700; color: var(--orange); }
+  .verdict-box .detail { font-size: 0.9rem; color: var(--text-muted); margin-top: 0.5rem; }
+  .progress-summary {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1.5rem 2rem;
+    margin: 1.5rem 0;
+    text-align: center;
+  }
+  .progress-bar-container {
+    width: 100%;
+    height: 24px;
+    background: var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    margin: 1rem 0;
+    display: flex;
+  }
+  .progress-segment {
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: var(--bg);
+  }
+  .vote-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1rem 0;
+  }
+  .vote-table th, .vote-table td {
+    padding: 0.6rem 1rem;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+  }
+  .vote-table th {
+    background: var(--surface);
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .vote-table td { font-size: 0.9rem; }
+  .badge {
+    display: inline-block;
+    padding: 0.15rem 0.5rem;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 600;
+  }
+  .badge-red { background: rgba(248, 81, 73, 0.15); color: var(--red); border: 1px solid rgba(248, 81, 73, 0.3); }
+  .badge-orange { background: rgba(210, 153, 34, 0.15); color: var(--orange); border: 1px solid rgba(210, 153, 34, 0.3); }
+  .badge-green { background: rgba(63, 185, 80, 0.15); color: var(--green); border: 1px solid rgba(63, 185, 80, 0.3); }
+  .badge-purple { background: rgba(188, 140, 255, 0.15); color: var(--purple); border: 1px solid rgba(188, 140, 255, 0.3); }
+  .badge-yellow { background: rgba(227, 179, 65, 0.15); color: var(--yellow); border: 1px solid rgba(227, 179, 65, 0.3); }
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1.25rem 1.5rem;
+    margin: 1rem 0;
+  }
+  .card-danger { border-left: 3px solid var(--red); }
+  .card-warning { border-left: 3px solid var(--orange); }
+  .card-success { border-left: 3px solid var(--green); }
+  .card-info { border-left: 3px solid var(--accent); }
+  .card-new { border-left: 3px solid var(--purple); }
+  .card-title { font-weight: 600; margin-bottom: 0.5rem; }
+  .new-badge {
+    display: inline-block;
+    padding: 0.1rem 0.4rem;
+    border-radius: 4px;
+    font-size: 0.65rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    background: rgba(188, 140, 255, 0.2);
+    color: var(--purple);
+    border: 1px solid rgba(188, 140, 255, 0.3);
+    margin-left: 0.5rem;
+    vertical-align: middle;
+  }
+  .recommendation {
+    background: var(--surface);
+    border: 1px solid var(--accent);
+    border-radius: 8px;
+    padding: 1.5rem 2rem;
+    margin: 1.5rem 0;
+  }
+  .confidence-bar {
+    width: 100%;
+    height: 6px;
+    background: var(--border);
+    border-radius: 3px;
+    overflow: hidden;
+    margin-top: 0.25rem;
+  }
+  .confidence-fill {
+    height: 100%;
+    border-radius: 3px;
+  }
+  code {
+    background: var(--surface-2);
+    padding: 0.15rem 0.4rem;
+    border-radius: 4px;
+    font-size: 0.85em;
+    color: var(--accent);
+  }
+  .footer {
+    margin-top: 3rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border);
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    text-align: center;
+  }
+  .comparison-arrow {
+    text-align: center;
+    font-size: 1.5rem;
+    color: var(--text-muted);
+    margin: 0.5rem 0;
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>Council Deliberation: v1 &rarr; v2 Delta Review</h1>
+  <div class="subtitle">Voice AI Concierge Platform &mdash; evaluating whether v2 revisions adequately address v1 critical findings</div>
+  <div class="meta">
+    <div class="meta-item"><strong>Date:</strong> March 14, 2026</div>
+    <div class="meta-item"><strong>Mode:</strong> Conference (3 rounds)</div>
+    <div class="meta-item"><strong>Participants:</strong> Claude Opus, Gemini 2.5 Pro, Grok 4</div>
+    <div class="meta-item"><strong>Documents:</strong> v1, v1 deliberation transcript, v2</div>
+  </div>
+</div>
+
+<div class="verdict-box">
+  <div class="label">Council Verdict</div>
+  <div class="verdict">Reject and Revise (Close to Approval)</div>
+  <div class="detail">5 Reject vs 3 Approve &mdash; "Substantial improvement, but 5 must-fix items remain"</div>
+</div>
+
+<div class="progress-summary">
+  <h3 style="margin-bottom: 0.75rem;">v1 Finding Resolution Progress</h3>
+  <div class="progress-bar-container">
+    <div class="progress-segment" style="width: 75%; background: var(--green);">12 Fully Resolved</div>
+    <div class="progress-segment" style="width: 12.5%; background: var(--orange);">2 Partial</div>
+    <div class="progress-segment" style="width: 12.5%; background: var(--red);">2 Unresolved</div>
+  </div>
+  <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 0.5rem;">12 of 16 original findings properly resolved &mdash; architecture is sound</p>
+</div>
+
+<h2>Vote Evolution Across Rounds</h2>
+<table class="vote-table">
+  <thead>
+    <tr>
+      <th>Model</th>
+      <th>Round 1</th>
+      <th>Round 2</th>
+      <th>Round 3</th>
+      <th>Confidence</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>Claude Opus</strong></td>
+      <td><span class="badge badge-orange">Approve w/ revisions</span></td>
+      <td><span class="badge badge-orange">Approve w/ conditions</span></td>
+      <td><span class="badge badge-red">Reject and Revise</span></td>
+      <td>
+        0.92
+        <div class="confidence-bar"><div class="confidence-fill" style="width: 92%; background: var(--red);"></div></div>
+      </td>
+    </tr>
+    <tr>
+      <td><strong>Gemini 2.5 Pro</strong></td>
+      <td><span class="badge badge-orange">Approve w/ revisions</span></td>
+      <td><span class="badge badge-red">Reject and Revise</span></td>
+      <td><span class="badge badge-orange">Approve w/ revisions</span></td>
+      <td>
+        0.90
+        <div class="confidence-bar"><div class="confidence-fill" style="width: 90%; background: var(--orange);"></div></div>
+      </td>
+    </tr>
+    <tr>
+      <td><strong>Grok 4</strong></td>
+      <td><span class="badge badge-red">Reject and Revise</span></td>
+      <td><span class="badge badge-red">Reject and Revise</span></td>
+      <td><span class="badge badge-red">Reject and Revise</span></td>
+      <td>
+        0.92
+        <div class="confidence-bar"><div class="confidence-fill" style="width: 92%; background: var(--red);"></div></div>
+      </td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>v2 Resolution Scorecard</h2>
+
+<h3>Fully Resolved (12 of 16)</h3>
+<table class="vote-table">
+  <thead><tr><th>Finding</th><th>Status</th><th>How v2 Fixed It</th></tr></thead>
+  <tbody>
+    <tr><td>RLS <code>SET</code> &rarr; <code>SET LOCAL</code></td><td><span class="badge badge-green">Resolved</span></td><td>Transaction-scoped with BEGIN/COMMIT, comments explain why</td></tr>
+    <tr><td><code>recording_consent DEFAULT false</code></td><td><span class="badge badge-green">Resolved</span></td><td>Changed in v2 schema</td></tr>
+    <tr><td>TCPA recipient timezone</td><td><span class="badge badge-green">Resolved</span></td><td>9-step gate with Twilio Lookup API</td></tr>
+    <tr><td>Federal/state DNC checks</td><td><span class="badge badge-green">Resolved</span></td><td>Steps 6-7 in new compliance gate</td></tr>
+    <tr><td>Single-process bottleneck</td><td><span class="badge badge-green">Resolved</span></td><td>Two Railway services (api-server + workers)</td></tr>
+    <tr><td>Retell vendor lock-in</td><td><span class="badge badge-green">Resolved</span></td><td><code>VoiceProvider</code> interface with <code>RetellProvider</code></td></tr>
+    <tr><td>SSRF in scraper</td><td><span class="badge badge-green">Resolved</span></td><td>IP validation, metadata blocking, sandboxing</td></tr>
+    <tr><td>Knowledge search caching</td><td><span class="badge badge-green">Resolved</span></td><td>Redis cache with 60s TTL</td></tr>
+    <tr><td>Missing LLM costs</td><td><span class="badge badge-green">Resolved</span></td><td>$150-300/mo Claude API added to estimates</td></tr>
+    <tr><td>Load testing requirements</td><td><span class="badge badge-green">Resolved</span></td><td>Specific benchmarks and targets added</td></tr>
+    <tr><td>Webhook rate limiting</td><td><span class="badge badge-green">Resolved</span></td><td>Per-tenant rate limiting added</td></tr>
+    <tr><td>Per-tenant minute caps</td><td><span class="badge badge-green">Resolved</span></td><td>Anomaly detection system added</td></tr>
+  </tbody>
+</table>
+
+<h3>Partially Resolved (2 of 16)</h3>
+<table class="vote-table">
+  <thead><tr><th>Finding</th><th>Status</th><th>What Remains</th></tr></thead>
+  <tbody>
+    <tr><td>TCPA consent classification</td><td><span class="badge badge-yellow">Partial</span></td><td>Attorney review gate added, but design still classifies tour reminders as "informational &mdash; express consent sufficient" which contradicts FCC 2024 ruling</td></tr>
+    <tr><td>Timeline (10 weeks)</td><td><span class="badge badge-yellow">Partial</span></td><td>Removed week labels from table, but no revised estimate provided; realistic: 16-22 weeks</td></tr>
+  </tbody>
+</table>
+
+<h3>Unresolved (2 of 16)</h3>
+<table class="vote-table">
+  <thead><tr><th>Finding</th><th>Status</th><th>Impact</th></tr></thead>
+  <tbody>
+    <tr><td><strong>Platform-wide API keys</strong></td><td><span class="badge badge-red">Unresolved</span></td><td>Section 12 identical to v1. One leaked key exposes all tenants. Unanimous concern across both deliberations.</td></tr>
+    <tr><td><strong>BIPA risk</strong></td><td><span class="badge badge-red">Unresolved</span></td><td>Not mentioned in v2 at all. $5,000/violation for Illinois voiceprint data.</td></tr>
+  </tbody>
+</table>
+
+<h2>New Issues Found by Council <span class="new-badge">Not in v1</span></h2>
+
+<div class="card card-new">
+  <div class="card-title"><span class="badge badge-red">Critical</span> Webhook Non-Idempotency</div>
+  <p>Retell retries webhooks up to 3x. The <code>call_ended</code> handler creates usage records and queues analysis without dedup checks. Retries cause <strong>duplicate billing</strong> and redundant Claude API calls.</p>
+  <p><strong>Fix:</strong> Add <code>UNIQUE</code> constraint on <code>retell_call_id</code>, check existence before insert.</p>
+</div>
+
+<div class="card card-new">
+  <div class="card-title"><span class="badge badge-orange">High</span> Missing <code>OPENAI_API_KEY</code> in .env.example</div>
+  <p>Knowledge service uses OpenAI embeddings but the env template doesn't list the key. Deployments fail silently on first KB ingestion.</p>
+</div>
+
+<div class="card card-new">
+  <div class="card-title"><span class="badge badge-orange">High</span> Missing <code>@aws-sdk/s3-request-presigner</code> in package.json</div>
+  <p>Storage service imports <code>getSignedUrl</code> from this package but it's not in dependencies. Build fails on signed URL generation.</p>
+</div>
+
+<div class="card card-new">
+  <div class="card-title"><span class="badge badge-orange">Medium</span> No Worker Graceful Shutdown</div>
+  <p>Railway restarts kill in-progress BullMQ jobs (e.g., 30s transcript analysis) without waiting. Add SIGTERM handler with <code>worker.close()</code>.</p>
+</div>
+
+<div class="card card-new">
+  <div class="card-title"><span class="badge badge-orange">Medium</span> No Input Validation on Admin Routes</div>
+  <p><code>req.body</code> passed directly to DB queries despite Zod being in package.json. Invalid timezone strings or malformed settings cause downstream bugs.</p>
+</div>
+
+<div class="card card-new">
+  <div class="card-title"><span class="badge badge-orange">Medium</span> No Worker Health Check</div>
+  <p>API server has <code>/health</code> but worker service doesn't. Railway can't detect if workers are alive and connected to Redis.</p>
+</div>
+
+<div class="card card-new">
+  <div class="card-title"><span class="badge badge-yellow">Low</span> Tool Call Endpoints Bypass RLS</div>
+  <p>Admin routes use RLS via <code>SET LOCAL</code>, but tool call endpoints use manual <code>WHERE tenant_id = $1</code>. Two access patterns = increased risk of a developer forgetting the manual filter on new endpoints.</p>
+</div>
+
+<div class="card card-new">
+  <div class="card-title"><span class="badge badge-yellow">Low</span> Transaction Overhead on Read-Only Routes</div>
+  <p>The RLS fix wraps every request (including GETs) in BEGIN/COMMIT. Adds unnecessary overhead for read-heavy operations.</p>
+</div>
+
+<h2>Must-Fix Before Building (Council Consensus)</h2>
+
+<div class="recommendation">
+  <ol>
+    <li><strong>Redesign API key strategy</strong> &mdash; Per-tenant keys or proxy layer for Retell at minimum. This is the #1 unresolved security flaw across both deliberations.</li>
+    <li><strong>Webhook idempotency</strong> &mdash; <code>UNIQUE</code> constraint on <code>retell_call_id</code>, dedup in BullMQ. Prevents duplicate billing on retries.</li>
+    <li><strong>TCPA consent flexibility</strong> &mdash; Don't hardcode informational/marketing split. Either label all AI outbound as requiring written consent, or mark as pending attorney determination with default-to-written code path.</li>
+    <li><strong>Missing deps &amp; env</strong> &mdash; Add <code>OPENAI_API_KEY</code> to .env.example, <code>@aws-sdk/s3-request-presigner</code> to package.json.</li>
+    <li><strong>Input validation</strong> &mdash; Zod schemas on admin routes (slug, timezone, settings).</li>
+  </ol>
+</div>
+
+<h2>Should-Fix Before Launch (Not Blocking Build)</h2>
+
+<div class="card card-info">
+  <ul>
+    <li>Realistic timeline acknowledgment (16-20 weeks or scope cut to inbound-only MVP)</li>
+    <li>Worker graceful shutdown + health check endpoint</li>
+    <li>BIPA assessment for Illinois properties (confirm Retell doesn't store voiceprints)</li>
+    <li>Demo rate limiting and cost controls</li>
+    <li>Connection pool sizing documentation</li>
+  </ul>
+</div>
+
+<h2>Council Assessment</h2>
+
+<div class="card card-success">
+  <div class="card-title">Bottom Line</div>
+  <p>v2 is a <strong>substantial improvement</strong> &mdash; 12 of 16 original findings properly resolved. The architecture is sound. The 5 must-fix items are all <strong>surgical fixes, not a fundamental redesign</strong>. After addressing them, Phase 1 (inbound-only MVP) is ready to build.</p>
+  <p style="margin-top: 0.75rem; color: var(--text-muted);">The gap between "Reject and Revise" and "Approve with revisions" was narrow in this deliberation. All models agreed the remaining fixes are targeted and achievable. The v1 &rarr; v2 evolution demonstrates strong responsiveness to feedback.</p>
+</div>
+
+<h2>Comparison: v1 vs v2 Deliberation Outcomes</h2>
+<table class="vote-table">
+  <thead><tr><th></th><th>v1 Deliberation</th><th>v2 Deliberation</th></tr></thead>
+  <tbody>
+    <tr><td><strong>Verdict</strong></td><td><span class="badge badge-red">Reject and Revise (unanimous)</span></td><td><span class="badge badge-orange">Reject and Revise (close split)</span></td></tr>
+    <tr><td><strong>Critical findings</strong></td><td>7 dangerous issues</td><td>2 unresolved + 1 new critical</td></tr>
+    <tr><td><strong>Resolved</strong></td><td>n/a (first review)</td><td>12 of 16 (75%)</td></tr>
+    <tr><td><strong>Tone</strong></td><td>"Fatal flaws, cannot build"</td><td>"Close to approval, surgical fixes needed"</td></tr>
+    <tr><td><strong>Path to approval</strong></td><td>Major redesign needed</td><td>5 targeted fixes</td></tr>
+  </tbody>
+</table>
+
+<div class="footer">
+  <p>AI Counsel Deliberation &mdash; 3 rounds, 3 participants (Claude Opus, Gemini 2.5 Pro, Grok 4)</p>
+  <p>Transcript: transcripts/20260314_221857_..._voice.md</p>
+  <p>Generated March 14, 2026</p>
+</div>
+
+</body>
+</html>
