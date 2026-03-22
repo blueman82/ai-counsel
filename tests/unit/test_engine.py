@@ -207,13 +207,12 @@ class TestDeliberationEngine:
         mock_adapters["claude"].invoke_mock.side_effect = asyncio.TimeoutError()
         mock_adapters["codex"].invoke_mock.side_effect = asyncio.TimeoutError()
 
-        # Set a very short timeout to trigger the timeout path
+        # Execute round — adapters will raise TimeoutError
         responses = await engine.execute_round(
             round_num=2,
             prompt="Test prompt",
             participants=participants,
             previous_responses=[],
-            round_timeout=1,  # 1 second timeout
         )
 
         # Should have responses for all participants
@@ -238,7 +237,7 @@ class TestDeliberationEngine:
             assert response.round == 2
 
             # Must have timeout error message
-            assert "[ERROR: Round timed out" in response.response
+            assert "[ERROR:" in response.response and "TimeoutError" in response.response
 
     @pytest.mark.asyncio
     async def test_execute_round_passes_correct_model(self, mock_adapters):

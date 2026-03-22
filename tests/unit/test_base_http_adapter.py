@@ -235,6 +235,8 @@ class TestHTTPAdapterInvoke:
 
         mock_response = Mock()
         mock_response.status_code = 400
+        mock_response.text = "Bad Request"
+        mock_response.json = Mock(return_value={"error": "Bad Request"})
         mock_response.raise_for_status = Mock(
             side_effect=httpx.HTTPStatusError(
                 "400 Bad Request",

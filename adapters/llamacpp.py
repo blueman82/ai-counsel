@@ -196,7 +196,7 @@ class LlamaCppAdapter(BaseCLIAdapter):
         # Add paths from environment variable
         env_path = os.environ.get("LLAMA_CPP_MODEL_PATH")
         if env_path:
-            paths.extend(env_path.split(":"))
+            paths.extend(env_path.split(os.pathsep))
 
         # Add default search paths
         paths.extend(self.search_paths)

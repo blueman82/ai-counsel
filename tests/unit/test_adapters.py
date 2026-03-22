@@ -1,5 +1,6 @@
 """Unit tests for CLI adapters."""
 import asyncio
+import os
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
@@ -341,7 +342,8 @@ class TestCodexAdapter:
         adapter = CodexAdapter(
             args=["exec", "--model", "{model}", "{prompt}"], timeout=90
         )
-        assert adapter.command == "codex"
+        # On Windows, shutil.which() resolves bare commands to full paths (e.g., codex.CMD)
+        assert os.path.basename(adapter.command).lower().startswith("codex")
         assert adapter.timeout == 90
 
     @pytest.mark.asyncio
@@ -415,7 +417,8 @@ class TestGeminiAdapter:
     def test_adapter_initialization(self):
         """Test adapter initializes with correct values."""
         adapter = GeminiAdapter(args=["-m", "{model}", "-p", "{prompt}"], timeout=90)
-        assert adapter.command == "gemini"
+        # On Windows, shutil.which() resolves bare commands to full paths (e.g., gemini.CMD)
+        assert os.path.basename(adapter.command).lower().startswith("gemini")
         assert adapter.timeout == 90
 
     @pytest.mark.asyncio
@@ -996,7 +999,7 @@ class TestAdapterFactory:
         )
         adapter = create_adapter("codex", config)
         assert isinstance(adapter, CodexAdapter)
-        assert adapter.command == "codex"
+        assert os.path.basename(adapter.command).lower().startswith("codex")
         assert adapter.timeout == 120
 
     def test_create_gemini_adapter(self):
@@ -1006,7 +1009,7 @@ class TestAdapterFactory:
         )
         adapter = create_adapter("gemini", config)
         assert isinstance(adapter, GeminiAdapter)
-        assert adapter.command == "gemini"
+        assert os.path.basename(adapter.command).lower().startswith("gemini")
         assert adapter.timeout == 180
 
     def test_create_droid_adapter(self):

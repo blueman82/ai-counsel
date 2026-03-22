@@ -16,6 +16,7 @@ Test cases cover:
 5. Context and prompt integration
 """
 import asyncio
+import os
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
@@ -271,15 +272,28 @@ llama_print_timings: total time = 100 ms
             context="Previous context here.",
         )
 
-        # Verify subprocess was called with combined prompt
+        # Verify subprocess received the combined prompt.
+        # On Windows, prompts are piped via stdin (not CLI args) due to
+        # command-line length limits. Check both paths.
         call_args = mock_subprocess.call_args
         combined_prompt = None
+
+        # Check CLI args first
         for arg in call_args[0]:
-            if "Previous context" in arg and "Answer this:" in arg:
+            if isinstance(arg, str) and "Previous context" in arg and "Answer this:" in arg:
                 combined_prompt = arg
                 break
 
-        assert combined_prompt is not None
+        # If not in args, check stdin (Windows path)
+        if combined_prompt is None:
+            communicate_call = mock_process.communicate.call_args
+            if communicate_call and communicate_call.kwargs.get("input"):
+                stdin_bytes = communicate_call.kwargs["input"]
+                stdin_text = stdin_bytes.decode("utf-8") if isinstance(stdin_bytes, bytes) else stdin_bytes
+                if "Previous context" in stdin_text and "Answer this:" in stdin_text:
+                    combined_prompt = stdin_text
+
+        assert combined_prompt is not None, "Combined prompt not found in args or stdin"
         assert "Previous context here." in combined_prompt
         assert "Answer this:" in combined_prompt
         assert result == "Response with context."
@@ -558,8 +572,9 @@ class TestLlamaCppAutoDiscovery:
 
     def test_should_expand_tilde_in_search_paths(self, tmp_path, monkeypatch):
         """Test that ~ in search paths is expanded to home directory."""
-        # Mock home directory
+        # Mock home directory (Windows uses USERPROFILE, Unix uses HOME)
         monkeypatch.setenv("HOME", str(tmp_path))
+        monkeypatch.setenv("USERPROFILE", str(tmp_path))
 
         models_dir = tmp_path / "models"
         models_dir.mkdir()
@@ -603,7 +618,7 @@ class TestLlamaCppAutoDiscovery:
         model1.touch()
         model2.touch()
 
-        monkeypatch.setenv("LLAMA_CPP_MODEL_PATH", f"{dir1}:{dir2}")
+        monkeypatch.setenv("LLAMA_CPP_MODEL_PATH", f"{dir1}{os.pathsep}{dir2}")
 
         adapter = LlamaCppAdapter(
             args=["-m", "{model}", "-p", "{prompt}"],

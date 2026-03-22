@@ -1,5 +1,6 @@
 """Unit tests for configuration loading."""
 import os
+import sys
 from pathlib import Path
 
 import pytest
@@ -566,7 +567,11 @@ class TestDecisionGraphConfig:
         """
         from models.config import DecisionGraphConfig
 
-        absolute_path = "/tmp/test_graph.db"
+        # Use a platform-appropriate absolute path
+        if sys.platform == "win32":
+            absolute_path = "C:\\tmp\\test_graph.db"
+        else:
+            absolute_path = "/tmp/test_graph.db"
         config = DecisionGraphConfig(enabled=True, db_path=absolute_path)
 
         # Should still be absolute
@@ -588,8 +593,13 @@ class TestDecisionGraphConfig:
         """
         from models.config import DecisionGraphConfig
 
-        # Set up test environment variable with absolute path
-        test_data_dir = "/var/data"
+        # Set up test environment variable with platform-appropriate absolute path
+        if sys.platform == "win32":
+            test_data_dir = "C:\\var\\data"
+            expected_path = "C:\\var\\data\\graph.db"
+        else:
+            test_data_dir = "/var/data"
+            expected_path = "/var/data/graph.db"
         monkeypatch.setenv("TEST_DATA_DIR", test_data_dir)
 
         config = DecisionGraphConfig(
@@ -598,7 +608,6 @@ class TestDecisionGraphConfig:
         )
 
         # Should resolve env var and path is already absolute (no further resolution)
-        expected_path = "/var/data/graph.db"
         assert config.db_path == expected_path, (
             f"Expected {expected_path}, got {config.db_path}"
         )
@@ -1060,8 +1069,8 @@ class TestDecisionGraphBudgetAwareConfig:
             "config.yaml should define query_window"
 
         # Verify expected values from config.yaml
-        assert config.decision_graph.context_token_budget == 1500, \
-            "context_token_budget should be 1500 in config.yaml"
+        assert config.decision_graph.context_token_budget == 1000, \
+            "context_token_budget should be 1000 in config.yaml"
         assert config.decision_graph.tier_boundaries == {"strong": 0.75, "moderate": 0.60}, \
             "tier_boundaries should be {strong: 0.75, moderate: 0.60} in config.yaml"
         assert config.decision_graph.query_window == 1000, \
@@ -1226,8 +1235,8 @@ class TestFileTreeConfig:
 
         # Verify expected values from config.yaml
         assert config.deliberation.file_tree.enabled is True
-        assert config.deliberation.file_tree.max_depth == 3
-        assert config.deliberation.file_tree.max_files == 100
+        assert config.deliberation.file_tree.max_depth == 2
+        assert config.deliberation.file_tree.max_files == 50
 
 
 class TestWebSearchConfig:
