@@ -8,7 +8,7 @@ class ToolRequest(BaseModel):
     """Model for a tool invocation request."""
 
     name: Literal[
-        "read_file", "search_code", "list_files", "run_command", "get_file_tree"
+        "read_file", "search_code", "list_files", "run_command", "get_file_tree", "web_search"
     ] = Field(..., description="Tool name to invoke")
 
     arguments: Dict[str, Any] = Field(

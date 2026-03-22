@@ -170,8 +170,28 @@ class DeliberationEngine:
             self.tool_executor.register_tool(ListFilesTool(security_config=security_config))
             self.tool_executor.register_tool(RunCommandTool())
             self.tool_executor.register_tool(GetFileTreeTool())
+
+            # Register web search tool if enabled
+            tool_count = 5
+            if config and hasattr(config, "deliberation") and hasattr(config.deliberation, "web_search"):
+                web_search_cfg = config.deliberation.web_search
+                if web_search_cfg.enabled:
+                    try:
+                        from deliberation.web_search import WebSearchTool
+                        self.tool_executor.register_tool(
+                            WebSearchTool(
+                                provider=web_search_cfg.provider,
+                                tavily_api_key=web_search_cfg.api_key,
+                                max_results=web_search_cfg.max_results,
+                            )
+                        )
+                        tool_count += 1
+                        logger.info(f"Web search tool enabled (provider: {web_search_cfg.provider})")
+                    except Exception as e:
+                        logger.warning(f"Failed to initialize web search tool: {e}")
+
             logger.info(
-                "Tool executor initialized with 5 tools (read_file, search_code, list_files, run_command, get_file_tree)"
+                f"Tool executor initialized with {tool_count} tools"
             )
             if security_config and security_config.exclude_patterns:
                 logger.info(f"Tool security enabled with {len(security_config.exclude_patterns)} exclusion patterns")
@@ -250,6 +270,7 @@ The following files are available in the working directory:
 - `list_files`: List files matching glob patterns (e.g., "**/*.py")
 - `search_code`: Search for code patterns with regex
 - `read_file`: Read specific file contents
+- `web_search`: Search the web for current information (e.g., best practices, documentation)
 
 **Workflow:** Use the structure above to identify relevant files, then use tools to explore them.
 """
@@ -278,16 +299,28 @@ The following files are available in the working directory:
             adapter = self.adapters[participant.cli]
 
             reasoning_info = f", reasoning_effort={participant.reasoning_effort}" if participant.reasoning_effort else ""
+            persona_info = f", persona={participant.persona}" if participant.persona else ""
             logger.info(
                 f"Round {round_num}: Invoking {participant.model}@{participant.cli} "
                 f"with prompt_length={len(enhanced_prompt)} chars, "
                 f"context_length={len(context) if context else 0} chars, "
-                f"working_directory={working_directory}{reasoning_info}"
+                f"working_directory={working_directory}{reasoning_info}{persona_info}"
             )
+
+            # Build participant-specific prompt with persona/system_prompt
+            participant_prompt = enhanced_prompt
+            if participant.system_prompt or participant.persona:
+                persona_prefix_parts = []
+                if participant.persona:
+                    persona_prefix_parts.append(f"## Your Role: {participant.persona}")
+                if participant.system_prompt:
+                    persona_prefix_parts.append(participant.system_prompt)
+                persona_prefix = "\n\n".join(persona_prefix_parts)
+                participant_prompt = f"{persona_prefix}\n\n---\n\n{participant_prompt}"
 
             try:
                 response_text = await adapter.invoke(
-                    prompt=enhanced_prompt,
+                    prompt=participant_prompt,
                     model=participant.model,
                     context=context,
                     is_deliberation=True,
@@ -424,10 +457,15 @@ The following files are available in the working directory:
                                 f"Tool {tool_request.name} failed: {tool_result.error}"
                             )
 
-            # Create response object
+            # Create response object — use persona as display name if set
+            participant_id = (
+                f"{participant.persona} ({participant.model}@{participant.cli})"
+                if participant.persona
+                else f"{participant.model}@{participant.cli}"
+            )
             response = RoundResponse(
                 round=round_num,
-                participant=f"{participant.model}@{participant.cli}",
+                participant=participant_id,
                 response=response_text,
                 timestamp=datetime.now().isoformat(),
             )

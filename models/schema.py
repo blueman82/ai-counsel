@@ -39,6 +39,22 @@ class Participant(BaseModel):
             "If omitted, uses the adapter's configured default."
         ),
     )
+    persona: Optional[str] = Field(
+        default=None,
+        description=(
+            "Display name / persona for this participant (e.g., 'The Security Hawk', "
+            "'The Pragmatist'). Used in transcripts and to shape the model's perspective."
+        ),
+    )
+    system_prompt: Optional[str] = Field(
+        default=None,
+        description=(
+            "Custom system instructions prepended to this participant's prompt. "
+            "Use to define perspective, expertise, tone, or evaluation criteria. "
+            "Example: 'You are a senior security engineer. Prioritize threat modeling "
+            "and attack surface analysis in your responses.'"
+        ),
+    )
 
 
 class DeliberateRequest(BaseModel):

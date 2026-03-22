@@ -247,6 +247,37 @@ class VoteRetryConfig(BaseModel):
     )
 
 
+class WebSearchConfig(BaseModel):
+    """Configuration for web search tool in deliberation."""
+
+    enabled: bool = Field(default=False, description="Enable web search tool for deliberation models")
+    provider: Literal["duckduckgo", "tavily"] = Field(
+        default="duckduckgo",
+        description="Search provider: 'duckduckgo' (free) or 'tavily' (paid, AI-optimized)",
+    )
+    api_key: Optional[str] = Field(
+        default=None,
+        description="API key for Tavily (required if provider is 'tavily'). Supports ${ENV_VAR} syntax.",
+    )
+    max_results: int = Field(default=5, ge=1, le=10, description="Max results per search")
+
+    @field_validator("api_key")
+    @classmethod
+    def resolve_api_key_env(cls, v: Optional[str]) -> Optional[str]:
+        """Resolve ${ENV_VAR} references in api_key."""
+        if v is None:
+            return v
+        pattern = r"\$\{([^}]+)\}"
+        import re as _re
+
+        def replacer(match):
+            env_var = match.group(1)
+            value = os.getenv(env_var)
+            return value if value else ""
+
+        return _re.sub(pattern, replacer, v) or None
+
+
 class DeliberationConfig(BaseModel):
     """Deliberation engine configuration."""
 
@@ -276,6 +307,10 @@ class DeliberationConfig(BaseModel):
     vote_retry: VoteRetryConfig = Field(
         default_factory=VoteRetryConfig,
         description="Vote extraction retry settings",
+    )
+    web_search: WebSearchConfig = Field(
+        default_factory=WebSearchConfig,
+        description="Web search tool configuration",
     )
 
 

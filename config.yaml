@@ -597,6 +597,13 @@ deliberation:
       - "__pycache__/" # Exclude Python cache
     max_file_size_bytes: 1048576 # 1MB limit for read_file
 
+  # Web search tool (allows models to search the web during deliberation)
+  web_search:
+    enabled: true
+    provider: "tavily"  # "duckduckgo" (free) or "tavily" (paid, AI-optimized)
+    api_key: "${TAVILY_API_KEY}"  # Required for Tavily, ignored for DuckDuckGo
+    max_results: 5
+
   # Vote retry settings (automatic retry when VOTE section missing)
   vote_retry:
     enabled: true # Enable automatic retry for missing votes
