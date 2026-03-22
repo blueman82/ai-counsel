@@ -104,6 +104,14 @@ class Summary(BaseModel):
     key_agreements: list[str] = Field(..., description="Points of agreement")
     key_disagreements: list[str] = Field(..., description="Points of disagreement")
     final_recommendation: str = Field(..., description="Final recommendation")
+    executive_summary: Optional[str] = Field(
+        default=None,
+        description=(
+            "Plain-English executive summary for non-technical stakeholders. "
+            "Three paragraphs: what was reviewed, what was found (in business terms), "
+            "and what to do about it (prioritized action items)."
+        ),
+    )
 
 
 class Vote(BaseModel):

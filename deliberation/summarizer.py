@@ -54,7 +54,21 @@ class DeliberationSummarizer:
         summary_text = await self.adapter.invoke(
             prompt=prompt, model=self.model, context=None
         )
-        return self._parse_summary(summary_text)
+        summary = self._parse_summary(summary_text)
+
+        # Generate executive summary (non-technical, plain-English)
+        try:
+            exec_prompt = self._create_executive_summary_prompt(question, summary)
+            exec_text = await self.adapter.invoke(
+                prompt=exec_prompt, model=self.model, context=None
+            )
+            summary.executive_summary = exec_text.strip()
+            logger.info("Executive summary generated successfully")
+        except Exception as e:
+            logger.warning(f"Executive summary generation failed: {e}")
+            # Non-critical — leave as None
+
+        return summary
 
     def _format_debate(self, question: str, responses: List[RoundResponse]) -> str:
         """
@@ -120,6 +134,33 @@ FINAL RECOMMENDATION:
 [1-3 sentences providing the best path forward based on the deliberation]
 
 Please be concise and focus on the substance of the arguments, not formatting or style."""
+
+    def _create_executive_summary_prompt(self, question: str, summary: Summary) -> str:
+        """
+        Create prompt for non-technical executive summary.
+
+        Takes the structured summary and rewrites it in plain English
+        for someone who doesn't read code.
+        """
+        return f"""You are writing a brief summary for a non-technical business owner who cannot read code.
+
+The question was: {question}
+
+Here is what a technical review found:
+- Consensus: {summary.consensus}
+- Key agreements: {'; '.join(summary.key_agreements)}
+- Key disagreements: {'; '.join(summary.key_disagreements)}
+- Recommendation: {summary.final_recommendation}
+
+Write exactly 3 short paragraphs in plain English. No code, no jargon, no markdown formatting:
+
+Paragraph 1 - WHAT WAS REVIEWED: Describe what was looked at in one sentence, as you would explain to a friend.
+
+Paragraph 2 - WHAT WAS FOUND: Describe the findings in business terms. Instead of "missing input validation," say "visitors could submit broken data through your forms." Instead of "N+1 query," say "your site might load slowly when you have many listings." Focus on what the business owner would notice or care about.
+
+Paragraph 3 - WHAT TO DO: List the most important actions in priority order. Be specific and actionable: "Fix X before launch" or "This is fine for now, revisit when you have more than 100 listings."
+
+Keep it under 200 words total. No bullet points, no headers, no technical terms."""
 
     def _parse_summary(self, summary_text: str) -> Summary:
         """

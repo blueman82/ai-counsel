@@ -225,6 +225,19 @@ class TranscriptManager:
             ]
         )
 
+        # Add executive summary if available (non-technical plain-English version)
+        if result.summary.executive_summary:
+            lines.extend(
+                [
+                    "### Executive Summary",
+                    "",
+                    "*For non-technical stakeholders:*",
+                    "",
+                    result.summary.executive_summary,
+                    "",
+                ]
+            )
+
         # Add voting results if available
         voting_lines = self._format_voting_section(result)
         if voting_lines:
