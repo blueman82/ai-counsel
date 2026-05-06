@@ -63,7 +63,7 @@ class Participant(BaseModel):
 Example:
 ```python
 RECOMMENDED_MODELS = {
-    "claude": ["claude-sonnet-4-5-20250929", ...],
+    "claude": ["claude-opus-4-7", "claude-sonnet-4-6", ...],
     "your_cli": ["model-name-1", "model-name-2"],
 }
 ```

@@ -16,8 +16,8 @@ The `model_registry` section enumerates the allowlisted models for each adapter.
 ```yaml
 model_registry:
   claude:
-    - id: "claude-sonnet-4-5-20250929"
-      label: "Claude Sonnet 4.5"
+    - id: "claude-sonnet-4-6"
+      label: "Claude Sonnet 4.6"
       tier: "balanced"
       default: true
       enabled: true  # Active model (default value, can be omitted)
@@ -53,7 +53,7 @@ Clients can query the registry using the `list_models` MCP tool.
 {
   "models": {
     "claude": [
-      {"id": "claude-sonnet-4-5-20250929", "label": "Claude Sonnet 4.5", "tier": "balanced", "default": true},
+      {"id": "claude-sonnet-4-6", "label": "Claude Sonnet 4.6", "tier": "balanced", "default": true},
       {"id": "claude-haiku-4-5-20251001", "label": "Claude Haiku 4.5", "tier": "speed"}
     ],
     "codex": [
@@ -62,7 +62,7 @@ Clients can query the registry using the `list_models` MCP tool.
     ]
   },
   "recommended_defaults": {
-    "claude": "claude-sonnet-4-5-20250929",
+    "claude": "claude-sonnet-4-6",
     "codex": "gpt-5-codex"
   },
   "session_defaults": {}
@@ -172,11 +172,11 @@ entries = model_registry.list_for_adapter("claude")
 
 # ModelRegistry.allowed_ids() - Returns set of enabled model IDs
 allowed = model_registry.allowed_ids("claude")
-# {"claude-sonnet-4-5-20250929"}  # Only enabled IDs
+# {"claude-sonnet-4-6"}  # Only enabled IDs
 
 # ModelRegistry.get_default() - Returns first enabled default
 default = model_registry.get_default("claude")
-# "claude-sonnet-4-5-20250929"  # Only if enabled
+# "claude-sonnet-4-6"  # Only if enabled
 
 # ModelRegistry.is_allowed() - Checks if model exists AND is enabled
 is_ok = model_registry.is_allowed("claude", "claude-opus-4-20250514")

@@ -1518,7 +1518,7 @@ python test_replicate_manual.py
 {
   "question": "Should we use Replicate for model hosting?",
   "participants": [
-    {"cli": "claude", "model": "sonnet-4-5"},
+    {"cli": "claude", "model": "claude-sonnet-4-6"},
     {"cli": "replicate", "model": "meta/llama-2-70b-chat:02e509..."}
   ],
   "rounds": 2
