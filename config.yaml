@@ -40,13 +40,14 @@ cli_tools:
       ]
     timeout: 300
     default_reasoning_effort: "medium"
-  # Valid models: "gpt-5.3-codex", "gpt-5.2-codex", "gpt-5.1-codex-max", "gpt-5.2", "gpt-5.1-codex-mini"
+  # Valid models: "gpt-5.5"
     #
     # Reasoning Effort Levels:
-    # - low: Balances speed with some reasoning
-    # - medium: Solid balance of reasoning depth and latency (default)
-    # - high: Maximizes reasoning depth for complex problems
-    # - xhigh: Extra high reasoning for complex problems (warning: consumes rate limits quickly)
+    # - minimal/none: No extended reasoning
+    # - low: Light reasoning
+    # - medium: Balanced reasoning depth and latency (default)
+    # - high: Deep reasoning for complex problems
+    # - xhigh: Extra high reasoning (warning: consumes rate limits quickly)
     #
     # The {reasoning_effort} placeholder is replaced with default_reasoning_effort
     # unless overridden per-participant:
@@ -205,48 +206,24 @@ defaults:
 
 model_registry:
   claude:
-    - id: "opus"
-      label: "Claude Opus 4.6"
+    - id: "claude-opus-4-7"
+      label: "Claude Opus 4.7"
       tier: "premium"
       default: true
       enabled: true
-    - id: "claude-opus-4-5-20251101"
-      label: "Claude Opus 4.5"
-      tier: "premium"
-      enabled: true
-    - id: "claude-sonnet-4-5-20250929"
-      label: "Claude Sonnet 4.5"
+    - id: "claude-sonnet-4-6"
+      label: "Claude Sonnet 4.6"
       tier: "balanced"
       enabled: true
     - id: "claude-haiku-4-5-20251001"
       label: "Claude Haiku 4.5"
       tier: "speed"
       enabled: true
-    - id: "claude-opus-4-1-20250805"
-      label: "Claude Opus 4.1"
-      tier: "premium"
-      enabled: false
   codex:
-    - id: "gpt-5.3-codex"
-      label: "GPT-5.3 Codex"
+    - id: "gpt-5.5"
+      label: "GPT-5.5"
       tier: "flagship"
       default: true
-      enabled: true
-    - id: "gpt-5.2-codex"
-      label: "GPT-5.2 Codex"
-      tier: "flagship"
-      enabled: true
-    - id: "gpt-5.1-codex-max"
-      label: "GPT-5.1 Codex Max"
-      tier: "flagship"
-      enabled: true
-    - id: "gpt-5.2"
-      label: "GPT-5.2"
-      tier: "general"
-      enabled: true
-    - id: "gpt-5.1-codex-mini"
-      label: "GPT-5.1 Codex Mini"
-      tier: "speed"
       enabled: true
   droid:
     - id: "claude-opus-4-5-20251101"

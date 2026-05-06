@@ -7,20 +7,19 @@ from adapters.base import BaseCLIAdapter
 
 logger = logging.getLogger(__name__)
 
-# Opus model prefixes that support reasoning effort levels
-_OPUS_PREFIXES = ("claude-opus-4-6", "opus")
+# Model prefixes that support reasoning effort levels (Opus 4.7+, Sonnet 4.6+)
+_EFFORT_SUPPORTED_PREFIXES = ("claude-opus-4-7", "claude-sonnet-4-6")
 
 
 class ClaudeAdapter(BaseCLIAdapter):
     """Adapter for claude CLI tool.
 
-    Reasoning effort is supported for Opus 4.6+ models only.
-    Sonnet and Haiku do NOT support effort levels — passing reasoning_effort
-    for non-Opus models raises ValueError.
+    Reasoning effort is supported for Opus 4.7 and Sonnet 4.6+.
+    Haiku does NOT support effort levels.
     """
 
-    # Valid reasoning effort levels for Claude Opus 4.6+
-    VALID_REASONING_EFFORTS = {"low", "medium", "high"}
+    # Valid reasoning effort levels for Claude Opus 4.7 / Sonnet 4.6+
+    VALID_REASONING_EFFORTS = {"low", "medium", "high", "xhigh", "max"}
 
     def __init__(
         self,
@@ -57,9 +56,9 @@ class ClaudeAdapter(BaseCLIAdapter):
 
     @staticmethod
     def _is_opus_model(model: str) -> bool:
-        """Check if model identifier refers to an Opus model."""
+        """Check if model supports reasoning effort levels (Opus 4.7, Sonnet 4.6+)."""
         model_lower = model.lower()
-        return any(model_lower.startswith(prefix) for prefix in _OPUS_PREFIXES)
+        return any(model_lower.startswith(prefix) for prefix in _EFFORT_SUPPORTED_PREFIXES)
 
     async def invoke(
         self,
@@ -70,7 +69,7 @@ class ClaudeAdapter(BaseCLIAdapter):
         working_directory: str | None = None,
         reasoning_effort: str | None = None,
     ) -> str:
-        """Invoke Claude with optional reasoning_effort (Opus models only).
+        """Invoke Claude with optional reasoning_effort (Opus 4.7 / Sonnet 4.6+).
 
         Args:
             prompt: The prompt to send to the model
@@ -78,8 +77,8 @@ class ClaudeAdapter(BaseCLIAdapter):
             context: Optional additional context
             is_deliberation: Whether this is part of a deliberation
             working_directory: Optional working directory for subprocess execution
-            reasoning_effort: Optional reasoning effort level (low, medium, high).
-                Only valid for Opus models. Raises ValueError for Sonnet/Haiku.
+            reasoning_effort: Optional reasoning effort level (low/medium/high/xhigh/max).
+                Valid for Opus 4.7 and Sonnet 4.6+. Raises ValueError for Haiku.
 
         Returns:
             Parsed response from the model
