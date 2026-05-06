@@ -26,7 +26,7 @@ AI Counsel is an MCP (Model Context Protocol) server that enables true deliberat
 - Orchestrates multi-round debates between models
 - Manages context building from previous responses
 - Coordinates convergence detection and early stopping
-- Initializes AI summarizer with fallback chain: Claude Sonnet → gpt-5.3-codex → Droid → Gemini
+- Initializes AI summarizer with fallback chain: Claude Sonnet → gpt-5.5 → Droid → Gemini
 - Integrates tool execution system for evidence-based deliberation
 
 **Tool Execution System** (`deliberation/tools.py`, `models/tool_schema.py`)
@@ -50,10 +50,10 @@ AI Counsel is an MCP (Model Context Protocol) server that enables true deliberat
   - Token limits: Use 2048+ tokens for complete responses
 - **Reasoning Effort** (config-based defaults with per-participant override):
   - Controls reasoning depth per model via `{reasoning_effort}` placeholder in CLI args
-  - Codex: `low`, `medium`, `high`, `xhigh` (via `-c model_reasoning_effort="{reasoning_effort}"`)
+  - Codex: `none`, `minimal`, `low`, `medium`, `high`, `xhigh` (via `-c model_reasoning_effort="{reasoning_effort}"`)
   - Droid: `off`, `low`, `medium`, `high` (via `-r {reasoning_effort}` flag)
-  - Claude: `low`, `medium`, `high` (Opus 4.6+ only; Sonnet/Haiku do NOT support effort levels)
-  - **Claude validation**: `_is_opus_model()` checks if model ID starts with "opus" or "claude-opus-4-6"
+  - Claude: `low`, `medium`, `high`, `xhigh`, `max` (Opus 4.7 and Sonnet 4.6+; Haiku does NOT support effort levels)
+  - **Claude validation**: `_is_opus_model()` checks if model ID starts with "claude-opus-4-7" or "claude-sonnet-4-6"
   - Other adapters: N/A (reasoning_effort ignored)
   - **Priority chain**: Per-participant → Config `default_reasoning_effort` → Empty string
   - **Placeholder mechanism**: `{reasoning_effort}` in args is substituted at runtime
@@ -246,7 +246,7 @@ mypy .            # Type check (optional)
 
 ### Timeouts
 - Default: 60s per invocation
-- Reasoning models (Claude Opus 4.6, gpt-5.3-codex, o3-pro): 180-300s recommended
+- Reasoning models (Claude Opus 4.7, gpt-5.5, o3-pro): 180-300s recommended
 - Configure per-CLI in `config.yaml::adapters::<name>::timeout`
 
 ### Model Registry Enabled Field
@@ -296,7 +296,7 @@ cli_tools:
 - `{reasoning_effort}` placeholder in args substituted at runtime
 - Codex: `-c model_reasoning_effort=""` (empty = default reasoning)
 - Droid: `-r ""` (empty = adapter handles gracefully)
-- Claude: No placeholder — `--effort` flag dynamically injected for Opus 4.6+ only (validated via `_is_opus_model()`: prefix "opus" or "claude-opus-4-6")
+- Claude: No placeholder — `--effort` flag dynamically injected for Opus 4.7 and Sonnet 4.6+ (validated via `_is_opus_model()`: prefix "claude-opus-4-7" or "claude-sonnet-4-6")
 - Validation: Invalid values raise `ValueError` before subprocess call
 
 ### Hook Management
@@ -329,7 +329,7 @@ For detailed step-by-step guides on extending the system, see:
 1. **Stdio Contamination**: Server uses stdio for MCP protocol. All logging MUST go to file or stderr, never stdout.
 2. **Timeout Tuning**: Reasoning models can take 60-120+ seconds. Undersized timeouts cause spurious failures.
 3. **Convergence Backend**: Optional backends (TF-IDF, SentenceTransformer) improve quality but add dependencies. Zero-dep Jaccard backend always available.
-4. **Model ID Format**: Claude CLI uses aliases (`opus`, `sonnet`, `haiku`), while Droid requires full date-based model IDs (`claude-opus-4-5-20251101`, `claude-sonnet-4-5-20250929`).
+4. **Model ID Format**: Claude CLI uses aliases (`opus`, `sonnet`, `haiku`), while Droid requires full date-based model IDs (e.g., `claude-opus-4-5-20251101`).
 5. **Context Building**: Previous responses passed as context to subsequent rounds. Large debates = large context. Monitor token usage.
 6. **Async Execution**: Engine uses `asyncio` for subprocess management. All adapter invocations are async.
 7. **Hook Interference**: Claude CLI hooks can break CLI invocations during deliberation. Always disable with `--settings` flag.
@@ -429,20 +429,19 @@ from models.schema import Participant, DeliberateRequest
 request = DeliberateRequest(
     question="Complex architecture question",
     participants=[
-        Participant(cli="codex", model="gpt-5.3-codex", reasoning_effort="high"),  # Overrides config default
-        Participant(cli="claude", model="opus", reasoning_effort="high"),  # Opus supports effort
-        Participant(cli="claude", model="sonnet"),  # No reasoning_effort (Sonnet doesn't support it)
+        Participant(cli="codex", model="gpt-5.5", reasoning_effort="high"),  # Overrides config default
+        Participant(cli="claude", model="claude-opus-4-7", reasoning_effort="high"),  # Opus 4.7 supports effort
+        Participant(cli="claude", model="claude-sonnet-4-6", reasoning_effort="medium"),  # Sonnet 4.6+ now supports effort
         Participant(cli="droid", model="claude-opus-4-5-20251101", reasoning_effort="medium"),
-        Participant(cli="codex", model="gpt-5.1-codex-mini"),  # Uses config default_reasoning_effort
     ],
     rounds=2,
     working_directory="/path/to/project",
 )
 
 # Adapter support matrix:
-# - codex: low, medium, high, xhigh (injected as -c model_reasoning_effort="...")
+# - codex: none, minimal, low, medium, high, xhigh (injected as -c model_reasoning_effort="...")
 # - droid: off, low, medium, high (injected as -r flag)
-# - claude: low, medium, high (Opus 4.6+ only; Sonnet/Haiku raise ValueError)
+# - claude: low, medium, high, xhigh, max (Opus 4.7 and Sonnet 4.6+; Haiku raises ValueError)
 # - gemini/llamacpp: N/A (reasoning_effort ignored)
 
 # Priority chain (Per-participant > Config default > Empty string):
