@@ -10,6 +10,8 @@ from pathlib import Path
 from typing import Optional, Tuple
 
 import httpx
+
+from models.schema import InvocationResult, InvocationUsage
 from tenacity import (retry, retry_if_exception, stop_after_attempt,
                       wait_exponential)
 
@@ -203,7 +205,25 @@ class BaseHTTPAdapter(ABC):
             elapsed = (datetime.now() - start_time).total_seconds()
             progress_logger.info(f"[SUCCESS] HTTP REQUEST | Model: {model} | Time: {elapsed:.2f}s")
             progress_logger.debug(f"   Response keys: {list(response_json.keys()) if isinstance(response_json, dict) else 'N/A'}")
-            return self.parse_response(response_json)
+            usage = response_json.get("usage") or {}
+            if not isinstance(usage, dict):
+                usage = {}
+
+            def token_count(value):
+                return value if type(value) is int and value >= 0 else None
+
+            cost = usage.get("cost")
+            if type(cost) not in (int, float) or not math.isfinite(cost) or cost < 0:
+                cost = None
+            return InvocationResult(
+                self.parse_response(response_json),
+                InvocationUsage(
+                    model=model,
+                    input_tokens=token_count(usage.get("prompt_tokens", response_json.get("prompt_eval_count"))),
+                    output_tokens=token_count(usage.get("completion_tokens", response_json.get("eval_count"))),
+                    cost_usd=cost,
+                ),
+            )
 
         except asyncio.TimeoutError:
             elapsed = (datetime.now() - start_time).total_seconds()

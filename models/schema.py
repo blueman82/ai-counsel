@@ -4,6 +4,42 @@ from typing import Dict, List, Literal, Optional
 from pydantic import BaseModel, Field
 
 
+class InvocationUsage(BaseModel):
+    """Provider-reported usage for one invocation; missing values stay unknown."""
+
+    model: str
+    input_tokens: Optional[int] = Field(default=None, ge=0)
+    output_tokens: Optional[int] = Field(default=None, ge=0)
+    cost_usd: Optional[float] = Field(default=None, ge=0, allow_inf_nan=False)
+
+
+class InvocationResult(str):
+    """String-compatible response with request-local usage metadata."""
+
+    usage: InvocationUsage
+
+    def __new__(cls, text: str, usage: InvocationUsage):
+        instance = super().__new__(cls, text)
+        instance.usage = usage
+        return instance
+
+
+class CostSummary(BaseModel):
+    """Reported token subtotals and an explicitly estimated paid comparison."""
+
+    input_tokens: int
+    output_tokens: int
+    models_used: list[str]
+    calls: int
+    calls_with_token_usage: int
+    actual_cost_usd: Optional[float]
+    estimated_paid_cost_usd: Optional[float]
+    estimated_savings_usd: Optional[float]
+    baseline_name: str
+    input_per_million_usd: float
+    output_per_million_usd: float
+
+
 class Participant(BaseModel):
     """Model representing a deliberation participant."""
 
@@ -61,7 +97,7 @@ class DeliberateRequest(BaseModel):
     )
     working_directory: str = Field(
         ...,
-        description="Working directory for tool execution (tools resolve relative paths from here). Required for deliberations using evidence-based tools."
+        description="Working directory for tool execution (tools resolve relative paths from here). Required for deliberations using evidence-based tools.",
     )
 
 
@@ -179,6 +215,7 @@ class ConvergenceInfo(BaseModel):
 class DeliberationResult(BaseModel):
     """Model for complete deliberation result."""
 
+    cost_summary: Optional[CostSummary] = None
     status: Literal["complete", "partial", "failed"] = Field(..., description="Status")
     mode: str = Field(..., description="Mode used")
     rounds_completed: int = Field(..., description="Rounds completed")
