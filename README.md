@@ -64,7 +64,7 @@ mcp__ai-counsel__deliberate({
 - 🤖 **Mixed Adapters**: CLI tools (claude, codex, droid, gemini) + HTTP services (ollama, lmstudio, openrouter, nebius)
 - ⚡ **Auto-Convergence**: Stops when opinions stabilize (saves API costs)
 - 🗳️ **Structured Voting**: Models cast votes with confidence levels and rationale
-- 🧮 **Semantic Grouping**: Similar vote options automatically merged (0.70+ similarity)
+- 🧮 **Semantic Grouping**: Similar vote options automatically merged (0.85+ similarity)
 - 🎛️ **Model-Controlled Stopping**: Models decide when to stop deliberating
 - 🔬 **Evidence-Based Deliberation**: Models can read files, search code, list files, and run commands to ground decisions in reality
 - 💰 **Local Model Support**: Zero API costs with Ollama, LM Studio, llamacpp
@@ -203,7 +203,7 @@ model_registry:
 - → **[Complete Guide](docs/convergence-detection.md)** - Thresholds, backends, configuration
 
 ### Structured Voting
-- Votes: confidence 0–1, rationale, `continue_debate`; unanimous/majority/tie; option grouping threshold 0.70.
+- Votes: confidence 0–1, rationale, `continue_debate`; unanimous/majority/tie; option grouping threshold 0.85.
 
 - → **[Complete Guide](docs/structured-voting.md)** - Vote structure, examples, integration
 
