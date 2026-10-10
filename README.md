@@ -160,7 +160,7 @@ python3.11 -m venv .venv
 | `cost_comparison` | Illustrative rate comparison; [coverage and exclusions](docs/cost-report.md) |
 | `mcp.max_rounds_in_response` | Shipped 3; implementation caps entries in `full_debate` |
 | Transcripts | `transcripts/` beneath server launch directory; result `transcript_path` |
-| Decision database | Relative `decision_graph.db_path` resolved from server launch directory |
+| Decision database | Relative path: deliberation storage from launch directory; query lookup beside `server.py`; absolute `decision_graph.db_path` for consistent resolution |
 | Logs | `mcp_server.log` beside `server.py`; stderr logging |
 
 ## File access and execution
