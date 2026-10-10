@@ -1,0 +1,26 @@
+name: Free model vote compliance
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '17 5 * * 1'
+permissions:
+  contents: read
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install 'httpx>=0.27.0' 'tenacity>=8.2.0' 'pydantic>=2.5.0' 'pyyaml>=6.0.1'
+      - name: Probe current free models (skip cleanly without secret)
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+        run: python -m scripts.probe_free_model_votes --output artifacts/free-model-votes.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: free-model-votes
+          path: artifacts/free-model-votes.json
