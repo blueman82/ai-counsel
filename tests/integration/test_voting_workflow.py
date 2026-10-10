@@ -437,14 +437,10 @@ VOTE: {"option": "Option A", "confidence": 0.93, "rationale": "Unanimous agreeme
         # Execute
         result = await engine.execute(request)
 
-        # Verify no voting result when no votes present
-        assert (
-            result.voting_result is None
-        ), "Should have no voting result when no votes cast"
+        # Missing votes remain visible as abstentions, never a consensus.
+        assert result.voting_result.final_tally == {"ABSTAIN": 4}
+        assert result.voting_result.consensus_reached is False
+        assert result.voting_result.winning_option is None
 
-        # Verify transcript doesn't have voting section
-        transcript_path = Path(result.transcript_path)
-        transcript_content = transcript_path.read_text()
-        assert (
-            "## Voting Results" not in transcript_content
-        ), "Transcript should not have voting section when no votes"
+        transcript_content = Path(result.transcript_path).read_text()
+        assert "ABSTAIN" in transcript_content

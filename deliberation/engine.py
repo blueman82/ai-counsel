@@ -785,6 +785,11 @@ Reply with ONLY the VOTE line. Do not repeat your analysis."""
             consensus_reached = False
             winning_option = None
 
+        # Abstention records explain missing votes; they cannot win a decision.
+        if winning_option == "ABSTAIN":
+            consensus_reached = False
+            winning_option = None
+
         return VotingResult(
             final_tally=tally,
             votes_by_round=votes_by_round,
