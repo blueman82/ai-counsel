@@ -14,12 +14,12 @@ def registry() -> ModelRegistry:
 def test_registry_lists_models(registry: ModelRegistry):
     claude_entries = registry.list_for_adapter("claude")
     assert claude_entries, "Expected allowlisted Claude models"
-    assert claude_entries[0].id == "opus"
-    assert registry.get_default("claude") == "opus"
+    assert claude_entries[0].id == "claude-opus-5-5"
+    assert registry.get_default("claude") == "claude-opus-5-5"
 
 
 def test_registry_enforces_allowlist(registry: ModelRegistry):
-    assert registry.is_allowed("claude", "claude-haiku-4-5-20251001") is True
+    assert registry.is_allowed("claude", "claude-haiku-5-5") is True
     assert registry.is_allowed("claude", "non-existent-model") is False
 
 

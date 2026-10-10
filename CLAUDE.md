@@ -1,35 +1,35 @@
 # CLAUDE.md
-Last updated: 2026-02-15
+- Last updated: 2026-02-15
 
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+- This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## Project Overview
 
-AI Counsel is an MCP (Model Context Protocol) server that enables true deliberative consensus between AI models. Unlike parallel opinion gathering, models see each other's responses and refine positions across multiple rounds of debate.
+- AI Counsel is an MCP (Model Context Protocol) server that enables true deliberative consensus between AI models. Unlike parallel opinion gathering, models see each other's responses and refine positions across multiple rounds of debate.
 
-**Key differentiation**: Models engage in actual debate with cross-pollination (not just parallel aggregation).
+- **Key differentiation**: Models engage in actual debate with cross-pollination (not just parallel aggregation).
 
-**Production Ready**: 113+ passing tests, type-safe validation, graceful error handling, structured logging, convergence detection, AI-powered summaries, evidence-based deliberation with secure tool execution.
+- **Production Ready**: 113+ passing tests, type-safe validation, graceful error handling, structured logging, convergence detection, AI-powered summaries, evidence-based deliberation with secure tool execution.
 
 ## Architecture
 
 ### Core Components
 
-**MCP Server Layer** (`server.py`)
+- **MCP Server Layer** (`server.py`)
 - Entry point for MCP protocol communication via stdio
 - Exposes 2 MCP tools: `deliberate` and `query_decisions` (when decision graph enabled)
 - Handles JSON serialization and response truncation for token limits
 - Logs to `mcp_server.log` (not stdout/stderr to avoid stdio interference)
 
-**Deliberation Engine** (`deliberation/engine.py`)
+- **Deliberation Engine** (`deliberation/engine.py`)
 - Orchestrates multi-round debates between models
 - Manages context building from previous responses
 - Coordinates convergence detection and early stopping
-- Initializes AI summarizer with fallback chain: Claude Sonnet → gpt-5.5 → Droid → Gemini
+- Initializes AI summarizer with fallback chain: Claude Sonnet → gpt-6.1-sol → Droid → Gemini
 - Integrates tool execution system for evidence-based deliberation
 
-**Tool Execution System** (`deliberation/tools.py`, `models/tool_schema.py`)
+- **Tool Execution System** (`deliberation/tools.py`, `models/tool_schema.py`)
 - Base: `BaseTool` with `execute()` method and security controls
 - Tools: `ReadFileTool` (configurable size limit), `SearchCodeTool`, `ListFilesTool`, `RunCommandTool` (whitelist: ls, grep, find, cat, head, tail), `GetFileTreeTool` (ASCII output for clean JSON)
 - Orchestrator: `ToolExecutor` parses TOOL_REQUEST markers, validates, routes to tools
@@ -38,7 +38,7 @@ AI Counsel is an MCP (Model Context Protocol) server that enables true deliberat
 - File Tree Rendering: Uses ASCII characters (`|--`) in tool responses for clean JSON serialization; Unicode box-drawing (`├──`) in Round 1 prompts for better readability
 - Context injection: Tool results visible to all participants in subsequent rounds
 
-**CLI Adapters** (`adapters/base.py`, `adapters/claude.py`, etc.)
+- **CLI Adapters** (`adapters/base.py`, `adapters/claude.py`, etc.)
 - Base: `BaseCLIAdapter` handles subprocess execution, timeout, error handling
 - Concrete: `ClaudeAdapter`, `CodexAdapter`, `DroidAdapter`, `GeminiAdapter`, `LlamaCppAdapter`
 - Factory pattern in `adapters/__init__.py` creates adapters from config
@@ -50,17 +50,17 @@ AI Counsel is an MCP (Model Context Protocol) server that enables true deliberat
   - Token limits: Use 2048+ tokens for complete responses
 - **Reasoning Effort** (config-based defaults with per-participant override):
   - Controls reasoning depth per model via `{reasoning_effort}` placeholder in CLI args
-  - Codex: `none`, `minimal`, `low`, `medium`, `high`, `xhigh` (via `-c model_reasoning_effort="{reasoning_effort}"`)
+  - Codex: `low`, `medium`, `high`, `xhigh`, `max`, `ultra` (Ultra requires GPT-6 Astra/Sol) (via `-c model_reasoning_effort="{reasoning_effort}"`)
   - Droid: `off`, `low`, `medium`, `high` (via `-r {reasoning_effort}` flag)
-  - Claude: `low`, `medium`, `high`, `xhigh`, `max` (Opus 4.7 and Sonnet 4.6+; Haiku does NOT support effort levels)
-  - **Claude validation**: `_is_opus_model()` checks if model ID starts with "claude-opus-4-7" or "claude-sonnet-4-6"
+  - Claude: `low`, `medium`, `high`, `xhigh`, `max` (current Fable 5.1 and Opus/Sonnet/Haiku 5.5)
+  - **Claude validation**: `_supports_effort()` checks current aliases and supported full IDs
   - Other adapters: N/A (reasoning_effort ignored)
   - **Priority chain**: Per-participant → Config `default_reasoning_effort` → Empty string
   - **Placeholder mechanism**: `{reasoning_effort}` in args is substituted at runtime
   - Config default: Set `default_reasoning_effort` field on adapter in `config.yaml`
   - Runtime override: Pass `reasoning_effort` on `Participant` object
 
-**Working Directory Isolation** (`adapters/base.py`)
+- **Working Directory Isolation** (`adapters/base.py`)
 - All CLI adapters run subprocesses from the `working_directory` passed by MCP clients
 - Prevents models from analyzing the AI Counsel codebase when deliberating about user projects
 - **Claude**: Default isolation via subprocess cwd - models only see files in working directory
@@ -70,47 +70,47 @@ AI Counsel is an MCP (Model Context Protocol) server that enables true deliberat
 - Flow: MCP client's cwd → `deliberate` tool's `working_directory` → adapter subprocess cwd → model sees correct repository
 - Important: Without `working_directory`, adapters default to current directory (usually the AI Counsel directory)
 
-**HTTP Adapter Layer** (`adapters/base_http.py`, `adapters/ollama.py`, etc.)
+- **HTTP Adapter Layer** (`adapters/base_http.py`, `adapters/ollama.py`, etc.)
 - Base: `BaseHTTPAdapter` handles HTTP mechanics, retry logic, error handling
 - Concrete: `OllamaAdapter`, `LMStudioAdapter`
 - Retry: exponential backoff on 5xx/429/network errors, fail-fast on 4xx
 - Authentication: environment variable substitution `${VAR_NAME}` in config
 - Uses `httpx` for async HTTP, `tenacity` for retry
 
-**Config Schema** (`models/config.py`, `scripts/migrate_config.py`)
+- **Config Schema** (`models/config.py`, `scripts/migrate_config.py`)
 - `adapters` section with explicit `type` field: `cli` or `http`
 - Type discrimination: `CLIAdapterConfig` vs `HTTPAdapterConfig`
 - Backward compatible with legacy `cli_tools` section
 - Migration: `python scripts/migrate_config.py config.yaml`
 
-**Convergence Detection** (`deliberation/convergence.py`)
+- **Convergence Detection** (`deliberation/convergence.py`)
 - Semantic similarity between consecutive rounds
 - Backends: SentenceTransformer (best) → TF-IDF → Jaccard (zero deps)
 - Statuses: converged (≥85%), refining (40-85%), diverging (<40%), impasse
 - Voting-aware: overrides semantic status with voting outcomes
 
-**Structured Voting** (`models/schema.py`)
+- **Structured Voting** (`models/schema.py`)
 - Vote: option, confidence (0.0-1.0), rationale, continue_debate flag
 - Aggregates into VotingResult with tally and winning option
 - Voting overrides semantic similarity: 2-1 vote → "majority_decision", 3-0 → "unanimous_consensus"
 
-**Model-Controlled Early Stopping** (`deliberation/engine.py`)
+- **Model-Controlled Early Stopping** (`deliberation/engine.py`)
 - Models signal readiness via `continue_debate: false` in votes
 - Engine checks threshold (default: 66%) after each round
 - Respects min_rounds before allowing early stop
 - Config: `deliberation.early_stopping.enabled`, `threshold`, `respect_min_rounds`
 
-**Transcript Management** (`deliberation/transcript.py`)
+- **Transcript Management** (`deliberation/transcript.py`)
 - Generates markdown in `transcripts/` directory
 - Format: `YYYYMMDD_HHMMSS_Question_truncated.md`
 - Includes AI summary, full debate, voting section, tool executions
 
-**Data Models** (`models/schema.py`)
+- **Data Models** (`models/schema.py`)
 - Pydantic validation: `Participant`, `DeliberateRequest`, `RoundResponse`, `Summary`, `ConvergenceInfo`, `DeliberationResult`
 - Voting: `Vote`, `RoundVote`, `VotingResult`
 - Type-safe throughout system
 
-**Configuration** (`config.yaml`)
+- **Configuration** (`config.yaml`)
 - See `config.yaml` for adapter configs, timeouts, convergence thresholds
 - Per-CLI command templates with `{model}` and `{prompt}` placeholders
 - Hook disabling for Claude: `--settings '{"disableAllHooks": true}'`
@@ -139,34 +139,34 @@ AI Counsel is an MCP (Model Context Protocol) server that enables true deliberat
 
 ### MCP Tool Architecture
 
-**MCP-Exposed Tools** (callable by MCP clients):
+- **MCP-Exposed Tools** (callable by MCP clients):
 - `deliberate`: Orchestrate multi-round AI deliberation (requires `working_directory` parameter)
 - `query_decisions`: Search decision graph memory (when enabled)
   - Supports `threshold` parameter (0.0-1.0, default 0.6) for adjustable similarity
   - Empty results include diagnostics: `best_match_score`, `near_misses`, `suggested_threshold`
 
-**Internal Tools** (callable by AI models via TOOL_REQUEST):
+- **Internal Tools** (callable by AI models via TOOL_REQUEST):
 - `read_file`: Read file contents (max 1MB)
 - `search_code`: Search codebase with regex patterns
 - `list_files`: List files matching glob patterns
 - `run_command`: Execute safe read-only commands
 
-**Important**: Internal tools are NOT directly exposed via MCP. They are invoked by AI models during deliberation by including TOOL_REQUEST markers in responses. Engine parses markers, executes tools, makes results visible to all participants.
+- **Important**: Internal tools are NOT directly exposed via MCP. They are invoked by AI models during deliberation by including TOOL_REQUEST markers in responses. Engine parses markers, executes tools, makes results visible to all participants.
 
-**Example**: `TOOL_REQUEST: {"name": "read_file", "arguments": {"path": "/path/to/file.py"}}`
+- **Example**: `TOOL_REQUEST: {"name": "read_file", "arguments": {"path": "/path/to/file.py"}}`
 
-**Why Two Tool Types?**
+- **Why Two Tool Types?**
 - MCP tools: Clients start deliberations and query results
 - Internal tools: AI models gather evidence during deliberation
 - Separation keeps MCP interface clean while empowering models with research capabilities
 
 ### Decision Graph Memory
 
-The decision graph module (`decision_graph/`) enables persistent learning from deliberations.
+- The decision graph module (`decision_graph/`) enables persistent learning from deliberations.
 
-**Module Structure**: `schema.py`, `storage.py`, `similarity.py`, `retrieval.py`, `integration.py`, `cache.py`, `workers.py`, `maintenance.py`, `query_engine.py`, `exporters.py`
+- **Module Structure**: `schema.py`, `storage.py`, `similarity.py`, `retrieval.py`, `integration.py`, `cache.py`, `workers.py`, `maintenance.py`, `query_engine.py`, `exporters.py`
 
-**Core Components**:
+- **Core Components**:
 - **Schema**: `DecisionNode`, `ParticipantStance`, `DecisionSimilarity`
 - **Storage**: SQLite3 with CRUD operations, indexed by timestamp/question_hash/decision_id
 - **Retrieval**: Uses convergence backend, configurable threshold (default: 0.7), max results (default: 3)
@@ -175,33 +175,33 @@ The decision graph module (`decision_graph/`) enables persistent learning from d
 - **Query Engine**: Unified interface for search_similar(), find_contradictions(), trace_evolution()
 - **Export**: JSON, GraphML, DOT, Markdown formats
 
-**Data Flow**:
+- **Data Flow**:
 - **Write**: Extract from DeliberationResult → save to SQLite → queue async similarity computation
 - **Read**: Query recent decisions → compute similarity → format as markdown → prepend to Round 1 prompt
 - **Background**: Async worker computes similarities vs recent decisions, stores top-20
 
-**Performance**:
+- **Performance**:
 - Store: <100ms (async background similarity)
 - Query (cache hit): <2μs
 - Query (cache miss): <100ms
 - Background similarity: <10s per decision
 - Memory: ~5KB per decision
 
-**Configuration**: See `config.yaml` for `decision_graph.enabled`, `db_path`, `similarity_threshold`, `max_context_decisions`
+- **Configuration**: See `config.yaml` for `decision_graph.enabled`, `db_path`, `similarity_threshold`, `max_context_decisions`
 
 ### Evidence-Based Deliberation
 
-Enables AI models to gather concrete evidence during debates by executing tools. Tool results visible to ALL participants in subsequent rounds.
+- Enables AI models to gather concrete evidence during debates by executing tools. Tool results visible to ALL participants in subsequent rounds.
 
-**Tool Interface**: `BaseTool` with async `execute(**kwargs) -> ToolResult`, timeout protection, error isolation
+- **Tool Interface**: `BaseTool` with async `execute(**kwargs) -> ToolResult`, timeout protection, error isolation
 
-**Available Tools**:
+- **Available Tools**:
 1. **ReadFileTool**: Max 1MB, path validation, descriptive errors
 2. **SearchCodeTool**: Uses ripgrep (falls back to grep), output truncation
 3. **ListFilesTool**: Glob patterns, recursive search, directory validation
 4. **RunCommandTool**: Whitelist (ls, grep, find, cat, head, tail), no shell injection
 
-**Security**:
+- **Security**:
 - Input validation: Pydantic schema prevents malformed requests
 - Resource limits: Configurable file size (default 1MB), 10s timeout, output truncation
 - Path exclusions: Blocks access to configured patterns (`transcripts/`, `.git/`, `node_modules/`, etc.) to prevent context contamination
@@ -209,7 +209,7 @@ Enables AI models to gather concrete evidence during debates by executing tools.
 - Audit trail: All executions recorded with timestamps
 - Known limitations: No sandboxing beyond path exclusions, no rate limiting
 
-**Performance**:
+- **Performance**:
 - Parse: <1ms, Validate: <1ms
 - read_file: <10ms, search_code: 50-200ms, list_files: <20ms, run_command: 10-100ms
 
@@ -239,14 +239,14 @@ mypy .            # Type check (optional)
 ```
 
 ### Running the Server
-**Development**: `python server.py` (logs to mcp_server.log and stderr)
-**Production**: Configure in `~/.claude/config/mcp.json`, check `mcp_server.log` for debugging
+- **Development**: `python server.py` (logs to mcp_server.log and stderr)
+- **Production**: Configure in `~/.claude/config/mcp.json`, check `mcp_server.log` for debugging
 
 ## Configuration Notes
 
 ### Timeouts
 - Default: 60s per invocation
-- Reasoning models (Claude Opus 4.7, gpt-5.5, o3-pro): 180-300s recommended
+- Reasoning models (Claude Opus 5.5, gpt-6.1-sol, o3-pro): 180-300s recommended
 - Configure per-CLI in `config.yaml::adapters::<name>::timeout`
 
 ### Model Registry Enabled Field
@@ -271,7 +271,7 @@ mypy .            # Type check (optional)
 - Example: 3 models, 2 say `continue_debate: false` → stops (2/3 = 66%)
 
 ### Reasoning Effort Defaults
-Configure per-adapter reasoning effort defaults in `config.yaml`:
+- Configure per-adapter reasoning effort defaults in `config.yaml`:
 ```yaml
 cli_tools:
   codex:
@@ -287,20 +287,20 @@ cli_tools:
     default_reasoning_effort: "medium"  # Config default
 ```
 
-**Priority Chain** (highest to lowest):
+- **Priority Chain** (highest to lowest):
 1. **Per-participant**: `Participant(cli="codex", reasoning_effort="high")` → uses "high"
 2. **Config default**: `default_reasoning_effort: "medium"` → uses "medium"
 3. **Empty string**: No default, no per-participant → `{reasoning_effort}` becomes `""`
 
-**Placeholder Mechanism**:
+- **Placeholder Mechanism**:
 - `{reasoning_effort}` placeholder in args substituted at runtime
 - Codex: `-c model_reasoning_effort=""` (empty = default reasoning)
 - Droid: `-r ""` (empty = adapter handles gracefully)
-- Claude: No placeholder — `--effort` flag dynamically injected for Opus 4.7 and Sonnet 4.6+ (validated via `_is_opus_model()`: prefix "claude-opus-4-7" or "claude-sonnet-4-6")
+- Claude: No placeholder — `--effort` flag dynamically injected for supported models (validated via `_supports_effort()`)
 - Validation: Invalid values raise `ValueError` before subprocess call
 
 ### Hook Management
-Claude CLI: `--settings '{"disableAllHooks": true}'` prevents hooks from interfering. Critical for reliable execution.
+- Claude CLI: `--settings '{"disableAllHooks": true}'` prevents hooks from interfering. Critical for reliable execution.
 
 ### MCP Response Truncation
 - `mcp.max_rounds_in_response: 3` limits rounds in MCP response (avoids token limits)
@@ -309,7 +309,7 @@ Claude CLI: `--settings '{"disableAllHooks": true}'` prevents hooks from interfe
 
 ## Extension Guides
 
-For detailed step-by-step guides on extending the system, see:
+- For detailed step-by-step guides on extending the system, see:
 - **[Adding a New CLI Adapter](docs/adding-cli-adapter.md)**: Subclass `BaseCLIAdapter`, implement `parse_output()`, register in factory
 - **[Adding a New HTTP Adapter](docs/adding-http-adapter.md)**: Subclass `BaseHTTPAdapter`, implement `build_request()` and `parse_response()`, configure retry logic
 - **[Adding a New Tool](docs/adding-tool.md)**: Subclass `BaseTool`, implement `execute()`, register in `ToolExecutor`, update schema, write tests
@@ -429,9 +429,9 @@ from models.schema import Participant, DeliberateRequest
 request = DeliberateRequest(
     question="Complex architecture question",
     participants=[
-        Participant(cli="codex", model="gpt-5.5", reasoning_effort="high"),  # Overrides config default
-        Participant(cli="claude", model="claude-opus-4-7", reasoning_effort="high"),  # Opus 4.7 supports effort
-        Participant(cli="claude", model="claude-sonnet-4-6", reasoning_effort="medium"),  # Sonnet 4.6+ now supports effort
+        Participant(cli="codex", model="gpt-6.1-sol", reasoning_effort="high"),  # Overrides config default
+        Participant(cli="claude", model="claude-opus-5-5", reasoning_effort="high"),  # Opus supports effort
+        Participant(cli="claude", model="claude-sonnet-5-5", reasoning_effort="medium"),  # Sonnet supports effort
         Participant(cli="droid", model="claude-opus-4-5-20251101", reasoning_effort="medium"),
     ],
     rounds=2,
@@ -439,9 +439,9 @@ request = DeliberateRequest(
 )
 
 # Adapter support matrix:
-# - codex: none, minimal, low, medium, high, xhigh (injected as -c model_reasoning_effort="...")
+# - codex: low, medium, high, xhigh, max, ultra (Astra/Sol only for ultra; injected as -c model_reasoning_effort="...")
 # - droid: off, low, medium, high (injected as -r flag)
-# - claude: low, medium, high, xhigh, max (Opus 4.7 and Sonnet 4.6+; Haiku raises ValueError)
+# - claude: low, medium, high, xhigh, max (current Fable, Opus, Sonnet, and Haiku models)
 # - gemini/llamacpp: N/A (reasoning_effort ignored)
 
 # Priority chain (Per-participant > Config default > Empty string):
@@ -499,7 +499,7 @@ def my_function(self):
 
 ## MCP Integration
 
-This server implements MCP protocol for Claude Code integration:
+- This server implements MCP protocol for Claude Code integration:
 - **Transport**: stdio (stdin/stdout)
 - **Tools**: `deliberate` and `query_decisions` with structured JSON I/O
 - **Initialization**: `mcp.server.stdio.stdio_server()`

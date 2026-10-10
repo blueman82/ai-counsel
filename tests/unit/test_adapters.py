@@ -168,17 +168,18 @@ class TestClaudeReasoningEffort:
         assert "low" in adapter.VALID_REASONING_EFFORTS
         assert "medium" in adapter.VALID_REASONING_EFFORTS
         assert "high" in adapter.VALID_REASONING_EFFORTS
-        # Claude does not support xhigh (that's Codex-only)
-        assert "xhigh" not in adapter.VALID_REASONING_EFFORTS
+        # Current Claude models support xhigh and max.
+        assert "xhigh" in adapter.VALID_REASONING_EFFORTS
+        assert "max" in adapter.VALID_REASONING_EFFORTS
 
-    def test_is_opus_model_detection(self):
-        """Test _is_opus_model correctly identifies Opus models."""
-        assert ClaudeAdapter._is_opus_model("opus") is True
-        assert ClaudeAdapter._is_opus_model("opus") is True
-        assert ClaudeAdapter._is_opus_model("claude-sonnet-4-5-20250929") is False
-        assert ClaudeAdapter._is_opus_model("sonnet") is False
-        assert ClaudeAdapter._is_opus_model("haiku") is False
-        assert ClaudeAdapter._is_opus_model("claude-haiku-4-5-20251001") is False
+    def test_supports_effort_detection(self):
+        """Test _supports_effort correctly identifies Opus models."""
+        assert ClaudeAdapter._supports_effort("opus") is True
+        assert ClaudeAdapter._supports_effort("opus") is True
+        assert ClaudeAdapter._supports_effort("claude-sonnet-4-5-20250929") is False
+        assert ClaudeAdapter._supports_effort("sonnet") is True
+        assert ClaudeAdapter._supports_effort("haiku") is True
+        assert ClaudeAdapter._supports_effort("claude-haiku-4-5-20251001") is False
 
     @pytest.mark.asyncio
     @patch("adapters.base.asyncio.create_subprocess_exec")
@@ -213,7 +214,7 @@ class TestClaudeReasoningEffort:
             args=["-p", "--model", "{model}", "{prompt}"]
         )
 
-        with pytest.raises(ValueError, match="only supported for Opus"):
+        with pytest.raises(ValueError, match="not supported"):
             await adapter.invoke(
                 prompt="Test prompt",
                 model="claude-sonnet-4-5-20250929",
@@ -230,10 +231,10 @@ class TestClaudeReasoningEffort:
             args=["-p", "--model", "{model}", "{prompt}"]
         )
 
-        with pytest.raises(ValueError, match="only supported for Opus"):
+        with pytest.raises(ValueError, match="not supported"):
             await adapter.invoke(
                 prompt="Test prompt",
-                model="haiku",
+                model="claude-haiku-4-5-20251001",
                 reasoning_effort="medium",
             )
 
@@ -251,7 +252,7 @@ class TestClaudeReasoningEffort:
             await adapter.invoke(
                 prompt="Test prompt",
                 model="opus",
-                reasoning_effort="xhigh",
+                reasoning_effort="invalid",
             )
 
         mock_subprocess.assert_not_called()
@@ -282,7 +283,7 @@ class TestClaudeReasoningEffort:
         with pytest.raises(ValueError, match="Invalid default_reasoning_effort"):
             ClaudeAdapter(
                 args=["-p", "--model", "{model}", "{prompt}"],
-                default_reasoning_effort="xhigh",
+                default_reasoning_effort="invalid",
             )
 
     @pytest.mark.asyncio
@@ -318,10 +319,10 @@ class TestClaudeReasoningEffort:
             default_reasoning_effort="medium",
         )
 
-        with pytest.raises(ValueError, match="only supported for Opus"):
+        with pytest.raises(ValueError, match="not supported"):
             await adapter.invoke(
                 prompt="Test prompt",
-                model="sonnet",
+                model="claude-sonnet-4-5-20250929",
             )
 
         mock_subprocess.assert_not_called()

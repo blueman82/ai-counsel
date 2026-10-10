@@ -1,0 +1,62 @@
+{
+  "checked_at": "2026-10-10T22:28:30.510978+00:00",
+  "catalog_url": "https://openrouter.ai/api/v1/models",
+  "rounds": 3,
+  "results": [
+    {
+      "model": "google/gemma-4-26b-a4b-it:free",
+      "round": 1,
+      "status": "error",
+      "error": "HTTPStatusError",
+      "valid": false,
+      "http_status": 401,
+      "elapsed_seconds": 0.069
+    },
+    {
+      "model": "google/gemma-4-26b-a4b-it:free",
+      "round": 2,
+      "status": "error",
+      "error": "HTTPStatusError",
+      "valid": false,
+      "http_status": 401,
+      "elapsed_seconds": 0.07
+    },
+    {
+      "model": "google/gemma-4-26b-a4b-it:free",
+      "round": 3,
+      "status": "error",
+      "error": "HTTPStatusError",
+      "valid": false,
+      "http_status": 401,
+      "elapsed_seconds": 0.066
+    },
+    {
+      "model": "google/gemma-4-31b-it:free",
+      "round": 1,
+      "status": "error",
+      "error": "HTTPStatusError",
+      "valid": false,
+      "http_status": 401,
+      "elapsed_seconds": 0.071
+    },
+    {
+      "model": "google/gemma-4-31b-it:free",
+      "round": 2,
+      "status": "error",
+      "error": "HTTPStatusError",
+      "valid": false,
+      "http_status": 401,
+      "elapsed_seconds": 0.063
+    },
+    {
+      "model": "google/gemma-4-31b-it:free",
+      "round": 3,
+      "status": "error",
+      "error": "HTTPStatusError",
+      "valid": false,
+      "http_status": 401,
+      "elapsed_seconds": 0.148
+    }
+  ],
+  "status": "failed"
+}

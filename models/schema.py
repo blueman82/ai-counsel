@@ -68,11 +68,9 @@ class Participant(BaseModel):
     reasoning_effort: Optional[str] = Field(
         default=None,
         description=(
-            "Reasoning effort level for models that support it. "
-            "Codex supports: 'low', 'medium', 'high', 'xhigh'. "
-            "Droid supports: 'off', 'low', 'medium', 'high'. "
-            "Claude supports: 'low', 'medium', 'high' (Opus 4.6+ only, Sonnet/Haiku do NOT). "
-            "If omitted, uses the adapter's configured default."
+            "Per-participant reasoning effort. Codex: low/medium/high/xhigh/max/ultra "
+            "(Luna excludes ultra); current Claude: low/medium/high/xhigh/max; "
+            "Droid: off/low/medium/high. Overrides the adapter default."
         ),
     )
 

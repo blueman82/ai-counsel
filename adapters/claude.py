@@ -7,18 +7,20 @@ from adapters.base import BaseCLIAdapter
 
 logger = logging.getLogger(__name__)
 
-# Model prefixes that support reasoning effort levels (Opus 4.7+, Sonnet 4.6+)
-_EFFORT_SUPPORTED_PREFIXES = ("claude-opus-4-7", "claude-sonnet-4-6")
+# Exact supported IDs; dated snapshots may append a suffix. Aliases select current models.
+_EFFORT_MODELS = (
+    "claude-fable-5-1", "claude-opus-5-5", "claude-sonnet-5-5",
+    "claude-haiku-5-5", "claude-opus-4-7", "claude-sonnet-4-6",
+)
 
 
 class ClaudeAdapter(BaseCLIAdapter):
     """Adapter for claude CLI tool.
 
-    Reasoning effort is supported for Opus 4.7 and Sonnet 4.6+.
-    Haiku does NOT support effort levels.
+    The current Fable, Opus, Sonnet, and Haiku models support effort.
     """
 
-    # Valid reasoning effort levels for Claude Opus 4.7 / Sonnet 4.6+
+    # Valid reasoning effort levels for current Claude models
     VALID_REASONING_EFFORTS = {"low", "medium", "high", "xhigh", "max"}
 
     def __init__(
@@ -34,8 +36,7 @@ class ClaudeAdapter(BaseCLIAdapter):
             command: Command to execute (default: "claude")
             args: List of argument templates (from config.yaml)
             timeout: Timeout in seconds (default: 60)
-            default_reasoning_effort: Default reasoning effort for Opus models (low/medium/high).
-                Ignored for Sonnet/Haiku. Can be overridden per-participant.
+            default_reasoning_effort: Default reasoning effort for supported models. Can be overridden per-participant.
         """
         if args is None:
             raise ValueError("args must be provided from config.yaml")
@@ -55,10 +56,13 @@ class ClaudeAdapter(BaseCLIAdapter):
         )
 
     @staticmethod
-    def _is_opus_model(model: str) -> bool:
-        """Check if model supports reasoning effort levels (Opus 4.7, Sonnet 4.6+)."""
+    def _supports_effort(model: str) -> bool:
+        """Check current model aliases and explicitly supported model IDs."""
         model_lower = model.lower()
-        return any(model_lower.startswith(prefix) for prefix in _EFFORT_SUPPORTED_PREFIXES)
+        return model_lower in {"fable", "opus", "sonnet", "haiku"} or any(
+            model_lower == name or model_lower.startswith(name + "-")
+            for name in _EFFORT_MODELS
+        )
 
     async def invoke(
         self,
@@ -69,7 +73,7 @@ class ClaudeAdapter(BaseCLIAdapter):
         working_directory: str | None = None,
         reasoning_effort: str | None = None,
     ) -> str:
-        """Invoke Claude with optional reasoning_effort (Opus 4.7 / Sonnet 4.6+).
+        """Invoke Claude with optional reasoning effort.
 
         Args:
             prompt: The prompt to send to the model
@@ -78,13 +82,13 @@ class ClaudeAdapter(BaseCLIAdapter):
             is_deliberation: Whether this is part of a deliberation
             working_directory: Optional working directory for subprocess execution
             reasoning_effort: Optional reasoning effort level (low/medium/high/xhigh/max).
-                Valid for Opus 4.7 and Sonnet 4.6+. Raises ValueError for Haiku.
+                Requires a supported model; older Haiku versions do not support effort.
 
         Returns:
             Parsed response from the model
 
         Raises:
-            ValueError: If reasoning_effort is invalid or used with non-Opus model
+            ValueError: If reasoning_effort is invalid or used with an unsupported model
             TimeoutError: If execution exceeds timeout
             RuntimeError: If CLI process fails
         """
@@ -97,13 +101,14 @@ class ClaudeAdapter(BaseCLIAdapter):
                     f"Invalid reasoning_effort '{effective_effort}' for Claude. "
                     f"Valid values: {sorted(self.VALID_REASONING_EFFORTS)}"
                 )
-            if not self._is_opus_model(model):
+            if not self._supports_effort(model):
                 raise ValueError(
-                    f"reasoning_effort is only supported for Opus models, "
-                    f"not '{model}'. Sonnet and Haiku do not support effort levels."
+                    f"reasoning_effort is not supported for '{model}'. "
+                    "Use a current Fable, Opus, Sonnet, or Haiku model."
                 )
 
-        # Stash effective effort for _adjust_args_for_context to inject
+        # Base invoke formats arguments synchronously before its first await.
+        # Concurrent calls therefore capture their own effort before this can change.
         self._pending_effort = effective_effort
 
         try:
@@ -124,7 +129,7 @@ class ClaudeAdapter(BaseCLIAdapter):
         """Auto-detect context and adjust flags accordingly.
 
         For deliberations, removes -p flag so Claude engages fully.
-        For Opus models with reasoning effort, injects --effort flag.
+        For supported models with reasoning effort, injects --effort flag.
 
         Args:
             is_deliberation: True if running as part of a deliberation
@@ -146,7 +151,7 @@ class ClaudeAdapter(BaseCLIAdapter):
             else:
                 args.insert(0, "-p")
 
-        # Inject --effort for Opus models when effort is specified
+        # Inject --effort for supported models when effort is specified
         effort = getattr(self, "_pending_effort", None)
         if effort is not None:
             # Insert before the prompt placeholder (last arg)
