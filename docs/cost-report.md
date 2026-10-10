@@ -1,12 +1,19 @@
-- Deliberation results expose `cost_summary`; transcripts include a Cost Summary table.
-- HTTP responses preserve provider-reported input/output token counts and `usage.cost` in USD; Ollama token counts are also supported.
-- Accounting includes participant invocations, vote retries, fallback attempts, and AI summaries, with separate ledgers for concurrent requests.
-- Token totals are reported subtotals; `calls_with_token_usage / calls` identifies coverage.
-- Missing token counts suppress the paid comparison; missing costs suppress actual cost and savings. CLI responses and failed invocations remain unknown, even for a model named `:free`.
-- Actual cost requires explicit provider-reported costs for every recorded invocation. It is not invoice reconciliation: charges for transport retries or interrupted requests may be unavailable.
-- Estimated paid cost applies the configured baseline rates to the same reported token volume; it does not predict equivalent answer quality or another model's token consumption.
-- Estimated savings subtract provider-reported cost from estimated paid cost; negative savings mean the comparison baseline is cheaper.
-- Configure the baseline under root `cost_comparison`; older configurations default to an illustrative $3 input / $15 output per million tokens, not a claim about current prices.
+| Behavior | Value / limit |
+|---|---|
+| Output | Result `cost_summary`; transcript Cost Summary table |
+| Provider usage | HTTP input/output token counts, `usage.cost` USD; Ollama token counts |
+| Ledger scope | Participants, vote retries, fallbacks, AI summaries; isolated concurrent requests |
+| Coverage | Reported token subtotals; `calls_with_token_usage / calls` |
+| Missing tokens | Paid comparison suppressed |
+| Missing costs | Actual cost and savings suppressed |
+| CLI / failed calls | Unknown usage/cost; `:free` name insufficient |
+| Actual cost | Explicit provider cost required for every recorded invocation |
+| Accounting exclusions | Unreported transport retries/interrupted requests; no invoice reconciliation |
+| Paid estimate | Baseline rates × same reported token volume |
+| Estimate exclusions | Equivalent answer quality; another model's token consumption |
+| Savings | Paid estimate − provider cost; negative = cheaper baseline |
+| Configuration | Root `cost_comparison` |
+| Legacy default | Illustrative $3 input / $15 output per million; no current-price claim |
 
 | Setting | Purpose |
 |---------|---------|
@@ -14,4 +21,4 @@
 | `input_per_million_usd` | Nonnegative finite USD per million input tokens |
 | `output_per_million_usd` | Nonnegative finite USD per million output tokens |
 
-- Cumulative tracking and billing reconciliation are outside this report.
+- Exclusions: cumulative tracking; billing reconciliation.
