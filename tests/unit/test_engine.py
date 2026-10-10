@@ -922,6 +922,38 @@ class TestVoteAbstainFallback:
         assert abstain_votes[0].participant == "codex@test"
         assert "[Auto-generated]" in abstain_votes[0].vote.rationale
 
+    @pytest.mark.parametrize(
+        "options,winner",
+        [
+            (["ABSTAIN", "Approve"], "Approve"),
+            (["ABSTAIN", "ABSTAIN", "Approve"], "Approve"),
+            (["ABSTAIN", "Approve", "Reject"], None),
+            (["ABSTAIN", "ABSTAIN"], None),
+        ],
+    )
+    def test_abstentions_do_not_compete_with_decision_options(self, options, winner):
+        """Keep abstention history without treating missing votes as choices."""
+        import json
+        from collections import Counter
+
+        engine = DeliberationEngine({})
+        responses = [
+            RoundResponse(
+                round=1,
+                participant=f"participant-{index}",
+                response="VOTE: " + json.dumps({
+                    "option": option, "confidence": 0.9, "rationale": "test vote"
+                }),
+                timestamp="2025-01-01T00:00:00",
+            )
+            for index, option in enumerate(options)
+        ]
+        result = engine._aggregate_votes(responses)
+        assert result.winning_option == winner
+        assert result.consensus_reached is (winner is not None)
+        assert result.final_tally == dict(Counter(options))
+        assert len(result.votes_by_round) == len(options)
+
     def test_aggregate_votes_excludes_abstains_when_disabled(self):
         """Test that _aggregate_votes excludes abstains when include_abstains=False."""
         engine = DeliberationEngine({})

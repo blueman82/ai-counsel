@@ -850,15 +850,20 @@ Reply with ONLY the VOTE line. Do not repeat your analysis."""
         # if available, otherwise use exact string matching
         tally = self._group_similar_vote_options(all_options, raw_tally)
 
+        # Abstentions remain visible in the tally but are not decision options.
+        eligible_tally = {
+            option: count for option, count in tally.items() if option != "ABSTAIN"
+        }
+
         # Determine consensus and winning option
-        if len(tally) == 1:
+        if len(eligible_tally) == 1:
             # Unanimous vote
             consensus_reached = True
-            winning_option = list(tally.keys())[0]
-        elif len(tally) > 1:
+            winning_option = list(eligible_tally.keys())[0]
+        elif len(eligible_tally) > 1:
             # Find option with most votes
-            max_votes = max(tally.values())
-            winners = [opt for opt, count in tally.items() if count == max_votes]
+            max_votes = max(eligible_tally.values())
+            winners = [opt for opt, count in eligible_tally.items() if count == max_votes]
             if len(winners) == 1:
                 # Clear winner
                 consensus_reached = True
@@ -868,11 +873,6 @@ Reply with ONLY the VOTE line. Do not repeat your analysis."""
                 consensus_reached = False
                 winning_option = None
         else:
-            consensus_reached = False
-            winning_option = None
-
-        # Abstention records explain missing votes; they cannot win a decision.
-        if winning_option == "ABSTAIN":
             consensus_reached = False
             winning_option = None
 
