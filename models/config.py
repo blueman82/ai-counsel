@@ -21,11 +21,29 @@ class CLIAdapterConfig(BaseModel):
         default=None,
         description=(
             "Default reasoning effort level for this adapter. "
-            "Only applicable to codex (low/medium/high/xhigh), droid (off/low/medium/high), "
-            "and claude (low/medium/high, Opus 4.6+ only). "
+            "Only applicable to codex (low/medium/high/xhigh/max/ultra; ultra excludes Luna), droid (off/low/medium/high), "
+            "and claude (low/medium/high/xhigh/max on latest Fable/Opus/Sonnet/Haiku). "
             "Ignored by other adapters. Can be overridden per-participant."
         ),
     )
+
+
+class RateLimitingConfig(BaseModel):
+    """Bounded retry waits and shared OpenRouter free-request pacing."""
+
+    enabled: bool = True
+    free_model_delay_ms: int = Field(1000, ge=0, le=120000)
+    respect_retry_after: bool = True
+    max_wait_seconds: float = Field(120, ge=0, le=300)
+
+
+class FreeModelFallbackConfig(BaseModel):
+    """Opt-in fallback across explicitly registered free OpenRouter models."""
+
+    enabled: bool = False
+    max_retries_per_model: int = Field(1, ge=1, le=3)
+    timeout_before_fallback: float = Field(30, gt=0, le=300)
+    log_fallback_events: bool = True
 
 
 class HTTPAdapterConfig(BaseModel):
@@ -36,7 +54,8 @@ class HTTPAdapterConfig(BaseModel):
     api_key: Optional[str] = None
     headers: Optional[dict[str, str]] = None
     timeout: int = 60
-    max_retries: int = 3
+    max_retries: int = Field(3, ge=1, le=10)
+    rate_limiting: RateLimitingConfig = Field(default_factory=RateLimitingConfig)
 
     @field_validator("api_key", "base_url")
     @classmethod
@@ -141,6 +160,7 @@ class DefaultsConfig(BaseModel):
 class ModelDefinition(BaseModel):
     """Single model entry in the registry."""
 
+    fallback_chain: list[str] = Field(default_factory=list, max_length=10)
     id: str = Field(..., description="Model identifier used by the adapter")
     label: Optional[str] = Field(None, description="Human-friendly label for the model")
     tier: Optional[str] = Field(None, description="Cost/quality tier hint")
@@ -464,6 +484,7 @@ class Config(BaseModel):
     # Legacy cli_tools section (deprecated)
     cli_tools: Optional[dict[str, CLIToolConfig]] = None
 
+    free_model_fallback: FreeModelFallbackConfig = Field(default_factory=FreeModelFallbackConfig)
     defaults: DefaultsConfig
     model_registry: Optional[dict[str, list[ModelDefinition]]] = Field(
         default=None,

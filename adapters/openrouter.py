@@ -1,4 +1,5 @@
 """OpenAI-compatible HTTP adapters (OpenRouter, Nebius, etc.)."""
+import asyncio
 import logging
 from typing import Optional, Tuple
 
@@ -82,16 +83,24 @@ class OpenAIChatCompletionsAdapter(BaseHTTPAdapter):
             KeyError: If response doesn't contain expected fields
             IndexError: If choices array is empty
         """
+        if not isinstance(response_json, dict):
+            raise ValueError(f"{self.provider_name} response must be an object")
+
         if "choices" not in response_json:
             raise KeyError(
                 f"{self.provider_name} response missing 'choices' field. "
                 f"Received keys: {list(response_json.keys())}"
             )
 
+        if not isinstance(response_json["choices"], list):
+            raise ValueError(f"{self.provider_name} choices must be an array")
+
         if len(response_json["choices"]) == 0:
             raise IndexError(f"{self.provider_name} response has empty 'choices' array")
 
         choice = response_json["choices"][0]
+        if not isinstance(choice, dict):
+            raise ValueError(f"{self.provider_name} choice must be an object")
 
         # Log warning if response was truncated due to token limit
         finish_reason = choice.get("finish_reason", "unknown")
@@ -109,6 +118,8 @@ class OpenAIChatCompletionsAdapter(BaseHTTPAdapter):
             )
 
         message = choice["message"]
+        if not isinstance(message, dict):
+            raise ValueError(f"{self.provider_name} message must be an object")
 
         if "content" not in message:
             raise KeyError(
@@ -133,6 +144,25 @@ class OpenRouterAdapter(OpenAIChatCompletionsAdapter):
     provider_name = "OpenRouter"
     # OpenRouter benefits from explicit max_tokens to prevent truncation
     default_max_tokens = 4096
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._pacing_lock = asyncio.Lock()
+        self._last_free_request: Optional[float] = None
+
+    async def _before_request(self, body: dict) -> None:
+        """Space free requests across all participants sharing this adapter."""
+        model = body.get("model", "")
+        settings = self.rate_limiting
+        if not settings.enabled or not (model.endswith(":free") or model == "openrouter/free"):
+            return
+        # The lock covers scheduling only, never the HTTP request or retry loop.
+        async with self._pacing_lock:
+            loop = asyncio.get_running_loop()
+            if self._last_free_request is not None:
+                delay = settings.free_model_delay_ms / 1000
+                await asyncio.sleep(max(0, delay - (loop.time() - self._last_free_request)))
+            self._last_free_request = loop.time()
 
 
 class NebiusAdapter(OpenAIChatCompletionsAdapter):

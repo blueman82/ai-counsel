@@ -90,7 +90,7 @@ def create_adapter(
 
         # Special handling for OpenAI adapter with extended config
         if name == "openai" and isinstance(config, OpenAIAdapterConfig):
-            return OpenAIAdapter(
+            adapter = OpenAIAdapter(
                 base_url=config.base_url,
                 timeout=config.timeout,
                 max_retries=config.max_retries,
@@ -100,14 +100,18 @@ def create_adapter(
                 max_output_tokens=config.max_output_tokens,
                 max_completion_tokens=config.max_completion_tokens,
             )
+            adapter.rate_limiting = config.rate_limiting
+            return adapter
 
-        return http_adapters[name](
+        adapter = http_adapters[name](
             base_url=config.base_url,
             timeout=config.timeout,
             max_retries=config.max_retries,
             api_key=config.api_key,
             headers=config.headers,
         )
+        adapter.rate_limiting = config.rate_limiting
+        return adapter
 
     else:
         raise TypeError(

@@ -233,14 +233,9 @@ class TestHTTPAdapterInvoke:
             def parse_response(self, response_json):
                 return response_json["response"]
 
-        mock_response = Mock()
-        mock_response.status_code = 400
-        mock_response.raise_for_status = Mock(
-            side_effect=httpx.HTTPStatusError(
-                "400 Bad Request",
-                request=Mock(url="http://test"),
-                response=mock_response,
-            )
+        mock_response = httpx.Response(
+            400, json={"error": "Bad request"},
+            request=httpx.Request("POST", "http://test"),
         )
 
         mock_client = AsyncMock()
