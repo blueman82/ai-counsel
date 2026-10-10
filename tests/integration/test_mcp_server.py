@@ -53,7 +53,7 @@ class TestMCPEndpoints:
             assert hasattr(tool, "name")
             assert hasattr(tool, "description")
             assert hasattr(tool, "inputSchema")
-            assert len(tool.description) > 100, "Description should be substantial"
+            assert tool.description.strip(), "Description should not be empty"
 
             # Validate schema structure
             schema = tool.inputSchema

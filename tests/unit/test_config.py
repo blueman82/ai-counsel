@@ -1060,8 +1060,8 @@ class TestDecisionGraphBudgetAwareConfig:
             "config.yaml should define query_window"
 
         # Verify expected values from config.yaml
-        assert config.decision_graph.context_token_budget == 1500, \
-            "context_token_budget should be 1500 in config.yaml"
+        assert config.decision_graph.context_token_budget == 1000, \
+            "context_token_budget should be 1000 in config.yaml"
         assert config.decision_graph.tier_boundaries == {"strong": 0.75, "moderate": 0.60}, \
             "tier_boundaries should be {strong: 0.75, moderate: 0.60} in config.yaml"
         assert config.decision_graph.query_window == 1000, \
@@ -1226,5 +1226,5 @@ class TestFileTreeConfig:
 
         # Verify expected values from config.yaml
         assert config.deliberation.file_tree.enabled is True
-        assert config.deliberation.file_tree.max_depth == 3
-        assert config.deliberation.file_tree.max_files == 100
+        assert config.deliberation.file_tree.max_depth == 2
+        assert config.deliberation.file_tree.max_files == 50

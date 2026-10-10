@@ -272,6 +272,8 @@ async def list_tools() -> list[Tool]:
             "Initiate deliberative consensus where AI models debate across multiple rounds. "
             "Models see each other's responses and adapt their reasoning. Supports CLI tools "
             "(claude, codex, droid, gemini, llamacpp) and HTTP services (ollama, lmstudio, openrouter, nebius)."
+            "\n- Internal evidence tools: read_file, search_code, list_files, run_command, get_file_tree."
+            "\n- Participants request internal tools with TOOL_REQUEST markers; these are not MCP tools."
         ),
         inputSchema={
             "type": "object",
