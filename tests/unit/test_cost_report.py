@@ -178,9 +178,97 @@ async def test_engine_counts_vote_retries_and_summary_and_renders_unknown(tmp_pa
 async def test_http_content_must_be_text_before_usage_wrapping(content):
     """Malformed provider content must remain an error for fallback handling."""
     adapter = OpenRouterAdapter(base_url="https://example.com", api_key="test")
-    adapter._execute_request_with_retry = AsyncMock(return_value={
-        "choices": [{"message": {"content": content}}],
-        "usage": {"prompt_tokens": 10, "completion_tokens": 2, "cost": 0},
-    })
+    adapter._execute_request_with_retry = AsyncMock(
+        return_value={
+            "choices": [{"message": {"content": content}}],
+            "usage": {"prompt_tokens": 10, "completion_tokens": 2, "cost": 0},
+        }
+    )
     with pytest.raises(ValueError, match="text"):
         await adapter.invoke("test", "a:free")
+
+
+@pytest.mark.parametrize(
+    "malformed",
+    [
+        [],
+        {"choices": [{"message": {"content": None}}]},
+        {"choices": [{"message": {"content": []}}]},
+    ],
+)
+@pytest.mark.asyncio
+async def test_http_fallback_summary_accounting_does_not_leak(
+    monkeypatch, tmp_path, malformed
+):
+    """Real HTTP parsing, fallback, and summaries share only their request ledger."""
+    import json
+    import httpx
+    from deliberation.engine import DeliberationEngine
+    from deliberation.transcript import TranscriptManager
+    from models.config import ModelDefinition, RateLimitingConfig, load_config
+    from models.schema import DeliberateRequest, Participant
+
+    def serve(request):
+        model = json.loads(request.content)["model"]
+        body = (
+            malformed
+            if model == "primary:free"
+            else {
+                "choices": [
+                    {
+                        "message": {
+                            "content": 'VOTE: {"option": "A", "confidence": 0.9, "rationale": "ok", "continue_debate": false}'
+                        }
+                    }
+                ],
+                "usage": {"prompt_tokens": 10, "completion_tokens": 2, "cost": 0},
+            }
+        )
+        return httpx.Response(200, json=body)
+
+    original_client = httpx.AsyncClient
+    monkeypatch.setattr(
+        httpx,
+        "AsyncClient",
+        lambda **kw: original_client(transport=httpx.MockTransport(serve), **kw),
+    )
+    adapter = OpenRouterAdapter(
+        base_url="https://test", rate_limiting=RateLimitingConfig(free_model_delay_ms=0)
+    )
+    config = load_config()
+    config.deliberation.convergence_detection.enabled = False
+    config.model_registry = {
+        "openrouter": [
+            ModelDefinition(id="primary:free", fallback_chain=["good:free"]),
+            ModelDefinition(id="good:free"),
+            ModelDefinition(id="healthy:free"),
+        ]
+    }
+    config.free_model_fallback.enabled = True
+    config.free_model_fallback.max_retries_per_model = 1
+    config.decision_graph.enabled = False
+    engine = DeliberationEngine(
+        {"openrouter": adapter},
+        config=config,
+        transcript_manager=TranscriptManager(str(tmp_path)),
+    )
+    engine.summarizer_chain = [(adapter, "good:free", "summary")]
+    request = DeliberateRequest(
+        question="Should we choose option A?",
+        working_directory=str(tmp_path),
+        rounds=1,
+        participants=[
+            Participant(cli="openrouter", model="primary:free"),
+            Participant(cli="openrouter", model="healthy:free"),
+        ],
+    )
+    for _ in range(2):
+        result = await engine.execute(request)
+        report = result.cost_summary
+        assert "responded with good:free" in result.full_debate[0].response
+        assert report.calls == 4
+        assert report.calls_with_token_usage == 3
+        assert report.input_tokens == 30 and report.output_tokens == 6
+        assert report.models_used == ["good:free", "healthy:free", "primary:free"]
+        assert report.actual_cost_usd is None and report.estimated_savings_usd is None
+        assert invocation_usage.get() is None

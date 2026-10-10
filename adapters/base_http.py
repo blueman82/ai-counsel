@@ -205,6 +205,9 @@ class BaseHTTPAdapter(ABC):
             elapsed = (datetime.now() - start_time).total_seconds()
             progress_logger.info(f"[SUCCESS] HTTP REQUEST | Model: {model} | Time: {elapsed:.2f}s")
             progress_logger.debug(f"   Response keys: {list(response_json.keys()) if isinstance(response_json, dict) else 'N/A'}")
+            parsed_text = self.parse_response(response_json)
+            if not isinstance(parsed_text, str):
+                raise ValueError("Provider response content must be text")
             usage = response_json.get("usage") or {}
             if not isinstance(usage, dict):
                 usage = {}
@@ -215,9 +218,6 @@ class BaseHTTPAdapter(ABC):
             cost = usage.get("cost")
             if type(cost) not in (int, float) or not math.isfinite(cost) or cost < 0:
                 cost = None
-            parsed_text = self.parse_response(response_json)
-            if not isinstance(parsed_text, str):
-                raise ValueError("Provider response content must be text")
             return InvocationResult(
                 parsed_text,
                 InvocationUsage(
