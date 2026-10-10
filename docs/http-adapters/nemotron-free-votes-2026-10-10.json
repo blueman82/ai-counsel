@@ -1,0 +1,41 @@
+{
+  "checked_at": "2026-10-10T22:37:32.009916+00:00",
+  "catalog_url": "https://openrouter.ai/api/v1/models",
+  "rounds": 3,
+  "results": [
+    {
+      "model": "nvidia/nemotron-3.5-lightning:free",
+      "round": 1,
+      "vote_marker": true,
+      "json_valid": true,
+      "confidence_valid": true,
+      "continue_valid": true,
+      "valid": true,
+      "status": "passed",
+      "elapsed_seconds": 39.949
+    },
+    {
+      "model": "nvidia/nemotron-3.5-lightning:free",
+      "round": 2,
+      "vote_marker": true,
+      "json_valid": true,
+      "confidence_valid": true,
+      "continue_valid": true,
+      "valid": true,
+      "status": "passed",
+      "elapsed_seconds": 8.924
+    },
+    {
+      "model": "nvidia/nemotron-3.5-lightning:free",
+      "round": 3,
+      "vote_marker": true,
+      "json_valid": true,
+      "confidence_valid": true,
+      "continue_valid": true,
+      "valid": true,
+      "status": "passed",
+      "elapsed_seconds": 31.12
+    }
+  ],
+  "status": "passed"
+}

@@ -14,7 +14,7 @@ class CodexAdapter(BaseCLIAdapter):
 
     # Valid reasoning effort levels for Codex CLI
     # See: codex exec --help for current options
-    VALID_REASONING_EFFORTS = {"low", "medium", "high", "xhigh"}
+    VALID_REASONING_EFFORTS = {"low", "medium", "high", "xhigh", "max", "ultra"}
 
     def __init__(
         self,
@@ -30,7 +30,7 @@ class CodexAdapter(BaseCLIAdapter):
             command: Command to execute (default: "codex")
             args: List of argument templates (from config.yaml with {reasoning_effort} placeholder)
             timeout: Timeout in seconds (default: 60)
-            default_reasoning_effort: Default reasoning effort level (low/medium/high/xhigh).
+            default_reasoning_effort: Default reasoning effort level (low/medium/high/xhigh/max/ultra).
                 Used when {reasoning_effort} placeholder is in args. Can be overridden per-participant.
         """
         if args is None:
@@ -65,7 +65,7 @@ class CodexAdapter(BaseCLIAdapter):
             context: Optional additional context
             is_deliberation: Whether this is part of a deliberation
             working_directory: Optional working directory for subprocess execution
-            reasoning_effort: Optional reasoning effort level (low, medium, high, xhigh).
+            reasoning_effort: Optional reasoning effort level (low, medium, high, xhigh, max, ultra).
                 Substituted into {reasoning_effort} placeholder by base class.
 
         Returns:
@@ -81,6 +81,15 @@ class CodexAdapter(BaseCLIAdapter):
             raise ValueError(
                 f"Invalid reasoning_effort '{reasoning_effort}' for Codex. "
                 f"Valid values: {sorted(self.VALID_REASONING_EFFORTS)}"
+            )
+
+        effective_effort = reasoning_effort or self.default_reasoning_effort
+        if effective_effort == "ultra" and model not in {
+            "gpt-6-astra", "gpt-6.1-sol", "gpt-6-sol",
+        }:
+            raise ValueError(
+                f"Invalid reasoning_effort 'ultra' for '{model}'; "
+                "Ultra requires GPT-6 Astra or Sol."
             )
 
         # Base class handles {reasoning_effort} substitution via .format()

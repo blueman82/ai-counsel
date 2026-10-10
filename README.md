@@ -4,10 +4,10 @@
 
 # AI Counsel
 
-[![Run in Smithery](https://smithery.ai/badge/skills/blueman82)](https://smithery.ai/skills?ns=blueman82&utm_source=github&utm_medium=badge)
+- [![Run in Smithery](https://smithery.ai/badge/skills/blueman82)](https://smithery.ai/skills?ns=blueman82&utm_source=github&utm_medium=badge)
 
 
-True deliberative consensus MCP server where AI models debate and refine positions across multiple rounds.
+- True deliberative consensus MCP server where AI models debate and refine positions across multiple rounds.
 
 ![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
 ![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)
@@ -17,22 +17,22 @@ True deliberative consensus MCP server where AI models debate and refine positio
 
 ## 🎬 See It In Action
 
-**Cloud Models Debate** (Claude Sonnet, GPT-5.1 Codex, Gemini):
+- **Cloud Models Debate** (Claude Sonnet, GPT-6.1 Sol, Gemini):
 ```javascript
 mcp__ai-counsel__deliberate({
   question: "Should we use REST or GraphQL for our new API?",
   participants: [
-    {cli: "claude", model: "claude-sonnet-4-5-20250929"},
-    {cli: "codex", model: "gpt-5.2-codex"},
+    {cli: "claude", model: "claude-sonnet-5-5"},
+    {cli: "codex", model: "gpt-6.1-sol"},
     {cli: "gemini", model: "gemini-2.5-pro"}
   ],
   mode: "conference",
   rounds: 3
 })
 ```
-**Result**: Converged on hybrid architecture (0.82-0.95 confidence) • [View full transcript](transcripts/20251030_153509_Should_we_use_REST_or_GraphQL_for_our_new_API_Con.md)
+- **Result**: Converged on hybrid architecture (0.82-0.95 confidence) • [View full transcript](transcripts/20251030_153509_Should_we_use_REST_or_GraphQL_for_our_new_API_Con.md)
 
-**Local Models Debate** (100% private, zero API costs):
+- **Local Models Debate** (100% private, zero API costs):
 ```javascript
 mcp__ai-counsel__deliberate({
   question: "Should we prioritize code quality or delivery speed?",
@@ -45,13 +45,13 @@ mcp__ai-counsel__deliberate({
   rounds: 2
 })
 ```
-**Result**: 2 models switched positions after Round 1 debate • [View full transcript](transcripts/20251030_153834_Should_we_prioritize_code_quality_or_delivery_spee.md)
+- **Result**: 2 models switched positions after Round 1 debate • [View full transcript](transcripts/20251030_153834_Should_we_prioritize_code_quality_or_delivery_spee.md)
 
 ---
 
 ## What Makes This Different
 
-**AI Counsel enables TRUE deliberative consensus** where models see each other's responses and refine positions across multiple rounds:
+- **AI Counsel enables TRUE deliberative consensus** where models see each other's responses and refine positions across multiple rounds:
 
 - Models engage in actual debate (see and respond to each other)
 - Multi-round convergence with voting and confidence levels
@@ -64,7 +64,7 @@ mcp__ai-counsel__deliberate({
 - 🤖 **Mixed Adapters**: CLI tools (claude, codex, droid, gemini) + HTTP services (ollama, lmstudio, openrouter, nebius)
 - ⚡ **Auto-Convergence**: Stops when opinions stabilize (saves API costs)
 - 🗳️ **Structured Voting**: Models cast votes with confidence levels and rationale
-- 🧮 **Semantic Grouping**: Similar vote options automatically merged (0.70+ similarity)
+- 🧮 **Semantic Grouping**: Similar vote options automatically merged (0.85+ similarity)
 - 🎛️ **Model-Controlled Stopping**: Models decide when to stop deliberating
 - 🔬 **Evidence-Based Deliberation**: Models can read files, search code, list files, and run commands to ground decisions in reality
 - 💰 **Local Model Support**: Zero API costs with Ollama, LM Studio, llamacpp
@@ -76,13 +76,13 @@ mcp__ai-counsel__deliberate({
 
 ## Quick Start
 
-Get up and running in minutes:
+- Get up and running in minutes:
 
 1. **Install** – follow the commands in [Installation](#installation) to clone the repo, create a virtualenv, and install requirements.
 2. **Configure** – set up your MCP client using the `.mcp.json` example in [Configure in Claude Code](#configure-in-claude-code).
 3. **Run** – start the server with `python server.py` and trigger the `deliberate` tool using the examples in [Usage](#usage).
 
-**Try a Deliberation:**
+- **Try a Deliberation:**
 
 ```javascript
 // Mix local + cloud models, zero API costs for local models
@@ -97,29 +97,22 @@ mcp__ai-counsel__deliberate({
 })
 ```
 
-> **⚠️ Model Size Matters for Deliberations**
+> - **⚠️ Model Size Matters for Deliberations**
 >
-> **Recommended**: Use 7B-8B+ parameter models (Llama-3-8B, Mistral-7B, Qwen-2.5-7B) for reliable structured output and vote formatting.
+> - **Recommended**: Use 7B-8B+ parameter models (Llama-3-8B, Mistral-7B, Qwen-2.5-7B) for reliable structured output and vote formatting.
 >
-> **Not Recommended**: Models under 3B parameters (e.g., Llama-3.2-1B) may struggle with complex instructions and produce invalid votes.
+> - **Not Recommended**: Models under 3B parameters (e.g., Llama-3.2-1B) may struggle with complex instructions and produce invalid votes.
 
-**Available Models**: `claude` (opus 4.5, sonnet, haiku), `codex` (gpt-5.2-codex, gpt-5.1-codex-max, gpt-5.1-codex-mini, gpt-5.2), `droid`, `gemini`, HTTP adapters (ollama, lmstudio, openrouter).
-See [CLI Model Reference](docs/CLI_MODEL_REFERENCE.md) for complete details.
+| Adapter | Current registry choices | Effort |
+|---|---|---|
+| Claude | Fable 5.1; Opus, Sonnet, Haiku 5.5 | low, medium, high, xhigh, max |
+| Codex | GPT-6 Astra, GPT-6.1 Sol, GPT-6 Sol, GPT-6 Luna | low, medium, high, xhigh, max; ultra on Astra/Sol |
+| OpenRouter free | Nemotron 3.5 Lightning; Gemma 4 26B A4B and 31B | Nemotron vote-format sample: 3/3; Gemma: HTTP 429; checked 2026-10-10 |
 
-> **🧠 Reasoning Effort Control**
->
-> Control reasoning depth per-participant for codex and droid adapters:
-> ```javascript
-> participants: [
->   {cli: "codex", model: "gpt-5.2-codex", reasoning_effort: "high"},    // Deep reasoning
->   {cli: "droid", model: "gpt-5.1-codex-max", reasoning_effort: "low"}   // Fast response
-> ]
-> ```
-> - **Codex**: `none`, `minimal`, `low`, `medium`, `high`, `xhigh`
-> - **Droid**: `off`, `low`, `medium`, `high`
-> - Config defaults set in `config.yaml`, per-participant overrides at runtime
-
-For model choices and picker workflow, see [Model Registry & Picker](docs/model-registry-and-picker.md).
+- [CLI models, effort, and separate API/credit costs](docs/CLI_MODEL_REFERENCE.md).
+- [OpenRouter availability and opt-in voting reports](docs/http-adapters/openrouter-guide.md).
+- [Model registry and picker](docs/model-registry-and-picker.md); `tier` is a selection hint, not a measured reliability rating.
+- Per-participant `reasoning_effort` overrides the adapter default; Droid retains `off`, `low`, `medium`, `high`.
 
 ## Installation
 
@@ -143,11 +136,11 @@ pip install -r requirements.txt
 python3 -m pytest tests/unit -v  # Verify installation
 ```
 
-✅ Ready to use! Server includes core dependencies plus optional convergence backends (scikit-learn, sentence-transformers) for best accuracy.
+- ✅ Ready to use! Server includes core dependencies plus optional convergence backends (scikit-learn, sentence-transformers) for best accuracy.
 
 ## Configuration
 
-Edit `config.yaml` to configure adapters and settings:
+- Edit `config.yaml` to configure adapters and settings:
 
 ```yaml
 adapters:
@@ -169,33 +162,33 @@ defaults:
   max_rounds: 5
 ```
 
-**Note:** Use `type: cli` for CLI tools and `type: http` for HTTP adapters (Ollama, LM Studio, OpenRouter).
+- **Note:** Use `type: cli` for CLI tools and `type: http` for HTTP adapters (Ollama, LM Studio, OpenRouter).
 
 ### Model Registry Configuration
 
-Control which models are available for selection in the model registry. Each model can be enabled or disabled without removing its definition:
+- Control which models are available for selection in the model registry. Each model can be enabled or disabled without removing its definition:
 
 ```yaml
 model_registry:
   claude:
-    - id: "claude-sonnet-4-5-20250929"
-      label: "Claude Sonnet 4.5"
+    - id: "claude-sonnet-5-5"
+      label: "Claude Sonnet 5.5"
       tier: "balanced"
       default: true
       enabled: true  # Model is active and available
-    - id: "claude-opus-4-20250514"
-      label: "Claude Opus 4"
+    - id: "claude-opus-5-5"
+      label: "Claude Opus 5.5"
       tier: "premium"
       enabled: false  # Temporarily disabled (cost control, testing, etc.)
 ```
 
-**Enabled Field Behavior:**
+- **Enabled Field Behavior:**
 - `enabled: true` (default) - Model appears in `list_models` and can be selected for deliberations
 - `enabled: false` - Model is hidden from selection but definition retained for easy re-enabling
 - Disabled models cannot be used even if explicitly specified in `deliberate` calls
 - Default model selection skips disabled models automatically
 
-**Use Cases:**
+- **Use Cases:**
 - **Cost Control**: Disable expensive models temporarily without losing configuration
 - **Testing**: Enable/disable specific models during integration tests
 - **Staged Rollout**: Configure new models as disabled, enable when ready
@@ -205,28 +198,28 @@ model_registry:
 ## Core Features Deep Dive
 
 ### Convergence Detection & Auto-Stop
-Models automatically converge and stop deliberating when opinions stabilize, saving time and API costs. Status: Converged (≥85% similarity), Refining (40-85%), Diverging (<40%), or Impasse (stable disagreement). Voting takes precedence: when models cast votes, convergence reflects voting outcome.
+- Status: Converged (≥85% similarity), Refining (40–85%), Diverging (<40%), Impasse (stable disagreement); voting outcome first.
 
-→ **[Complete Guide](docs/convergence-detection.md)** - Thresholds, backends, configuration
+- → **[Complete Guide](docs/convergence-detection.md)** - Thresholds, backends, configuration
 
 ### Structured Voting
-Models cast votes with confidence levels (0.0-1.0), rationale, and continue_debate signals. Votes determine consensus: Unanimous (3-0), Majority (2-1), or Tie. Similar options automatically merged at 0.70+ similarity threshold.
+- Votes: confidence 0–1, rationale, `continue_debate`; unanimous/majority/tie; option grouping threshold 0.85.
 
-→ **[Complete Guide](docs/structured-voting.md)** - Vote structure, examples, integration
+- → **[Complete Guide](docs/structured-voting.md)** - Vote structure, examples, integration
 
 ### HTTP Adapters & Local Models
-Run Ollama, LM Studio, OpenRouter, or Nebius for flexible API costs and privacy options. Mix with cloud models (Claude, GPT-4) in single deliberation.
+- Run Ollama, LM Studio, OpenRouter, or Nebius for flexible API costs and privacy options. Mix with cloud models (Claude, GPT-4) in single deliberation.
 
-→ **[Setup Guides](docs/http-adapters/intro.md)** - Ollama, LM Studio, OpenRouter, cost analysis
+- → **[Setup Guides](docs/http-adapters/intro.md)** - Ollama, LM Studio, OpenRouter, cost analysis
 
 ### Extending AI Counsel
-Add new CLI tools or HTTP adapters to fit your infrastructure. Simple 3-5 step process with examples and testing patterns.
+- Add new CLI tools or HTTP adapters to fit your infrastructure. Simple 3-5 step process with examples and testing patterns.
 
-→ **[Developer Guide](docs/adding-adapters.md)** - Step-by-step tutorials, real-world examples
+- → **[Developer Guide](docs/adding-adapters.md)** - Step-by-step tutorials, real-world examples
 
 ## Evidence-Based Deliberation
 
-Ground design decisions in reality by querying actual code, files, and data:
+- Ground design decisions in reality by querying actual code, files, and data:
 
 ```javascript
 // MCP client example (e.g., Claude Code)
@@ -241,13 +234,13 @@ mcp__ai_counsel__deliberate({
 })
 ```
 
-**During deliberation, models can:**
+- **During deliberation, models can:**
 - 📄 Read files: `TOOL_REQUEST: {"name": "read_file", "arguments": {"path": "config.yaml"}}`
 - 🔍 Search code: `TOOL_REQUEST: {"name": "search_code", "arguments": {"pattern": "database.*connect"}}`
 - 📋 List files: `TOOL_REQUEST: {"name": "list_files", "arguments": {"pattern": "*.sql"}}`
 - ⚙️ Run commands: `TOOL_REQUEST: {"name": "run_command", "arguments": {"command": "git", "args": ["log", "--oneline"]}}`
 
-**Example workflow:**
+- **Example workflow:**
 1. Model A proposes PostgreSQL based on assumptions
 2. Model B requests: `read_file` to check current config
 3. Tool returns: `database: sqlite, max_connections: 10`
@@ -256,12 +249,12 @@ mcp__ai_counsel__deliberate({
 6. Models converge: "PostgreSQL needed for query complexity and scale"
 7. Decision backed by evidence, not opinion
 
-**Benefits:**
+- **Benefits:**
 - Decisions rooted in current state, not assumptions
 - Applies to code reviews, architecture choices, testing strategy
 - Full audit trail of evidence in transcripts
 
-**Supported Tools:**
+- **Supported Tools:**
 - `read_file` - Read file contents (max 1MB)
 - `search_code` - Search regex patterns (ripgrep or Python fallback)
 - `list_files` - List files matching glob patterns
@@ -269,24 +262,24 @@ mcp__ai_counsel__deliberate({
 
 ### Configuration
 
-Control tool behavior in `config.yaml`:
+- Control tool behavior in `config.yaml`:
 
-**Working Directory** (Required):
+- **Working Directory** (Required):
 - Set `working_directory` parameter when calling `deliberate` tool
 - Tools resolve relative paths from this directory
 - Example: `working_directory: process.cwd()` in JavaScript MCP clients
 
-**Tool Security** (`deliberation.tool_security`):
+- **Tool Security** (`deliberation.tool_security`):
 - `exclude_patterns`: Block access to sensitive directories (default: `transcripts/`, `.git/`, `node_modules/`)
 - `max_file_size_bytes`: File size limit for `read_file` (default: 1MB)
 - `command_whitelist`: Safe commands for `run_command` (ls, grep, find, cat, head, tail)
 
-**File Tree** (`deliberation.file_tree`):
+- **File Tree** (`deliberation.file_tree`):
 - `enabled`: Inject repository structure into Round 1 prompts (default: true)
 - `max_depth`: Directory depth limit (default: 3)
 - `max_files`: Maximum files to include (default: 100)
 
-**Adapter-Specific Requirements:**
+- **Adapter-Specific Requirements:**
 
 | Adapter | Working Directory Behavior | Configuration |
 |---------|---------------------------|---------------|
@@ -296,7 +289,7 @@ Control tool behavior in `config.yaml`:
 | **Gemini** | Enforces workspace boundaries | **Required**: `--include-directories {working_directory}` flag |
 | **Ollama/LMStudio** | N/A - HTTP adapters | No file system access restrictions |
 
-**Learn More:**
+- **Learn More:**
 - [Complete Configuration Reference](CLAUDE.md#configuration-notes) - All config.yaml settings explained
 - [Working Directory Isolation](CLAUDE.md#core-components) - How adapters handle file paths
 - [Tool Security Model](CLAUDE.md#evidence-based-deliberation) - Whitelists, limits, and exclusions
@@ -304,47 +297,47 @@ Control tool behavior in `config.yaml`:
 
 ### Troubleshooting
 
-**"File not found" errors:**
+- **"File not found" errors:**
 - Ensure `working_directory` is set correctly in your MCP client call
 - Use discovery pattern: `list_files` → `read_file`
 - Check file paths are relative to working directory
 
-**"Access denied: Path matches exclusion pattern":**
+- **"Access denied: Path matches exclusion pattern":**
 - Tools block `transcripts/`, `.git/`, `node_modules/` by default
 - Customize via `deliberation.tool_security.exclude_patterns` in config.yaml
 
-**Gemini "File path must be within workspace" errors:**
+- **Gemini "File path must be within workspace" errors:**
 - Verify Gemini's `--include-directories` flag uses `{working_directory}` placeholder
 - See adapter-specific setup above
 
-**Tool timeout errors:**
+- **Tool timeout errors:**
 - Increase `deliberation.tool_security.tool_timeout` for slow operations
 - Default: 10 seconds for file operations, 30 seconds for commands
 
-**Learn More:**
+- **Learn More:**
 - [Adding Custom Tools](docs/adding-tool.md) - Developer guide for extending tool system
 - [Architecture & Security](CLAUDE.md#evidence-based-deliberation) - How tools work under the hood
 - [Common Gotchas](CLAUDE.md#common-gotchas) - Advanced settings and known issues
 
 ## Decision Graph Memory
 
-AI Counsel learns from past deliberations to accelerate future decisions. Two core capabilities:
+- AI Counsel learns from past deliberations to accelerate future decisions. Two core capabilities:
 
 ### 1. Automatic Context Injection
-When starting a new deliberation, the system:
+- When starting a new deliberation, the system:
 - Searches past debates for similar questions (semantic similarity)
 - Finds the top-k most relevant decisions (configurable, default: 3)
 - Injects context into Round 1 prompts automatically
 - Result: Models start with institutional knowledge, converge faster
 
 ### 2. Semantic Search with `query_decisions`
-Query past deliberations programmatically:
+- Query past deliberations programmatically:
 - **Search similar**: Find decisions related to a question
 - **Find contradictions**: Detect conflicting past decisions
 - **Trace evolution**: See how opinions changed over time
 - **Analyze patterns**: Identify recurring themes
 
-**Configuration** (optional - defaults work out-of-box):
+- **Configuration** (optional - defaults work out-of-box):
 ```yaml
 decision_graph:
   enabled: true                       # Auto-injection on by default
@@ -353,9 +346,9 @@ decision_graph:
   max_context_decisions: 3            # How many past decisions to inject
 ```
 
-**Works for any user from any directory** - database path is resolved relative to project root.
+- **Works for any user from any directory** - database path is resolved relative to project root.
 
-→ **[Quickstart](docs/decision-graph/quickstart.md)** | **[Configuration](docs/decision-graph/configuration.md)** | **[Context Injection](docs/decision-graph/using-context-injection.md)**
+- → **[Quickstart](docs/decision-graph/quickstart.md)** | **[Configuration](docs/decision-graph/configuration.md)** | **[Context Injection](docs/decision-graph/using-context-injection.md)**
 
 ## Usage
 
@@ -367,7 +360,7 @@ python server.py
 
 ### Configure in Claude Code
 
-**Option A: Project Config (Recommended)** - Create `.mcp.json`:
+- **Option A: Project Config (Recommended)** - Create `.mcp.json`:
 
 ```json
 {
@@ -382,9 +375,9 @@ python server.py
 }
 ```
 
-**Option B: User Config** - Add to `~/.claude.json` with absolute paths.
+- **Option B: User Config** - Add to `~/.claude.json` with absolute paths.
 
-After configuration, restart Claude Code.
+- After configuration, restart Claude Code.
 
 ### Model Selection & Session Defaults
 
@@ -394,29 +387,29 @@ After configuration, restart Claude Code.
 
 ### Examples
 
-**Quick Mode:**
+- **Quick Mode:**
 ```javascript
 mcp__ai-counsel__deliberate({
   question: "Should we migrate to TypeScript?",
-  participants: [{cli: "claude", model: "sonnet"}, {cli: "codex", model: "gpt-5.2-codex"}],
+  participants: [{cli: "claude", model: "sonnet"}, {cli: "codex", model: "gpt-6.1-sol"}],
   mode: "quick"
 })
 ```
 
-**Conference Mode (multi-round):**
+- **Conference Mode (multi-round):**
 ```javascript
 mcp__ai-counsel__deliberate({
   question: "JWT vs session-based auth?",
   participants: [
     {cli: "claude", model: "sonnet"},
-    {cli: "codex", model: "gpt-5.2-codex"}
+    {cli: "codex", model: "gpt-6.1-sol"}
   ],
   rounds: 3,
   mode: "conference"
 })
 ```
 
-**Search Past Decisions:**
+- **Search Past Decisions:**
 ```javascript
 mcp__ai-counsel__query_decisions({
   query_text: "database choice",
@@ -455,7 +448,7 @@ mcp__ai-counsel__query_decisions({
 
 ### Transcripts
 
-All deliberations saved to `transcripts/` with AI-generated summaries and full debate history.
+- All deliberations saved to `transcripts/` with AI-generated summaries and full debate history.
 
 ## Architecture
 
@@ -513,7 +506,7 @@ pytest tests/integration -v -m integration  # Integration tests
 pytest --cov=. --cov-report=html       # Coverage report
 ```
 
-See [CLAUDE.md](CLAUDE.md) for development workflow and architecture notes.
+- See [CLAUDE.md](CLAUDE.md) for development workflow and architecture notes.
 
 ### Contributing
 
@@ -526,16 +519,16 @@ See [CLAUDE.md](CLAUDE.md) for development workflow and architecture notes.
 
 ## License
 
-MIT License - see LICENSE file
+- MIT License - see LICENSE file
 
 ## Credits
 
-Built with:
+- Built with:
 - [MCP SDK](https://modelcontextprotocol.io/) - Model Context Protocol
 - [Pydantic](https://docs.pydantic.dev/) - Data validation
 - [pytest](https://pytest.org/) - Testing framework
 
-Inspired by the need for true deliberative AI consensus beyond parallel opinion gathering.
+- Inspired by the need for true deliberative AI consensus beyond parallel opinion gathering.
 
 ---
 
@@ -548,4 +541,4 @@ Inspired by the need for true deliberative AI consensus beyond parallel opinion 
 ![Tests](https://img.shields.io/badge/tests-130%2B%20passing-green)
 ![Version](https://img.shields.io/badge/version-1.2.1-blue)
 
-**Production Ready** - Multi-model deliberative consensus with cross-user decision graph memory, structured voting, and adaptive early stopping for critical technical decisions!
+- **Production Ready** - Multi-model deliberative consensus with cross-user decision graph memory, structured voting, and adaptive early stopping for critical technical decisions!

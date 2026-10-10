@@ -14,15 +14,9 @@ cli_tools:
         "{prompt}",
       ]
     timeout: 300
-    # Valid models: "sonnet", "opus", "haiku" or full names like "claude-sonnet-4-5-20250929"
-    # Note: -p flag is auto-removed during deliberations for full engagement
-    #
-    # Reasoning Effort (Opus 4.6+ only, Sonnet/Haiku do NOT support effort levels):
-    # - low: Fast responses with lighter reasoning
-    # - medium: Balanced reasoning depth
-    # - high: Deep reasoning for complex problems
-    # Note: Effort is passed via the adapter, not CLI args. The ClaudeAdapter
-    # handles model-specific validation (only Opus models accept effort levels).
+    # Current models: Fable 5.1; Opus, Sonnet, and Haiku 5.5.
+    # Effort: low, medium, high, xhigh, max; forwarded via --effort.
+    # Without an explicit effort, Claude Code selects its model default.
 
   codex:
     command: "codex"
@@ -40,18 +34,18 @@ cli_tools:
       ]
     timeout: 300
     default_reasoning_effort: "medium"
-  # Valid models: "gpt-5.5"
+    # Current models: GPT-6 Astra, GPT-6.1 Sol, GPT-6 Sol, GPT-6 Luna.
     #
     # Reasoning Effort Levels:
-    # - minimal/none: No extended reasoning
     # - low: Light reasoning
     # - medium: Balanced reasoning depth and latency (default)
     # - high: Deep reasoning for complex problems
-    # - xhigh: Extra high reasoning (warning: consumes rate limits quickly)
+    # - xhigh/max: More reasoning and token use
+    # - ultra: Automatic task delegation (Astra/Sol only; unavailable on Luna)
     #
     # The {reasoning_effort} placeholder is replaced with default_reasoning_effort
     # unless overridden per-participant:
-    #   Participant(cli="codex", model="gpt-5.1-codex", reasoning_effort="high")
+    #   Participant(cli="codex", model="gpt-6.1-sol", reasoning_effort="high")
     #
     # Security Configuration:
     # - --skip-git-repo-check: Allows running outside git repositories
@@ -204,26 +198,48 @@ defaults:
   max_rounds: 5
   timeout_per_round: 600
 
+# Illustrative rate comparison only; excludes caching, tiers, tools, and subscription billing.
+cost_comparison:
+  baseline_name: "Claude Sonnet 5.5 (2026-10-10 API)"
+  input_per_million_usd: 2.0
+  output_per_million_usd: 10.0
+
 model_registry:
   claude:
-    - id: "claude-opus-4-7"
-      label: "Claude Opus 4.7"
+    - id: "claude-opus-5-5"
+      label: "Claude Opus 5.5"
       tier: "premium"
       default: true
       enabled: true
-    - id: "claude-sonnet-4-6"
-      label: "Claude Sonnet 4.6"
+    - id: "claude-fable-5-1"
+      label: "Claude Fable 5.1"
+      tier: "premium"
+      enabled: true
+    - id: "claude-sonnet-5-5"
+      label: "Claude Sonnet 5.5"
       tier: "balanced"
       enabled: true
-    - id: "claude-haiku-4-5-20251001"
-      label: "Claude Haiku 4.5"
+    - id: "claude-haiku-5-5"
+      label: "Claude Haiku 5.5"
       tier: "speed"
       enabled: true
   codex:
-    - id: "gpt-5.5"
-      label: "GPT-5.5"
-      tier: "flagship"
+    - id: "gpt-6.1-sol"
+      label: "GPT-6.1 Sol"
+      tier: "coding"
       default: true
+      enabled: true
+    - id: "gpt-6-astra"
+      label: "GPT-6 Astra"
+      tier: "premium"
+      enabled: true
+    - id: "gpt-6-sol"
+      label: "GPT-6 Sol"
+      tier: "coding"
+      enabled: true
+    - id: "gpt-6-luna"
+      label: "GPT-6 Luna"
+      tier: "speed"
       enabled: true
   droid:
     - id: "claude-opus-4-5-20251101"
@@ -286,7 +302,8 @@ model_registry:
     - id: "anthropic/claude-3.5-sonnet"
       label: "Claude 3.5 Sonnet (OpenRouter)"
       tier: "balanced"
-      enabled: true
+      enabled: false
+      note: "Not listed in OpenRouter catalog on 2026-10-10; unavailable for activation, voting untested."
     - id: "openai/gpt-4o"
       label: "GPT-4o (OpenRouter)"
       tier: "balanced"
@@ -298,7 +315,8 @@ model_registry:
     - id: "google/gemini-2.0-flash-001"
       label: "Gemini 2.0 Flash (OpenRouter)"
       tier: "speed"
-      enabled: true
+      enabled: false
+      note: "Not listed in OpenRouter catalog on 2026-10-10; unavailable for activation, voting untested."
     - id: "meta-llama/llama-3.3-70b-instruct"
       label: "Llama 3.3 70B (OpenRouter)"
       tier: "general"
@@ -311,7 +329,6 @@ model_registry:
       label: "Qwen 2.5 72B (OpenRouter)"
       tier: "general"
       enabled: true
-    # ===== Google Gemini Models =====
     - id: "google/gemini-2.5-pro"
       label: "Gemini 2.5 Pro (OpenRouter)"
       tier: "premium"
@@ -319,7 +336,8 @@ model_registry:
     - id: "google/gemini-3-pro-preview"
       label: "Gemini 3 Pro Preview (OpenRouter)"
       tier: "premium"
-      enabled: true
+      enabled: false
+      note: "Not listed in OpenRouter catalog on 2026-10-10; unavailable for activation, voting untested."
     - id: "google/gemini-2.5-flash"
       label: "Gemini 2.5 Flash (OpenRouter)"
       tier: "balanced"
@@ -328,65 +346,96 @@ model_registry:
       label: "Gemini 3 Flash Preview (OpenRouter)"
       tier: "speed"
       enabled: true
-    # ===== xAI Grok Models =====
     - id: "x-ai/grok-4"
       label: "Grok 4 (OpenRouter)"
       tier: "premium"
-      enabled: true
+      enabled: false
+      note: "Not listed in OpenRouter catalog on 2026-10-10; unavailable for activation, voting untested."
     - id: "x-ai/grok-3"
       label: "Grok 3 (OpenRouter)"
       tier: "balanced"
-      enabled: true
+      enabled: false
+      note: "Not listed in OpenRouter catalog on 2026-10-10; unavailable for activation, voting untested."
     - id: "x-ai/grok-4.1-fast"
       label: "Grok 4.1 Fast (OpenRouter)"
       tier: "speed"
-      enabled: true
+      enabled: false
+      note: "Not listed in OpenRouter catalog on 2026-10-10; unavailable for activation, voting untested."
     - id: "x-ai/grok-code-fast-1"
       label: "Grok Code Fast (OpenRouter)"
       tier: "speed"
-      enabled: true
-    # ===== FREE MODELS (Zero Cost) =====
+      enabled: false
+      note: "Not listed in OpenRouter catalog on 2026-10-10; unavailable for activation, voting untested."
     - id: "meta-llama/llama-3.3-70b-instruct:free"
-      label: "Llama 3.3 70B FREE (slow)"
-      tier: "free"
-      enabled: false  # Disabled - too slow (70B params)
+      label: "Llama 3.3 70B FREE"
+      tier: "free-experimental"
+      enabled: false
+      note: "Not listed in OpenRouter catalog on 2026-10-10; unavailable for activation, voting untested."
     - id: "mistralai/mistral-small-3.1-24b-instruct:free"
       label: "Mistral Small 24B FREE"
-      tier: "free-fast"
-      enabled: true
+      tier: "free-experimental"
+      enabled: false
+      note: "Not listed in OpenRouter catalog on 2026-10-10; unavailable for activation, voting untested."
     - id: "google/gemma-3-27b-it:free"
       label: "Gemma 3 27B FREE"
-      tier: "free-fast"
-      enabled: true
+      tier: "free-experimental"
+      enabled: false
+      note: "Not listed in OpenRouter catalog on 2026-10-10; unavailable for activation, voting untested."
     - id: "meta-llama/llama-4-scout:free"
       label: "Llama 4 Scout FREE (17B active)"
-      tier: "free-fast"
-      enabled: true
+      tier: "free-experimental"
+      enabled: false
+      note: "Not listed in OpenRouter catalog on 2026-10-10; unavailable for activation, voting untested."
     - id: "qwen/qwen3-32b:free"
       label: "Qwen 3 32B FREE"
-      tier: "free-fast"
-      enabled: true
-    - id: "xiaomi/mimo-vl-7b-rl:free"
-      label: "MiMo-V2-Flash FREE (Xiaomi, 256K ctx)"
-      tier: "free-fast"
-      enabled: true
+      tier: "free-experimental"
+      enabled: false
+      note: "Not listed in OpenRouter catalog on 2026-10-10; unavailable for activation, voting untested."
+    - id: "xiaomi/mimo-v2-flash:free"
+      label: "MiMo V2 Flash FREE (Xiaomi)"
+      tier: "free-experimental"
+      enabled: false
+      note: "Not listed in OpenRouter catalog on 2026-10-10; unavailable for activation, voting untested."
     - id: "deepseek/deepseek-r1:free"
       label: "DeepSeek R1 FREE (reasoning)"
-      tier: "free"
-      enabled: true
-    - id: "mistralai/devstral-small:free"
-      label: "Devstral 2 FREE (coding/agentic, 256K ctx)"
-      tier: "free-fast"
-      enabled: true
-    - id: "arcee-ai/kat-coder-pro-v1:free"
-      label: "KAT-Coder-Pro V1 FREE (73.4% SWE-Bench)"
-      tier: "free-fast"
-      enabled: true
-    # ===== ULTRA-FAST CHEAP MODELS =====
+      tier: "free-experimental"
+      enabled: false
+      note: "Not listed in OpenRouter catalog on 2026-10-10; unavailable for activation, voting untested."
+    - id: "mistralai/devstral-2:free"
+      label: "Devstral 2 FREE (Mistral)"
+      tier: "free-coding"
+      enabled: false
+      note: "Not listed in OpenRouter catalog on 2026-10-10; unavailable for activation, voting untested."
+    - id: "kwaipilot/kat-coder-pro-v1:free"
+      label: "KAT Coder Pro V1 FREE (KwaiKAT)"
+      tier: "free-coding"
+      enabled: false
+      note: "Not listed in OpenRouter catalog on 2026-10-10; unavailable for activation, voting untested."
     - id: "google/gemini-2.5-flash-preview-05-20"
       label: "Gemini 2.5 Flash Preview"
       tier: "speed"
+      enabled: false
+      note: "Not listed in OpenRouter catalog on 2026-10-10; unavailable for activation, voting untested."
+    - id: "deepseek/deepseek-r1-0528:free"
+      label: "DeepSeek R1 0528 FREE"
+      tier: "free-reasoning"
+      enabled: false
+      note: "Not listed in OpenRouter catalog on 2026-10-10; voting untested. Distinct from deepseek-r1:free."
+    - id: "google/gemma-4-26b-a4b-it:free"
+      label: "Google: Gemma 4 26B A4B  (free)"
+      tier: "free-experimental"
       enabled: true
+      note: "Listed with zero input/output price on 2026-10-10; vote reliability untested. Availability can change."
+    - id: "google/gemma-4-31b-it:free"
+      label: "Google: Gemma 4 31B (free)"
+      tier: "free-experimental"
+      enabled: true
+      note: "Listed with zero input/output price on 2026-10-10; vote reliability untested. Availability can change."
+    - id: "nvidia/nemotron-3.5-lightning:free"
+      label: "NVIDIA Nemotron 3.5 Lightning FREE"
+      tier: "free-experimental"
+      enabled: true
+      note: "2026-10-10: zero input/output price; 3/3 vote-format probe rounds passed. Small sample, no uptime or quality guarantee."
   nebius:
     - id: "moonshotai/Kimi-K2-Thinking"
       label: "Kimi K2 Thinking"

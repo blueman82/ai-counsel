@@ -118,10 +118,16 @@ CLI_TITLES = {
 
 
 REASONING_EFFORT_SCHEMA: dict[str, dict] = {
+    "claude": {
+        "type": ["string", "null"],
+        "enum": ["low", "medium", "high", "xhigh", "max", None],
+        "description": "Effort for current Fable, Opus, Sonnet, and Haiku models.",
+        "default": None,
+    },
     "codex": {
         "type": ["string", "null"],
-        "enum": ["none", "minimal", "low", "medium", "high", None],
-        "description": "Reasoning effort level. Higher = more thorough but slower.",
+        "enum": ["low", "medium", "high", "xhigh", "max", "ultra", None],
+        "description": "Codex effort. Ultra delegates to subagents; GPT-6 Luna supports up to max.",
         "default": None,
     },
     "droid": {
