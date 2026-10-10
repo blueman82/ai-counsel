@@ -6,7 +6,7 @@
 
 ## Project Overview
 
-- AI Counsel is an MCP (Model Context Protocol) server that enables true deliberative consensus between AI models. Unlike parallel opinion gathering, models see each other's responses and refine positions across multiple rounds of debate.
+- AI Counsel: MCP server; multi-model debate; shared prior responses; iterative consensus.
 
 - **Key differentiation**: Models engage in actual debate with cross-pollination (not just parallel aggregation).
 
@@ -151,7 +151,7 @@
 - `list_files`: List files matching glob patterns
 - `run_command`: Execute safe read-only commands
 
-- **Important**: Internal tools are NOT directly exposed via MCP. They are invoked by AI models during deliberation by including TOOL_REQUEST markers in responses. Engine parses markers, executes tools, makes results visible to all participants.
+- Internal tools: `TOOL_REQUEST` response markers → engine parsing/execution → shared results; no direct MCP exposure.
 
 - **Example**: `TOOL_REQUEST: {"name": "read_file", "arguments": {"path": "/path/to/file.py"}}`
 
@@ -322,7 +322,7 @@ cli_tools:
 - **Simple**: Straightforward solutions over clever abstractions
 - **Type Safety**: Pydantic validation throughout
 - **Error Isolation**: Adapter failures don't halt entire deliberation
-- **NO TODOs**: Never commit TODO comments. All configuration must be in `config.yaml` with Pydantic schemas in `models/config.py`. Hardcoded values are technical debt that violate the project's configuration architecture
+- Configuration: `config.yaml` plus `models/config.py` schemas; no committed TODOs or hardcoded configuration.
 
 ## Common Gotchas
 

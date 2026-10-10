@@ -200,7 +200,7 @@ defaults:
 
 # Illustrative rate comparison only; excludes caching, tiers, tools, and subscription billing.
 cost_comparison:
-  baseline_name: "Claude Sonnet 5.5 (2026-10-11 API)"
+  baseline_name: "Claude Sonnet 5.5 (2026-10-10 API)"
   input_per_million_usd: 2.0
   output_per_million_usd: 10.0
 

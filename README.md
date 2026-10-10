@@ -198,12 +198,12 @@ model_registry:
 ## Core Features Deep Dive
 
 ### Convergence Detection & Auto-Stop
-- Models automatically converge and stop deliberating when opinions stabilize, saving time and API costs. Status: Converged (≥85% similarity), Refining (40-85%), Diverging (<40%), or Impasse (stable disagreement). Voting takes precedence: when models cast votes, convergence reflects voting outcome.
+- Status: Converged (≥85% similarity), Refining (40–85%), Diverging (<40%), Impasse (stable disagreement); voting outcome first.
 
 - → **[Complete Guide](docs/convergence-detection.md)** - Thresholds, backends, configuration
 
 ### Structured Voting
-- Models cast votes with confidence levels (0.0-1.0), rationale, and continue_debate signals. Votes determine consensus: Unanimous (3-0), Majority (2-1), or Tie. Similar options automatically merged at 0.70+ similarity threshold.
+- Votes: confidence 0–1, rationale, `continue_debate`; unanimous/majority/tie; option grouping threshold 0.70.
 
 - → **[Complete Guide](docs/structured-voting.md)** - Vote structure, examples, integration
 

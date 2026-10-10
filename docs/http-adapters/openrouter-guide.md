@@ -1,6 +1,6 @@
-- OpenRouter uses the HTTP adapter in `config.yaml`; set `OPENROUTER_API_KEY` through your environment or secret manager. Do not print or commit the key.
-- Catalog source: [OpenRouter models API](https://openrouter.ai/api/v1/models), checked **2026-10-10**. A catalog listing and zero token price establish neither uptime nor valid voting output.
-- Use `list_models` for enabled choices. Disabled compatibility entries remain in the configuration; enable them only after verifying their exact ID and current price.
+- Setup: `adapters.openrouter` in `config.yaml`; `OPENROUTER_API_KEY` via environment or secret manager; no key logging.
+- Catalog: [OpenRouter models API](https://openrouter.ai/api/v1/models); checked **2026-10-10**; availability/pricing evidence only.
+- Selection: `list_models`; disabled compatibility entries retained; exact-ID and price recheck before activation.
 
 | Model ID | Catalog observation, 2026-10-10 | Registry | Vote reliability |
 |---|---|---|---|
@@ -17,9 +17,9 @@
 | `meta-llama/llama-4-scout:free` | Not listed | Disabled | Untested |
 | `qwen/qwen3-32b:free` | Not listed | Disabled | Untested |
 
-- Corrected mismatches: MiMo VL 7B is not MiMo V2 Flash; Devstral Small is not Devstral 2; the requested KAT ID uses `kwaipilot`, not `arcee-ai`. Corrected requested IDs remain disabled because the catalog does not list them.
-- Also disabled absent paid/preview entries: Claude 3.5 Sonnet, Gemini 2.0 Flash, Gemini 3 Pro Preview, Gemini 2.5 Flash Preview 05-20, and the four configured Grok IDs. Existing listed paid models remain available.
-- The historical requests in issues #26–#31 cannot establish current availability. The two Gemma 4 choices are explicitly identified alternatives, not renamed replacements for the missing models.
+- Corrected IDs: MiMo V2 Flash instead of VL 7B; Devstral 2 instead of Small; KAT namespace `kwaipilot` instead of `arcee-ai`; all unavailable.
+- Other absent entries disabled: Claude 3.5 Sonnet; Gemini 2.0 Flash, 3 Pro Preview, 2.5 Flash Preview 05-20; four configured Grok IDs.
+- Issues #26–#31: historical endpoints unavailable; Gemma 4 entries: explicitly identified current alternatives.
 
 | Tier label | Meaning | Reliability claim |
 |---|---|---|
@@ -28,11 +28,11 @@
 | `free-coding` | Coding-oriented historical candidate | None |
 | `premium`, `balanced`, `speed`, `general`, `reasoning` | Selection hints on paid entries | Not a measured latency or availability rating |
 
-- Avoid `free-reliable` until repeated measurements support a dated, workload-specific claim; company backing, model size, and popularity do not establish service reliability.
-- Free requests can time out, be rate-limited, or return invalid votes. AI Counsel bounds requests with configured timeouts; no indefinite-hang claim is made.
-- Starting probe budget: 120 seconds per request, three rounds, 2,048 maximum output tokens, no retries. Treat this as a measurement setting, not a measured model latency recommendation.
-- For normal deliberations, inspect `adapters.openrouter.timeout`, `max_retries`, and `defaults.timeout_per_round`. Multiple requests/retries need a sufficient round budget.
-- Cost-conscious pattern: start with currently listed free candidates, inspect actual vote validity, then explicitly select paid participants when quality needs justify them. A free failure alone is not permission to incur paid-model charges.
+- `free-reliable`: reserved for repeated, dated workload measurements; no inference from backing, size, or popularity.
+- Failure modes: timeouts, rate limits, invalid votes; bounded requests; no indefinite-hang claim.
+- Probe budget: 120 seconds/request; three rounds; 2,048 output tokens; zero retries; no model latency claim.
+- Deliberation budgets: `adapters.openrouter.timeout`, `max_retries`, `defaults.timeout_per_round`; room for requests/retries.
+- Cost control: free candidates → vote measurements → explicitly selected paid participants; no automatic paid substitution.
 
 | Check | Command / behavior |
 |---|---|
@@ -45,11 +45,11 @@
 | Request failure | Records exception type without provider error text or credentials; continues remaining rounds; exit 1 |
 | Weekly CI | Monday schedule/manual dispatch; `OPENROUTER_API_KEY` repository secret; JSON artifact retained even on failure |
 
-- The probe uses the same final `VOTE:` object pattern and `Vote` schema as deliberation, plus stricter checks against coerced values and an omitted continue flag. It measures format compliance across prior-response rounds, not factual correctness, full multi-participant consensus, or production uptime.
-- Reports contain observed fields only; this checked-in table stays **Untested** until a dated real report is reviewed. Workflow failures flag regressions; missing-secret runs are skips, not reliability passes.
-- API prices and Claude/Codex subscription costs are separate; see the [CLI model and cost reference](../CLI_MODEL_REFERENCE.md).
+- Probe scope: final `VOTE:` pattern; `Vote` schema; strict field types; explicit continue flag; prior-response rounds.
+- Exclusions: factual correctness, multi-participant consensus, production uptime; missing secret ≠ pass.
+- Cost reference: [CLI API prices and separate subscription/credit costs](../CLI_MODEL_REFERENCE.md).
 
-- [Sanitized live report, 2026-10-10](free-model-votes-2026-10-10.json): both current free models returned HTTP 401 in three rounds each. Credential acceptance blocked completion; no vote quality, latency, or reliability pass is claimed. No paid requests were sent.
+- [Live report, 2026-10-10](free-model-votes-2026-10-10.json): 2 free models × 3 rounds; six HTTP 401s; credential rejection; zero votes; zero paid requests.
 
 - Free-model reliability settings (all optional):
   - `adapters.openrouter.rate_limiting.enabled`: `true`; spaces free request starts across participants and retries sharing the adapter.
@@ -61,7 +61,7 @@
   - `free_model_fallback.max_retries_per_model`: `1`; maximum invocations per candidate, each bounded by the timeout above; adapter `max_retries` still limits HTTP attempts within that budget.
   - `free_model_fallback.log_fallback_events`: `true`; logs failed attempts and the actual replacement model.
 - Add `fallback_chain: ["other-provider/model:free"]` to a primary entry in `model_registry.openrouter`; also register and enable each fallback separately.
-- Fallbacks accept only enabled registry entries ending in `:free` or exactly `openrouter/free`; paid, disabled, missing, and duplicate candidates are skipped. Chains are flat, limited to ten configured fallbacks, and never expanded recursively.
-- Timeouts, transient HTTP errors, and malformed responses advance the chain; permanent HTTP errors such as authentication failures stop immediately.
-- Responses preserve the requested participant identity and include the actual fallback model in their transcript text. Exhausted chains become participant errors while completed peers remain available.
-- Summarizers use only enabled entries when a model registry is supplied, including an empty registry; legacy defaults apply only without a registry.
+- Fallback eligibility: enabled `:free` / `openrouter/free`; no paid, disabled, absent, duplicate candidates; flat chain; ten-fallback limit.
+- Fallback triggers: timeout, transient HTTP error, malformed response; permanent/authentication error: immediate stop.
+- Identity: requested participant retained; actual replacement in transcript; exhausted chain: participant error; completed peers retained.
+- Summarizers: enabled registry entries only; empty registry respected; legacy defaults only without registry.
