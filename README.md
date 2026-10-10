@@ -9,7 +9,7 @@
 | Interface | MCP server over stdio |
 | Function | Multi-model deliberation, structured votes, convergence detection |
 | Runtime | Python 3.11; provider CLI or HTTP service |
-| Configuration | [config.yaml](config.yaml), loaded beside [server.py](server.py) |
+| Configuration | [config.example.yaml](config.example.yaml) → `config.yaml`, loaded beside [server.py](server.py) |
 | License | [MIT](LICENSE) |
 
 ## Installation
@@ -17,6 +17,7 @@
 ```bash
 git clone https://github.com/blueman82/ai-counsel.git
 cd ai-counsel
+cp config.example.yaml config.yaml
 python3.11 -m venv .venv
 .venv/bin/python -m pip install -r requirements.txt
 ```
@@ -115,7 +116,7 @@ python3.11 -m venv .venv
 | `claude` | `claude-opus-5-5` (default), `claude-fable-5-1`, `claude-sonnet-5-5`, `claude-haiku-5-5` |
 | `codex` | `gpt-6.1-sol` (default), `gpt-6-astra`, `gpt-6-sol`, `gpt-6-luna` |
 | `openrouter`, free entries | `google/gemma-4-26b-a4b-it:free`, `google/gemma-4-31b-it:free`, `nvidia/nemotron-3.5-lightning:free` |
-| Other adapters | `list_models`; [full registry](config.yaml) |
+| Other adapters | `list_models`; [full registry](config.example.yaml) |
 | Availability | Account and upstream dependent; registry membership ≠ successful invocation |
 | Prices / billing | [Dated sources and effort matrix](docs/CLI_MODEL_REFERENCE.md); separate API, subscription, and Codex-credit units |
 
