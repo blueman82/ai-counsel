@@ -316,26 +316,42 @@ VOTE: {"option": "Approve", "confidence": 0.9, "rationale": "Code quality verifi
         claude_adapter = MockAdapter("claude")
         codex_adapter = MockAdapter("codex")
 
-        claude_adapter.invoke_mock.side_effect = [
-            # Round 1: Request tool
-            f"""TOOL_REQUEST: {{"name": "read_file", "arguments": {{"path": "{test_codebase}/src/main.py"}}}}""",
-            # Round 2: Vote based on tool results
-            """After reviewing the file contents, I can see the calculate_total function is well-implemented.
+        evidence_contexts = []
 
-VOTE: {"option": "Approve", "confidence": 0.95, "rationale": "Code review via read_file confirmed quality", "continue_debate": false}""",
-            # Summarizer
-            "Summary: Approved based on tool-assisted code review.",
-        ]
+        async def respond_to_evidence(prompt, model, context, *_args, **_kwargs):
+            if context is None:
+                tool_request = (
+                    f'TOOL_REQUEST: {{"name": "read_file", "arguments": '
+                    f'{{"path": "{test_codebase}/src/main.py"}}}}\n'
+                    if model == "claude-sonnet-4-5" else ""
+                )
+                return tool_request + (
+                    'VOTE: {"option": "ABSTAIN", "confidence": 0.0, '
+                    '"rationale": "Need file evidence", "continue_debate": true}'
+                )
 
-        codex_adapter.invoke_mock.side_effect = [
-            "Waiting for analysis.",
-            "I agree with the assessment.",
-            "Summary: Approved.",
-        ]
+            evidence_contexts.append(context)
+            if "return sum(item.price for item in items)" not in context:
+                return (
+                    'VOTE: {"option": "Reject", "confidence": 0.95, '
+                    '"rationale": "File evidence missing", "continue_debate": false}'
+                )
+            return (
+                'VOTE: {"option": "Approve", "confidence": 0.95, '
+                '"rationale": "read_file confirmed calculate_total implementation", '
+                '"continue_debate": false}'
+            )
+
+        # Respond to actual context rather than consuming round scripts during retries.
+        claude_adapter.invoke_mock.side_effect = respond_to_evidence
+        codex_adapter.invoke_mock.side_effect = respond_to_evidence
+        config.decision_graph.enabled = False  # This test needs only fresh file evidence.
 
         adapters = {"claude": claude_adapter, "codex": codex_adapter}
         manager = TranscriptManager(output_dir=str(tmp_transcript_dir))
         engine = DeliberationEngine(adapters=adapters, transcript_manager=manager, config=config)
+
+        engine.summarizer_chain = []
 
         request = DeliberateRequest(
             question="Should we approve the implementation?",
@@ -351,7 +367,11 @@ VOTE: {"option": "Approve", "confidence": 0.95, "rationale": "Code review via re
         result = await engine.execute(request)
 
         # Verify tool execution happened
-        assert len(engine.tool_execution_history) > 0
+        assert len(engine.tool_execution_history) == 1
+        assert engine.tool_execution_history[0].result.success
+        assert len(evidence_contexts) == 2
+        assert all("Tool Results" in context for context in evidence_contexts)
+        assert result.rounds_completed == 2
 
         # Verify voting result exists
         assert result.voting_result is not None, "Should have voting result"
@@ -359,7 +379,10 @@ VOTE: {"option": "Approve", "confidence": 0.95, "rationale": "Code review via re
 
         # Verify vote rationale mentions tool usage
         votes = result.voting_result.votes_by_round
-        round2_vote = next(v for v in votes if v.round == 2)
+        final_votes = [v for v in votes if v.round == 2]
+        assert len(final_votes) == 2
+        assert all(v.vote.option == "Approve" for v in final_votes)
+        round2_vote = final_votes[0]
         assert "read_file" in round2_vote.vote.rationale.lower() or "code review" in round2_vote.vote.rationale.lower()
         assert round2_vote.vote.confidence >= 0.9, "Confidence should be high after tool verification"
 

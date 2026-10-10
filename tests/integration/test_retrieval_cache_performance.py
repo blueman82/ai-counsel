@@ -6,6 +6,7 @@ operations, demonstrating the latency improvements from the two-tier cache.
 
 import time
 from datetime import UTC, datetime
+from unittest.mock import Mock
 
 import pytest
 
@@ -65,7 +66,10 @@ class TestRetrievalCachePerformance:
 
         # Verify same results
         assert len(results1) == len(results2)
-        assert [d.id for d in results1] == [d.id for d in results2]
+        assert results1, "The cache comparison must exercise non-empty results"
+        assert [(d.id, score) for d, score in results1] == [
+            (d.id, score) for d, score in results2
+        ]
 
         # Cache hit should be faster (typically 10-100x faster)
         assert hit_time < miss_time, (
@@ -219,31 +223,30 @@ class TestRetrievalCachePerformance:
         stats = retriever.get_cache_stats()
         assert stats["last_invalidation"] is not None
 
-    def test_different_params_no_cache_benefit(self, storage_with_decisions):
-        """Test different query parameters don't benefit from each other's cache."""
+    def test_deprecated_threshold_reuses_cache(self, storage_with_decisions, monkeypatch):
+        """Ignored thresholds share results; different questions still recompute."""
         retriever = DecisionRetriever(storage_with_decisions, enable_cache=True)
-
+        find_similar = Mock(wraps=retriever.similarity_detector.find_similar)
+        monkeypatch.setattr(retriever.similarity_detector, "find_similar", find_similar)
         query = "Should we adopt technology 20?"
 
-        # Query with threshold=0.7
-        start = time.perf_counter()
-        retriever.find_relevant_decisions(query, threshold=0.7, max_results=3)
-        time1 = time.perf_counter() - start
+        results1 = retriever.find_relevant_decisions(query, threshold=0.7)
+        results2 = retriever.find_relevant_decisions(query, threshold=0.8)
 
-        # Query with threshold=0.8 (different cache key)
-        start = time.perf_counter()
-        retriever.find_relevant_decisions(query, threshold=0.8, max_results=3)
-        time2 = time.perf_counter() - start
+        assert results1
+        assert [(d.id, score) for d, score in results1] == [
+            (d.id, score) for d, score in results2
+        ]
+        assert find_similar.call_count == 1
+        stats = retriever.get_cache_stats()["l1_query_cache"]
+        assert stats["misses"] == 1
+        assert stats["hits"] == 1
 
-        # Both should be cache misses (similar timing)
-        stats = retriever.get_cache_stats()
-        assert stats["l1_query_cache"]["misses"] == 2
-        assert stats["l1_query_cache"]["hits"] == 0
-
-        print("\nDifferent params performance:")
-        print(f"  Query (threshold=0.7): {time1*1000:.2f}ms")
-        print(f"  Query (threshold=0.8): {time2*1000:.2f}ms")
-        print("  Both are cache misses (no cross-benefit)")
+        retriever.find_relevant_decisions("Should we adopt technology 21?", threshold=0.8)
+        assert find_similar.call_count == 2
+        stats = retriever.get_cache_stats()["l1_query_cache"]
+        assert stats["misses"] == 2
+        assert stats["hits"] == 1
 
     def test_empty_result_caching_performance(self, storage_with_decisions):
         """Test empty results are cached efficiently."""
