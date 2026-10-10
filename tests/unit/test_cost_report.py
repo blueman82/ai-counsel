@@ -171,3 +171,16 @@ async def test_engine_counts_vote_retries_and_summary_and_renders_unknown(tmp_pa
     assert "Unknown" in markdown
     assert "Reported Input Tokens" in markdown
     assert result.model_dump()["cost_summary"]["input_tokens"] == 150
+
+
+@pytest.mark.parametrize("content", [None, [{"type": "text", "text": "invalid shape"}]])
+@pytest.mark.asyncio
+async def test_http_content_must_be_text_before_usage_wrapping(content):
+    """Malformed provider content must remain an error for fallback handling."""
+    adapter = OpenRouterAdapter(base_url="https://example.com", api_key="test")
+    adapter._execute_request_with_retry = AsyncMock(return_value={
+        "choices": [{"message": {"content": content}}],
+        "usage": {"prompt_tokens": 10, "completion_tokens": 2, "cost": 0},
+    })
+    with pytest.raises(ValueError, match="text"):
+        await adapter.invoke("test", "a:free")

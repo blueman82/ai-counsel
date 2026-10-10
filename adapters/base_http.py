@@ -215,8 +215,11 @@ class BaseHTTPAdapter(ABC):
             cost = usage.get("cost")
             if type(cost) not in (int, float) or not math.isfinite(cost) or cost < 0:
                 cost = None
+            parsed_text = self.parse_response(response_json)
+            if not isinstance(parsed_text, str):
+                raise ValueError("Provider response content must be text")
             return InvocationResult(
-                self.parse_response(response_json),
+                parsed_text,
                 InvocationUsage(
                     model=model,
                     input_tokens=token_count(usage.get("prompt_tokens", response_json.get("prompt_eval_count"))),
