@@ -77,9 +77,9 @@ async def test_luna_rejects_ultra_before_launch(runtime, default):
 async def test_mcp_discovery_exposes_current_efforts():
     from server import list_tools
 
-    tool = next(t for t in await list_tools() if t.name == 'deliberate')
-    variants = tool.inputSchema['properties']['participants']['items']['oneOf']
-    by_cli = {v['properties']['cli']['const']: v['properties'] for v in variants}
-    assert 'max' in by_cli['claude']['reasoning_effort']['enum']
-    assert 'ultra' in by_cli['codex']['reasoning_effort']['enum']
-    assert 'none' not in by_cli['codex']['reasoning_effort']['enum']
+    tool = next(t for t in await list_tools() if t.name == "deliberate")
+    variants = tool.inputSchema["properties"]["participants"]["items"]["oneOf"]
+    by_cli = {v["properties"]["cli"]["const"]: v["properties"] for v in variants}
+    assert "max" in by_cli["claude"]["reasoning_effort"]["enum"]
+    assert "ultra" in by_cli["codex"]["reasoning_effort"]["enum"]
+    assert "none" not in by_cli["codex"]["reasoning_effort"]["enum"]

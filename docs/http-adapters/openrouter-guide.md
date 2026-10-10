@@ -4,8 +4,8 @@
 
 | Model ID | Catalog observation, 2026-10-10 | Registry | Vote reliability |
 |---|---|---|---|
-| `google/gemma-4-26b-a4b-it:free` | Listed; input/output price both zero | Enabled | Unmeasured: HTTP 401 in all three attempts |
-| `google/gemma-4-31b-it:free` | Listed; input/output price both zero | Enabled | Unmeasured: HTTP 401 in all three attempts |
+| `google/gemma-4-26b-a4b-it:free` | Listed; input/output price both zero | Enabled | Unmeasured: HTTP 429 in all three attempts |
+| `google/gemma-4-31b-it:free` | Listed; input/output price both zero | Enabled | Unmeasured: HTTP 429 in all three attempts |
 | `xiaomi/mimo-v2-flash:free` | Not listed | Disabled | Untested |
 | `deepseek/deepseek-r1:free` | Not listed | Disabled | Untested |
 | `deepseek/deepseek-r1-0528:free` | Not listed; distinct ID from R1 | Disabled | Untested |
@@ -49,7 +49,7 @@
 - Exclusions: factual correctness, multi-participant consensus, production uptime; missing secret ≠ pass.
 - Cost reference: [CLI API prices and separate subscription/credit costs](../CLI_MODEL_REFERENCE.md).
 
-- [Live report, 2026-10-10](free-model-votes-2026-10-10.json): 2 free models × 3 rounds; six HTTP 401s; credential rejection; zero votes; zero paid requests.
+- [Live report, 2026-10-10](free-model-votes-2026-10-10.json): refreshed key; 2 free models × 3 rounds; six HTTP 429s; rate-limit rejection; zero votes; zero paid requests.
 
 - Free-model reliability settings (all optional):
   - `adapters.openrouter.rate_limiting.enabled`: `true`; spaces free request starts across participants and retries sharing the adapter.
