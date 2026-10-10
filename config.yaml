@@ -431,6 +431,11 @@ model_registry:
       tier: "free-experimental"
       enabled: true
       note: "Listed with zero input/output price on 2026-10-10; vote reliability untested. Availability can change."
+    - id: "nvidia/nemotron-3.5-lightning:free"
+      label: "NVIDIA Nemotron 3.5 Lightning FREE"
+      tier: "free-experimental"
+      enabled: true
+      note: "2026-10-10: zero input/output price; 3/3 vote-format probe rounds passed. Small sample, no uptime or quality guarantee."
   nebius:
     - id: "moonshotai/Kimi-K2-Thinking"
       label: "Kimi K2 Thinking"

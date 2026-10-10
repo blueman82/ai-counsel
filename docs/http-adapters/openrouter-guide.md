@@ -6,6 +6,7 @@
 |---|---|---|---|
 | `google/gemma-4-26b-a4b-it:free` | Listed; input/output price both zero | Enabled | Unmeasured: HTTP 429 in all three attempts |
 | `google/gemma-4-31b-it:free` | Listed; input/output price both zero | Enabled | Unmeasured: HTTP 429 in all three attempts |
+| `nvidia/nemotron-3.5-lightning:free` | Listed; input/output price both zero | Enabled | Vote-format probe: 3/3 rounds passed; small sample |
 | `xiaomi/mimo-v2-flash:free` | Not listed | Disabled | Untested |
 | `deepseek/deepseek-r1:free` | Not listed | Disabled | Untested |
 | `deepseek/deepseek-r1-0528:free` | Not listed; distinct ID from R1 | Disabled | Untested |
@@ -50,6 +51,7 @@
 - Cost reference: [CLI API prices and separate subscription/credit costs](../CLI_MODEL_REFERENCE.md).
 
 - [Live report, 2026-10-10](free-model-votes-2026-10-10.json): refreshed key; 2 free models × 3 rounds; six HTTP 429s; rate-limit rejection; zero votes; zero paid requests.
+- [Nemotron report, 2026-10-10](nemotron-free-votes-2026-10-10.json): 3/3 vote-format rounds passed; 39.949s / 8.924s / 31.120s; 90-second budget; no retries; zero-priced endpoint; no broad reliability claim.
 
 - Free-model reliability settings (all optional):
   - `adapters.openrouter.rate_limiting.enabled`: `true`; spaces free request starts across participants and retries sharing the adapter.

@@ -107,7 +107,7 @@ mcp__ai-counsel__deliberate({
 |---|---|---|
 | Claude | Fable 5.1; Opus, Sonnet, Haiku 5.5 | low, medium, high, xhigh, max |
 | Codex | GPT-6 Astra, GPT-6.1 Sol, GPT-6 Sol, GPT-6 Luna | low, medium, high, xhigh, max; ultra on Astra/Sol |
-| OpenRouter free | Gemma 4 26B A4B and 31B | Vote reliability untested; catalog checked 2026-10-10 |
+| OpenRouter free | Nemotron 3.5 Lightning; Gemma 4 26B A4B and 31B | Nemotron vote-format sample: 3/3; Gemma: HTTP 429; checked 2026-10-10 |
 
 - [CLI models, effort, and separate API/credit costs](docs/CLI_MODEL_REFERENCE.md).
 - [OpenRouter availability and opt-in voting reports](docs/http-adapters/openrouter-guide.md).
