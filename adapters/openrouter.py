@@ -83,16 +83,24 @@ class OpenAIChatCompletionsAdapter(BaseHTTPAdapter):
             KeyError: If response doesn't contain expected fields
             IndexError: If choices array is empty
         """
+        if not isinstance(response_json, dict):
+            raise ValueError(f"{self.provider_name} response must be an object")
+
         if "choices" not in response_json:
             raise KeyError(
                 f"{self.provider_name} response missing 'choices' field. "
                 f"Received keys: {list(response_json.keys())}"
             )
 
+        if not isinstance(response_json["choices"], list):
+            raise ValueError(f"{self.provider_name} choices must be an array")
+
         if len(response_json["choices"]) == 0:
             raise IndexError(f"{self.provider_name} response has empty 'choices' array")
 
         choice = response_json["choices"][0]
+        if not isinstance(choice, dict):
+            raise ValueError(f"{self.provider_name} choice must be an object")
 
         # Log warning if response was truncated due to token limit
         finish_reason = choice.get("finish_reason", "unknown")
@@ -110,6 +118,8 @@ class OpenAIChatCompletionsAdapter(BaseHTTPAdapter):
             )
 
         message = choice["message"]
+        if not isinstance(message, dict):
+            raise ValueError(f"{self.provider_name} message must be an object")
 
         if "content" not in message:
             raise KeyError(

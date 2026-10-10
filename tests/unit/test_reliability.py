@@ -320,3 +320,49 @@ async def test_disallowed_primary_is_not_invoked(entries):
             Participant(cli="openrouter", model="primary:free"), prompt="hi"
         )
     adapter.invoke.assert_not_called()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "malformed",
+    [
+        {"choices": [None]},
+        {"choices": "bad"},
+        {"choices": [{"message": []}]},
+        [],
+    ],
+)
+async def test_malformed_http_response_advances_to_healthy_fallback(
+    monkeypatch, malformed
+):
+    import json
+    from models.config import RateLimitingConfig
+
+    models = []
+
+    def serve(request):
+        models.append(json.loads(request.content)["model"])
+        body = (
+            malformed
+            if len(models) == 1
+            else {"choices": [{"message": {"content": "healthy"}}]}
+        )
+        return httpx.Response(200, json=body)
+
+    original_client = httpx.AsyncClient
+    monkeypatch.setattr(
+        httpx,
+        "AsyncClient",
+        lambda **kw: original_client(transport=httpx.MockTransport(serve), **kw),
+    )
+    adapter = OpenRouterAdapter(
+        base_url="https://test", rate_limiting=RateLimitingConfig(free_model_delay_ms=0)
+    )
+    engine = engine_for(
+        [{"id": "primary:free", "fallback_chain": ["good:free"]}, {"id": "good:free"}],
+        adapter,
+    )
+    assert await engine._invoke_with_fallback(
+        Participant(cli="openrouter", model="primary:free"), prompt="hi"
+    ) == ("good:free", "healthy")
+    assert models == ["primary:free", "good:free"]
