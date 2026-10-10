@@ -49,7 +49,7 @@ def assess_vote(text: str) -> dict:
     result["json_valid"] = True
     confidence = data.get("confidence")
     result["confidence_valid"] = (
-        type(confidence) in (int, float) and 0 <= confidence <= 1
+        (type(confidence) is int or type(confidence) is float) and 0 <= confidence <= 1
     )
     result["continue_valid"] = type(data.get("continue_debate")) is bool
     try:

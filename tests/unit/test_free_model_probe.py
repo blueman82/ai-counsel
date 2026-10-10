@@ -90,7 +90,7 @@ async def test_probe_records_http_status_without_sensitive_error_text():
 @pytest.mark.asyncio
 async def test_catalog_blocks_missing_or_paid_models(tmp_path, monkeypatch):
     import httpx
-    from unittest.mock import Mock, patch
+    from unittest.mock import patch
     from scripts.probe_free_model_votes import main
 
     monkeypatch.setenv("OPENROUTER_API_KEY", "test-key")
