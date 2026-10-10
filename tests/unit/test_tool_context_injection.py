@@ -201,6 +201,7 @@ TOOL_REQUEST: {{"name": "read_file", "arguments": {{"path": "{large_file}"}}}}
             mock_adapters["claude"].invoke_mock.return_value = f"""
 Checking round {i}.
 TOOL_REQUEST: {{"name": "read_file", "arguments": {{"path": "{test_file}"}}}}
+VOTE: {{"option": "Continue", "confidence": 0.8, "rationale": "More evidence", "continue_debate": true}}
 """
 
             responses = await engine.execute_round(i, "Test", participants, all_responses)
