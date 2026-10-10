@@ -175,6 +175,34 @@ class TranscriptManager:
 
         return lines
 
+    def _format_cost_section(self, result: DeliberationResult) -> list[str]:
+        """Show reported subtotals and mark incomplete comparisons unknown."""
+        cost = result.cost_summary
+        if cost is None:
+            return []
+
+        def money(value):
+            return "Unknown" if value is None else f"${value:.6f}"
+
+        return [
+            "---", "", "## Cost Summary", "",
+            "| Metric | Value |", "|--------|-------|",
+            f"| Reported Input Tokens | {cost.input_tokens:,} |",
+            f"| Reported Output Tokens | {cost.output_tokens:,} |",
+            f"| Calls With Token Usage | {cost.calls_with_token_usage}/{cost.calls} |",
+            f"| Models Used | {', '.join(cost.models_used)} |",
+            f"| Actual Cost (provider reported) | {money(cost.actual_cost_usd)} |",
+            f"| Estimated Paid Cost | {money(cost.estimated_paid_cost_usd)} |",
+            f"| Estimated Savings | {money(cost.estimated_savings_usd)} |",
+            f"| Comparison Baseline | {cost.baseline_name} |",
+            f"| Baseline USD / Million Input Tokens | {cost.input_per_million_usd:g} |",
+            f"| Baseline USD / Million Output Tokens | {cost.output_per_million_usd:g} |",
+            "", "- Includes participant calls, vote retries, fallback attempts, and AI summaries.",
+            "- Token counts are reported subtotals; missing usage and failed calls keep totals or comparisons unknown.",
+            "- Estimates compare identical token volumes, not model quality; negative savings mean the baseline is cheaper.",
+            "- Provider-reported costs are not a billing reconciliation; unreported retry charges are unavailable.", "",
+        ]
+
     def generate_markdown(self, result: DeliberationResult) -> str:
         """
         Generate markdown transcript from result.
@@ -224,6 +252,8 @@ class TranscriptManager:
                 "",
             ]
         )
+
+        lines.extend(self._format_cost_section(result))
 
         # Add voting results if available
         voting_lines = self._format_voting_section(result)

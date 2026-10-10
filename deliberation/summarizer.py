@@ -5,6 +5,7 @@ from typing import Dict, List, Union
 from adapters.base import BaseCLIAdapter
 from adapters.base_http import BaseHTTPAdapter
 from models.schema import RoundResponse, Summary
+from deliberation.costs import invoke_with_usage
 
 logger = logging.getLogger(__name__)
 
@@ -51,7 +52,7 @@ class DeliberationSummarizer:
         prompt = self._create_summary_prompt(debate_text)
 
         # Let exceptions propagate for fallback chain in engine
-        summary_text = await self.adapter.invoke(
+        summary_text = await invoke_with_usage(self.adapter,
             prompt=prompt, model=self.model, context=None
         )
         return self._parse_summary(summary_text)

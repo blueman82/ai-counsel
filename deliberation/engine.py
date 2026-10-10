@@ -12,10 +12,11 @@ from pydantic import ValidationError
 
 from adapters.base import BaseCLIAdapter
 from adapters.base_http import BaseHTTPAdapter, is_retryable_http_error
+from deliberation.costs import build_cost_summary, invocation_usage, invoke_with_usage
 from deliberation.convergence import ConvergenceDetector
 from deliberation.file_tree import generate_file_tree
 from deliberation.metrics import get_quality_tracker
-from models.config import FileTreeConfig, VoteRetryConfig
+from models.config import CostComparisonConfig, FileTreeConfig, VoteRetryConfig
 from models.schema import Participant, RoundResponse, Vote, VotingResult
 from models.tool_schema import ToolExecutionRecord
 
@@ -206,7 +207,7 @@ class DeliberationEngine:
             and settings.enabled
             and isinstance(registry, dict)
         ):
-            return model, await adapter.invoke(model=model, **kwargs)
+            return model, await invoke_with_usage(adapter, model=model, **kwargs)
 
         allowed = {
             entry.id: entry for entry in registry.get("openrouter", []) if entry.enabled
@@ -228,7 +229,7 @@ class DeliberationEngine:
             for _ in range(settings.max_retries_per_model):
                 try:
                     response = await asyncio.wait_for(
-                        adapter.invoke(model=candidate, **kwargs),
+                        invoke_with_usage(adapter, model=candidate, **kwargs),
                         timeout=settings.timeout_before_fallback,
                     )
                     if not isinstance(response, str) or not response.strip():
@@ -1096,6 +1097,14 @@ TOOL_REQUEST: {"name": "search_code", "arguments": {"pattern": "class.*Adapter",
         return False
 
     async def execute(self, request: "DeliberateRequest") -> "DeliberationResult":
+        """Scope invocation accounting to this request, including child tasks."""
+        token = invocation_usage.set([])
+        try:
+            return await self._execute(request)
+        finally:
+            invocation_usage.reset(token)
+
+    async def _execute(self, request: "DeliberateRequest") -> "DeliberationResult":
         """
         Execute full deliberation with multiple rounds and optional convergence detection.
 
@@ -1363,6 +1372,10 @@ TOOL_REQUEST: {"name": "search_code", "arguments": {"pattern": "class.*Adapter",
 
         # Create result
         result = DeliberationResult(
+            cost_summary=build_cost_summary(
+                invocation_usage.get() or [],
+                self.config.cost_comparison if self.config else CostComparisonConfig(),
+            ),
             status="complete",
             mode=request.mode,
             rounds_completed=actual_rounds_completed,

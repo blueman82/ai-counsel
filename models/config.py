@@ -473,10 +473,19 @@ class DecisionGraphConfig(BaseModel):
         return str(path)
 
 
+class CostComparisonConfig(BaseModel):
+    """Illustrative USD baseline; configure current prices for the desired model."""
+
+    baseline_name: str = "Illustrative paid model"
+    input_per_million_usd: float = Field(default=3.0, ge=0, allow_inf_nan=False)
+    output_per_million_usd: float = Field(default=15.0, ge=0, allow_inf_nan=False)
+
+
 class Config(BaseModel):
     """Root configuration model."""
 
     version: str
+    cost_comparison: CostComparisonConfig = Field(default_factory=CostComparisonConfig)
 
     # New adapters section (preferred)
     adapters: Optional[dict[str, AdapterConfig]] = None
