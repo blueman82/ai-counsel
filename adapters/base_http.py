@@ -2,14 +2,18 @@
 import asyncio
 import json
 import logging
+import math
 from abc import ABC, abstractmethod
-from datetime import datetime
+from datetime import datetime, timezone
+from email.utils import parsedate_to_datetime
 from pathlib import Path
 from typing import Optional, Tuple
 
 import httpx
 from tenacity import (retry, retry_if_exception, stop_after_attempt,
                       wait_exponential)
+
+from models.config import RateLimitingConfig
 
 # Configure progress logger for HTTP adapter debugging
 progress_logger = logging.getLogger("ai_counsel.progress")
@@ -83,6 +87,7 @@ class BaseHTTPAdapter(ABC):
         max_retries: int = 3,
         api_key: Optional[str] = None,
         headers: Optional[dict[str, str]] = None,
+        rate_limiting: Optional[RateLimitingConfig] = None,
     ):
         """
         Initialize HTTP adapter.
@@ -99,6 +104,7 @@ class BaseHTTPAdapter(ABC):
         self.max_retries = max_retries
         self.api_key = api_key
         self.default_headers = headers or {}
+        self.rate_limiting = rate_limiting or RateLimitingConfig()
 
     @abstractmethod
     def build_request(
@@ -209,6 +215,30 @@ class BaseHTTPAdapter(ABC):
             progress_logger.error(f"[ERROR] HTTP REQUEST FAILED | Model: {model} | Time: {elapsed:.2f}s | Error: {type(e).__name__}: {str(e)[:200]}")
             raise
 
+    async def _before_request(self, body: dict) -> None:
+        """Allow providers to pace each attempt, including retries."""
+
+    def _retry_wait(self, retry_state) -> float:
+        """Honor valid Retry-After seconds/dates, with a bounded backoff fallback."""
+        settings = self.rate_limiting
+        delay = wait_exponential(multiplier=1, min=1, max=10)(retry_state)
+        error = retry_state.outcome.exception()
+        if settings.respect_retry_after and isinstance(error, httpx.HTTPStatusError):
+            value = error.response.headers.get("Retry-After")
+            if isinstance(value, str):
+                try:
+                    seconds = float(value)
+                except ValueError:
+                    try:
+                        date = parsedate_to_datetime(value)
+                        seconds = (date - datetime.now(timezone.utc)).total_seconds()
+                        seconds = max(0, seconds)
+                    except (ValueError, TypeError, OverflowError):
+                        seconds = -1
+                if math.isfinite(seconds) and seconds >= 0:
+                    delay = seconds
+        return min(delay, settings.max_wait_seconds)
+
     async def _execute_request_with_retry(
         self, url: str, headers: dict[str, str], body: dict
     ) -> dict:
@@ -238,11 +268,12 @@ class BaseHTTPAdapter(ABC):
 
         @retry(
             stop=stop_after_attempt(self.max_retries),
-            wait=wait_exponential(multiplier=1, min=1, max=10),
+            wait=self._retry_wait,
             retry=retry_if_exception(is_retryable_http_error),
             reraise=True,
         )
         async def _make_request():
+            await self._before_request(body)
             async with httpx.AsyncClient(timeout=self.timeout) as client:
                 progress_logger.debug(f"   [POST] Making request to {url}")
                 response = await client.post(url, headers=headers, json=body)

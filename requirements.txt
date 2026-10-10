@@ -1,8 +1,9 @@
 # ai-counsel/requirements.txt
 # Core dependencies
-mcp>=1.0.0
+mcp>=1.0.0,<2.0.0
 pydantic>=2.5.0
 pyyaml>=6.0.1
+python-dotenv>=1.0.0
 
 # HTTP client and retry logic for HTTP adapters
 httpx>=0.27.0

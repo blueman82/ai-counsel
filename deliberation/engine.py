@@ -7,10 +7,11 @@ from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Dict, List, Literal, Optional, cast
 
+import httpx
 from pydantic import ValidationError
 
 from adapters.base import BaseCLIAdapter
-from adapters.base_http import BaseHTTPAdapter
+from adapters.base_http import BaseHTTPAdapter, is_retryable_http_error
 from deliberation.convergence import ConvergenceDetector
 from deliberation.file_tree import generate_file_tree
 from deliberation.metrics import get_quality_tracker
@@ -98,6 +99,14 @@ class DeliberationEngine:
             ("gemini", "gemini-2.5-pro", "Gemini 2.5 Pro"),
         ]
 
+        registry = getattr(config, "model_registry", None)
+        if isinstance(registry, dict):
+            summarizer_preferences = [
+                (name, entry.id, entry.label or entry.id)
+                for name, entries in registry.items()
+                for entry in entries
+                if entry.enabled
+            ]
         for cli_name, model_name, display_name in summarizer_preferences:
             if cli_name in adapters:
                 self.summarizer_chain.append((adapters[cli_name], model_name, display_name))
@@ -180,6 +189,80 @@ class DeliberationEngine:
                 f"Failed to initialize tool executor: {e}. Tool execution will be disabled."
             )
             self.tool_executor = None
+
+    async def _invoke_with_fallback(
+        self, participant: Participant, **kwargs
+    ) -> tuple[str, str]:
+        """Try a bounded, explicit chain of enabled free OpenRouter models."""
+        adapter = self.adapters[participant.cli]
+        settings = getattr(self.config, "free_model_fallback", None)
+        registry = getattr(self.config, "model_registry", None)
+        model = participant.model
+        free = model.endswith(":free") or model == "openrouter/free"
+        if not (
+            participant.cli == "openrouter"
+            and free
+            and settings
+            and settings.enabled
+            and isinstance(registry, dict)
+        ):
+            return model, await adapter.invoke(model=model, **kwargs)
+
+        allowed = {
+            entry.id: entry for entry in registry.get("openrouter", []) if entry.enabled
+        }
+        if model not in allowed:
+            raise ValueError(f"OpenRouter model is not enabled in registry: {model}")
+        candidates = list(
+            dict.fromkeys(
+                [model]
+                + [
+                    name
+                    for name in allowed[model].fallback_chain
+                    if name in allowed
+                    and (name.endswith(":free") or name == "openrouter/free")
+                ]
+            )
+        )
+        for candidate in candidates:
+            for _ in range(settings.max_retries_per_model):
+                try:
+                    response = await asyncio.wait_for(
+                        adapter.invoke(model=candidate, **kwargs),
+                        timeout=settings.timeout_before_fallback,
+                    )
+                    if not isinstance(response, str) or not response.strip():
+                        raise ValueError("Empty or malformed model response")
+                    if candidate != model and settings.log_fallback_events:
+                        logger.warning(
+                            "Free model fallback: requested %s; responded with %s",
+                            model,
+                            candidate,
+                        )
+                    return candidate, response
+                except (
+                    TimeoutError,
+                    httpx.HTTPError,
+                    KeyError,
+                    IndexError,
+                    ValueError,
+                    TypeError,
+                ) as error:
+                    if isinstance(error, httpx.HTTPError) and not is_retryable_http_error(
+                        error
+                    ):
+                        raise
+                    if settings.log_fallback_events:
+                        logger.warning(
+                            "Free model attempt failed: %s (%s); requested %s",
+                            candidate,
+                            type(error).__name__,
+                            model,
+                        )
+                    last_error = error
+        raise RuntimeError(
+            f"Free model chain exhausted ({', '.join(candidates)}): {last_error}"
+        ) from last_error
 
     async def execute_round(
         self,
@@ -275,8 +358,6 @@ The following files are available in the working directory:
         # Run all participant adapters concurrently for ~3x speedup
         async def invoke_participant(participant: Participant) -> tuple[Participant, str]:
             """Invoke a single participant's adapter and return the response."""
-            adapter = self.adapters[participant.cli]
-
             reasoning_info = f", reasoning_effort={participant.reasoning_effort}" if participant.reasoning_effort else ""
             logger.info(
                 f"Round {round_num}: Invoking {participant.model}@{participant.cli} "
@@ -286,9 +367,9 @@ The following files are available in the working directory:
             )
 
             try:
-                response_text = await adapter.invoke(
+                actual_model, response_text = await self._invoke_with_fallback(
+                    participant,
                     prompt=enhanced_prompt,
-                    model=participant.model,
                     context=context,
                     is_deliberation=True,
                     working_directory=working_directory,
@@ -310,9 +391,9 @@ The following files are available in the working directory:
 
                         try:
                             retry_prompt = self._build_vote_retry_prompt(response_text)
-                            retry_response = await adapter.invoke(
+                            retry_model, retry_response = await self._invoke_with_fallback(
+                                participant,
                                 prompt=retry_prompt,
-                                model=participant.model,
                                 context=None,  # No context needed for vote retry
                                 is_deliberation=True,
                                 working_directory=working_directory,
@@ -327,6 +408,8 @@ The following files are available in the working directory:
                             # Append retry response to original for vote extraction
                             # This preserves the full analysis while adding the explicit vote
                             response_text = f"{response_text}\n\n---\n\n[Vote Retry Response]\n{retry_response}"
+                            if retry_model != participant.model:
+                                response_text += f"\n[Vote retry fallback: {participant.model} -> {retry_model}]"
 
                             # Check if retry was successful (has VOTE marker now)
                             if not self._needs_vote_retry(retry_response):
@@ -345,6 +428,8 @@ The following files are available in the working directory:
                             # Continue with original response if retry fails
                             break
 
+                if actual_model != participant.model:
+                    response_text += f"\n\n[Fallback: requested {participant.model}; responded with {actual_model}]"
                 return (participant, response_text)
             except Exception as e:
                 logger.error(

@@ -620,3 +620,19 @@ participants: [
 - [Troubleshooting](../troubleshooting/http-adapters.md) - Diagnose issues
 
 **Questions?** Check https://openrouter.ai/docs or [GitHub Issues](https://github.com/blueman82/ai-counsel/issues).
+
+
+- Free-model reliability settings (all optional):
+  - `adapters.openrouter.rate_limiting.enabled`: `true`; spaces free request starts across participants and retries sharing the adapter.
+  - `adapters.openrouter.rate_limiting.free_model_delay_ms`: `1000`; paid requests bypass pacing.
+  - `adapters.openrouter.rate_limiting.respect_retry_after`: `true`; accepts HTTP seconds or dates, falling back to exponential backoff for malformed values.
+  - `adapters.openrouter.rate_limiting.max_wait_seconds`: `120`; caps each retry wait (not the whole invocation).
+  - `free_model_fallback.enabled`: `false`; opt in at the configuration root.
+  - `free_model_fallback.timeout_before_fallback`: `30`; wall-clock seconds per model invocation, including adapter retries and pacing.
+  - `free_model_fallback.max_retries_per_model`: `1`; maximum invocations per candidate, each bounded by the timeout above; adapter `max_retries` still limits HTTP attempts within that budget.
+  - `free_model_fallback.log_fallback_events`: `true`; logs failed attempts and the actual replacement model.
+- Add `fallback_chain: ["other-provider/model:free"]` to a primary entry in `model_registry.openrouter`; also register and enable each fallback separately.
+- Fallbacks accept only enabled registry entries ending in `:free` or exactly `openrouter/free`; paid, disabled, missing, and duplicate candidates are skipped. Chains are flat, limited to ten configured fallbacks, and never expanded recursively.
+- Timeouts, transient HTTP errors, and malformed responses advance the chain; permanent HTTP errors such as authentication failures stop immediately.
+- Responses preserve the requested participant identity and include the actual fallback model in their transcript text. Exhausted chains become participant errors while completed peers remain available.
+- Summarizers use only enabled entries when a model registry is supplied, including an empty registry; legacy defaults apply only without a registry.

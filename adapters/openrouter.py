@@ -1,4 +1,5 @@
 """OpenAI-compatible HTTP adapters (OpenRouter, Nebius, etc.)."""
+import asyncio
 import logging
 from typing import Optional, Tuple
 
@@ -133,6 +134,25 @@ class OpenRouterAdapter(OpenAIChatCompletionsAdapter):
     provider_name = "OpenRouter"
     # OpenRouter benefits from explicit max_tokens to prevent truncation
     default_max_tokens = 4096
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._pacing_lock = asyncio.Lock()
+        self._last_free_request: Optional[float] = None
+
+    async def _before_request(self, body: dict) -> None:
+        """Space free requests across all participants sharing this adapter."""
+        model = body.get("model", "")
+        settings = self.rate_limiting
+        if not settings.enabled or not (model.endswith(":free") or model == "openrouter/free"):
+            return
+        # The lock covers scheduling only, never the HTTP request or retry loop.
+        async with self._pacing_lock:
+            loop = asyncio.get_running_loop()
+            if self._last_free_request is not None:
+                delay = settings.free_model_delay_ms / 1000
+                await asyncio.sleep(max(0, delay - (loop.time() - self._last_free_request)))
+            self._last_free_request = loop.time()
 
 
 class NebiusAdapter(OpenAIChatCompletionsAdapter):
